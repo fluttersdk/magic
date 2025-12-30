@@ -1,17 +1,15 @@
 import 'package:flutter/widgets.dart';
+
+import '../database/seeding/seeder.dart';
+import '../facades/config.dart';
+import '../facades/log.dart';
+import '../logging/log_manager.dart';
+import '../support/service_provider.dart';
+import '../ui/magic_feedback.dart';
+import '../ui/magic_view_registry.dart';
 import 'application.dart';
 import 'env.dart';
 import 'magic_app_widget.dart';
-import '../cache/cache_service_provider.dart';
-import '../database/database_service_provider.dart';
-import '../database/seeding/seeder.dart';
-import '../encryption/encryption_service_provider.dart';
-import '../logging/log_manager.dart';
-import '../support/service_provider.dart';
-import '../facades/config.dart';
-import '../facades/log.dart';
-import '../ui/magic_feedback.dart';
-import '../ui/magic_view_registry.dart';
 
 /// The Magic Facade.
 ///
@@ -80,8 +78,8 @@ class Magic {
     app.singleton('log', () => LogManager());
 
     // 3. Register Core Providers
-    register(CacheServiceProvider(app));
-    register(EncryptionServiceProvider(app));
+    // register(CacheServiceProvider(app));
+    // register(EncryptionServiceProvider(app));
     // register(DatabaseServiceProvider(app));
 
     // 4. Register Configured Providers
