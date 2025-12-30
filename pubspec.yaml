@@ -1,0 +1,41 @@
+name: fluttersdk_magic
+description: "A new Flutter project."
+version: 0.0.1
+homepage: https://magic.fluttersdk.com
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  fluttersdk_wind:
+    path: ./plugins/fluttersdk_wind
+  dio: ^5.9.0
+  flutter_dotenv: ^6.0.0
+  go_router: ^17.0.1
+  intl: ^0.20.2
+  jiffy: ^6.4.4
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  web: ^1.1.1
+  encrypt: ^5.0.3
+  flutter_secure_storage: ^10.0.0
+  sqlite3: ^3.1.1
+  sqlite3_flutter_libs: ^0.5.41
+  shared_preferences: ^2.5.4
+  share_plus: ^12.0.1
+  timezone: ^0.10.1
+  logger: ^2.6.2
+  file_picker: ^10.3.8
+  image_picker: ^1.2.1
+  faker: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

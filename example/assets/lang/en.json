@@ -1,0 +1,28 @@
+{
+    "welcome": "Welcome, :name!",
+    "auth": {
+        "failed": "Authentication failed.",
+        "throttle": "Too many attempts. Please try again in :seconds seconds."
+    },
+    "validation": {
+        "required": "The :attribute field is required.",
+        "email": "The :attribute must be a valid email address.",
+        "min": {
+            "string": "The :attribute must be at least :min characters.",
+            "numeric": "The :attribute must be at least :min.",
+            "list": "The :attribute must have at least :min items."
+        },
+        "max": {
+            "string": "The :attribute must not be greater than :max characters.",
+            "numeric": "The :attribute must not be greater than :max.",
+            "list": "The :attribute must not have more than :max items."
+        },
+        "confirmed": "The :attribute confirmation does not match.",
+        "same": "The :attribute and :other must match.",
+        "accepted": "The :attribute must be accepted."
+    },
+    "attributes": {
+        "email": "email address",
+        "password": "password"
+    }
+}

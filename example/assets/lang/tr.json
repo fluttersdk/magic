@@ -1,0 +1,29 @@
+{
+    "welcome": "Hoş geldin, :name!",
+    "auth": {
+        "failed": "Kimlik doğrulama başarısız.",
+        "throttle": "Çok fazla deneme. Lütfen :seconds saniye sonra tekrar deneyin."
+    },
+    "validation": {
+        "required": ":attribute alanı gereklidir.",
+        "email": ":attribute geçerli bir e-posta adresi olmalıdır.",
+        "min": {
+            "string": ":attribute en az :min karakter olmalıdır.",
+            "numeric": ":attribute en az :min olmalıdır.",
+            "list": ":attribute en az :min öğe içermelidir."
+        },
+        "max": {
+            "string": ":attribute en çok :max karakter olabilir.",
+            "numeric": ":attribute en çok :max olabilir.",
+            "list": ":attribute en çok :max öğe içerebilir."
+        },
+        "confirmed": ":attribute doğrulaması eşleşmiyor.",
+        "same": ":attribute ve :other eşleşmelidir.",
+        "accepted": ":attribute kabul edilmelidir."
+    },
+    "attributes": {
+        "email": "e-posta adresi",
+        "password": "parola",
+        "password_confirmation": "parola doğrulama"
+    }
+}
