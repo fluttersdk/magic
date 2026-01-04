@@ -105,7 +105,7 @@ class FormValidator {
     return (T? value) {
       // 1. Check server-side errors if controller is provided
       if (controller != null && controller is ValidatesRequests) {
-        final validator = controller as ValidatesRequests;
+        final validator = controller;
         if (validator.hasError(field)) {
           return validator.getError(field);
         }

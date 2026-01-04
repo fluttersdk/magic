@@ -3,14 +3,17 @@
 > Prescriptive rules for AI agents. Magic provides Laravel-style architecture for Flutter.
 
 ## Core Import
+
 ```dart
 import 'package:fluttersdk_magic/fluttersdk_magic.dart';
 ```
+
 **DO NOT** import dio, go_router directly. Use Magic facades.
 
 ---
 
 ## Directory Structure
+
 | Path | Purpose |
 |------|---------|
 | `lib/config/` | Configuration files (app.dart, auth.dart, database.dart) |
@@ -44,6 +47,7 @@ WDiv(className: "p-4 flex flex-col gap-4", children: [
 ## Eloquent Models
 
 ### Model Template
+
 ```dart
 class Post extends Model with HasTimestamps, InteractsWithPersistence {
   @override String get table => 'posts';       // SQLite table
@@ -73,6 +77,7 @@ class Post extends Model with HasTimestamps, InteractsWithPersistence {
 ```
 
 ### CRUD Operations
+
 ```dart
 final post = Post()..fill({'title': 'Hello', 'body': 'World'});
 await post.save(); print(post.id);
@@ -85,6 +90,7 @@ post.isDirty(); post.isDirty('title'); post.getDirty();
 ```
 
 ### Relationship Casting
+
 ```dart
 class Post extends Model with HasTimestamps, InteractsWithPersistence {
   @override
@@ -137,6 +143,7 @@ await Auth.refreshToken();
 Features: User caching (instant restore), auto token refresh on 401, driver-agnostic interceptors.
 
 **Register Custom Guard:**
+
 ```dart
 Auth.manager.extend('firebase', (c) => FirebaseGuard());
 ```
@@ -144,6 +151,7 @@ Auth.manager.extend('firebase', (c) => FirebaseGuard());
 ---
 
 ## Authorization (Gate & Policies)
+
 ```dart
 Gate.define('edit-post', (user, post) => user.id == post.userId);
 Gate.define('admin-access', (user, _) => user.isAdmin);
@@ -161,6 +169,7 @@ MagicCannot(ability: 'view-premium', child: UpgradePrompt())
 ```
 
 ### Policy Template
+
 ```dart
 class PostPolicy extends Policy {
   @override
@@ -180,7 +189,9 @@ class PostPolicy extends Policy {
 ---
 
 ## Vault (Secure Storage)
+
 iOS Keychain / Android EncryptedSharedPreferences. **DO NOT** use SharedPreferences for secrets.
+
 ```dart
 await Vault.put('api_key', 'sk_live_123456');
 final token = await Vault.get('api_key');
@@ -191,6 +202,7 @@ await Vault.flush();
 ---
 
 ## Cache
+
 ```dart
 await Cache.get('key', defaultValue: 'default');
 await Cache.put('key', 'value', ttl: Duration(minutes: 10));
@@ -202,6 +214,7 @@ await Cache.remember('users', Duration(minutes: 5), () async => await fetchUsers
 ---
 
 ## Storage
+
 ```dart
 await Storage.put('avatars/user.jpg', bytes, mimeType: 'image/jpeg');
 final bytes = await Storage.get('avatars/user.jpg');
@@ -217,6 +230,7 @@ await img!.storeAs('photos');
 ---
 
 ## File Picker
+
 ```dart
 final img = await Pick.image(maxWidth: 800, imageQuality: 80);
 final photo = await Pick.camera(preferredCamera: CameraDevice.front);
@@ -232,11 +246,14 @@ await img.upload('/api/upload', fieldName: 'avatar', data: {'user_id': '123'});
 ---
 
 ## Localization
+
 ```dart
 trans('welcome', {'name': 'User'});  // "Welcome, User!"
 await Lang.setLocale(Locale('tr'));
 ```
+
 JSON files in `assets/lang/{locale}.json`:
+
 ```json
 {"welcome": "Welcome, :name!"}
 ```
@@ -244,6 +261,7 @@ JSON files in `assets/lang/{locale}.json`:
 ---
 
 ## Carbon (Date/Time)
+
 ```dart
 Carbon.now(); Carbon.parse('2024-01-15'); Carbon.fromDateTime(DateTime.now());
 
@@ -259,7 +277,9 @@ now.isAfter(other); now.isBefore(other); now.isBetween(start, end);
 ---
 
 ## Logging
+
 PSR-3 compatible logging with beautiful console output.
+
 ```dart
 Log.debug('Debugging info');
 Log.info('User logged in', {'user_id': userId, 'email': email});
@@ -270,11 +290,13 @@ Log.critical('System down');
 Log.alert('Immediate action needed');
 Log.emergency('App unusable');
 ```
+
 Channels: `console`, `stack`. Configure in `config/logging.dart`.
 
 ---
 
 ## Events
+
 ```dart
 // Define event
 class OrderShipped extends MagicEvent {
@@ -300,6 +322,7 @@ await Event.dispatch(OrderShipped(order));
 ---
 
 ## MagicStateMixin (State Management)
+
 ```dart
 class UserController extends MagicController with MagicStateMixin<List<User>> {
   static UserController get instance => Magic.findOrPut(UserController.new);
@@ -319,11 +342,13 @@ controller.renderState(
   onError: (msg) => Text(msg),
 );
 ```
+
 Methods: `setLoading()`, `setSuccess(data)`, `setError(msg)`, `isEmpty`, `renderState()`
 
 ---
 
 ## Validation
+
 ```dart
 // View
 late final form = MagicFormData({'email': '', 'agree': false}, controller: controller);
@@ -341,6 +366,7 @@ final response = await Http.post('/register', data: data);
 if (response.successful) setSuccess(true);
 else handleApiError(response);
 ```
+
 Rules: `Required()`, `Email()`, `Min(n)`, `Max(n)`, `Confirmed()`, `Same('field')`, `Accepted()`
 
 `ValidatesRequests` mixin provides `clearErrors()`, `handleApiError(response)`, and binds to `MagicFormData` errors.
@@ -348,6 +374,7 @@ Rules: `Required()`, `Email()`, `Min(n)`, `Max(n)`, `Confirmed()`, `Same('field'
 ---
 
 ## Routing
+
 ```dart
 MagicRoute.page('/path', () => Widget());
 MagicRoute.page('/user/:id', (id) => UserView(id: id));
@@ -361,6 +388,7 @@ MagicRoute.group(prefix: '/admin', middleware: ['auth'], layout: (c) => AdminLay
 ---
 
 ## HTTP
+
 ```dart
 await Http.get('/users', query: {'page': 1});
 await Http.post('/users', data: {'name': 'John'});
@@ -373,6 +401,7 @@ if (response.isValidationError) { }
 ---
 
 ## UI Feedback (Magic Facade)
+
 ```dart
 Magic.success('Success', 'Saved!'); Magic.error('Error', 'Failed');
 Magic.info('Info', 'Update available'); Magic.warning('Warning', 'Low storage');
@@ -387,6 +416,7 @@ final confirmed = await Magic.confirm(title: 'Delete?', message: 'Cannot be undo
 ## RULES
 
 ### ✅ DO
+
 - Use Wind UI widgets (`WDiv`, `WButton`, `WInput`, `WText`, `WCard`)
 - Use `MagicRoute` for navigation (not `Navigator`)
 - Use `Magic.*` for dialogs, toasts, loading
@@ -397,6 +427,7 @@ final confirmed = await Magic.confirm(title: 'Delete?', message: 'Cannot be undo
 - Add static `find()` and `all()` helpers on models
 
 ### ❌ DON'T
+
 - Use `BuildContext` for navigation
 - Import `sqflite`, `dio`, `go_router` directly
 - Store secrets in `SharedPreferences`

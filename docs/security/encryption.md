@@ -1,97 +1,85 @@
-# Encryption
+# Security: Encryption
 
+- [Introduction](#introduction)
+- [Configuration](#configuration)
+- [Using The Encrypter](#using-the-encrypter)
+    - [Config-Based Encryption](#config-based-encryption)
+    - [Device-Based Encryption](#device-based-encryption)
+- [Managing Keys](#managing-keys)
+
+<a name="introduction"></a>
 ## Introduction
 
-Magic's encryption services provide a simple, convenient interface for encrypting and decrypting text via AES-256 encryption. All encrypted values are signed using a message authentication code (MAC) so that their underlying value cannot be modified or tampered with once encrypted.
+Magic's encrypter provides a simple, convenient interface for encrypting and decrypting text. All encrypted values are signed using a message authentication code (MAC) so that their underlying value can not be modified or tampered with once encrypted.
 
-Magic supports two encryption modes:
-- **Config-Based**: Uses the `app.key` from configuration (shared across all devices)
-- **Device-Based**: Uses a device-specific key stored in Vault (unique per device)
+Magic uses the AES-256-CBC cipher for all encryption operations.
 
+<a name="configuration"></a>
 ## Configuration
 
-Before using Magic's config-based encrypter, you must set an `app.key` option in your configuration. Use the `key:generate` command to generate a secure key:
+Magic offers two encryption strategies:
 
-```bash
-magic key:generate
-```
+1. **Config-Based**: Uses the global `APP_KEY` from your `.env` or configuration. Useful for server-side compatibility or shared keys.
+2. **Device-Based**: Uses a unique, randomly generated key stored securely on the user's device via [Vault](/security/vault). This is recommended for storing sensitive user data locally.
 
-> **Warning**  
-> If you do not configure this value, config-based encrypted values will be insecure.
+<a name="using-the-encrypter"></a>
+## Using The Encrypter
 
-## Config-Based Encryption
+<a name="config-based-encryption"></a>
+### Config-Based Encryption
 
-Uses the `app.key` from your configuration. Data encrypted with this key can be decrypted on any device that has the same key.
-
-### Encrypting A Value
+To encrypt a value using your application's global key:
 
 ```dart
-final encrypted = Crypt.encrypt('Sensitive Data');
+final secret = Crypt.encrypt('my-secret-value');
 ```
 
-### Decrypting A Value
+To decrypt a value:
 
 ```dart
 try {
-  final decrypted = Crypt.decrypt(encryptedValue);
-} on MagicDecryptException catch (e) {
-  // Handle invalid data
+  final value = Crypt.decrypt(secret);
+} on MagicDecryptException {
+  // The value was invalid or tampered with
 }
 ```
 
-## Device-Based Encryption
+<a name="device-based-encryption"></a>
+### Device-Based Encryption
 
-Uses a device-specific key stored securely in Vault. The key is automatically generated on first use and persists on the device. This is ideal for encrypting data that should only be readable on this specific device.
-
-> **Note**  
-> Device-based encryption requires Vault to be enabled. See [Vault documentation](vault.md) for setup.
-
-### Encrypting With Device Key
+For local data that should only be accessible on the current device, use device-based encryption. This keys is unique per installation.
 
 ```dart
-final encrypted = await Crypt.encryptWithDeviceKey('Sensitive Data');
+// Encrypt
+final secret = await Crypt.encryptWithDeviceKey('my-user-token');
+
+// Decrypt
+final value = await Crypt.decryptWithDeviceKey(secret);
 ```
 
-### Decrypting With Device Key
+> [!IMPORTANT]
+> Device-based encryption is asynchronous (`Future`) because it retrieves the key from secure storage.
 
-```dart
-try {
-  final decrypted = await Crypt.decryptWithDeviceKey(encryptedValue);
-} on MagicDecryptException catch (e) {
-  // Handle invalid data
-}
-```
+<a name="managing-keys"></a>
+## Managing Keys
 
-### Key Management
-
-Check if a device key exists:
+You can check if a device-specific key has already been generated:
 
 ```dart
 if (await Crypt.hasDeviceKey()) {
-  // Device key is ready
+  // Key exists
 }
 ```
 
-Force regenerate the device key (invalidates all previously encrypted data):
+To generate a new device key (Warning: specific to the device encrypter):
 
 ```dart
+// WARNING: This renders previously encrypted data unrecoverable!
 await Crypt.generateDeviceKey();
 ```
 
-Clear the device key (e.g., on logout or data reset):
+To remove the key entirely:
 
 ```dart
 await Crypt.clearDeviceKey();
 ```
-
-> **Warning**  
-> Calling `generateDeviceKey()` or `clearDeviceKey()` will make any data encrypted with the previous key unrecoverable.
-
-## When To Use Each
-
-| Use Case | Encryption Type |
-|----------|-----------------|
-| Data synced across devices | Config-Based (`Crypt.encrypt`) |
-| Local-only sensitive data | Device-Based (`Crypt.encryptWithDeviceKey`) |
-| Offline-first apps | Device-Based |
-| Shared configuration values | Config-Based |

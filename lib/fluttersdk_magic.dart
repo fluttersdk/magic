@@ -65,6 +65,7 @@ export 'src/facades/cache.dart';
 export 'src/security/magic_vault_service.dart';
 export 'src/security/vault_service_provider.dart';
 export 'src/facades/vault.dart';
+export 'src/encryption/encryption_service_provider.dart';
 
 // UI
 export 'src/ui/magic_feedback.dart';

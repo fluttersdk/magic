@@ -1,15 +1,29 @@
 # Authorization
 
+- [Introduction](#introduction)
+- [Defining Abilities](#defining-abilities)
+- [Checking Abilities](#checking-abilities)
+- [Super Admin Bypass](#super-admin-bypass)
+- [Policies](#policies)
+- [UI Integration](#ui-integration)
+    - [MagicCan Widget](#magiccan-widget)
+    - [MagicCannot Widget](#magiccannot-widget)
+- [GateServiceProvider](#gateserviceprovider)
+- [Generating Policies](#generating-policies)
+
+<a name="introduction"></a>
 ## Introduction
 
-In addition to authentication, Magic provides a simple way to authorize user actions against a given resource. Authorization logic is defined using the `Gate` facade and may be checked with `Gate.allows()` or the declarative `MagicCan` widget.
+In addition to authentication, Magic provides a simple way to authorize user actions against a given resource. Like Laravel, authorization logic is defined using the `Gate` facade and may be checked anywhere in your application.
 
 ```dart
-// Define (in provider)
+// Define abilities (in provider)
 Gate.define('update-post', (user, post) => user.id == post.userId);
 
-// Check (in code)
-if (Gate.allows('update-post', post)) { ... }
+// Check abilities (in code)
+if (Gate.allows('update-post', post)) {
+  showEditButton();
+}
 
 // Declarative (in UI)
 MagicCan(
@@ -19,12 +33,13 @@ MagicCan(
 )
 ```
 
+<a name="defining-abilities"></a>
 ## Defining Abilities
 
 Register abilities using `Gate.define()`. The callback receives the authenticated user as the first argument and optional model/data as the second:
 
 ```dart
-// Simple ability
+// Simple ability (no model)
 Gate.define('view-dashboard', (user, _) => user.isActive);
 
 // With model
@@ -34,48 +49,81 @@ Gate.define('update-post', (user, post) => user.id == post.userId);
 Gate.define('delete-post', (user, post) {
   return user.isAdmin || user.id == post.userId;
 });
+
+// Multiple conditions
+Gate.define('manage-team', (user, team) {
+  return team.ownerId == user.id || 
+         team.admins.contains(user.id);
+});
 ```
 
+<a name="checking-abilities"></a>
 ## Checking Abilities
+
+### In Controllers
+
+```dart
+class PostController extends MagicController {
+  Future<void> update(String id, Map<String, dynamic> data) async {
+    final post = await Post.find(id);
+    
+    if (Gate.denies('update-post', post)) {
+      Magic.error('Forbidden', 'You cannot edit this post.');
+      return;
+    }
+    
+    await post.fill(data).save();
+    Magic.success('Success', 'Post updated!');
+  }
+}
+```
+
+### Available Methods
 
 ```dart
 // Check if allowed
 if (Gate.allows('update-post', post)) {
-  showEditButton();
+  // User can update
 }
 
 // Check if denied
 if (Gate.denies('delete-post', post)) {
-  showAccessDenied();
+  // User cannot delete
 }
 
 // Alias for allows
-if (Gate.check('view-admin')) { ... }
+if (Gate.check('view-admin')) {
+  // Same as allows
+}
 ```
 
+<a name="super-admin-bypass"></a>
 ## Super Admin Bypass
 
-Use `Gate.before()` to register a global check that runs before all abilities:
+Use `Gate.before()` to register a global check that runs before all ability checks:
 
 ```dart
 Gate.before((user, ability) {
-  // Admins can do everything
-  if (user.isAdmin) return true;
+  // Super admins bypass all checks
+  if (user.role == 'super_admin') return true;
   
-  // Continue with normal check
+  // Continue with normal ability check
   return null;
 });
 ```
 
-- Return `true` → Allow immediately
-- Return `false` → Deny immediately
-- Return `null` → Continue with normal ability check
+Return values:
+- `true` → Allow immediately, skip ability check
+- `false` → Deny immediately, skip ability check
+- `null` → Continue with normal ability check
 
+<a name="policies"></a>
 ## Policies
 
-Organize related authorization logic into Policy classes with type-safe model parameters:
+Policies organize related authorization logic into classes. This is the recommended approach for complex applications:
 
 ```dart
+import 'package:fluttersdk_magic/fluttersdk_magic.dart';
 import '../models/post.dart';
 
 class PostPolicy extends Policy {
@@ -87,71 +135,23 @@ class PostPolicy extends Policy {
     Gate.define('delete-post', delete);
   }
 
-  bool view(Model user, Post post) =>
+  bool view(Authenticatable user, Post post) =>
       post.isPublished || user.id == post.userId;
 
-  bool create(Model user, Post? post) =>
-      user.isActive;
+  bool create(Authenticatable user, Post? post) =>
+      (user as User).isActive;
 
-  bool update(Model user, Post post) =>
+  bool update(Authenticatable user, Post post) =>
       user.id == post.userId;
 
-  bool delete(Model user, Post post) =>
-      user.isAdmin || user.id == post.userId;
+  bool delete(Authenticatable user, Post post) =>
+      (user as User).isAdmin || user.id == post.userId;
 }
 ```
 
-Register policies in your provider:
+### Registering Policies
 
-```dart
-@override
-Future<void> boot() async {
-  PostPolicy().register();
-  CommentPolicy().register();
-}
-```
-
-## UI Integration
-
-### MagicCan Widget
-
-Conditionally render content based on authorization:
-
-```dart
-MagicCan(
-  ability: 'update-post',
-  arguments: post,
-  child: WButton(
-    text: 'Edit Post',
-    onTap: () => controller.edit(post),
-  ),
-)
-```
-
-### With Placeholder
-
-```dart
-MagicCan(
-  ability: 'view-admin-panel',
-  child: AdminPanel(),
-  placeholder: Text('Access Denied'),
-)
-```
-
-### MagicCannot Widget
-
-Show content only when user LACKS an ability:
-
-```dart
-MagicCannot(
-  ability: 'view-premium',
-  child: UpgradePrompt(),
-)
-```
-
-## GateServiceProvider
-
-Create a provider to register all your abilities:
+Register policies in a service provider:
 
 ```dart
 class AppGateServiceProvider extends GateServiceProvider {
@@ -161,17 +161,102 @@ class AppGateServiceProvider extends GateServiceProvider {
   Future<void> boot() async {
     await super.boot();
 
+    // Register policies
+    PostPolicy().register();
+    CommentPolicy().register();
+    TeamPolicy().register();
+  }
+}
+```
+
+<a name="ui-integration"></a>
+## UI Integration
+
+<a name="magiccan-widget"></a>
+### MagicCan Widget
+
+Conditionally render UI based on authorization:
+
+```dart
+// Basic usage
+MagicCan(
+  ability: 'update-post',
+  arguments: post,
+  child: WButton(
+    onTap: () => controller.edit(post),
+    child: WText('Edit Post'),
+  ),
+)
+
+// With placeholder for denied access
+MagicCan(
+  ability: 'view-admin-panel',
+  child: AdminPanel(),
+  placeholder: WText('Access Denied', className: 'text-red-500'),
+)
+
+// Without arguments
+MagicCan(
+  ability: 'view-dashboard',
+  child: DashboardStats(),
+)
+```
+
+<a name="magiccannot-widget"></a>
+### MagicCannot Widget
+
+Show content only when user **lacks** an ability:
+
+```dart
+// Show upgrade prompt to non-premium users
+MagicCannot(
+  ability: 'access-premium',
+  child: WDiv(
+    className: 'p-4 bg-amber-500/10 rounded-lg',
+    children: [
+      WText('Upgrade to Premium', className: 'font-bold text-amber-500'),
+      WText('Unlock all features with our premium plan.'),
+    ],
+  ),
+)
+
+// Show read-only indicator
+MagicCannot(
+  ability: 'edit-post',
+  arguments: post,
+  child: WText('Read Only', className: 'text-gray-500 italic'),
+)
+```
+
+<a name="gateserviceprovider"></a>
+## GateServiceProvider
+
+Create a dedicated provider for all authorization logic:
+
+```dart
+import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+
+class AppGateServiceProvider extends GateServiceProvider {
+  AppGateServiceProvider(super.app);
+
+  @override
+  Future<void> boot() async {
+    await super.boot();
+
     // Super admin bypass
     Gate.before((user, ability) {
-      if (user.isAdmin) return true;
+      if ((user as User).role == 'admin') return true;
       return null;
     });
 
-    // Register abilities
-    Gate.define('update-post', (user, post) => user.id == post.userId);
+    // Simple abilities
+    Gate.define('view-dashboard', (user, _) => true);
+    Gate.define('manage-settings', (user, _) => (user as User).isAdmin);
 
-    // Or use policies
+    // Register policies
     PostPolicy().register();
+    TeamPolicy().register();
+    MonitorPolicy().register();
   }
 }
 ```
@@ -181,41 +266,61 @@ Register in `config/app.dart`:
 ```dart
 'providers': [
   (app) => AppGateServiceProvider(app),
+  // ... other providers
 ],
 ```
 
-## Events
+<a name="generating-policies"></a>
+## Generating Policies
 
-The Gate system fires events:
-
-| Event | When Fired |
-|-------|------------|
-| `GateAbilityDefined` | `Gate.define()` is called |
-| `GateAccessChecked` | After any ability check |
-| `GateAccessDenied` | When access is denied |
-
-### Logging Denied Access
-
-```dart
-Event.listen<GateAccessDenied>((event) {
-  Log.warning('Denied: ${event.ability} for user ${event.user?.id}');
-});
-```
-
-## CLI Commands
-
-### Create Policy
+Use Magic CLI to generate policy classes:
 
 ```bash
-magic make:policy PostPolicy
-magic make:policy Post           # Auto-appends 'Policy'
+magic make:policy Post
+magic make:policy PostPolicy          # Explicit naming
 magic make:policy Comment --model=Comment
 ```
 
-**Options:**
+### Options
 
-| Option | Description |
-|--------|-------------|
-| `--model`, `-m` | The model that the policy applies to |
+| Option | Shortcut | Description |
+|--------|----------|-------------|
+| `--model` | `-m` | The model that the policy applies to |
 
-**Output:** Creates `lib/app/policies/post_policy.dart` with CRUD ability definitions.
+**Output:** Creates `lib/app/policies/<name>_policy.dart` with CRUD method stubs.
+
+### Generated Policy Template
+
+```dart
+import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import '../models/post.dart';
+
+class PostPolicy extends Policy {
+  @override
+  void register() {
+    Gate.define('view-post', view);
+    Gate.define('create-post', create);
+    Gate.define('update-post', update);
+    Gate.define('delete-post', delete);
+  }
+
+  bool view(Authenticatable user, Post post) {
+    return true;
+  }
+
+  bool create(Authenticatable user, Post? post) {
+    return true;
+  }
+
+  bool update(Authenticatable user, Post post) {
+    return user.id == post.userId;
+  }
+
+  bool delete(Authenticatable user, Post post) {
+    return user.id == post.userId;
+  }
+}
+```
+
+> [!TIP]
+> Use policies for model-specific authorization and simple `Gate.define()` calls for general abilities like "view-dashboard" or "access-admin".

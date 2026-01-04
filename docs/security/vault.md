@@ -1,62 +1,52 @@
-# Secure Storage (Vault)
+# Security: Vault
 
+- [Introduction](#introduction)
+- [Storing Items](#storing-items)
+- [Retrieving Items](#retrieving-items)
+- [Removing Items](#removing-items)
+
+<a name="introduction"></a>
 ## Introduction
 
-While the Cache system is great for storing temporary data, it is not suitable for sensitive information like authentication tokens, API keys, or biometric secrets.
-
-Magic provides a `Vault` facade that interfaces with the device's hardware-backed secure storage:
-
+The `Vault` facade provides a simple interface for securely storing sensitive data on the device. It uses the platform's native secure storage mechanisms:
 - **iOS**: Keychain
-- **Android**: EncryptedSharedPreferences (Jetpack Security)
+- **Android**: EncryptedSharedPreferences
+- **macOS**: Keychain
+- **Windows**: Windows Credential Locker
 
-Values stored in the Vault are encrypted by the operating system and persisted even if the app is closed or the device is restarted.
-
-## Enabling Vault Support
-
-By default, the Vault service provider is **not enabled**. You can enable it using the Magic CLI:
-
-```bash
-magic init:vault
-```
-
-> **Note**  
-> When you run `magic init:auth` or `magic init --auth`, the Vault is **automatically enabled** since the authentication system requires it for secure token storage.
-
-### Manual Setup
-
-Alternatively, add the provider manually to your `config/app.dart`:
-
-```dart
-'providers': [
-  (app) => VaultServiceProvider(app),
-],
-```
-
+<a name="storing-items"></a>
 ## Storing Items
 
+To store a value in the vault:
+
 ```dart
-await Vault.put('api_key', 'sk_live_123456');
+await Vault.put('api_token', 'super-secret-token');
 ```
 
-> **Note**  
-> The Vault is slower than the Cache. Only use it for small, sensitive pieces of data. For large JSON blobs, encrypt them using `Crypt` and store in the database.
-
+<a name="retrieving-items"></a>
 ## Retrieving Items
 
+To retrieve a value:
+
 ```dart
-final token = await Vault.get('api_key');
+final token = await Vault.get('api_token');
 
 if (token != null) {
-  // Use the token
+  // Use token...
 }
 ```
 
+<a name="removing-items"></a>
 ## Removing Items
 
-```dart
-// Remove single item
-await Vault.delete('api_key');
+To remove a specific item:
 
-// Wipe entire Vault (e.g., on logout)
+```dart
+await Vault.delete('api_token');
+```
+
+To wipe all data from the vault (use with caution):
+
+```dart
 await Vault.flush();
 ```

@@ -1,5 +1,16 @@
 # UI Helpers
 
+- [Introduction](#introduction)
+- [Snackbars](#snackbars)
+    - [Typed Snackbars](#typed-snackbars)
+- [Dialogs](#dialogs)
+    - [Custom Dialogs](#custom-dialogs)
+    - [Confirmation Dialogs](#confirmation-dialogs)
+- [Loading Overlay](#loading-overlay)
+- [Toast Messages](#toast-messages)
+- [Configuration](#configuration)
+
+<a name="introduction"></a>
 ## Introduction
 
 Magic provides context-free UI feedback utilities through the `Magic` facade. Show snackbars, dialogs, confirmations, loading overlays, and toasts from **anywhere**—controllers, services, or callbacks—without passing `BuildContext`.
@@ -11,6 +22,9 @@ Magic.confirm(title: 'Delete?', message: 'This cannot be undone');
 Magic.loading();
 ```
 
+This is a game-changer for Flutter developers. No more passing `context` down through your widget tree just to show a simple notification.
+
+<a name="snackbars"></a>
 ## Snackbars
 
 Show notification messages at the bottom of the screen.
@@ -21,16 +35,19 @@ Show notification messages at the bottom of the screen.
 Magic.snackbar('Title', 'Message');
 ```
 
+<a name="typed-snackbars"></a>
 ### Typed Snackbars
 
+Use typed helpers for semantic styling:
+
 ```dart
-Magic.success('Success', 'Operation completed');
-Magic.error('Error', 'Something went wrong');
-Magic.info('Info', 'New update available');
-Magic.warning('Warning', 'Low storage space');
+Magic.success('Success', 'Operation completed');  // Green
+Magic.error('Error', 'Something went wrong');     // Red
+Magic.info('Info', 'New update available');       // Blue
+Magic.warning('Warning', 'Low storage space');    // Amber
 ```
 
-### With Options
+### With Custom Duration
 
 ```dart
 Magic.snackbar(
@@ -41,25 +58,52 @@ Magic.snackbar(
 );
 ```
 
+<a name="dialogs"></a>
 ## Dialogs
 
-### Custom Dialog
+<a name="custom-dialogs"></a>
+### Custom Dialogs
 
 Display any widget in a centered dialog:
 
 ```dart
 Magic.dialog(
   WDiv(
-    className: 'p-6',
+    className: 'p-6 bg-white rounded-xl max-w-md',
     children: [
-      WText('Custom Content'),
-      WButton(onTap: () => Magic.closeDialog(), child: Text('Close')),
+      WText('Custom Dialog', className: 'text-xl font-bold'),
+      WText('Any content goes here.', className: 'text-gray-600 mt-2'),
+      WDiv(
+        className: 'flex justify-end gap-4 mt-6',
+        children: [
+          WButton(
+            onTap: () => Magic.closeDialog(),
+            className: 'px-4 py-2 text-gray-600',
+            child: WText('Cancel'),
+          ),
+          WButton(
+            onTap: () {
+              // Handle action
+              Magic.closeDialog();
+            },
+            className: 'px-4 py-2 bg-primary text-white rounded-lg',
+            child: WText('Confirm'),
+          ),
+        ],
+      ),
     ],
   ),
 );
 ```
 
-### Confirmation Dialog
+### Close Dialog
+
+```dart
+Magic.closeDialog();
+```
+
+<a name="confirmation-dialogs"></a>
+### Confirmation Dialogs
 
 Ask the user to confirm an action:
 
@@ -71,7 +115,7 @@ final confirmed = await Magic.confirm(
   cancelText: 'Cancel',
 );
 
-if (confirmed) {
+if (confirmed == true) {
   await deleteItem();
 }
 ```
@@ -83,12 +127,18 @@ Use `isDangerous: true` for destructive confirmations (styled in red):
 ```dart
 final confirmed = await Magic.confirm(
   title: 'Delete Account',
-  message: 'This action cannot be undone.',
+  message: 'This action cannot be undone. All your data will be permanently removed.',
   confirmText: 'Delete Forever',
   isDangerous: true,
 );
+
+if (confirmed == true) {
+  await deleteAccount();
+  MagicRoute.to('/goodbye');
+}
 ```
 
+<a name="loading-overlay"></a>
 ## Loading Overlay
 
 Show a blocking loading overlay during async operations.
@@ -97,7 +147,8 @@ Show a blocking loading overlay during async operations.
 
 ```dart
 Magic.loading();
-// or with message
+
+// With message
 Magic.loading(message: 'Please wait...');
 ```
 
@@ -123,7 +174,35 @@ Future<void> submitForm() async {
 }
 ```
 
-## Toast
+### Controller Pattern
+
+```dart
+class OrderController extends MagicController with MagicStateMixin<Order> {
+  Future<void> placeOrder(Map<String, dynamic> data) async {
+    Magic.loading(message: trans('orders.processing'));
+    
+    try {
+      final response = await Http.post('/orders', data: data);
+      
+      if (response.successful) {
+        setSuccess(Order.fromMap(response.body));
+        Magic.success(
+          trans('common.success'),
+          trans('orders.placed'),
+        );
+        MagicRoute.to('/orders/${response['id']}');
+      } else {
+        Magic.error(trans('common.error'), response.errorMessage ?? '');
+      }
+    } finally {
+      Magic.closeLoading();
+    }
+  }
+}
+```
+
+<a name="toast-messages"></a>
+## Toast Messages
 
 Show brief, non-intrusive messages (centered, pill-shaped):
 
@@ -134,66 +213,57 @@ Magic.toast('Item added to cart');
 Magic.toast('Copied!', duration: Duration(seconds: 1));
 ```
 
+Toasts are ideal for quick confirmations that don't require user interaction.
+
+<a name="configuration"></a>
 ## Configuration
 
 Customize appearance via `config/view.dart`:
 
 ```dart
-'view': {
-  // Snackbar
-  'snackbar': {
-    'duration': 4000,
-    'style': {
-      'success': 'bg-green-500 text-white p-4 rounded-lg',
-      'error': 'bg-red-500 text-white p-4 rounded-lg',
-      'info': 'bg-blue-500 text-white p-4 rounded-lg',
-      'warning': 'bg-amber-500 text-white p-4 rounded-lg',
+Map<String, dynamic> get viewConfig => {
+  'view': {
+    // Snackbar styling
+    'snackbar': {
+      'duration': 4000,
+      'style': {
+        'success': 'bg-green-500 text-white p-4 rounded-lg',
+        'error': 'bg-red-500 text-white p-4 rounded-lg',
+        'info': 'bg-blue-500 text-white p-4 rounded-lg',
+        'warning': 'bg-amber-500 text-white p-4 rounded-lg',
+      },
+    },
+    
+    // Dialog container
+    'dialog': {
+      'class': 'bg-white rounded-xl p-6 shadow-2xl w-80 max-w-md',
+    },
+    
+    // Confirmation dialog
+    'confirm': {
+      'container_class': 'bg-white rounded-xl p-6 shadow-2xl w-80',
+      'title_class': 'text-lg font-bold text-gray-900',
+      'message_class': 'text-gray-600 mt-2',
+      'button_cancel_class': 'px-4 py-2 text-gray-600',
+      'button_confirm_class': 'px-4 py-2 bg-primary text-white rounded-lg',
+      'button_danger_class': 'px-4 py-2 bg-red-500 text-white rounded-lg',
+    },
+    
+    // Loading overlay
+    'loading': {
+      'container_class': 'bg-white rounded-xl p-6 shadow-2xl',
+      'spinner_class': 'text-primary',
+      'text_class': 'text-gray-600 text-sm mt-4',
+    },
+    
+    // Toast
+    'toast': {
+      'duration': 2000,
+      'class': 'bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg',
     },
   },
-  
-  // Dialog
-  'dialog': {
-    'class': 'bg-white rounded-xl p-6 shadow-2xl w-80 max-w-md',
-  },
-  
-  // Confirm
-  'confirm': {
-    'container_class': 'bg-white rounded-xl p-6 shadow-2xl w-80',
-    'title_class': 'text-lg font-bold text-gray-900',
-    'message_class': 'text-gray-600 mt-2',
-    'button_cancel_class': 'px-4 py-2 text-gray-600',
-    'button_confirm_class': 'px-4 py-2 bg-blue-500 text-white rounded-lg',
-    'button_danger_class': 'px-4 py-2 bg-red-500 text-white rounded-lg',
-  },
-  
-  // Loading
-  'loading': {
-    'container_class': 'bg-white rounded-xl p-6 shadow-2xl',
-    'spinner_class': 'text-blue-500',
-    'text_class': 'text-gray-600 text-sm mt-4',
-  },
-  
-  // Toast
-  'toast': {
-    'duration': 2000,
-    'class': 'bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg',
-  },
-}
+};
 ```
 
-## Custom Builders
-
-Override default UI with custom builders in your `AppServiceProvider`:
-
-```dart
-@override
-void boot() {
-  MagicViewRegistry.instance.registerSnackbarBuilder((title, message, type) {
-    return MyCustomSnackbar(title: title, message: message, type: type);
-  });
-  
-  MagicViewRegistry.instance.registerLoadingBuilder((context, message) {
-    return MyCustomLoadingWidget(message: message);
-  });
-}
-```
+> [!TIP]
+> Use Wind UI utility classes in your config for consistent styling across all UI helpers.

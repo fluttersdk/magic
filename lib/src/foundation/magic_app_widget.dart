@@ -6,7 +6,7 @@ import '../facades/config.dart';
 import '../facades/lang.dart';
 import '../facades/log.dart';
 import '../routing/magic_router.dart';
-import 'env.dart';
+
 import 'magic.dart';
 
 /// A wrapper widget that enables soft app restart.
@@ -126,11 +126,12 @@ class _MagicApplicationState extends State<MagicApplication> {
     _initialize();
   }
 
-  Future<void> _initialize() async {
+  void _initialize() {
     try {
-      await Env.load();
+      // Magic.init() has already been called in main.dart before runApp()
+      // So we just need to call onInit callback if provided
 
-      // Configure initial route
+      // Configure initial route if different from default
       if (widget.initialRoute != '/') {
         MagicRouter.instance.setInitialLocation(widget.initialRoute);
       }

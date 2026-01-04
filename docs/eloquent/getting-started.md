@@ -1,19 +1,31 @@
 # Eloquent: Getting Started
 
+- [Introduction](#introduction)
+- [Generating Models](#generating-models)
+- [Defining Models](#defining-models)
+    - [Table Names](#table-names)
+    - [Primary Keys](#primary-keys)
+    - [Fillable Attributes](#fillable-attributes)
+- [Attribute Casting](#attribute-casting)
+- [Retrieving Models](#retrieving-models)
+- [Inserting & Updating](#inserting--updating)
+- [Deleting Models](#deleting-models)
+- [Hybrid Persistence](#hybrid-persistence)
+
+<a name="introduction"></a>
 ## Introduction
 
 Magic's Eloquent ORM provides a beautiful, simple Active Record implementation for working with your database. Each database table has a corresponding "Model" which is used to interact with that table. Models allow you to query for data, insert new records, and update existing ones.
 
 Unlike traditional ORMs, Magic's Eloquent supports **Hybrid Persistence**. Your models can persist to a local SQLite database, a remote REST API, or both—giving you offline-first capabilities out of the box.
 
+<a name="generating-models"></a>
 ## Generating Models
 
-You may use the `make:model` command to generate a new model:
+To generate a new model, use the `make:model` Magic CLI command:
 
 ```bash
 magic make:model Post
-magic make:model User --migration      # Also create migration
-magic make:model Todo --all            # Create everything
 ```
 
 ### Available Options
@@ -21,13 +33,11 @@ magic make:model Todo --all            # Create everything
 | Option | Shortcut | Description |
 |--------|----------|-------------|
 | `--migration` | `-m` | Create a database migration |
-| `--seed` | `-s` | Create a database seeder |
+| `--seeder` | `-s` | Create a database seeder |
 | `--factory` | `-f` | Create a model factory |
 | `--controller` | `-c` | Create a controller |
-| `--resource` | `-r` | Create a resource controller with views |
-| `--all` | `-a` | Create migration, seeder, factory, policy, and resource controller |
-
-**Output:** Creates `lib/app/models/<name>.dart`
+| `--policy` | `-p` | Create a policy |
+| `--all` | `-a` | Create all related files |
 
 ### The `--all` Flag
 
@@ -44,21 +54,9 @@ This single command creates:
 - `lib/database/factories/product_factory.dart`
 - `lib/app/policies/product_policy.dart`
 - `lib/app/controllers/product_controller.dart`
-- `lib/resources/views/product/index_view.dart`
-- `lib/resources/views/product/show_view.dart`
-- `lib/resources/views/product/create_view.dart`
-- `lib/resources/views/product/edit_view.dart`
+- `lib/resources/views/product/` (index, show, create, edit)
 
-### Generating Typed Accessors
-
-After defining your model's `fillable` and `casts`, use `make:model-types` to generate typed getters and setters:
-
-```bash
-magic make:model-types Order
-```
-
-This parses your model and generates typed accessors based on the `fillable` list and `casts` map, replacing the Typed Accessors section in your model file.
-
+<a name="defining-models"></a>
 ## Defining Models
 
 Models typically live in the `lib/app/models` directory:
@@ -72,9 +70,35 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 
   @override
   String get resource => 'users';
+
+  @override
+  List<String> get fillable => ['name', 'email', 'avatar'];
+
+  @override
+  Map<String, String> get casts => {
+    'email_verified_at': 'datetime',
+    'is_active': 'bool',
+    'settings': 'json',
+  };
+
+  // Typed accessors
+  String? get name => getAttribute('name') as String?;
+  set name(String? value) => setAttribute('name', value);
+
+  String? get email => getAttribute('email') as String?;
+  Carbon? get emailVerifiedAt => getAttribute('email_verified_at') as Carbon?;
+  bool get isActive => getAttribute('is_active') as bool? ?? false;
+
+  // Static helpers (required for type-safe queries)
+  static Future<User?> find(dynamic id) =>
+      InteractsWithPersistence.findById<User>(id, User.new);
+
+  static Future<List<User>> all() =>
+      InteractsWithPersistence.allModels<User>(User.new);
 }
 ```
 
+<a name="table-names"></a>
 ### Table Names
 
 The `table` property specifies which database table corresponds to your model:
@@ -84,15 +108,7 @@ The `table` property specifies which database table corresponds to your model:
 String get table => 'users';
 ```
 
-### API Resources
-
-The `resource` property specifies the REST API endpoint for remote operations:
-
-```dart
-@override
-String get resource => 'users'; // Maps to /users, /users/{id}
-```
-
+<a name="primary-keys"></a>
 ### Primary Keys
 
 By default, Eloquent assumes your primary key is `id`. You may override this:
@@ -105,30 +121,64 @@ String get primaryKey => 'user_id';
 bool get incrementing => false; // For UUID keys
 ```
 
-### Hybrid Persistence
+<a name="fillable-attributes"></a>
+### Fillable Attributes
 
-Control where your model persists data:
+Define which attributes can be mass-assigned:
 
 ```dart
-// Local database only (offline mode)
 @override
-bool get useLocal => true;
-@override
-bool get useRemote => false;
-
-// Remote API only (online mode)
-@override
-bool get useLocal => false;
-@override
-bool get useRemote => true;
-
-// Both (hybrid mode - default)
-@override
-bool get useLocal => true;
-@override
-bool get useRemote => true;
+List<String> get fillable => ['name', 'email', 'avatar'];
 ```
 
+Only these attributes will be set when using `fill()`:
+
+```dart
+user.fill({
+  'name': 'John',
+  'email': 'john@example.com',
+  'is_admin': true, // Ignored - not in fillable
+});
+```
+
+<a name="attribute-casting"></a>
+## Attribute Casting
+
+The `casts` property converts attributes to common data types:
+
+```dart
+@override
+Map<String, String> get casts => {
+  'created_at': 'datetime',   // Returns Carbon
+  'updated_at': 'datetime',
+  'is_active': 'bool',        // Returns bool
+  'settings': 'json',         // Returns Map
+  'age': 'int',               // Returns int
+  'price': 'double',          // Returns double
+};
+```
+
+### Available Cast Types
+
+| Cast | Returns |
+|------|---------|
+| `datetime` | `Carbon` (Magic's date/time wrapper) |
+| `bool` | `bool` |
+| `int` | `int` |
+| `double` | `double` |
+| `json` | `Map<String, dynamic>` or `List` |
+
+### Accessing Cast Attributes
+
+```dart
+final user = await User.find(1);
+
+Carbon? createdAt = user.createdAt;       // Carbon instance
+bool isActive = user.isActive;             // bool
+Map<String, dynamic> settings = user.settings; // Map
+```
+
+<a name="retrieving-models"></a>
 ## Retrieving Models
 
 ### Retrieving All Models
@@ -151,12 +201,18 @@ if (user != null) {
 }
 ```
 
-> **Note**  
-> When using hybrid mode, `find()` checks the local database first. If not found, it queries the remote API and syncs locally.
+### Refreshing Models
 
-## Inserting & Updating Models
+Reload a model's attributes from the database:
 
-### Inserts
+```dart
+await user.refresh();
+```
+
+<a name="inserting--updating"></a>
+## Inserting & Updating
+
+### Inserting Models
 
 To create a new record, instantiate a model, set attributes, and call `save()`:
 
@@ -172,7 +228,7 @@ await user.save();
 print(user.id); // The new auto-generated ID
 ```
 
-### Updates
+### Updating Models
 
 To update an existing model, retrieve it, modify attributes, and call `save()`:
 
@@ -185,58 +241,9 @@ if (user != null) {
 }
 ```
 
-## Mass Assignment
+### Dirty Checking
 
-### Fillable Attributes
-
-Define which attributes can be mass-assigned:
-
-```dart
-@override
-List<String> get fillable => ['name', 'email', 'avatar'];
-```
-
-Only these attributes will be set when using `fill()`:
-
-```dart
-user.fill({
-  'name': 'John',
-  'email': 'john@example.com',
-  'is_admin': true, // Ignored - not in fillable
-});
-```
-
-### Guarded Attributes
-
-Alternatively, use `guarded` to block specific attributes:
-
-```dart
-@override
-List<String> get guarded => ['is_admin', 'password'];
-```
-
-## Deleting Models
-
-```dart
-final user = await User.find(1);
-
-if (user != null) {
-  await user.delete();
-  print(user.exists); // false
-}
-```
-
-## Refreshing Models
-
-Reload a model's attributes from the database:
-
-```dart
-await user.refresh();
-```
-
-## Dirty Checking
-
-Track which attributes have changed since retrieval:
+Track which attributes have changed:
 
 ```dart
 final user = await User.find(1);
@@ -249,3 +256,71 @@ print(user.isDirty());       // true
 print(user.isDirty('name')); // true
 print(user.getDirty());      // {'name': 'New Name'}
 ```
+
+<a name="deleting-models"></a>
+## Deleting Models
+
+```dart
+final user = await User.find(1);
+
+if (user != null) {
+  await user.delete();
+  print(user.exists); // false
+}
+```
+
+<a name="hybrid-persistence"></a>
+## Hybrid Persistence
+
+Magic's unique feature is hybrid persistence—syncing between local SQLite and remote REST API.
+
+### Configuration
+
+Control where your model persists:
+
+```dart
+// Local database only (offline mode)
+@override
+bool get useLocal => true;
+@override
+bool get useRemote => false;
+
+// Remote API only (online mode)
+@override
+bool get useLocal => false;
+@override
+bool get useRemote => true;
+
+// Both (hybrid mode - default)
+@override
+bool get useLocal => true;
+@override
+bool get useRemote => true;
+```
+
+### API Resource Endpoint
+
+The `resource` property maps to your REST API:
+
+```dart
+@override
+String get resource => 'users';
+
+// Maps to:
+// GET    /users        -> all()
+// GET    /users/{id}   -> find(id)
+// POST   /users        -> save() (insert)
+// PUT    /users/{id}   -> save() (update)
+// DELETE /users/{id}   -> delete()
+```
+
+### How Hybrid Mode Works
+
+When using hybrid mode:
+
+1. **Read operations** check local database first, then sync from API
+2. **Write operations** persist to both local and remote
+3. **Offline support** is automatic—writes queue until online
+
+> [!TIP]
+> Use hybrid mode for offline-first apps that sync to a backend API.

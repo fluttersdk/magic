@@ -82,6 +82,7 @@ class MagicForm extends StatelessWidget {
 
   /// Enables the form to veto attempts by the user to dismiss the
   /// [ModalRoute] that contains the form.
+  // ignore: deprecated_member_use
   final WillPopCallback? onWillPop;
 
   /// Restoration ID to save and restore the state of the [Form].
@@ -117,7 +118,7 @@ class MagicForm extends StatelessWidget {
 
     // If controller has server-side errors, force validation to show them
     if (effectiveController is ValidatesRequests) {
-      final validator = effectiveController as ValidatesRequests;
+      final validator = effectiveController;
       if (validator.hasErrors) {
         effectiveMode = AutovalidateMode.always;
       }
@@ -127,6 +128,7 @@ class MagicForm extends StatelessWidget {
       key: effectiveFormKey,
       autovalidateMode: effectiveMode,
       onChanged: onChanged,
+      // ignore: deprecated_member_use
       onWillPop: onWillPop,
       child: child,
     );

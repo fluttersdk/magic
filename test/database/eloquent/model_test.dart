@@ -324,6 +324,137 @@ void main() {
       expect(user.name, 'Updated');
     });
   });
+
+  group('Model Serialization', () {
+    test('toMap respects hidden attributes defined in model', () {
+      final user = _UserWithHidden()
+        ..fill({
+          'name': 'John Doe',
+          'email': 'john@example.com',
+          'password': 'secret123',
+          'api_key': 'abc123',
+        });
+
+      final map = user.toMap();
+
+      expect(map['name'], 'John Doe');
+      expect(map['email'], 'john@example.com');
+      expect(map.containsKey('password'), isFalse);
+      expect(map.containsKey('api_key'), isFalse);
+    });
+
+    test('makeHidden temporarily hides attributes', () {
+      final user = TestUser()
+        ..fill({
+          'name': 'Jane Doe',
+          'email': 'jane@example.com',
+        });
+
+      final map = user.makeHidden(['email']).toMap();
+
+      expect(map['name'], 'Jane Doe');
+      expect(map.containsKey('email'), isFalse);
+    });
+
+    test('makeVisible temporarily shows hidden attributes', () {
+      final user = _UserWithHidden()
+        ..fill({
+          'name': 'John',
+          'password': 'hidden_password',
+        });
+
+      final map = user.makeVisible(['password']).toMap();
+
+      expect(map['name'], 'John');
+      expect(map['password'], 'hidden_password');
+    });
+
+    test('toMap respects visible attributes defined in model', () {
+      final user = _UserWithVisible()
+        ..fill({
+          'public_name': 'Public Name',
+          'secret_field': 'Should be hidden',
+        });
+
+      final map = user.toMap();
+
+      expect(map['public_name'], 'Public Name');
+      expect(map.containsKey('secret_field'), isFalse);
+    });
+
+    test('append adds runtime attributes to serialization', () {
+      final user = TestUser()
+        ..fill({
+          'name': 'John',
+          'email': 'john@test.com',
+        })
+        ..setAttribute('computed_field', 'computed_value');
+
+      final map = user.append(['computed_field']).toMap();
+
+      expect(map['name'], 'John');
+      expect(map['computed_field'], 'computed_value');
+    });
+
+    test('toJson returns JSON string', () {
+      final user = TestUser()
+        ..fill({
+          'name': 'Test',
+          'email': 'test@test.com',
+        });
+
+      final json = user.toJson();
+
+      expect(json, contains('"name"'));
+      expect(json, contains('"Test"'));
+      expect(json, contains('"email"'));
+    });
+
+    test('makeHidden and makeVisible are chainable', () {
+      final user = _UserWithHidden()
+        ..fill({
+          'name': 'User',
+          'email': 'user@test.com',
+          'password': 'secret',
+        });
+
+      final map = user.makeVisible(['password']).makeHidden(['email']).toMap();
+
+      expect(map['name'], 'User');
+      expect(map['password'], 'secret');
+      expect(map.containsKey('email'), isFalse);
+    });
+  });
+}
+
+/// A model with hidden attributes for testing serialization.
+class _UserWithHidden extends Model {
+  @override
+  String get table => 'users';
+
+  @override
+  String get resource => 'users';
+
+  @override
+  List<String> get fillable => ['name', 'email', 'password', 'api_key'];
+
+  @override
+  List<String> get hidden => ['password', 'api_key'];
+}
+
+/// A model with visible attributes for testing serialization.
+class _UserWithVisible extends Model {
+  @override
+  String get table => 'users';
+
+  @override
+  String get resource => 'users';
+
+  @override
+  List<String> get fillable => ['public_name', 'secret_field'];
+
+  @override
+  List<String> get visible => ['public_name'];
 }
 
 /// A model with timestamps disabled for testing.

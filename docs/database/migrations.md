@@ -1,12 +1,25 @@
 # Migrations
 
+- [Introduction](#introduction)
+- [Generating Migrations](#generating-migrations)
+- [Migration Structure](#migration-structure)
+- [Running Migrations](#running-migrations)
+- [Creating Tables](#creating-tables)
+    - [Available Column Types](#available-column-types)
+    - [Column Modifiers](#column-modifiers)
+- [Modifying Tables](#modifying-tables)
+- [Dropping Tables](#dropping-tables)
+- [Checking Schema](#checking-schema)
+
+<a name="introduction"></a>
 ## Introduction
 
-Migrations are like version control for your database, allowing your team to define and share the application's database schema definition. If you have ever had to tell a teammate to manually add a column to their local database schema after pulling in your changes, you've faced the problem that database migrations solve.
+Migrations are like version control for your database, allowing your team to define and share the application's database schema definition. If you have ever had to tell a teammate to manually add a column to their local database schema, you've faced the problem that database migrations solve.
 
+<a name="generating-migrations"></a>
 ## Generating Migrations
 
-You may use the `make:migration` command to generate a migration:
+Use the `make:migration` command to generate a migration:
 
 ```bash
 magic make:migration create_users_table
@@ -19,15 +32,17 @@ This creates a file in `lib/database/migrations/` with:
 - Migration class with `up` and `down` methods
 - Proper imports
 
-> **Note**  
-> Migrations starting with `create_` and ending with `_table` automatically use a special stub with Schema.create() boilerplate.
+> [!NOTE]
+> Migrations starting with `create_` and ending with `_table` automatically use a special stub with `Schema.create()` boilerplate.
 
-
+<a name="migration-structure"></a>
 ## Migration Structure
 
-A migration class contains two methods: `up` and `down`. The `up` method is used to add new tables, columns, or indexes, while the `down` method should reverse the operations:
+A migration class contains two methods: `up` and `down`. The `up` method adds new tables, columns, or indexes, while the `down` method should reverse the operations:
 
 ```dart
+import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+
 class CreateUsersTable extends Migration {
   @override
   String get name => '2024_01_15_120000_create_users_table';
@@ -38,6 +53,8 @@ class CreateUsersTable extends Migration {
       table.id();
       table.string('name');
       table.string('email').unique();
+      table.string('password');
+      table.boolean('is_active').defaultValue(true);
       table.timestamps();
     });
   }
@@ -51,27 +68,39 @@ class CreateUsersTable extends Migration {
 
 ### Migration Naming Convention
 
-Use timestamp prefixes for ordering: `YYYY_MM_DD_HHMMSS_description`
+Use timestamp prefixes for proper ordering: `YYYY_MM_DD_HHMMSS_description`
 
 - `2024_01_15_120000_create_users_table`
 - `2024_01_15_120001_add_avatar_to_users`
 - `2024_01_15_120002_rename_name_to_full_name`
 
+<a name="running-migrations"></a>
 ## Running Migrations
 
-Run your migrations in `main.dart`:
+Run your migrations in `main.dart` or a service provider:
 
 ```dart
-final migrations = await Migrator().run([
-  CreateUsersTable(),
-  CreatePostsTable(),
-]);
+void main() async {
+  await Magic.init(...);
+  
+  // Run migrations
+  final migrations = await Migrator().run([
+    CreateUsersTable(),
+    CreatePostsTable(),
+    CreateCommentsTable(),
+  ]);
 
-if (migrations.isNotEmpty) {
-  Log.info('Ran ${migrations.length} migration(s)');
+  if (migrations.isNotEmpty) {
+    Log.info('Ran ${migrations.length} migration(s)');
+  }
+  
+  runApp(MagicApplication(...));
 }
 ```
 
+The `Migrator` keeps track of which migrations have already run, so calling `run()` multiple times is safe.
+
+<a name="creating-tables"></a>
 ## Creating Tables
 
 Use `Schema.create()` to define a new table:
@@ -87,6 +116,7 @@ Schema.create('posts', (Blueprint table) {
 });
 ```
 
+<a name="available-column-types"></a>
 ### Available Column Types
 
 | Method | SQLite Type | Description |
@@ -99,17 +129,19 @@ Schema.create('posts', (Blueprint table) {
 | `boolean(name)` | INTEGER | 0 or 1 |
 | `real(name)` | REAL | Floating point |
 | `blob(name)` | BLOB | Binary data |
-| `timestamps()` | TEXT x2 | created_at & updated_at |
+| `timestamps()` | TEXT × 2 | created_at & updated_at |
 
+<a name="column-modifiers"></a>
 ### Column Modifiers
 
 ```dart
-table.string('email').unique();
-table.string('bio').nullable();
-table.integer('status').defaultValue(0);
-table.boolean('is_active').defaultValue(true);
+table.string('email').unique();          // Unique constraint
+table.string('bio').nullable();          // Allow NULL
+table.integer('status').defaultValue(0); // Default value
+table.boolean('active').defaultValue(true);
 ```
 
+<a name="modifying-tables"></a>
 ## Modifying Tables
 
 Use `Schema.table()` to modify an existing table:
@@ -128,9 +160,8 @@ Schema.table('users', (Blueprint table) {
 });
 ```
 
-> **Note**  
-> Column dropping requires SQLite 3.35.0+ (2021).  
-> Column renaming requires SQLite 3.25.0+ (2018).
+> [!NOTE]
+> Column dropping requires SQLite 3.35.0+ (2021). Column renaming requires SQLite 3.25.0+ (2018).
 
 ### Modifying Column Types
 
@@ -155,9 +186,21 @@ void up() {
 }
 ```
 
-> **Warning**  
-> This is a SQLite limitation. MySQL/PostgreSQL would support direct column changes.
+<a name="dropping-tables"></a>
+## Dropping Tables
 
+```dart
+// Drop if exists (safe)
+Schema.dropIfExists('temporary_data');
+
+// Drop (throws if not exists)
+Schema.drop('old_table');
+
+// Rename table
+Schema.rename('posts', 'articles');
+```
+
+<a name="checking-schema"></a>
 ## Checking Schema
 
 ```dart
@@ -171,19 +214,12 @@ if (await Schema.hasColumn('users', 'avatar_url')) {
   // Column exists
 }
 
-// Get all columns
+// Get all column names
 final columns = await Schema.getColumns('users');
+for (final col in columns) {
+  print(col); // 'id', 'name', etc.
+}
 ```
 
-## Dropping Tables
-
-```dart
-// Drop if exists (safe)
-Schema.dropIfExists('temporary_data');
-
-// Drop (throws if not exists)
-Schema.drop('old_table');
-
-// Rename table
-Schema.rename('posts', 'articles');
-```
+> [!TIP]
+> Always write both `up()` and `down()` methods to allow rolling back migrations during development.

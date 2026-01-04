@@ -4,6 +4,7 @@ import '../database/seeding/seeder.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
 import '../logging/log_manager.dart';
+import '../routing/magic_router.dart';
 import '../support/service_provider.dart';
 import '../ui/magic_feedback.dart';
 import '../ui/magic_view_registry.dart';
@@ -97,6 +98,10 @@ class Magic {
 
     // 6. Boot Framework (Async)
     await boot();
+
+    // 7. Pre-build router to ensure it's ready before runApp
+    // This prevents "Could not navigate to initial route" errors on Flutter Web
+    final _ = MagicRouter.instance.routerConfig;
 
     Log.info('Magic framework initialized');
   }

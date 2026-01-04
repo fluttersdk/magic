@@ -1,191 +1,220 @@
-# Eloquent: Mutators & Casting
+# Eloquent: Mutators
 
+- [Introduction](#introduction)
+- [Accessors](#accessors)
+- [Mutators](#mutators)
+- [Attribute Casting](#attribute-casting)
+- [Date Casting](#date-casting)
+- [JSON Casting](#json-casting)
+
+<a name="introduction"></a>
 ## Introduction
 
-Accessors, mutators, and attribute casting allow you to transform Eloquent attribute values when you retrieve or set them on model instances.
+Accessors and mutators allow you to transform Eloquent attribute values when you retrieve or set them on model instances. For example, you may want to encrypt a value while it is stored in the database and then automatically decrypt it when you access it on an Eloquent model.
 
-## Attribute Casting
+<a name="accessors"></a>
+## Accessors
 
-The `casts` property converts attributes to common data types automatically:
+Accessors transform attribute values when you retrieve them. Define typed getter methods in your model:
 
 ```dart
-@override
-Map<String, String> get casts => {
-  'born_at': 'datetime',    // Converts to Carbon
-  'settings': 'json',       // Converts to Map
-  'is_active': 'bool',      // Converts to bool
-  'score': 'int',           // Converts to int
-  'rating': 'double',       // Converts to double
-};
+class User extends Model {
+  // Raw attribute access
+  String? get rawName => getAttribute('name') as String?;
+  
+  // Accessor with transformation
+  String get fullName {
+    final firstName = getAttribute('first_name') as String? ?? '';
+    final lastName = getAttribute('last_name') as String? ?? '';
+    return '$firstName $lastName'.trim();
+  }
+  
+  // Accessor with formatting
+  String get formattedPhone {
+    final phone = getAttribute('phone') as String?;
+    if (phone == null) return '';
+    return '+1 (${phone.substring(0, 3)}) ${phone.substring(3, 6)}-${phone.substring(6)}';
+  }
+}
 ```
 
-### Date Casting
-
-Attributes cast as `datetime` are converted to Carbon objects, providing Laravel-style date manipulation:
+### Using Accessors
 
 ```dart
 final user = await User.find(1);
 
-print(user.bornAt.diffForHumans());    // "24 years ago"
-print(user.bornAt.year);               // 2000
-print(user.bornAt.format('MMMM do, yyyy')); // "January 15th, 2000"
+print(user.fullName);        // "John Doe"
+print(user.formattedPhone);  // "+1 (555) 123-4567"
 ```
 
-### JSON Casting
+<a name="mutators"></a>
+## Mutators
 
-Attributes cast as `json` are automatically decoded to Maps:
-
-```dart
-print(user.settings['theme']);        // "dark"
-print(user.settings['notifications']); // true
-```
-
-## Typed Accessors
-
-For type safety and IDE autocompletion, define getters and setters:
+Mutators transform attribute values when you set them. Define setter methods:
 
 ```dart
-class User extends Model with HasTimestamps, InteractsWithPersistence {
-  // ...
-
-  String? get name => getAttribute('name') as String?;
+class User extends Model {
+  // Raw setter
   set name(String? value) => setAttribute('name', value);
-
-  String? get email => getAttribute('email') as String?;
-  set email(String? value) => setAttribute('email', value);
-
-  Carbon? get bornAt => getAttribute('born_at') as Carbon?;
-  set bornAt(dynamic value) => setAttribute('born_at', value);
-}
-```
-
-## Convenient Accessors
-
-If you don't want to define typed getters/setters for every field, use the `get()` and `set()` methods:
-
-### Getting Values
-
-```dart
-// Basic usage
-final name = user.get<String>('name');
-
-// With default value
-final name = user.get<String>('name', defaultValue: 'Unknown');
-
-// Datetime fields (returns Carbon)
-final bornAt = user.get<Carbon>('born_at');
-print(bornAt?.fromNow()); // "24 years ago"
-
-// JSON fields (returns Map)
-final settings = user.get<Map<String, dynamic>>('settings', defaultValue: {});
-```
-
-### Setting Values
-
-```dart
-user.set('name', 'John Doe');
-user.set('born_at', Carbon.now());
-user.set('settings', {'theme': 'dark', 'notifications': true});
-```
-
-### Checking Existence
-
-```dart
-if (user.has('email')) {
-  sendEmail(user.get<String>('email')!);
-}
-```
-
-## Timestamps
-
-### Using Timestamps
-
-The `HasTimestamps` mixin automatically manages `created_at` and `updated_at` columns:
-
-```dart
-class User extends Model with HasTimestamps, InteractsWithPersistence {
-  // ...
-}
-
-// Timestamps are set automatically
-final user = User()..fill({'name': 'John'});
-await user.save();
-
-print(user.createdAt?.diffForHumans()); // "a few seconds ago"
-print(user.updatedAt?.diffForHumans()); // "a few seconds ago"
-```
-
-### Disabling Timestamps
-
-```dart
-@override
-bool get timestamps => false;
-```
-
-### Custom Column Names
-
-```dart
-@override
-String get createdAtColumn => 'date_created';
-
-@override
-String get updatedAtColumn => 'date_modified';
-```
-
-### Touching Timestamps
-
-Manually update the `updated_at` timestamp:
-
-```dart
-user.touch();
-await user.save();
-```
-
-## Relationship Casting
-
-When working with APIs that return nested objects (like a Post with its User), you can define relationships for automatic casting:
-
-### Defining Relations
-
-```dart
-class Post extends Model with HasTimestamps, InteractsWithPersistence {
-  @override String get table => 'posts';
-  @override String get resource => 'posts';
   
+  // Mutator with transformation
+  set email(String? value) =>
+      setAttribute('email', value?.toLowerCase().trim());
+  
+  // Mutator with hashing (example)
+  set password(String? value) =>
+      setAttribute('password', value != null ? hashPassword(value) : null);
+}
+```
+
+### Using Mutators
+
+```dart
+final user = User();
+
+user.email = '  JOHN@EXAMPLE.COM  ';
+print(user.getAttribute('email')); // "john@example.com"
+
+user.password = 'secret123';
+// Stored as hashed value
+```
+
+<a name="attribute-casting"></a>
+## Attribute Casting
+
+The `casts` property provides automatic type conversion for attributes:
+
+```dart
+class Task extends Model {
   @override
-  Map<String, Model Function()> get relations => {
-    'user': User.new,          // Single related model
-    'comments': Comment.new,   // List of related models
+  Map<String, String> get casts => {
+    'is_completed': 'bool',
+    'priority': 'int',
+    'progress': 'double',
+    'due_date': 'datetime',
+    'settings': 'json',
   };
-
-  // Typed accessors for relations
-  User? get user => getRelation<User>('user');
-  List<Comment> get comments => getRelations<Comment>('comments');
+  
+  // Typed accessors use the cast values
+  bool get isCompleted => getAttribute('is_completed') as bool? ?? false;
+  int get priority => getAttribute('priority') as int? ?? 0;
+  double get progress => getAttribute('progress') as double? ?? 0.0;
+  Carbon? get dueDate => getAttribute('due_date') as Carbon?;
+  Map<String, dynamic>? get settings =>
+      getAttribute('settings') as Map<String, dynamic>?;
 }
 ```
 
-### Single Relation
+### Available Cast Types
 
-Use `getRelation<T>()` for a single nested model:
+| Cast | Returns | Database Type |
+|------|---------|---------------|
+| `bool` | `bool` | INTEGER (0/1) |
+| `int` | `int` | INTEGER |
+| `double` | `double` | REAL |
+| `datetime` | `Carbon` | TEXT (ISO 8601) |
+| `json` | `Map` or `List` | TEXT (JSON) |
+
+<a name="date-casting"></a>
+## Date Casting
+
+Date attributes are automatically converted to Carbon instances:
 
 ```dart
-// API returns: {"id": 1, "title": "Hello", "user": {"id": 5, "name": "John"}}
-final post = await Post.find(1);
-print(post?.user?.name);  // "John"
-```
-
-### List Relations
-
-Use `getRelations<T>()` for a list of nested models:
-
-```dart
-// API returns: {"id": 1, "comments": [{"id": 1, "body": "Nice!"}, ...]}
-final post = await Post.find(1);
-for (final comment in post?.comments ?? []) {
-  print(comment.body);
+class Event extends Model {
+  @override
+  Map<String, String> get casts => {
+    'starts_at': 'datetime',
+    'ends_at': 'datetime',
+    'published_at': 'datetime',
+  };
+  
+  Carbon? get startsAt => getAttribute('starts_at') as Carbon?;
+  Carbon? get endsAt => getAttribute('ends_at') as Carbon?;
+  Carbon? get publishedAt => getAttribute('published_at') as Carbon?;
+  
+  // Duration helper
+  Duration? get duration {
+    if (startsAt == null || endsAt == null) return null;
+    return endsAt!.diff(startsAt!);
+  }
+  
+  // Check if event is happening now
+  bool get isHappeningNow {
+    final now = Carbon.now();
+    return startsAt?.isBefore(now) == true &&
+           endsAt?.isAfter(now) == true;
+  }
 }
 ```
 
-> **Note**  
-> Relations are automatically cached after the first access. Subsequent calls return the cached models.
+### Working with Dates
 
+```dart
+final event = await Event.find(1);
+
+// Format dates
+print(event.startsAt?.format('MMMM d, yyyy'));  // "January 15, 2024"
+
+// Human readable
+print(event.startsAt?.diffForHumans());  // "in 2 days"
+
+// Comparison
+if (event.startsAt?.isFuture() == true) {
+  print('Upcoming event');
+}
+```
+
+<a name="json-casting"></a>
+## JSON Casting
+
+JSON attributes are serialized/deserialized automatically:
+
+```dart
+class Monitor extends Model {
+  @override
+  Map<String, String> get casts => {
+    'settings': 'json',
+    'tags': 'json',
+  };
+  
+  // Access as Map
+  Map<String, dynamic> get settings =>
+      (getAttribute('settings') as Map<String, dynamic>?) ?? {};
+  
+  // Access as List
+  List<String> get tags =>
+      (getAttribute('tags') as List?)?.cast<String>() ?? [];
+  
+  // Setters
+  set settings(Map<String, dynamic> value) =>
+      setAttribute('settings', value);
+  
+  set tags(List<String> value) =>
+      setAttribute('tags', value);
+}
+```
+
+### Using JSON Attributes
+
+```dart
+final monitor = Monitor();
+
+// Set complex data
+monitor.settings = {
+  'timeout': 30,
+  'retries': 3,
+  'headers': {'Authorization': 'Bearer token'},
+};
+
+monitor.tags = ['production', 'critical', 'api'];
+
+await monitor.save();
+
+// Retrieve
+print(monitor.settings['timeout']);  // 30
+print(monitor.tags.first);           // "production"
+```
+
+> [!TIP]
+> Always define typed getters for your attributes to get IDE autocompletion and type safety throughout your application.

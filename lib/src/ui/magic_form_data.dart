@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../concerns/validates_requests.dart';
 import '../http/magic_controller.dart';
-import '../validation/contracts/rule.dart';
-import '../validation/form_validator.dart';
 
 /// Centralized form data management for Magic framework.
 ///

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:fluttersdk_magic/src/encryption/encryption_service_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,9 @@ void main() {
         {
           'app': {
             'key': '12345678901234567890123456789012',
+            'providers': [
+              (app) => EncryptionServiceProvider(app),
+            ],
           }
         }
       ]);
@@ -41,6 +45,9 @@ void main() {
         {
           'app': {
             'key': null, // Missing
+            'providers': [
+              (app) => EncryptionServiceProvider(app),
+            ],
           }
         }
       ]);
@@ -55,6 +62,9 @@ void main() {
         {
           'app': {
             'key': 'short',
+            'providers': [
+              (app) => EncryptionServiceProvider(app),
+            ],
           }
         }
       ]);

@@ -1,135 +1,184 @@
 # Eloquent: Serialization
 
+- [Introduction](#introduction)
+- [Serializing to Arrays](#serializing-to-arrays)
+- [Serializing to JSON](#serializing-to-json)
+- [Hiding Attributes](#hiding-attributes)
+- [Appending Attributes](#appending-attributes)
+
+<a name="introduction"></a>
 ## Introduction
 
-When building APIs or storing data, you will often need to convert your models to arrays or JSON. Eloquent includes convenient methods for making these conversions, as well as controlling which attributes are included in the serialized representation.
+When building APIs or passing data to JavaScript frontends, you will often need to convert your models to arrays or JSON. Magic includes convenient methods for these conversions while controlling which attributes are included.
 
-## Serializing To Maps & JSON
+<a name="serializing-to-arrays"></a>
+## Serializing to Arrays
 
-### toMap
-
-To convert a model and its attributes to a Map, use the `toMap` method:
+Convert a model to an array using `toMap()`:
 
 ```dart
 final user = await User.find(1);
-final map = user.toMap();
+final array = user.toMap();
 
-// {'id': 1, 'name': 'John', 'email': 'john@test.com', ...}
+// {
+//   'id': 1,
+//   'name': 'John Doe',
+//   'email': 'john@example.com',
+//   'created_at': '2024-01-15T10:30:00.000Z',
+//   'updated_at': '2024-01-15T10:30:00.000Z',
+// }
 ```
 
-### toJson
-
-To convert a model to a JSON string, use the `toJson` method:
+### Converting Collections
 
 ```dart
+final users = await User.all();
+final array = users.map((u) => u.toMap()).toList();
+```
+
+<a name="serializing-to-json"></a>
+## Serializing to JSON
+
+Convert a model to JSON using `toJson()`:
+
+```dart
+final user = await User.find(1);
 final json = user.toJson();
 
-// '{"id":1,"name":"John","email":"john@test.com"}'
+// '{"id":1,"name":"John Doe","email":"john@example.com",...}'
 ```
 
-## Flutter-Familiar Factory Methods
+<a name="hiding-attributes"></a>
+## Hiding Attributes
 
-For developers coming from standard Flutter patterns, you may define static `fromMap` and `fromJson` methods:
+### Model-Level Hidden Attributes
+
+Define attributes that should never be serialized:
 
 ```dart
-class User extends Model with HasTimestamps, InteractsWithPersistence {
-  // ... other configuration ...
+class User extends Model {
+  @override
+  List<String> get hidden => ['password', 'remember_token', 'api_key'];
+}
+```
 
-  /// Create from Map.
-  static User fromMap(Map<String, dynamic> map) {
-    return User()
-      ..setRawAttributes(map, sync: true)
-      ..exists = map.containsKey('id');
+Now when you call `toMap()` or `toJson()`, these attributes are excluded:
+
+```dart
+final user = await User.find(1);
+print(user.toMap());
+
+// {
+//   'id': 1,
+//   'name': 'John Doe',
+//   'email': 'john@example.com',
+//   // password, remember_token, api_key are NOT included
+// }
+```
+
+### Temporary Hidden Attributes
+
+Hide additional attributes for a specific serialization:
+
+```dart
+final user = await User.find(1);
+final array = user.makeHidden(['email', 'phone']).toMap();
+
+// email and phone are hidden for this call only
+```
+
+### Making Hidden Attributes Visible
+
+Temporarily show normally hidden attributes:
+
+```dart
+final user = await User.find(1);
+final array = user.makeVisible(['password']).toMap();
+
+// password is included for this call only
+```
+
+<a name="appending-attributes"></a>
+## Appending Attributes
+
+Include accessor values in serialization:
+
+```dart
+class User extends Model {
+  @override
+  List<String> get appends => ['full_name', 'is_admin'];
+  
+  // Accessors that will be included
+  String get fullName {
+    final first = getAttribute('first_name') as String? ?? '';
+    final last = getAttribute('last_name') as String? ?? '';
+    return '$first $last'.trim();
   }
-
-  /// Create from JSON string.
-  static User fromJson(String json) {
-    return User.fromMap(jsonDecode(json));
+  
+  bool get isAdmin {
+    return (getAttribute('role') as String?) == 'admin';
   }
 }
 ```
 
-### Usage Examples
+Now these computed attributes are included in serialization:
 
 ```dart
-// From API response
-final response = await Http.get('/users/1');
-final user = User.fromMap(response.data);
+final user = await User.find(1);
+print(user.toMap());
 
-// To API request
-await Http.post('/users', data: user.toMap());
-
-// JSON serialization
-final json = user.toJson();
-final restored = User.fromJson(json);
+// {
+//   'id': 1,
+//   'first_name': 'John',
+//   'last_name': 'Doe',
+//   'role': 'admin',
+//   'full_name': 'John Doe',    // Appended
+//   'is_admin': true,           // Appended
+// }
 ```
 
-## Model Events
+### Temporary Appends
 
-Eloquent models dispatch events at various points in their lifecycle:
-
-| Event | Description |
-|-------|-------------|
-| `ModelSaving` | Before a model is saved (insert or update) |
-| `ModelSaved` | After a model is saved |
-| `ModelCreating` | Before a new model is inserted |
-| `ModelCreated` | After a new model is inserted |
-| `ModelUpdating` | Before an existing model is updated |
-| `ModelUpdated` | After an existing model is updated |
-| `ModelDeleted` | After a model is deleted |
-
-Listen to these events using the Event facade:
+Append additional attributes for a specific serialization:
 
 ```dart
-Event.listen<ModelCreated>((event) {
-  Log.info('Model created: ${event.model.runtimeType}');
-});
+final user = await User.find(1);
+final array = user.append(['avatar_url', 'formatted_phone']).toMap();
 ```
 
-## Complete Model Example
+## API Response Example
+
+Combine serialization options for clean API responses:
 
 ```dart
-import 'dart:convert';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
-
-class Post extends Model with HasTimestamps, InteractsWithPersistence {
-  @override
-  String get table => 'posts';
-
-  @override
-  String get resource => 'posts';
-
-  @override
-  List<String> get fillable => ['title', 'body', 'published_at'];
-
-  @override
-  Map<String, String> get casts => {
-    'published_at': 'datetime',
-    'metadata': 'json',
-  };
-
-  // Typed Accessors
-  String? get title => getAttribute('title') as String?;
-  set title(String? value) => setAttribute('title', value);
-
-  String? get body => getAttribute('body') as String?;
-  set body(String? value) => setAttribute('body', value);
-
-  Carbon? get publishedAt => getAttribute('published_at') as Carbon?;
-  set publishedAt(dynamic value) => setAttribute('published_at', value);
-
-  // Static Helpers
-  static Future<Post?> find(dynamic id) =>
-      InteractsWithPersistence.findById<Post>(id, Post.new);
-
-  static Future<List<Post>> all() =>
-      InteractsWithPersistence.allModels<Post>(Post.new);
-
-  // Flutter-Familiar Factory
-  static Post fromMap(Map<String, dynamic> map) {
-    return Post()
-      ..setRawAttributes(map, sync: true)
-      ..exists = map.containsKey('id');
+class UserController extends MagicController {
+  Future<void> index() async {
+    final users = await User.all();
+    
+    return users.map((user) => 
+      user
+        .makeHidden(['password', 'remember_token'])
+        .append(['full_name'])
+        .toMap()
+    ).toList();
   }
 }
 ```
+
+This returns:
+
+```json
+[
+  {
+    "id": 1,
+    "email": "john@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "full_name": "John Doe"
+  },
+  ...
+]
+```
+
+> [!TIP]
+> Always hide sensitive attributes like passwords and API keys at the model level using the `hidden` property.

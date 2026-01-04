@@ -187,20 +187,15 @@ class MagicRouter {
       goRoutes.add(_buildGoRoute(route));
     }
 
-    // Add layouts (ShellRoutes)
+    // Add layouts (ShellRoutes) - each layout wraps its children
+    // Each child route is individually wrapped with the layout
     for (final layout in _layouts) {
-      goRoutes.add(ShellRoute(
-        builder: (context, state, child) => layout.builder(child),
-        routes: layout.children.map(_buildGoRoute).toList(),
-      ));
-    }
-
-    // Add layouts (ShellRoutes)
-    for (final layout in _layouts) {
-      goRoutes.add(ShellRoute(
-        builder: (context, state, child) => layout.builder(child),
-        routes: layout.children.map(_buildGoRoute).toList(),
-      ));
+      for (final child in layout.children) {
+        goRoutes.add(ShellRoute(
+          builder: (context, state, shellChild) => layout.builder(shellChild),
+          routes: [_buildGoRoute(child)],
+        ));
+      }
     }
 
     return goRoutes;

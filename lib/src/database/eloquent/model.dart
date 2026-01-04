@@ -45,6 +45,15 @@ abstract class Model {
   /// The model's original attributes (for dirty checking).
   final Map<String, dynamic> _original = {};
 
+  /// Runtime hidden attributes.
+  final Set<String> _hidden = {};
+
+  /// Runtime visible attributes.
+  final Set<String> _visible = {};
+
+  /// Runtime appends.
+  final Set<String> _appends = {};
+
   /// Indicates if the model exists in the database.
   bool exists = false;
 
@@ -105,6 +114,15 @@ abstract class Model {
   /// };
   /// ```
   Map<String, Model Function()> get relations => {};
+
+  /// The attributes that should be hidden for serialization.
+  List<String> get hidden => [];
+
+  /// The attributes that should be visible for serialization.
+  List<String> get visible => [];
+
+  /// The accessors to append to the model's array form.
+  List<String> get appends => [];
 
   // ---------------------------------------------------------------------------
   // Lifecycle Hooks
@@ -364,22 +382,83 @@ abstract class Model {
   /// // {'id': 1, 'name': 'John', 'email': 'john@test.com'}
   /// ```
   Map<String, dynamic> toMap() {
+    // 1. Calculate final hidden and visible sets
+    final finalHidden = {...hidden, ..._hidden};
+    final finalVisible = {...visible, ..._visible};
+
+    // Remove any visible items from hidden (makeVisible removes from hidden)
+    finalHidden.removeAll(finalVisible);
+
+    // 2. Start with all attributes
     final result = <String, dynamic>{};
 
     for (final entry in _attributes.entries) {
-      final value = getAttribute(entry.key);
-      if (value is Model) {
-        result[entry.key] = value.toMap();
-      } else if (value is List && value.isNotEmpty && value.first is Model) {
-        result[entry.key] = value.map((m) => (m as Model).toMap()).toList();
-      } else if (value is Carbon) {
-        result[entry.key] = value.format('yyyy-MM-ddTHH:mm:ss');
-      } else {
-        result[entry.key] = value;
+      final key = entry.key;
+
+      // If visible list is specified at the model level (not runtime), use whitelist
+      if (visible.isNotEmpty) {
+        // Only include if in the model's visible list OR added via makeVisible
+        if (!visible.contains(key) && !_visible.contains(key)) {
+          continue;
+        }
+      }
+
+      // Skip if hidden (and not made visible via makeVisible)
+      if (finalHidden.contains(key)) {
+        continue;
+      }
+
+      result[key] = getAttribute(key);
+    }
+
+    // 3. Handle appends - add to result from attributes if they exist
+    final finalAppends = {...appends, ..._appends};
+    for (final key in finalAppends) {
+      // Only add if not already in result and not hidden
+      if (!result.containsKey(key) && !finalHidden.contains(key)) {
+        final value = getAttribute(key);
+        if (value != null) {
+          result[key] = value;
+        }
       }
     }
 
-    return result;
+    // 4. Serialize values (handle nested models and Carbon)
+    final serialized = <String, dynamic>{};
+    for (final entry in result.entries) {
+      final value = entry.value;
+      if (value is Model) {
+        serialized[entry.key] = value.toMap();
+      } else if (value is List && value.isNotEmpty && value.first is Model) {
+        serialized[entry.key] = value.map((m) => (m as Model).toMap()).toList();
+      } else if (value is Carbon) {
+        serialized[entry.key] = value.format('yyyy-MM-ddTHH:mm:ss');
+      } else {
+        serialized[entry.key] = value;
+      }
+    }
+
+    return serialized;
+  }
+
+  /// Make attributes hidden.
+  Model makeHidden(List<String> attributes) {
+    _hidden.addAll(attributes);
+    _visible.removeAll(attributes);
+    return this;
+  }
+
+  /// Make attributes visible.
+  Model makeVisible(List<String> attributes) {
+    _visible.addAll(attributes);
+    _hidden.removeAll(attributes);
+    return this;
+  }
+
+  /// Append accessors to the model.
+  Model append(List<String> attributes) {
+    _appends.addAll(attributes);
+    return this;
   }
 
   /// Alias for [toMap] - Laravel-style naming.

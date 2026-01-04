@@ -41,6 +41,7 @@ void main() {
           'name': 'Integration Test',
           'providers': [
             (app) => TestProvider(app),
+            (app) => CacheServiceProvider(app),
           ],
         }
       };

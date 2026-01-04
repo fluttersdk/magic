@@ -111,13 +111,21 @@ class AuthManager {
       case 'sanctum':
         return BearerTokenGuard(
           tokenKey: tokenKey,
-          userEndpoint: endpoints?['user'] as String? ?? '/api/user',
+          userEndpoint: endpoints?['user'] as String? ?? '/auth/user',
           userFactory: _userFactory,
         );
       case 'basic':
-        return BasicAuthGuard(tokenKey: tokenKey);
+        return BasicAuthGuard(
+          tokenKey: tokenKey,
+          userEndpoint: endpoints?['user'] as String? ?? '/auth/user',
+          userFactory: _userFactory,
+        );
       case 'api_key':
-        return ApiKeyGuard(tokenKey: tokenKey);
+        return ApiKeyGuard(
+          tokenKey: tokenKey,
+          userEndpoint: endpoints?['user'] as String? ?? '/auth/user',
+          userFactory: _userFactory,
+        );
       default:
         throw ArgumentError('Unsupported guard driver: $driver');
     }

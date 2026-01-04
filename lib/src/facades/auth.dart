@@ -133,6 +133,34 @@ class Auth {
   static Future<String?> getToken() => guard().getToken();
 
   // ---------------------------------------------------------------------------
+  // Configuration Methods
+  // ---------------------------------------------------------------------------
+
+  /// Register the user model factory.
+  ///
+  /// ```dart
+  /// Auth.registerModel<User>(User.fromMap);
+  /// ```
+  static void registerModel<T>(
+    Authenticatable Function(Map<String, dynamic> data) factory,
+  ) {
+    _manager.setUserFactory(factory);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Token Refresh
+  // ---------------------------------------------------------------------------
+
+  /// Manually refresh the authentication token.
+  ///
+  /// Returns `true` if refresh was successful.
+  ///
+  /// ```dart
+  /// final success = await Auth.refreshToken();
+  /// ```
+  static Future<bool> refreshToken() => guard().refreshToken();
+
+  // ---------------------------------------------------------------------------
   // Session Methods
   // ---------------------------------------------------------------------------
 

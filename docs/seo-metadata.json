@@ -1,0 +1,514 @@
+{
+    "version": "1.0",
+    "generated_at": "2026-01-01",
+    "base_title_suffix": " | Magic Framework Documentation",
+    "default_keywords": [
+        "flutter",
+        "dart",
+        "magic framework",
+        "laravel style",
+        "mobile development"
+    ],
+    "documents": {
+        "getting-started/installation": {
+            "title": "Installation",
+            "description": "Learn how to install Magic Framework in your Flutter project. Quick setup with CLI or manual configuration. Get started building Laravel-style Flutter apps in minutes.",
+            "keywords": [
+                "magic framework installation",
+                "flutter setup",
+                "dart cli",
+                "magic cli",
+                "flutter laravel",
+                "magic install"
+            ]
+        },
+        "getting-started/configuration": {
+            "title": "Configuration",
+            "description": "Configure your Magic Framework application using environment variables and config files. Learn about the Config facade, .env files, and dot notation access patterns.",
+            "keywords": [
+                "flutter configuration",
+                "env files",
+                "config facade",
+                "magic config",
+                "environment variables",
+                "flutter settings"
+            ]
+        },
+        "getting-started/directory-structure": {
+            "title": "Directory Structure",
+            "description": "Understand the Laravel-inspired directory structure of Magic Framework. Learn where to place controllers, views, models, and configuration files.",
+            "keywords": [
+                "flutter directory structure",
+                "project organization",
+                "magic folders",
+                "flutter mvc",
+                "laravel structure",
+                "app architecture"
+            ]
+        },
+        "getting-started/service-providers": {
+            "title": "Service Providers",
+            "description": "Master Service Providers in Magic Framework. Learn how to register services, boot dependencies, and extend the framework with custom providers.",
+            "keywords": [
+                "service providers",
+                "flutter dependency injection",
+                "magic providers",
+                "boot method",
+                "register method",
+                "flutter services"
+            ]
+        },
+        "architecture/facades": {
+            "title": "Facades",
+            "description": "Learn about Magic Framework facades - static proxies to underlying services. Access Auth, Cache, Config, Http, Route, Storage and more with clean, testable syntax.",
+            "keywords": [
+                "magic facades",
+                "flutter static proxy",
+                "auth facade",
+                "cache facade",
+                "flutter facades",
+                "laravel facades dart"
+            ]
+        },
+        "architecture/request-lifecycle": {
+            "title": "Request Lifecycle",
+            "description": "Understand how Magic Framework boots and handles navigation. Learn the complete lifecycle from app initialization through provider registration to route resolution.",
+            "keywords": [
+                "flutter lifecycle",
+                "app initialization",
+                "magic boot",
+                "flutter routing lifecycle",
+                "provider lifecycle",
+                "navigation lifecycle"
+            ]
+        },
+        "architecture/service-container": {
+            "title": "Service Container",
+            "description": "Master the Magic Framework service container for dependency injection. Learn binding, resolution, singletons, and controller management.",
+            "keywords": [
+                "flutter dependency injection",
+                "service container",
+                "flutter ioc",
+                "magic container",
+                "flutter singleton",
+                "dependency resolution"
+            ]
+        },
+        "basics/routing": {
+            "title": "Routing",
+            "description": "Define routes in Magic Framework using Laravel-style syntax. Learn about route groups, layouts, parameters, middleware, and context-free navigation.",
+            "keywords": [
+                "flutter routing",
+                "magic routes",
+                "go router alternative",
+                "flutter navigation",
+                "route groups",
+                "flutter middleware",
+                "deep linking"
+            ]
+        },
+        "basics/middleware": {
+            "title": "Middleware",
+            "description": "Create and use middleware in Magic Framework. Protect routes, handle authentication, and intercept navigation with Laravel-style middleware patterns.",
+            "keywords": [
+                "flutter middleware",
+                "route guards",
+                "auth middleware",
+                "magic middleware",
+                "flutter interceptor",
+                "navigation guards"
+            ]
+        },
+        "basics/controllers": {
+            "title": "Controllers",
+            "description": "Build controllers in Magic Framework with state management, validation handling, and view rendering. Learn MagicController patterns for clean architecture.",
+            "keywords": [
+                "flutter controller",
+                "magic controller",
+                "state management",
+                "flutter mvc",
+                "view controller",
+                "flutter architecture"
+            ]
+        },
+        "basics/views": {
+            "title": "Views",
+            "description": "Create views with MagicView and MagicStatefulView. Learn about form handling, async state rendering, and controller integration in Magic Framework.",
+            "keywords": [
+                "flutter views",
+                "magic view",
+                "stateful view",
+                "flutter widgets",
+                "view rendering",
+                "flutter ui"
+            ]
+        },
+        "basics/http-client": {
+            "title": "HTTP Client",
+            "description": "Make HTTP requests with the Magic Http facade. Learn about GET, POST, PUT, DELETE requests, file uploads, response handling, and interceptors.",
+            "keywords": [
+                "flutter http",
+                "magic http",
+                "dio wrapper",
+                "flutter api",
+                "rest api flutter",
+                "http requests",
+                "file upload flutter"
+            ]
+        },
+        "basics/forms": {
+            "title": "Forms",
+            "description": "Build forms with MagicFormData. Learn about form validation, error handling, controller binding, and server-side error integration.",
+            "keywords": [
+                "flutter forms",
+                "magic form",
+                "form validation",
+                "flutter input",
+                "form data",
+                "validation rules"
+            ]
+        },
+        "basics/ui-helpers": {
+            "title": "UI Helpers",
+            "description": "Show snackbars, dialogs, toasts, and loading indicators without BuildContext. Use Magic.success(), Magic.error(), Magic.dialog() and more.",
+            "keywords": [
+                "flutter snackbar",
+                "flutter dialog",
+                "flutter toast",
+                "magic ui",
+                "no context ui",
+                "flutter loading",
+                "flutter alerts"
+            ]
+        },
+        "security/authentication": {
+            "title": "Authentication",
+            "description": "Implement authentication in Magic Framework with guards, token management, auto-refresh, and route protection. Support for multiple auth providers.",
+            "keywords": [
+                "flutter authentication",
+                "magic auth",
+                "flutter login",
+                "token auth",
+                "flutter guard",
+                "auth middleware",
+                "jwt flutter"
+            ]
+        },
+        "security/authorization": {
+            "title": "Authorization",
+            "description": "Control access with Gate and Policies in Magic Framework. Learn role-based permissions, ability checks, and the MagicCan widget.",
+            "keywords": [
+                "flutter authorization",
+                "magic gate",
+                "flutter policies",
+                "role based access",
+                "flutter permissions",
+                "access control"
+            ]
+        },
+        "security/encryption": {
+            "title": "Encryption",
+            "description": "Encrypt and decrypt data with the Crypt facade. Learn about config-based and device-based encryption using AES-256-CBC in Magic Framework.",
+            "keywords": [
+                "flutter encryption",
+                "magic crypt",
+                "aes encryption",
+                "flutter security",
+                "data encryption",
+                "secure storage"
+            ]
+        },
+        "security/vault": {
+            "title": "Vault (Secure Storage)",
+            "description": "Store sensitive data securely with the Vault facade. Uses platform-native secure storage (Keychain, EncryptedSharedPreferences) in Magic Framework.",
+            "keywords": [
+                "flutter secure storage",
+                "magic vault",
+                "keychain flutter",
+                "encrypted preferences",
+                "flutter secrets",
+                "secure data storage"
+            ]
+        },
+        "database/getting-started": {
+            "title": "Database: Getting Started",
+            "description": "Work with SQLite databases in Magic Framework. Learn raw queries, query builder basics, and database configuration for local data persistence.",
+            "keywords": [
+                "flutter sqlite",
+                "magic database",
+                "flutter database",
+                "sqflite alternative",
+                "local storage flutter",
+                "flutter persistence"
+            ]
+        },
+        "database/migrations": {
+            "title": "Database Migrations",
+            "description": "Create and manage database migrations with Schema builder. Define tables, columns, indexes, and handle schema changes in Magic Framework.",
+            "keywords": [
+                "flutter migrations",
+                "schema builder",
+                "database schema",
+                "flutter tables",
+                "sqlite migrations",
+                "magic migrations"
+            ]
+        },
+        "database/seeding": {
+            "title": "Database Seeding",
+            "description": "Seed your database with test data using Seeders and Factories. Generate fake data with Faker methods for development and testing.",
+            "keywords": [
+                "flutter seeding",
+                "database seeder",
+                "flutter factory",
+                "test data",
+                "faker flutter",
+                "magic seeder"
+            ]
+        },
+        "database/query-builder": {
+            "title": "Query Builder",
+            "description": "Build database queries with fluent chainable methods. Select, where, join, order, and aggregate data with Magic Framework query builder.",
+            "keywords": [
+                "flutter query builder",
+                "sql builder",
+                "flutter orm",
+                "database queries",
+                "magic query",
+                "fluent api database"
+            ]
+        },
+        "eloquent/getting-started": {
+            "title": "Eloquent: Getting Started",
+            "description": "Define models with Eloquent ORM in Magic Framework. Learn about attribute casting, fillable properties, CRUD operations, and hybrid persistence.",
+            "keywords": [
+                "flutter orm",
+                "eloquent dart",
+                "magic model",
+                "flutter model",
+                "active record",
+                "data models flutter"
+            ]
+        },
+        "eloquent/mutators": {
+            "title": "Eloquent: Mutators & Casts",
+            "description": "Transform model attributes with accessors, mutators, and automatic type casting. Cast to datetime, json, bool, and custom types.",
+            "keywords": [
+                "flutter mutators",
+                "attribute casting",
+                "eloquent casts",
+                "magic accessors",
+                "type casting",
+                "model attributes"
+            ]
+        },
+        "eloquent/serialization": {
+            "title": "Eloquent: Serialization",
+            "description": "Serialize models to arrays and JSON. Control output with hidden, visible, and appends properties. Build clean API responses.",
+            "keywords": [
+                "flutter serialization",
+                "model toJson",
+                "eloquent toMap",
+                "api response",
+                "json serialization",
+                "magic serialization"
+            ]
+        },
+        "digging-deeper/validation": {
+            "title": "Validation",
+            "description": "Validate user input with built-in rules like Required, Email, Min, Max. Handle server-side errors and create custom validation rules.",
+            "keywords": [
+                "flutter validation",
+                "form validation",
+                "magic validator",
+                "input validation",
+                "validation rules",
+                "flutter form errors"
+            ]
+        },
+        "digging-deeper/cache": {
+            "title": "Cache",
+            "description": "Cache data with the Cache facade. Use remember pattern, TTL expiration, and multiple cache drivers for performance optimization.",
+            "keywords": [
+                "flutter cache",
+                "magic cache",
+                "data caching",
+                "flutter performance",
+                "cache facade",
+                "memory cache"
+            ]
+        },
+        "digging-deeper/localization": {
+            "title": "Localization",
+            "description": "Translate your app with JSON language files. Use trans() helper for context-free translations. Support multiple languages in Magic Framework.",
+            "keywords": [
+                "flutter localization",
+                "flutter i18n",
+                "magic translations",
+                "multi language flutter",
+                "json translations",
+                "flutter locale"
+            ]
+        },
+        "digging-deeper/events": {
+            "title": "Events",
+            "description": "Dispatch and listen to events in Magic Framework. Decouple application logic with event-driven architecture and framework lifecycle events.",
+            "keywords": [
+                "flutter events",
+                "event dispatcher",
+                "magic events",
+                "flutter listeners",
+                "event driven",
+                "pub sub flutter"
+            ]
+        },
+        "digging-deeper/carbon": {
+            "title": "Carbon (Date/Time)",
+            "description": "Manipulate dates and times with Carbon. Parse, format, compare, and calculate differences with human-readable output like diffForHumans().",
+            "keywords": [
+                "flutter datetime",
+                "carbon dart",
+                "date manipulation",
+                "time formatting",
+                "flutter dates",
+                "magic carbon"
+            ]
+        },
+        "digging-deeper/logging": {
+            "title": "Logging",
+            "description": "Log messages with the Log facade using RFC 5424 levels. Configure channels, create custom drivers, and send logs to console, files, or remote services.",
+            "keywords": [
+                "flutter logging",
+                "magic log",
+                "debug logging",
+                "flutter console",
+                "log levels",
+                "custom logger",
+                "sentry flutter"
+            ]
+        },
+        "digging-deeper/file-storage": {
+            "title": "File Storage",
+            "description": "Store and retrieve files with the Storage facade. Manage local files, get URLs, download files, and work with multiple disk configurations.",
+            "keywords": [
+                "flutter storage",
+                "file storage",
+                "magic storage",
+                "flutter files",
+                "local storage",
+                "file management flutter"
+            ]
+        },
+        "digging-deeper/file-picker": {
+            "title": "File Picker",
+            "description": "Pick images, videos, and files with the Pick facade. Capture from camera, select from gallery, and work with MagicFile for uploads and storage.",
+            "keywords": [
+                "flutter file picker",
+                "image picker",
+                "camera flutter",
+                "magic pick",
+                "file selection",
+                "photo picker",
+                "video capture"
+            ]
+        },
+        "packages/magic-cli": {
+            "title": "Magic CLI",
+            "description": "Generate code with Magic CLI. Create models, controllers, views, migrations with artisan-like commands. Use Magic Boost for AI-powered development.",
+            "keywords": [
+                "magic cli",
+                "flutter code generator",
+                "artisan dart",
+                "scaffold flutter",
+                "code generation",
+                "magic boost",
+                "mcp server"
+            ]
+        },
+        "packages/wind-ui": {
+            "title": "Wind UI",
+            "description": "Style Flutter widgets with Tailwind CSS-like utility classes. Use WDiv, WText, WButton with className strings for rapid UI development.",
+            "keywords": [
+                "flutter tailwind",
+                "wind ui",
+                "utility css flutter",
+                "magic styling",
+                "flutter css",
+                "tailwind dart",
+                "utility classes"
+            ]
+        },
+        "testing/getting-started": {
+            "title": "Testing: Getting Started",
+            "description": "Write tests for Magic Framework applications. Set up testing environment, test controllers, models, and mock dependencies.",
+            "keywords": [
+                "flutter testing",
+                "magic tests",
+                "unit testing",
+                "flutter test setup",
+                "controller tests",
+                "model tests"
+            ]
+        },
+        "testing/http-tests": {
+            "title": "HTTP Tests",
+            "description": "Test HTTP requests and responses. Mock API calls, verify request data, and test authentication flows in Magic Framework.",
+            "keywords": [
+                "flutter http testing",
+                "api mocking",
+                "mock responses",
+                "flutter integration tests",
+                "request testing",
+                "auth tests"
+            ]
+        },
+        "testing/database-testing": {
+            "title": "Database Testing",
+            "description": "Test database operations with factories and assertions. Use in-memory databases, seed test data, and verify model persistence.",
+            "keywords": [
+                "flutter database testing",
+                "factory tests",
+                "database assertions",
+                "test seeding",
+                "sqlite testing",
+                "model tests"
+            ]
+        },
+        "contributing/contribution-guide": {
+            "title": "Contribution Guide",
+            "description": "Contribute to Magic Framework. Learn coding standards, testing requirements, and pull request guidelines for the open source project.",
+            "keywords": [
+                "magic contribution",
+                "open source flutter",
+                "flutter contribution",
+                "pr guidelines",
+                "coding standards",
+                "magic development"
+            ]
+        },
+        "prologue/release-notes": {
+            "title": "Release Notes",
+            "description": "View the latest Magic Framework release notes. Track new features, improvements, bug fixes, and breaking changes across versions.",
+            "keywords": [
+                "magic release notes",
+                "changelog",
+                "magic versions",
+                "flutter framework updates",
+                "breaking changes",
+                "new features"
+            ]
+        },
+        "prologue/upgrade-guide": {
+            "title": "Upgrade Guide",
+            "description": "Upgrade your Magic Framework installation to the latest version. Migration steps, breaking changes, and compatibility notes.",
+            "keywords": [
+                "magic upgrade",
+                "version migration",
+                "flutter upgrade",
+                "breaking changes",
+                "migration guide",
+                "magic update"
+            ]
+        }
+    }
+}
