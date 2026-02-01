@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "serena": {
+      "type": "sse", 
+      "url": "${SERENA_URL}"
+    },
+    "magic-boost": {
+      "command": "dart",
+      "args": [
+        "run",
+        "/Users/anilcan/StudioProjects/fluttersdk_magic/plugins/fluttersdk_magic_cli/bin/magic.dart",
+        "boost:mcp"
+      ]
+    },
+    "dart-mcp-server": {
+      "command": "dart",
+      "args": [
+        "mcp-server"
+      ]
+    }
+  }
+}

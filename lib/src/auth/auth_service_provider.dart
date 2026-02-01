@@ -47,7 +47,6 @@ class AuthServiceProvider extends ServiceProvider {
     try {
       final driver = Magic.make<NetworkDriver>('network');
       driver.addInterceptor(AuthInterceptor());
-      Log.debug('Auth interceptor registered');
     } catch (e) {
       Log.warning('Could not register auth interceptor: $e');
     }

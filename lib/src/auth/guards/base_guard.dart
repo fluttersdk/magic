@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import '../../database/eloquent/model.dart';
-import '../../facades/vault.dart';
+import '../../facades/event.dart';
 import '../../facades/http.dart';
 import '../../facades/log.dart';
+import '../../facades/vault.dart';
 import '../authenticatable.dart';
 import '../contracts/guard.dart';
+import '../events/auth_events.dart';
 
 /// Base Guard.
 ///
@@ -236,7 +238,6 @@ abstract class BaseGuard implements Guard {
     final cachedUser = await loadCachedUser();
     if (cachedUser != null) {
       setUser(cachedUser);
-      Log.debug('Auth: User loaded from cache');
     }
 
     // 2. Sync from API (fresh data)
@@ -262,6 +263,9 @@ abstract class BaseGuard implements Guard {
         setUser(user);
         await cacheUser(user);
         Log.info('Auth: User synced from API');
+
+        // Dispatch updated event
+        await Event.dispatch(AuthRestored(user));
       }
     } catch (e) {
       Log.error('Auth: Sync failed: $e');

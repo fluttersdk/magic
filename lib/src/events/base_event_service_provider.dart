@@ -10,7 +10,7 @@ import 'magic_listener.dart';
 /// ## Usage
 ///
 /// ```dart
-/// class AppEventServiceProvider extends EventServiceProvider {
+/// class EventServiceProvider extends BaseEventServiceProvider {
 ///   @override
 ///   Map<Type, List<MagicListener Function()>> get listen => {
 ///     UserRegistered: [
@@ -20,8 +20,8 @@ import 'magic_listener.dart';
 ///   };
 /// }
 /// ```
-class EventServiceProvider extends ServiceProvider {
-  EventServiceProvider(super.app);
+class BaseEventServiceProvider extends ServiceProvider {
+  BaseEventServiceProvider(super.app);
 
   /// The event listener mappings for the application.
   ///

@@ -54,11 +54,6 @@ class EventDispatcher {
     _listeners[eventType]!.addAll(listeners);
   }
 
-  /// Clear all listeners.
-  void clear() {
-    _listeners.clear();
-  }
-
   // ---------------------------------------------------------------------------
   // Dispatching
   // ---------------------------------------------------------------------------
@@ -80,22 +75,15 @@ class EventDispatcher {
     for (final listenerFactory in listeners) {
       try {
         final listener = listenerFactory();
-
-        // Ensure type safety manually since we are using raw MagicListener in the map
-        // but the listener itself is typed MagicListener<T>.
-        // We trust the registration logic (compiler checks generic constraints if used properly).
-        // Since `handle` takes `T`, passing `event` works via dynamic dispatch or explicit check.
-        // We use dynamic call here for simplicity as Dart handles the `handle(event)`
-        // call correctly if the object has that method with matching type.
-        // Alternatively, we can cast:
-        // (listener as MagicListener<MagicEvent>).handle(event); -> This fails dart generics variance.
-        // So we strictly rely on `runtimeType` matching in `register`.
-
-        // This is safe because we map UserRegistered -> MagicListener<UserRegistered>
         await (listener as dynamic).handle(event);
       } catch (e, stack) {
         Log.error('Error handling event $eventType: $e\n$stack');
       }
     }
+  }
+
+  /// Clear all listeners.
+  void clear() {
+    _listeners.clear();
   }
 }

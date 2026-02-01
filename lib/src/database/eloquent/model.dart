@@ -77,7 +77,7 @@ abstract class Model {
   bool get incrementing => true;
 
   /// Whether to use local database persistence.
-  bool get useLocal => true;
+  bool get useLocal => false;
 
   /// Whether to use remote API persistence.
   bool get useRemote => true;

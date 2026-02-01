@@ -14,7 +14,7 @@ Map<String, dynamic> defaultViewConfig = {
     'dialog': {
       'barrier_dismissible': true,
       'barrier_color': 'bg-black/50',
-      'class': 'bg-white rounded-xl p-6 shadow-2xl w-80 max-w-md',
+      'class': 'bg-white rounded-xl p-6 shadow-2xl max-w-lg',
     },
     'loading': {
       'barrier_class': 'bg-black/50',

@@ -149,7 +149,7 @@ export 'src/concerns/validates_requests.dart';
 export 'src/events/magic_event.dart';
 export 'src/events/magic_listener.dart';
 export 'src/events/event_dispatcher.dart';
-export 'src/events/event_service_provider.dart';
+export 'src/events/base_event_service_provider.dart';
 export 'src/facades/event.dart';
 
 // Framework Events

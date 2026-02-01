@@ -196,6 +196,24 @@ final apiUrl = Env.get('API_BASE_URL');
 
 ---
 
+## 🤖 AI Agent Integration
+
+For projects using AI coding assistants (Claude Code, Cursor, etc.), Magic provides ready-to-use context files:
+
+```
+docs/claude/
+├── CLAUDE.md                      # Copy to your project's CLAUDE.md
+└── skills/magic-usage/SKILL.md    # Detailed usage patterns
+```
+
+**Setup:**
+1. Copy `docs/claude/CLAUDE.md` to your project root as `CLAUDE.md`
+2. Copy `docs/claude/skills/` to your project's `.claude/skills/`
+
+This helps AI agents understand Magic's patterns (Facades, Eloquent, Service Providers) and generate correct code.
+
+---
+
 ## 🛠️ CLI Commands
 
 ```bash

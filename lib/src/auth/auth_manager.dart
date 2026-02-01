@@ -58,6 +58,22 @@ class AuthManager {
     _userFactory = factory;
   }
 
+  /// Create a user instance from data using the registered factory.
+  ///
+  /// Throws [StateError] if no factory is registered.
+  ///
+  /// ```dart
+  /// final user = Auth.manager.createUser({'id': 1, 'name': 'John'});
+  /// ```
+  Authenticatable createUser(Map<String, dynamic> data) {
+    if (_userFactory == null) {
+      throw StateError(
+        'User factory not set. Call Auth.manager.setUserFactory().',
+      );
+    }
+    return _userFactory!(data);
+  }
+
   /// Get a guard instance.
   ///
   /// If no name is provided, returns the default guard from config.

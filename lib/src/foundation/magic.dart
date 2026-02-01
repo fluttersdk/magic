@@ -343,6 +343,15 @@ class Magic {
     );
   }
 
+  /// Close the currently open dialog.
+  ///
+  /// ```dart
+  /// Magic.closeDialog();
+  /// ```
+  static void closeDialog() {
+    MagicFeedback.closeDialog();
+  }
+
   /// Show a confirmation dialog.
   ///
   /// Returns `true` if confirmed, `false` if cancelled.

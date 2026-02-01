@@ -136,7 +136,7 @@ class MagicFeedback {
     final dismissible = barrierDismissible;
     final containerClass = _getConfig(
       'view.dialog.class',
-      'bg-white rounded-xl p-6 shadow-2xl w-80 max-w-md',
+      'bg-red-100 rounded-xl p-6 shadow-2xl max-w-lg',
     );
 
     return showDialog<T>(
@@ -166,6 +166,17 @@ class MagicFeedback {
         return dialogContent;
       },
     );
+  }
+
+  /// Close the currently open dialog.
+  ///
+  /// ```dart
+  /// MagicFeedback.closeDialog();
+  /// ```
+  static void closeDialog() {
+    if (_isMounted) {
+      Navigator.of(_context!, rootNavigator: true).pop();
+    }
   }
 
   /// Show a confirmation dialog.
@@ -230,7 +241,7 @@ class MagicFeedback {
                 WText(title, className: titleClass),
                 WText(message, className: messageClass),
                 WDiv(
-                  className: 'flex flex-row justify-end gap-2 mt-6',
+                  className: 'flex flex-row justify-end gap-2 mt-6 w-full',
                   children: [
                     WAnchor(
                       onTap: () => Navigator.of(context).pop(false),

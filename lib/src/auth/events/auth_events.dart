@@ -33,3 +33,14 @@ class AuthFailed extends MagicEvent {
 
   AuthFailed(this.credentials, {this.guard = 'web'});
 }
+
+/// Fired when authentication state is restored.
+class AuthRestored extends MagicEvent {
+  /// The user who was restored.
+  final Authenticatable user;
+
+  /// The guard name used.
+  final String guard;
+
+  AuthRestored(this.user, {this.guard = 'web'});
+}
