@@ -19,7 +19,10 @@ class TestUser extends Model with HasTimestamps, InteractsWithPersistence {
         'settings': 'json',
       };
 
-  // Disable remote for tests
+  // Enable local, disable remote for tests
+  @override
+  bool get useLocal => true;
+
   @override
   bool get useRemote => false;
 

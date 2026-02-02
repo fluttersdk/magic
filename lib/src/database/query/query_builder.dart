@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:sqlite3/common.dart';
 
 import '../database_manager.dart';
+import '../../support/carbon.dart';
 
 /// Laravel-style Query Builder.
 ///
@@ -452,8 +455,14 @@ class QueryBuilder {
     if (value is bool) {
       return value ? 1 : 0;
     }
+    if (value is Carbon) {
+      return value.toIso8601String();
+    }
     if (value is DateTime) {
       return value.toIso8601String();
+    }
+    if (value is Map || value is List) {
+      return jsonEncode(value);
     }
     return value;
   }
