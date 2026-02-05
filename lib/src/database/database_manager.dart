@@ -138,7 +138,7 @@ class DatabaseManager {
 
   /// Close the database connection.
   void dispose() {
-    _connection?.close();
+    _connection?.dispose();
     _connection = null;
     _schemaCache.clear();
   }
