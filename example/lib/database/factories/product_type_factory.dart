@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 import '../../app/models/product_type.dart';
 
@@ -19,7 +19,7 @@ class ProductTypeFactory extends Factory<ProductType> {
   }
 
   // Custom States
-  // 
+  //
   // ProductTypeFactory inactive() {
   //   return state({'is_active': false}) as ProductTypeFactory;
   // }

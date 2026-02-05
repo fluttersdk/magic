@@ -1,7 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
-import 'package:fluttersdk_magic/src/encryption/encryption_service_provider.dart';
+import 'package:magic/magic.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

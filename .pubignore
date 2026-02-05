@@ -1,0 +1,23 @@
+# Development files
+.claude/
+.magic/
+.serena/
+.cursor/
+.vscode/
+.idea/
+
+# Cache files
+magic_cache.json
+*.iml
+.DS_Store
+
+# Internal documentation
+AGENTS.md
+docs/internal/
+
+# Build artifacts
+build/
+.dart_tool/
+
+# Scripts
+scripts/

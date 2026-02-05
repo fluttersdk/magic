@@ -314,20 +314,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  fluttersdk_magic:
-    dependency: "direct main"
-    description:
-      path: ".."
-      relative: true
-    source: path
-    version: "0.0.1"
   fluttersdk_wind:
     dependency: transitive
     description:
-      path: "../plugins/fluttersdk_wind"
-      relative: true
-    source: path
-    version: "1.0.0"
+      name: fluttersdk_wind
+      sha256: "59c9f79d44613b12b9c1a296a5d784138f25de5347b334e0141a1d2670b110d4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0-alpha.2"
   fuchsia_remote_debug_protocol:
     dependency: transitive
     description: flutter
@@ -466,6 +460,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.2"
+  keyboard_actions:
+    dependency: transitive
+    description:
+      name: keyboard_actions
+      sha256: "5155a158c0d22c3a2f4a2192040445fe84977620cf0eeb29f6148a1dcb5835fa"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.2.1"
   leak_tracker:
     dependency: transitive
     description:
@@ -514,6 +516,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.0"
+  magic:
+    dependency: "direct main"
+    description:
+      path: ".."
+      relative: true
+    source: path
+    version: "1.0.0-alpha.1"
   matcher:
     dependency: transitive
     description:

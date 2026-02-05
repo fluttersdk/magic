@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/storage/contracts/storage_disk.dart';
-import 'package:fluttersdk_magic/src/storage/drivers/local_disk.dart';
-import 'package:fluttersdk_magic/src/storage/drivers/local/local_adapter_contract.dart';
-import 'package:fluttersdk_magic/src/storage/storage_manager.dart';
-import 'package:fluttersdk_magic/src/facades/storage.dart';
-import 'package:fluttersdk_magic/src/facades/config.dart';
+import 'package:magic/src/storage/contracts/storage_disk.dart';
+import 'package:magic/src/storage/drivers/local_disk.dart';
+import 'package:magic/src/storage/drivers/local/local_adapter_contract.dart';
+import 'package:magic/src/storage/storage_manager.dart';
+import 'package:magic/src/facades/storage.dart';
+import 'package:magic/src/facades/config.dart';
 
 /// Mock adapter for testing Storage without file system access.
 class MockLocalAdapter implements LocalAdapterContract {

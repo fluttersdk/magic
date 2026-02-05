@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../../resources/views/auth/login_view.dart';
 import '../../resources/views/auth/register_view.dart';
 import '../middleware/ensure_authenticated.dart';

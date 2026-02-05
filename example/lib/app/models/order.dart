@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 /// Order model.
 ///
@@ -24,7 +24,7 @@ class Order extends Model with HasTimestamps, InteractsWithPersistence {
     'subtotal',
     'customer_id',
     'payment_id',
-    'order_items'
+    'order_items',
   ];
 
   /// The attributes that should be cast.
@@ -38,7 +38,7 @@ class Order extends Model with HasTimestamps, InteractsWithPersistence {
     'subtotal': 'double',
     'customer_id': 'int',
     'payment_id': 'int',
-    'order_items': 'json'
+    'order_items': 'json',
   };
 
   // ---------------------------------------------------------------------------
@@ -82,8 +82,10 @@ class Order extends Model with HasTimestamps, InteractsWithPersistence {
   set paymentId(int value) => setAttribute('payment_id', value);
 
   /// Get the order_items value.
-  Map<String, dynamic>? get orderItems => getAttribute('order_items') as Map<String, dynamic>?;
-  set orderItems(Map<String, dynamic>? value) => setAttribute('order_items', value);
+  Map<String, dynamic>? get orderItems =>
+      getAttribute('order_items') as Map<String, dynamic>?;
+  set orderItems(Map<String, dynamic>? value) =>
+      setAttribute('order_items', value);
 
   // ---------------------------------------------------------------------------
   // Static Helpers

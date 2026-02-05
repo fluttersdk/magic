@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 import '../../../app/controllers/product_type_controller.dart';
 
@@ -28,12 +28,8 @@ class _ProductTypeEditViewState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ProductTypeEdit'),
-      ),
-      body: const Center(
-        child: Text('ProductTypeEdit'),
-      ),
+      appBar: AppBar(title: const Text('ProductTypeEdit')),
+      body: const Center(child: Text('ProductTypeEdit')),
     );
   }
 }

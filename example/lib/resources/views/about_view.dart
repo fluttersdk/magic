@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../../app/controllers/about_controller.dart';
 
 class AboutView extends MagicView<AboutController> {

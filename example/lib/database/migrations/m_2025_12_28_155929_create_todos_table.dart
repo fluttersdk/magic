@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 /// Migration: 2025_12_28_155929_create_todos_table
 ///

@@ -304,38 +304,10 @@ class MagicRouter {
         );
 
       case RouteTransition.none:
-        return CustomTransitionPage(
+        // No animation - instant page switch
+        return NoTransitionPage(
           key: state.pageKey,
           child: opaqueChild,
-          transitionDuration: const Duration(milliseconds: 300),
-          reverseTransitionDuration: const Duration(milliseconds: 250),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Incoming page slides from right (fully opaque, covers old page)
-            final slideIn = Tween<Offset>(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ));
-
-            // Outgoing page slides slightly left
-            final slideOut = Tween<Offset>(
-              begin: Offset.zero,
-              end: const Offset(-0.3, 0),
-            ).animate(CurvedAnimation(
-              parent: secondaryAnimation,
-              curve: Curves.easeOutCubic,
-            ));
-
-            return SlideTransition(
-              position: slideOut,
-              child: SlideTransition(
-                position: slideIn,
-                child: child,
-              ),
-            );
-          },
         );
     }
   }

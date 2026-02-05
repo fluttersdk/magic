@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart' hide EventDispatcher;
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 // Mocks
 class MockModel extends Model with InteractsWithPersistence {

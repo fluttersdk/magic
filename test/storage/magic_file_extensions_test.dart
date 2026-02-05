@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:fluttersdk_magic/src/storage/magic_file.dart';
-import 'package:fluttersdk_magic/src/storage/magic_file_io.dart';
+import 'package:magic/src/storage/magic_file.dart';
+import 'package:magic/src/storage/magic_file_io.dart';
 
 void main() {
   group('MagicFileIOExtensions', () {

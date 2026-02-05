@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../app/providers/route_service_provider.dart';
 import '../app/providers/app_service_provider.dart';
 

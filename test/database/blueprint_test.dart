@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/database/schema/blueprint.dart';
+import 'package:magic/src/database/schema/blueprint.dart';
 
 void main() {
   group('Blueprint', () {

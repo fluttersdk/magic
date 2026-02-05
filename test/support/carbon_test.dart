@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/support/carbon.dart';
+import 'package:magic/src/support/carbon.dart';
 
 void main() {
   group('Carbon Constructors', () {

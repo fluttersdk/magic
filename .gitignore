@@ -36,3 +36,4 @@ migrate_working_dir/
 magic_app.db
 magic_cache.json
 /plugins
+.mcp.json

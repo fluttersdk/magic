@@ -1,7 +1,7 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
-import 'package:fluttersdk_magic_example/config/app.dart';
-import 'package:fluttersdk_magic_example/config/database.dart';
-import 'package:fluttersdk_magic_example/database/seeders/database_seeder.dart';
+import 'package:magic/magic.dart';
+import 'package:magic_example/config/app.dart';
+import 'package:magic_example/config/database.dart';
+import 'package:magic_example/database/seeders/database_seeder.dart';
 
 /// Database Seeder Entry Point.
 ///

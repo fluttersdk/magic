@@ -124,12 +124,18 @@ mixin MagicStateMixin<T> on MagicController {
   /// - [setSuccess] - Set success with data
   /// - [setError] - Set error with message
   /// - [setEmpty] - Set empty state
-  void setState(T? newState, {RxStatus? status}) {
+  ///
+  /// Set [notify] to `false` to update state without triggering a rebuild.
+  /// This is useful when clearing state during initState to avoid
+  /// "setState called during build" errors.
+  void setState(T? newState, {RxStatus? status, bool notify = true}) {
     _state = newState;
     if (status != null) {
       _status = status;
     }
-    refreshUI();
+    if (notify) {
+      refreshUI();
+    }
   }
 
   // ---------------------------------------------------------------------------

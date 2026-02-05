@@ -1,8 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/localization/translator.dart';
-import 'package:fluttersdk_magic/src/localization/contracts/translation_loader.dart';
+import 'package:magic/src/localization/translator.dart';
+import 'package:magic/src/localization/contracts/translation_loader.dart';
 
 /// Mock loader for testing.
 ///

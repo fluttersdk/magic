@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/cache/cache_manager.dart';
-import 'package:fluttersdk_magic/src/facades/config.dart';
-import 'package:fluttersdk_magic/src/cache/drivers/file_store.dart';
+import 'package:magic/src/cache/cache_manager.dart';
+import 'package:magic/src/facades/config.dart';
+import 'package:magic/src/cache/drivers/file_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

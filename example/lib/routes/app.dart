@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 import '../app/controllers/user_controller.dart';
 import '../app/controllers/dashboard_controller.dart';

@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/storage/magic_file.dart';
-import 'package:fluttersdk_magic/src/facades/config.dart';
+import 'package:magic/src/storage/magic_file.dart';
+import 'package:magic/src/facades/config.dart';
 
 void main() {
   group('MagicFile', () {

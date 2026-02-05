@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 import 'middleware/ensure_authenticated.dart';
 import 'middleware/redirect_if_authenticated.dart';

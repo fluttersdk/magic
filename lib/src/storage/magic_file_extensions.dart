@@ -9,7 +9,7 @@
 /// ## Usage
 ///
 /// ```dart
-/// import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+/// import 'package:magic/magic.dart';
 ///
 /// // On IO platforms
 /// final file = magicFile.toFile();

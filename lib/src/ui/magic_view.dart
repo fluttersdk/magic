@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import '../concerns/validates_requests.dart';
 import '../foundation/magic.dart';
 import '../http/magic_controller.dart';
+import '../http/rx_status.dart';
 import '../validation/contracts/rule.dart';
 import '../validation/form_validator.dart';
 
@@ -124,14 +125,31 @@ abstract class MagicStatefulViewState<T extends MagicController,
     onInit();
   }
 
-  /// Clear validation errors if controller supports it.
+  /// Clear error states if controller supports them.
   ///
-  /// This prevents validation errors from one page showing on another page.
+  /// This prevents error states from one page showing on another page.
   /// Laravel does this automatically per-request; we do it per-view.
+  ///
+  /// Clears:
+  /// - Validation errors (from [ValidatesRequests] mixin)
+  /// - RxStatus error state (from [MagicStateMixin])
+  ///
+  /// Note: Clears are done silently (without notifyListeners) to avoid
+  /// "setState called during build" errors during initState.
   void _clearValidationErrors() {
     // Check if controller implements HasValidationErrors (ValidatesRequests mixin)
-    if (_controller is HasValidationErrors) {
-      (_controller as HasValidationErrors).clearErrors();
+    // Clear silently without triggering rebuild during initState
+    if (_controller is ValidatesRequests) {
+      (_controller as ValidatesRequests).validationErrors = {};
+    }
+
+    // Clear RxStatus error state if controller uses MagicStateMixin
+    // Use notify: false to avoid setState during build
+    if (_controller is MagicStateMixin) {
+      final mixin = _controller as MagicStateMixin;
+      if (mixin.isError) {
+        mixin.setState(null, status: const RxStatus.empty(), notify: false);
+      }
     }
   }
 

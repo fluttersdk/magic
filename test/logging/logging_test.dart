@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 /// A mock logger driver that captures all log calls for testing.
 class MockLoggerDriver extends LoggerDriver {

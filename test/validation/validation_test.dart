@@ -1,18 +1,18 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/localization/translator.dart';
-import 'package:fluttersdk_magic/src/localization/contracts/translation_loader.dart';
-import 'package:fluttersdk_magic/src/validation/contracts/rule.dart';
-import 'package:fluttersdk_magic/src/validation/rules/required.dart';
-import 'package:fluttersdk_magic/src/validation/rules/email.dart';
-import 'package:fluttersdk_magic/src/validation/rules/min.dart';
-import 'package:fluttersdk_magic/src/validation/rules/max.dart';
-import 'package:fluttersdk_magic/src/validation/rules/confirmed.dart';
-import 'package:fluttersdk_magic/src/validation/rules/same.dart';
-import 'package:fluttersdk_magic/src/validation/rules/accepted.dart';
-import 'package:fluttersdk_magic/src/validation/exceptions/validation_exception.dart';
-import 'package:fluttersdk_magic/src/validation/validator.dart';
+import 'package:magic/src/localization/translator.dart';
+import 'package:magic/src/localization/contracts/translation_loader.dart';
+import 'package:magic/src/validation/contracts/rule.dart';
+import 'package:magic/src/validation/rules/required.dart';
+import 'package:magic/src/validation/rules/email.dart';
+import 'package:magic/src/validation/rules/min.dart';
+import 'package:magic/src/validation/rules/max.dart';
+import 'package:magic/src/validation/rules/confirmed.dart';
+import 'package:magic/src/validation/rules/same.dart';
+import 'package:magic/src/validation/rules/accepted.dart';
+import 'package:magic/src/validation/exceptions/validation_exception.dart';
+import 'package:magic/src/validation/validator.dart';
 
 /// Mock loader for testing with validation messages.
 class MockTranslationLoader implements TranslationLoader {

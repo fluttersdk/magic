@@ -23,7 +23,7 @@ library;
 /// ## Usage
 ///
 /// ```dart
-/// import 'package:fluttersdk_magic/src/database/connectors/connection_factory.dart';
+/// import 'package:magic/src/database/connectors/connection_factory.dart';
 ///
 /// final factory = ConnectionFactory();
 /// final db = await factory.connect({'database': 'my_app.db'});

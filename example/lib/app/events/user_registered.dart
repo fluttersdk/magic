@@ -1,4 +1,4 @@
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../../models/user.dart';
 
 class UserRegistered extends MagicEvent {

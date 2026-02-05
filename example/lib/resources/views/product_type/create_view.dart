@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 import '../../../app/controllers/product_type_controller.dart';
 
@@ -14,7 +14,8 @@ class ProductTypeCreateView extends MagicStatefulView<ProductTypeController> {
 }
 
 class _ProductTypeCreateViewState
-    extends MagicStatefulViewState<ProductTypeController, ProductTypeCreateView> {
+    extends
+        MagicStatefulViewState<ProductTypeController, ProductTypeCreateView> {
   @override
   void onInit() {
     // Called after initState, controller is available
@@ -28,12 +29,8 @@ class _ProductTypeCreateViewState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ProductTypeCreate'),
-      ),
-      body: const Center(
-        child: Text('ProductTypeCreate'),
-      ),
+      appBar: AppBar(title: const Text('ProductTypeCreate')),
+      body: const Center(child: Text('ProductTypeCreate')),
     );
   }
 }

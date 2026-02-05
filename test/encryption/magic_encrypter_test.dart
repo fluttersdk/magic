@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/src/encryption/magic_encrypter.dart';
-import 'package:fluttersdk_magic/src/encryption/exceptions.dart';
+import 'package:magic/src/encryption/magic_encrypter.dart';
+import 'package:magic/src/encryption/exceptions.dart';
 
 void main() {
   group('MagicEncrypter', () {

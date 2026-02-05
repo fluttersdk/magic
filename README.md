@@ -1,5 +1,6 @@
 # Magic ✨
 
+[![pub package](https://img.shields.io/pub/v/fluttersdk_magic.svg)](https://pub.dev/packages/fluttersdk_magic)
 [![Flutter Version](https://img.shields.io/badge/Flutter-3.22.0%2B-blue.svg)](https://flutter.dev)
 [![Dart Version](https://img.shields.io/badge/Dart-3.4.0%2B-blue.svg)](https://dart.dev)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

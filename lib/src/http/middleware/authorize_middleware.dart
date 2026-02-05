@@ -1,6 +1,6 @@
-import 'package:fluttersdk_magic/src/http/middleware/magic_middleware.dart';
-import 'package:fluttersdk_magic/src/facades/gate.dart';
-import 'package:fluttersdk_magic/src/facades/route.dart';
+import 'package:magic/src/http/middleware/magic_middleware.dart';
+import 'package:magic/src/facades/gate.dart';
+import 'package:magic/src/facades/route.dart';
 
 /// Authorization Middleware.
 ///
