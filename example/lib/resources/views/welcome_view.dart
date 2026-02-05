@@ -41,7 +41,6 @@ class WelcomeView extends MagicView<WelcomeController> {
                 ),
               ),
               const SizedBox(height: 32),
-
               Text(
                 'Welcome to ${controller.appName}!',
                 style: const TextStyle(
@@ -50,13 +49,11 @@ class WelcomeView extends MagicView<WelcomeController> {
                 ),
               ),
               const SizedBox(height: 12),
-
               Text(
                 trans('welcome', {'name': 'Anilcan'}),
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
-
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -83,28 +80,24 @@ class WelcomeView extends MagicView<WelcomeController> {
                 ),
               ),
               const SizedBox(height: 32),
-
               FilledButton.icon(
                 onPressed: () => MagicRoute.to('/todos'),
                 icon: const Icon(Icons.list),
                 label: const Text('Todo List (Database Demo)'),
               ),
               const SizedBox(height: 12),
-
               FilledButton.icon(
                 onPressed: () => MagicRoute.to('/user'),
                 icon: const Icon(Icons.person),
                 label: const Text('User Profile (MVC Demo)'),
               ),
               const SizedBox(height: 12),
-
               FilledButton.icon(
                 onPressed: () => MagicRoute.to('/dashboard'),
                 icon: const Icon(Icons.dashboard),
                 label: const Text('Dashboard (Responsive Demo)'),
               ),
               const SizedBox(height: 12),
-
               OutlinedButton.icon(
                 onPressed: () {
                   Magic.snackbar('Config', 'App Name: ${controller.appName}');
@@ -113,7 +106,6 @@ class WelcomeView extends MagicView<WelcomeController> {
                 label: const Text('Show Config Snackbar'),
               ),
               const SizedBox(height: 12),
-
               TextButton.icon(
                 onPressed: () => MagicRoute.push('/about'),
                 icon: const Icon(Icons.arrow_forward),

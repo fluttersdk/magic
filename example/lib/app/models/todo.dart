@@ -18,11 +18,11 @@ class Todo extends Model with HasTimestamps, InteractsWithPersistence {
 
   @override
   List<String> get fillable => [
-    'title',
-    'description',
-    'is_completed',
-    'priority',
-  ];
+        'title',
+        'description',
+        'is_completed',
+        'priority',
+      ];
 
   // Typed accessors
   String? get title => getAttribute('title') as String?;

@@ -15,31 +15,31 @@ class Order extends Model with HasTimestamps, InteractsWithPersistence {
   /// The attributes that are mass assignable.
   @override
   List<String> get fillable => [
-    'payment_method',
-    'payment_date',
-    'shipped_date',
-    'total',
-    'tax_amount',
-    'shipping_amount',
-    'subtotal',
-    'customer_id',
-    'payment_id',
-    'order_items',
-  ];
+        'payment_method',
+        'payment_date',
+        'shipped_date',
+        'total',
+        'tax_amount',
+        'shipping_amount',
+        'subtotal',
+        'customer_id',
+        'payment_id',
+        'order_items',
+      ];
 
   /// The attributes that should be cast.
   @override
   Map<String, String> get casts => {
-    'payment_date': 'datetime',
-    'shipped_date': 'datetime',
-    'total': 'double',
-    'tax_amount': 'double',
-    'shipping_amount': 'double',
-    'subtotal': 'double',
-    'customer_id': 'int',
-    'payment_id': 'int',
-    'order_items': 'json',
-  };
+        'payment_date': 'datetime',
+        'shipped_date': 'datetime',
+        'total': 'double',
+        'tax_amount': 'double',
+        'shipping_amount': 'double',
+        'subtotal': 'double',
+        'customer_id': 'int',
+        'payment_id': 'int',
+        'order_items': 'json',
+      };
 
   // ---------------------------------------------------------------------------
   // Typed Accessors

@@ -6,17 +6,17 @@ import 'package:magic/magic.dart';
 /// Magic Network (Http) system. Don't forget to add `NetworkServiceProvider`
 /// to your `app.providers` list.
 Map<String, dynamic> get networkConfig => {
-  'network': {
-    'default': 'api',
-    'drivers': {
-      'api': {
-        'base_url': env('API_URL', 'https://api.example.com/v1'),
-        'timeout': 10000,
-        'headers': {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
+      'network': {
+        'default': 'api',
+        'drivers': {
+          'api': {
+            'base_url': env('API_URL', 'https://api.example.com/v1'),
+            'timeout': 10000,
+            'headers': {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+          },
         },
       },
-    },
-  },
-};
+    };

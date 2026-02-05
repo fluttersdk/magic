@@ -19,10 +19,10 @@ class OrderItem extends Model with HasTimestamps, InteractsWithPersistence {
   /// The attributes that should be cast.
   @override
   Map<String, String> get casts => {
-    'price': 'double',
-    'product_id': 'int',
-    'order_id': 'int',
-  };
+        'price': 'double',
+        'product_id': 'int',
+        'order_id': 'int',
+      };
 
   // ---------------------------------------------------------------------------
   // Typed Accessors

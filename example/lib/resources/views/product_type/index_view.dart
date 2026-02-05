@@ -13,9 +13,8 @@ class ProductTypeIndexView extends MagicStatefulView<ProductTypeController> {
   State<ProductTypeIndexView> createState() => _ProductTypeIndexViewState();
 }
 
-class _ProductTypeIndexViewState
-    extends
-        MagicStatefulViewState<ProductTypeController, ProductTypeIndexView> {
+class _ProductTypeIndexViewState extends MagicStatefulViewState<
+    ProductTypeController, ProductTypeIndexView> {
   @override
   void onInit() {
     // Called after initState, controller is available

@@ -280,9 +280,8 @@ class TodosIndexView extends MagicView<TodoController> {
                 }
                 controller.createTodo(
                   title: title.trim(),
-                  description: description.trim().isEmpty
-                      ? null
-                      : description.trim(),
+                  description:
+                      description.trim().isEmpty ? null : description.trim(),
                   priority: priority,
                 );
                 Navigator.pop(ctx);
@@ -394,9 +393,8 @@ class TodosIndexView extends MagicView<TodoController> {
                 controller.updateTodo(
                   todo,
                   title: title.trim(),
-                  description: description.trim().isEmpty
-                      ? null
-                      : description.trim(),
+                  description:
+                      description.trim().isEmpty ? null : description.trim(),
                   priority: priority,
                 );
                 Navigator.pop(ctx);

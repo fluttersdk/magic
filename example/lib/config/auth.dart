@@ -25,37 +25,37 @@
 /// }
 /// ```
 Map<String, dynamic> get authConfig => {
-  'auth': {
-    'defaults': {'guard': 'api', 'passwords': 'users'},
-    'guards': {
-      'api': {'driver': 'sanctum', 'provider': 'users'},
-    },
-    'providers': {
-      'users': {'driver': 'eloquent', 'model': 'User'},
-    },
-    // -----------------------------------------------------------------------
-    // Customize your API endpoints here
-    // -----------------------------------------------------------------------
-    'endpoints': {
-      'login': '/api/login',
-      'logout': '/api/logout',
-      'register': '/api/register',
-      'user': '/api/user',
-      'refresh': '/api/refresh',
-      'forgot_password': '/api/forgot-password',
-      'reset_password': '/api/reset-password',
-    },
-    // -----------------------------------------------------------------------
-    // Token Configuration
-    // -----------------------------------------------------------------------
-    'token': {'key': 'auth_token', 'refresh_key': 'refresh_token'},
-    // -----------------------------------------------------------------------
-    // Device Name (optional)
-    // -----------------------------------------------------------------------
-    // 'device_name': 'My Flutter App',
-    // -----------------------------------------------------------------------
-    // Auto-login on app restart
-    // -----------------------------------------------------------------------
-    'auto_refresh': true,
-  },
-};
+      'auth': {
+        'defaults': {'guard': 'api', 'passwords': 'users'},
+        'guards': {
+          'api': {'driver': 'sanctum', 'provider': 'users'},
+        },
+        'providers': {
+          'users': {'driver': 'eloquent', 'model': 'User'},
+        },
+        // -----------------------------------------------------------------------
+        // Customize your API endpoints here
+        // -----------------------------------------------------------------------
+        'endpoints': {
+          'login': '/api/login',
+          'logout': '/api/logout',
+          'register': '/api/register',
+          'user': '/api/user',
+          'refresh': '/api/refresh',
+          'forgot_password': '/api/forgot-password',
+          'reset_password': '/api/reset-password',
+        },
+        // -----------------------------------------------------------------------
+        // Token Configuration
+        // -----------------------------------------------------------------------
+        'token': {'key': 'auth_token', 'refresh_key': 'refresh_token'},
+        // -----------------------------------------------------------------------
+        // Device Name (optional)
+        // -----------------------------------------------------------------------
+        // 'device_name': 'My Flutter App',
+        // -----------------------------------------------------------------------
+        // Auto-login on app restart
+        // -----------------------------------------------------------------------
+        'auto_refresh': true,
+      },
+    };

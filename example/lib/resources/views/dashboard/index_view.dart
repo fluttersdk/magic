@@ -44,8 +44,8 @@ class DashboardIndexView extends StatelessWidget {
         isDesktop
             ? 32
             : isTablet
-            ? 24
-            : 16,
+                ? 24
+                : 16,
       ),
       child: WDiv(
         className: 'flex flex-col gap-6',

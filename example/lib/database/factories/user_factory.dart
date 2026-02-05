@@ -14,9 +14,8 @@ class UserFactory extends Factory<User> {
     return {
       'name': faker.person.name(),
       'email': faker.internet.email(),
-      'born_at': faker.date
-          .dateTime(minYear: 1970, maxYear: 2000)
-          .toIso8601String(),
+      'born_at':
+          faker.date.dateTime(minYear: 1970, maxYear: 2000).toIso8601String(),
     };
   }
 
@@ -28,10 +27,8 @@ class UserFactory extends Factory<User> {
   /// Create a recently born user (for testing age-related logic).
   UserFactory young() {
     return state({
-          'born_at': faker.date
-              .dateTime(minYear: 1995, maxYear: 2005)
-              .toIso8601String(),
-        })
-        as UserFactory;
+      'born_at':
+          faker.date.dateTime(minYear: 1995, maxYear: 2005).toIso8601String(),
+    }) as UserFactory;
   }
 }
