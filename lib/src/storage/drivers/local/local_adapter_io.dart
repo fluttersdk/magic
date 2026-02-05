@@ -112,8 +112,8 @@ class LocalAdapter implements LocalAdapterContract {
       throw Exception('File not found: $path');
     }
 
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(fullPath, name: name ?? p.basename(path))]),
+    await Share.shareXFiles(
+      [XFile(fullPath, name: name ?? p.basename(path))],
     );
   }
 }
