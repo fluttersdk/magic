@@ -184,16 +184,16 @@ final apiUrl = Env.get('API_BASE_URL');
 
 | Topic | Description |
 |-------|-------------|
-| [Installation](docs/getting-started/installation.md) | Setup and requirements |
-| [Configuration](docs/getting-started/configuration.md) | Environment and config files |
-| [Routing](docs/routing/basic-routing.md) | Routes and navigation |
-| [Authentication](docs/security/authentication.md) | Guards and login |
-| [Authorization](docs/security/authorization.md) | Gates and policies |
-| [Database](docs/database/getting-started.md) | Eloquent models and queries |
-| [Validation](docs/validation/validation.md) | Form validation rules |
-| [Caching](docs/cache/cache.md) | Cache drivers and usage |
-| [Events](docs/events/events.md) | Event dispatching |
-| [Localization](docs/localization/localization.md) | Multi-language support |
+| [Installation](doc/getting-started/installation.md) | Setup and requirements |
+| [Configuration](doc/getting-started/configuration.md) | Environment and config files |
+| [Routing](doc/routing/basic-routing.md) | Routes and navigation |
+| [Authentication](doc/security/authentication.md) | Guards and login |
+| [Authorization](doc/security/authorization.md) | Gates and policies |
+| [Database](doc/database/getting-started.md) | Eloquent models and queries |
+| [Validation](doc/validation/validation.md) | Form validation rules |
+| [Caching](doc/cache/cache.md) | Cache drivers and usage |
+| [Events](doc/events/events.md) | Event dispatching |
+| [Localization](doc/localization/localization.md) | Multi-language support |
 
 ---
 
@@ -202,14 +202,14 @@ final apiUrl = Env.get('API_BASE_URL');
 For projects using AI coding assistants (Claude Code, Cursor, etc.), Magic provides ready-to-use context files:
 
 ```
-docs/claude/
+doc/claude/
 ├── CLAUDE.md                      # Copy to your project's CLAUDE.md
 └── skills/magic-usage/SKILL.md    # Detailed usage patterns
 ```
 
 **Setup:**
-1. Copy `docs/claude/CLAUDE.md` to your project root as `CLAUDE.md`
-2. Copy `docs/claude/skills/` to your project's `.claude/skills/`
+1. Copy `doc/claude/CLAUDE.md` to your project root as `CLAUDE.md`
+2. Copy `doc/claude/skills/` to your project's `.claude/skills/`
 
 This helps AI agents understand Magic's patterns (Facades, Eloquent, Service Providers) and generate correct code.
 
