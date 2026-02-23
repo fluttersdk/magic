@@ -31,11 +31,9 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 /build/
 /coverage/
-# /plugins/
 /.vscode/
 magic_app.db
 magic_cache.json
-/plugins
 .mcp.json
 magic-framework.skill
 

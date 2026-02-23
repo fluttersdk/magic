@@ -1,0 +1,8 @@
+[submodule "plugins/fluttersdk_wind"]
+	path = plugins/fluttersdk_wind
+	url = git@github.com:fluttersdk/wind.git
+	branch = v1
+[submodule "plugins/magic_cli"]
+	path = plugins/magic_cli
+	url = git@github.com:fluttersdk/magic_cli.git
+	branch = master
