@@ -38,3 +38,9 @@ magic_cache.json
 /plugins
 .mcp.json
 magic-framework.skill
+
+# AI coding tools
+AGENTS.md
+.claude/
+.opencode/
+.sisyphus/
