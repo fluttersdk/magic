@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../../database/eloquent/model.dart';
 import '../../facades/event.dart';
 import '../../facades/http.dart';
@@ -43,6 +45,13 @@ abstract class BaseGuard implements Guard {
   Authenticatable? _user;
   String? _cachedToken;
 
+  /// Auth state notifier.
+  ///
+  /// Bumped on every auth state change (setUser, logout, restore).
+  /// Allows UI to reactively rebuild when auth state transitions.
+  @override
+  final ValueNotifier<int> stateNotifier = ValueNotifier<int>(0);
+
   /// Vault keys.
   final String tokenKey;
   final String? refreshTokenKey;
@@ -83,7 +92,11 @@ abstract class BaseGuard implements Guard {
   dynamic id() => _user?.authIdentifier;
 
   @override
-  void setUser(Authenticatable user) => _user = user;
+  @override
+  void setUser(Authenticatable user) {
+    _user = user;
+    stateNotifier.value++;
+  }
 
   // ---------------------------------------------------------------------------
   // Token Management
@@ -223,6 +236,7 @@ abstract class BaseGuard implements Guard {
     await clearTokens();
     await clearUserCache();
     _user = null;
+    stateNotifier.value++;
   }
 
   @override

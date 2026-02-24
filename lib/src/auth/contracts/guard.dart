@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../database/eloquent/model.dart';
 import '../authenticatable.dart';
 
@@ -73,4 +75,14 @@ abstract class Guard {
   ///
   /// Called on app boot to restore user from stored token.
   Future<void> restore();
+
+  /// Notifier that bumps on every auth state change.
+  ///
+  /// Listeners are notified when the user changes (login, logout, restore).
+  /// Use this to rebuild UI after auth state transitions.
+  ///
+  /// ```dart
+  /// Auth.stateNotifier.addListener(() => setState(() {}));
+  /// ```
+  ValueNotifier<int> get stateNotifier;
 }

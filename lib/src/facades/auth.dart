@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../auth/auth_manager.dart';
 import '../auth/contracts/guard.dart';
 import '../auth/authenticatable.dart';
@@ -177,4 +179,18 @@ class Auth {
   /// }
   /// ```
   static Future<void> restore() => guard().restore();
+
+  // ---------------------------------------------------------------------------
+  // Reactive State
+  // ---------------------------------------------------------------------------
+
+  /// Notifier that bumps on every auth state change.
+  ///
+  /// Listen to this in layout widgets to automatically rebuild
+  /// when the user logs in, logs out, or auth is restored.
+  ///
+  /// ```dart
+  /// Auth.stateNotifier.addListener(() => setState(() {}));
+  /// ```
+  static ValueNotifier<int> get stateNotifier => guard().stateNotifier;
 }
