@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -29,6 +30,9 @@ class MockGuard implements Guard {
   String? mockToken = 'mock-token';
 
   @override
+  final ValueNotifier<int> stateNotifier = ValueNotifier<int>(0);
+
+  @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
     mockToken = data['token'] as String?;
     _user = user;
@@ -38,6 +42,7 @@ class MockGuard implements Guard {
   Future<void> logout() async {
     _user = null;
     mockToken = null;
+    stateNotifier.value++;
   }
 
   @override
@@ -55,6 +60,7 @@ class MockGuard implements Guard {
   @override
   void setUser(Authenticatable user) {
     _user = user;
+    stateNotifier.value++;
   }
 
   @override
@@ -70,8 +76,10 @@ class MockGuard implements Guard {
   Future<void> restore() async {
     // Mock restore - sets a default user if token exists
     if (mockToken != null) {
-      _user = MockUser()
-        ..setRawAttributes({'id': 1, 'name': 'Restored User'}, sync: true);
+      setUser(
+        MockUser()
+          ..setRawAttributes({'id': 1, 'name': 'Restored User'}, sync: true),
+      );
     }
   }
 }
@@ -197,6 +205,41 @@ void main() {
 
       expect(guard.check(), isTrue);
       expect(guard.user<MockUser>()?.name, 'Restored User');
+    });
+
+    test('stateNotifier bumps on setUser', () {
+      int notifyCount = 0;
+      guard.stateNotifier.addListener(() => notifyCount++);
+
+      final user = MockUser()
+        ..setRawAttributes({'id': 1, 'name': 'New'}, sync: true);
+      guard.setUser(user);
+
+      expect(notifyCount, 1);
+    });
+
+    test('stateNotifier bumps on logout', () async {
+      final user = MockUser()
+        ..setRawAttributes({'id': 1}, sync: true);
+      await guard.login({'token': 'token'}, user);
+
+      int notifyCount = 0;
+      guard.stateNotifier.addListener(() => notifyCount++);
+
+      await guard.logout();
+
+      expect(notifyCount, 1);
+    });
+
+    test('stateNotifier bumps on restore', () async {
+      guard.mockToken = 'stored-token';
+
+      int notifyCount = 0;
+      guard.stateNotifier.addListener(() => notifyCount++);
+
+      await guard.restore();
+
+      expect(notifyCount, greaterThanOrEqualTo(1));
     });
   });
 
