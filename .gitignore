@@ -38,7 +38,9 @@ magic_cache.json
 magic-framework.skill
 
 # AI coding tools
-AGENTS.md
+**/AGENTS.md
+**/CLAUDE.md
 .claude/
 .opencode/
 .sisyphus/
+doc/claude/
