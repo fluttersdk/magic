@@ -116,10 +116,17 @@ class MagicForm extends StatelessWidget {
     AutovalidateMode effectiveMode =
         autovalidateMode ?? AutovalidateMode.disabled;
 
-    // If controller has server-side errors, force validation to show them
-    if (effectiveController is ValidatesRequests) {
-      final validator = effectiveController;
-      if (validator.hasErrors) {
+    // If controller has server-side errors relevant to THIS form,
+    // force validation to show them. When formData is provided, only
+    // errors matching this form's fields trigger autovalidation —
+    // preventing cross-form error leakage in shared-controller setups.
+    if (formData != null) {
+      if (formData!.hasRelevantErrors) {
+        effectiveMode = AutovalidateMode.always;
+      }
+    } else if (effectiveController is ValidatesRequests) {
+      // Legacy path: no formData, fall back to global hasErrors check
+      if (effectiveController.hasErrors) {
         effectiveMode = AutovalidateMode.always;
       }
     }

@@ -211,6 +211,26 @@ class MagicFormData {
     _textControllers[field]!.text = textValue;
   }
 
+  /// Get all registered field names in this form.
+  ///
+  /// Includes both text fields and value fields.
+  Set<String> get fieldNames => {
+    ..._textControllers.keys,
+    ..._valueNotifiers.keys,
+  };
+
+  /// Check if the controller has validation errors relevant to this form.
+  ///
+  /// Only returns `true` if at least one of the controller's validation
+  /// error keys matches a field registered in this form. This prevents
+  /// cross-form error leakage when multiple forms share a controller.
+  bool get hasRelevantErrors {
+    if (controller == null || controller is! ValidatesRequests) return false;
+    final errors = (controller as ValidatesRequests).validationErrors;
+    if (errors.isEmpty) return false;
+    return errors.keys.any((key) => fieldNames.contains(key));
+  }
+
   /// Dispose all controllers and notifiers.
   void dispose() {
     for (final controller in _textControllers.values) {
