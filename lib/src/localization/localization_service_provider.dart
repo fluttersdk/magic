@@ -1,8 +1,11 @@
 import 'dart:ui' show Locale;
 
+import '../foundation/magic.dart';
+import '../network/contracts/network_driver.dart';
 import '../support/service_provider.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
+import 'localization_interceptor.dart';
 import 'translator.dart';
 import 'loaders/json_asset_loader.dart';
 
@@ -67,6 +70,19 @@ class LocalizationServiceProvider extends ServiceProvider {
       final localeStr = Config.get<String>('localization.locale', 'en') ?? 'en';
       await translator.load(Locale(localeStr));
       Log.info('Localization ready [$localeStr]');
+    }
+
+    // Register localization interceptor for HTTP requests
+    _registerLocalizationInterceptor();
+  }
+
+  /// Register the localization interceptor with the network driver.
+  void _registerLocalizationInterceptor() {
+    try {
+      final driver = Magic.make<NetworkDriver>('network');
+      driver.addInterceptor(LocalizationInterceptor());
+    } catch (e) {
+      Log.warning('Could not register localization interceptor: $e');
     }
   }
 }
