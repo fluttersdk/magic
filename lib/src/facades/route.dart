@@ -58,10 +58,6 @@ class MagicRoute {
   // Route Registration
   // ---------------------------------------------------------------------------
 
-  // ---------------------------------------------------------------------------
-  // Route Registration
-  // ---------------------------------------------------------------------------
-
   /// Register a page route.
   ///
   /// This is the primary way to define navigation routes.
@@ -133,6 +129,7 @@ class MagicRoute {
     List<dynamic> middleware = const [],
     String? as,
     Widget Function(Widget child)? layout,
+    String? layoutId,
     required void Function() routes,
   }) {
     // If layout is provided, start collecting routes
@@ -162,6 +159,7 @@ class MagicRoute {
     if (layout != null) {
       final collected = MagicRouter.instance.stopCollection();
       MagicRouter.instance.addLayout(LayoutDefinition(
+        id: layoutId,
         builder: layout,
         children: collected,
       ));
@@ -186,10 +184,12 @@ class MagicRoute {
   /// The layout widget should include a `MagicRouterOutlet` or use
   /// the `child` parameter to render nested content.
   static void layout({
+    String? id,
     required Widget Function(Widget child) builder,
     required List<RouteDefinition> routes,
   }) {
     final layout = LayoutDefinition(
+      id: id,
       builder: builder,
       children: routes,
     );

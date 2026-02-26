@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -79,6 +80,9 @@ class MagicRouter {
 
   /// Pending redirect from async middleware.
   String? _pendingRedirect;
+
+  /// Saved intended URL for redirect-after-login pattern.
+  String? _intendedUrl;
 
   /// active route collector stack for group layouts.
   final List<List<RouteDefinition>> _collectionStack = [];
@@ -188,8 +192,8 @@ class MagicRouter {
     }
 
     // Add layouts (ShellRoutes) - each layout wraps its children
-    // Add layouts (ShellRoutes) - each layout wraps its children
-    for (final layout in _layouts) {
+    final mergedLayouts = _mergeLayouts();
+    for (final layout in mergedLayouts) {
       goRoutes.add(ShellRoute(
         builder: (context, state, shellChild) => layout.builder(shellChild),
         routes: layout.children.map((child) => _buildGoRoute(child)).toList(),
@@ -198,6 +202,42 @@ class MagicRouter {
 
     return goRoutes;
   }
+
+  /// Merge layouts sharing the same [LayoutDefinition.id].
+  ///
+  /// Layouts without an ID remain separate ShellRoutes.
+  /// When multiple layouts share an ID, children are concatenated
+  /// in registration order and the first builder wins.
+  List<LayoutDefinition> _mergeLayouts() {
+    final merged = <String, LayoutDefinition>{};
+    final anonymous = <LayoutDefinition>[];
+
+    for (final layout in _layouts) {
+      if (layout.id == null) {
+        anonymous.add(layout);
+        continue;
+      }
+
+      if (merged.containsKey(layout.id)) {
+        merged[layout.id!] = LayoutDefinition(
+          id: layout.id,
+          builder: merged[layout.id!]!.builder,
+          children: [
+            ...merged[layout.id!]!.children,
+            ...layout.children,
+          ],
+        );
+      } else {
+        merged[layout.id!] = layout;
+      }
+    }
+
+    return [...merged.values, ...anonymous];
+  }
+
+  /// Merged layout definitions. Exposed for testing layout merging behavior.
+  @visibleForTesting
+  List<LayoutDefinition> get mergedLayouts => _mergeLayouts();
 
   /// Build a single GoRoute from a RouteDefinition.
   GoRoute _buildGoRoute(RouteDefinition route) {
@@ -420,6 +460,49 @@ class MagicRouter {
     return _currentState?.uri.queryParameters[key];
   }
 
+  /// Get the current route location (path + query string).
+  ///
+  /// Returns `null` if no route state is available yet.
+  ///
+  /// ```dart
+  /// final location = MagicRouter.instance.currentLocation;
+  /// // e.g. '/invitations/abc123/accept'
+  /// ```
+  String? get currentLocation => _currentState?.uri.toString();
+
+  // ---------------------------------------------------------------------------
+  // Intended URL (Redirect-After-Login)
+  // ---------------------------------------------------------------------------
+
+  /// Save an intended URL before redirecting to login.
+  ///
+  /// Call this in auth middleware before sending the user to the login page.
+  /// After successful login, use [pullIntendedUrl] to redirect back.
+  ///
+  /// ```dart
+  /// MagicRouter.instance.setIntendedUrl('/invitations/abc/accept');
+  /// MagicRoute.to('/auth/login');
+  /// ```
+  void setIntendedUrl(String url) => _intendedUrl = url;
+
+  /// Get and clear the intended URL (one-time read).
+  ///
+  /// Returns `null` if no intended URL was saved.
+  /// The URL is cleared after reading to prevent stale redirects.
+  ///
+  /// ```dart
+  /// final intended = MagicRouter.instance.pullIntendedUrl();
+  /// MagicRoute.to(intended ?? '/');
+  /// ```
+  String? pullIntendedUrl() {
+    final url = _intendedUrl;
+    _intendedUrl = null;
+    return url;
+  }
+
+  /// Whether there is a pending intended URL.
+  bool get hasIntendedUrl => _intendedUrl != null;
+
   /// Get all path parameters.
   Map<String, String> get pathParameters {
     return _currentState?.pathParameters ?? {};
@@ -440,6 +523,7 @@ class MagicRouter {
     _instance?._layouts.clear();
     _instance?._router = null;
     _instance?._isBuilt = false;
+    _instance?._intendedUrl = null;
     _instance = null;
   }
 }

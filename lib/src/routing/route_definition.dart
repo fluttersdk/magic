@@ -186,6 +186,9 @@ class RouteGroup {
 
 /// A layout route definition for persistent shells.
 class LayoutDefinition {
+  /// Optional layout ID for merging multiple groups.
+  final String? id;
+
   /// The layout widget builder.
   final Widget Function(Widget child) builder;
 
@@ -193,6 +196,7 @@ class LayoutDefinition {
   final List<RouteDefinition> children;
 
   LayoutDefinition({
+    this.id,
     required this.builder,
     required this.children,
   });

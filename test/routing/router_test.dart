@@ -199,6 +199,148 @@ void main() {
           ]));
     });
   });
+
+  group('Intended URL', () {
+    test('setIntendedUrl stores the URL', () {
+      MagicRouter.instance.setIntendedUrl('/invitations/abc/accept');
+
+      expect(MagicRouter.instance.hasIntendedUrl, isTrue);
+    });
+
+    test('pullIntendedUrl returns and clears the URL', () {
+      MagicRouter.instance.setIntendedUrl('/invitations/abc/accept');
+
+      final url = MagicRouter.instance.pullIntendedUrl();
+
+      expect(url, '/invitations/abc/accept');
+      expect(MagicRouter.instance.hasIntendedUrl, isFalse);
+    });
+
+    test('pullIntendedUrl returns null when nothing is set', () {
+      expect(MagicRouter.instance.pullIntendedUrl(), isNull);
+      expect(MagicRouter.instance.hasIntendedUrl, isFalse);
+    });
+
+    test('reset clears intendedUrl', () {
+      MagicRouter.instance.setIntendedUrl('/some-page');
+
+      MagicRouter.reset();
+
+      expect(MagicRouter.instance.hasIntendedUrl, isFalse);
+      expect(MagicRouter.instance.pullIntendedUrl(), isNull);
+    });
+
+    test('currentLocation returns null when no state is set', () {
+      expect(MagicRouter.instance.currentLocation, isNull);
+    });
+  });
+
+  group('Layout Merging', () {
+    test('layouts with same layoutId merge into single LayoutDefinition', () {
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => Container(key: const Key('layout1'), child: child),
+        routes: () {
+          MagicRoute.page('/page1', () => const SizedBox());
+        },
+      );
+
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => Container(key: const Key('layout2'), child: child),
+        routes: () {
+          MagicRoute.page('/page2', () => const SizedBox());
+        },
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged, hasLength(1));
+      expect(merged.first.children, hasLength(2));
+      expect(merged.first.id, 'app');
+    });
+
+    test('layouts without layoutId remain separate', () {
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () {
+          MagicRoute.page('/page1', () => const SizedBox());
+        },
+      );
+
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () {
+          MagicRoute.page('/page2', () => const SizedBox());
+        },
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged, hasLength(2));
+    });
+
+    test('mixed named and anonymous layouts coexist', () {
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => child,
+        routes: () {
+          MagicRoute.page('/page1', () => const SizedBox());
+        },
+      );
+
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () {
+          MagicRoute.page('/page2', () => const SizedBox());
+        },
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged, hasLength(2));
+    });
+
+    test('first builder wins when merging', () {
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => Container(key: const Key('first'), child: child),
+        routes: () {
+          MagicRoute.page('/page1', () => const SizedBox());
+        },
+      );
+
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => Container(key: const Key('second'), child: child),
+        routes: () {
+          MagicRoute.page('/page2', () => const SizedBox());
+        },
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged.first.id, 'app');
+    });
+
+    test('three groups with same layoutId all merge', () {
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/1', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/2', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/3', () => const SizedBox()),
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged, hasLength(1));
+      expect(merged.first.children, hasLength(3));
+    });
+  });
 }
 
 /// Test middleware implementation.
