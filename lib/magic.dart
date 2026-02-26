@@ -131,6 +131,7 @@ export 'src/localization/contracts/translation_loader.dart';
 export 'src/localization/loaders/json_asset_loader.dart';
 export 'src/facades/lang.dart';
 export 'src/localization/localization_service_provider.dart';
+export 'src/localization/localization_interceptor.dart';
 
 // Validation
 export 'src/validation/contracts/rule.dart';

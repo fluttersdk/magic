@@ -90,6 +90,16 @@ class MagicApplication extends StatefulWidget {
   /// Localization delegates override.
   final Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates;
 
+  /// Callback fired when the user manually toggles the theme.
+  ///
+  /// Use this to persist the user's preference:
+  /// ```dart
+  /// MagicApplication(
+  ///   onThemeChanged: (brightness) => saveThemePreference(brightness),
+  /// )
+  /// ```
+  final ValueChanged<Brightness>? onThemeChanged;
+
   /// Debug banner.
   final bool debugShowCheckedModeBanner;
 
@@ -110,6 +120,7 @@ class MagicApplication extends StatefulWidget {
     this.localizationsDelegates,
     this.debugShowCheckedModeBanner = false,
     this.onInit,
+    this.onThemeChanged,
   });
 
   @override
@@ -167,6 +178,7 @@ class _MagicApplicationState extends State<MagicApplication> {
 
     return WindTheme(
       data: windThemeData,
+      onThemeChanged: widget.onThemeChanged,
       builder: (context, controller) => MagicAppWidget(
         key: MagicAppWidget._appKey,
         themeMode: widget.themeMode,
