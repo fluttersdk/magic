@@ -394,3 +394,30 @@ Fix: remove the `args/args.dart` import — use only `package:magic_cli/magic_cl
 - `package:magic_cli/magic_cli.dart` exports its own `InstallCommand`.
 - `bin/notifications.dart` must use `hide InstallCommand` to avoid `ambiguous_import` error.
 - Pattern: `import 'package:magic_cli/magic_cli.dart' hide InstallCommand;`
+
+---
+## F3 Manual QA Learnings (2026-02-28)
+
+### --project-root flag does NOT exist
+- The plan mentions `--project-root=$TMPDIR` but this flag doesn't exist in any command
+- `FileHelper.findProjectRoot()` traverses up from CWD to find pubspec.yaml
+- Workaround: run commands with `cd $TMPDIR` before calling the CLI
+- Tests use `_testRoot` constructor injection (internal, not a CLI flag)
+
+### Plugin CLIs need fresh compilation context
+- Running plugin CLI from plugin package dir does NOT use the magic main package's kernel cache
+- Plugin CLIs build fresh and see the actual source of magic_cli dependency
+- File corruption in shared sources blocks ALL dependent package compilation
+
+### Magic CLI binary discovery
+- `dart run magic:magic` from magic root — works (uses magic package executables)
+- `dart run bin/magic.dart` from magic_cli dir — works (direct bin execution)
+- `dart run magic_deeplink:deeplink` from magic root — FAILS (different package)
+- Must run deeplink from its own package dir: `dart run bin/deeplink.dart`
+
+### Command file structure
+- 16 commands actually registered, not 18 (plan said 18)
+- Missing: route:list, config:list, config:get, boost:install, boost:mcp, boost:update
+  (these exist as dart files but are not registered in bin/magic.dart)
+
+VERIFICATION F4 COMPLETE - APPROVE
