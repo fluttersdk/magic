@@ -1,0 +1,28 @@
+Running build hooks...Running build hooks...[1m[36mMagic Framework 1.0.0[0m
+
+[34m ℹ[0m Usage:
+  magic <command> [arguments]
+
+[34m ℹ[0m Options:
+  -h, --help      Display help for the given command
+  -V, --version   Display this application version
+
+[34m ℹ[0m Available commands:
+  [32minstall             [0m Initialize Magic in a Flutter project
+ [33mkey[0m
+  [32mkey:generate        [0m Generate a new application key
+ [33mmake[0m
+  [32mmake:controller     [0m Create a new controller class
+  [32mmake:enum           [0m Create a new enum
+  [32mmake:event          [0m Create a new event class
+  [32mmake:factory        [0m Create a new factory class
+  [32mmake:lang           [0m Create a new language file
+  [32mmake:listener       [0m Create a new event listener class
+  [32mmake:middleware     [0m Create a new middleware class
+  [32mmake:migration      [0m Create a new migration file
+  [32mmake:model          [0m Create a new Eloquent model class
+  [32mmake:policy         [0m Create a new policy class
+  [32mmake:provider       [0m Create a new service provider class
+  [32mmake:request        [0m Create a new form request class
+  [32mmake:seeder         [0m Create a new seeder class
+  [32mmake:view           [0m Create a new view class
