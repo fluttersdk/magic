@@ -318,3 +318,79 @@ Where `name` passed to `getReplacements` is the BASE name (Monitor, not MonitorC
 - Updated `plugins/magic_cli/lib/magic_cli.dart` barrel to export all commands, helpers, and console classes.
 - Verified with `dart analyze` (clean) and `dart run magic:magic` (shows all commands).
 - Evidence saved to `.sisyphus/evidence/task-13-entry-point.txt`.
+
+## Task 15 — magic_deeplink CLI Refactor (2026-02-28)
+
+### Architecture
+- Both commands extend `Command` from `package:magic_cli/magic_cli.dart`
+- `configure(ArgParser parser)` replaces constructor-based `argParser.addFlag/addOption`
+- `handle()` replaces `run()`
+- IO helpers (`info()`, `warn()`, `success()`, `error()`) replace `print(ConsoleStyle.*)`
+- `GenerateCommand` uses `JsonEditor.writeJson()` for JSON output
+- `GenerateCommand` uses `PlatformHelper.hasPlatform()` + `PlatformHelper.infoPlistPath()` for iOS path detection
+
+### Critical Gotcha: InstallCommand Name Conflict
+`package:magic_cli/magic_cli.dart` exports its OWN `InstallCommand` from `src/commands/install_command.dart`.
+When `bin/deeplink.dart` imports both `magic_cli` and the local `InstallCommand`, Dart throws:
+  `ambiguous_import` + `invocation_of_non_function`
+
+Fix:
+```dart
+import 'package:magic_cli/magic_cli.dart' hide InstallCommand;
+import 'package:magic_deeplink/src/cli/commands/install_command.dart';
+```
+
+This pattern applies to ALL plugins that have an `InstallCommand` — magic_notifications included.
+
+### unnecessary_import for args/args.dart
+`magic_cli/magic_cli.dart` re-exports `package:args/args.dart` at the top:
+  `export 'package:args/args.dart';`
+
+So any plugin command that imports both `magic_cli` and `args/args.dart` will get `unnecessary_import` lint.
+Fix: remove the `args/args.dart` import — use only `package:magic_cli/magic_cli.dart`.
+
+### pubspec.yaml
+- `magic_cli` path dependency must be added explicitly — it is NOT transitively available via `magic`
+- `executables` section: change from separate executables to single `{ deeplink: deeplink }`
+### Task 14: Integration Tests
+- Full end-to-end integration tests have been implemented for all 16 commands in `magic_cli`.
+- `FileHelper.findProjectRoot()` requires `pubspec.yaml` to exist in the current directory or parents. When running tests in a temporary directory, we must scaffold a dummy `pubspec.yaml` file to prevent `findProjectRoot` from throwing.
+- Handled naming nuances: `MakeEventCommand` outputs `UserCreated` (not `UserCreatedEvent` suffix in file name like `UserCreatedEventEvent` would be weird).
+- Commands properly exit gracefully instead of crashing out, logging their errors and printing helpful output.
+- Covered the `install` and `key:generate` setup commands successfully without polluting the host environment's project root.
+- Verified `--force` override functionality using file modification assertions.
+
+## Task 16A Findings (magic_notifications Install/Configure)
+- `magic_cli` dependency needs to be added explicitly via `path: ../magic/plugins/magic_cli`.
+- When refactoring commands with logic originally in `bin/` files, it's cleaner to move all parsing and interactive logic directly into the `Command.handle()` method using `Command` helpers (`ask`, `confirm`, `option`, `hasOption`).
+- `bin/install.dart` and `bin/configure.dart` can be reduced to just importing the command class and calling `await command.runWith(arguments)`.
+- You must use `import '..._command.dart' as notifications;` and `notifications.InstallCommand()` to avoid naming conflicts with the underlying `Command` classes if they might conflict during refactoring, but it's safest and standard practice.
+
+## Task 16B Findings (magic_notifications Status/Test + Consolidated Entry Point) (2026-02-28)
+
+### projectRoot Migration Pattern
+- All commands that need `projectRoot` (install, configure, status) now expose `getProjectRoot()` + a `projectRoot` getter.
+- Pattern: `String get projectRoot => getProjectRoot();` + `String getProjectRoot() => FileHelper.findProjectRoot();`
+- The getter approach lets all private methods use `projectRoot` without any refactoring of call sites.
+- Tests override `getProjectRoot()` by subclassing the command.
+
+### StatusCommand: PlatformHelper Integration
+- `checkPlatformSetup()` now calls `PlatformHelper.detectPlatforms(projectRoot)` and only checks platforms that exist.
+- Avoids reporting missing Android setup for web-only projects.
+- Uses `PlatformHelper.androidManifestPath()` and `PlatformHelper.infoPlistPath()` for canonical paths.
+
+### TestCommand: Functions → Class Methods
+- The `_sendDatabaseNotification`, `_sendPushNotification`, `_sendMailNotification` top-level functions
+  in `bin/test.dart` moved into the class as private methods.
+- This keeps the class self-contained and removes the bin entry point's business logic.
+
+### Kernel.handle() --help Bug
+- `Kernel.handle()` originally used `args.contains('--help')` which matches `['status', '--help']`
+  and shows global help instead of command-specific help.
+- Fixed to `args[0] == '--help' || args[0] == '-h'` — only global help when flag is the FIRST arg.
+- This fix is in `magic_cli/lib/src/console/kernel.dart`.
+
+### bin/notifications.dart hide Pattern
+- `package:magic_cli/magic_cli.dart` exports its own `InstallCommand`.
+- `bin/notifications.dart` must use `hide InstallCommand` to avoid `ambiguous_import` error.
+- Pattern: `import 'package:magic_cli/magic_cli.dart' hide InstallCommand;`
