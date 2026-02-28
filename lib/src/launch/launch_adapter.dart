@@ -27,6 +27,9 @@ abstract class LaunchAdapter {
 ///
 /// This implementation delegates all calls to the `url_launcher` package.
 class DefaultLaunchAdapter implements LaunchAdapter {
+  /// Launches the given [url] using the specified [mode].
+  ///
+  /// Returns `true` if the launch was successful, `false` otherwise.
   @override
   Future<bool> launch(
     Uri url, {
@@ -37,6 +40,9 @@ class DefaultLaunchAdapter implements LaunchAdapter {
         mode: mode,
       );
 
+  /// Checks whether the given [url] can be launched on this device.
+  ///
+  /// Returns `true` if the URL can be handled, `false` otherwise.
   @override
   Future<bool> canLaunch(Uri url) => canLaunchUrl(url);
 }
