@@ -215,9 +215,9 @@ class MagicFormData {
   ///
   /// Includes both text fields and value fields.
   Set<String> get fieldNames => {
-    ..._textControllers.keys,
-    ..._valueNotifiers.keys,
-  };
+        ..._textControllers.keys,
+        ..._valueNotifiers.keys,
+      };
 
   /// Check if the controller has validation errors relevant to this form.
   ///

@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:magic/src/launch/launch_adapter.dart';
 import 'package:magic/src/launch/launch_service.dart';
-import 'package:magic/src/launch/launch_service.dart';
 import 'package:magic/src/logging/contracts/logger_driver.dart';
 import 'package:magic/src/logging/log_manager.dart';
 import 'package:magic/src/foundation/application.dart';

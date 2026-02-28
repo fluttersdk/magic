@@ -219,8 +219,7 @@ void main() {
     });
 
     test('stateNotifier bumps on logout', () async {
-      final user = MockUser()
-        ..setRawAttributes({'id': 1}, sync: true);
+      final user = MockUser()..setRawAttributes({'id': 1}, sync: true);
       await guard.login({'token': 'token'}, user);
 
       int notifyCount = 0;

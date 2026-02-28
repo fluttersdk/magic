@@ -1,6 +1,6 @@
 import 'package:magic_cli/magic_cli.dart';
 
- /// Magic CLI entry point.
+/// Magic CLI entry point.
 void main(List<String> args) async {
   final kernel = Kernel();
 
