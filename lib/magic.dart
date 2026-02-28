@@ -56,8 +56,10 @@ export 'src/http/middleware/magic_middleware.dart';
 export 'src/http/middleware/authorize_middleware.dart';
 
 // Cache
+export 'src/cache/cache_store.dart';
 export 'src/cache/cache_manager.dart';
 export 'src/cache/cache_service_provider.dart';
+export 'src/cache/drivers/file_store.dart';
 export 'src/facades/crypt.dart';
 export 'src/facades/cache.dart';
 
