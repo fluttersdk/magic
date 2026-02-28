@@ -50,13 +50,17 @@ class MockLogDriver implements LoggerDriver {
   }
 
   @override
-  void emergency(String message, [dynamic context]) => log('error', message, context);
+  void emergency(String message, [dynamic context]) =>
+      log('error', message, context);
   @override
-  void alert(String message, [dynamic context]) => log('error', message, context);
+  void alert(String message, [dynamic context]) =>
+      log('error', message, context);
   @override
-  void critical(String message, [dynamic context]) => log('error', message, context);
+  void critical(String message, [dynamic context]) =>
+      log('error', message, context);
   @override
-  void error(String message, [dynamic context]) => log('error', message, context);
+  void error(String message, [dynamic context]) =>
+      log('error', message, context);
   @override
   void warning(String message, [dynamic context]) {}
   @override
@@ -88,14 +92,16 @@ void main() {
       // Initialize mocked environment
       adapter = MockLaunchAdapter();
       logDriver = MockLogDriver();
-      
+
       await Magic.init(configs: [
-        {'app': {'name': 'Test'}}
+        {
+          'app': {'name': 'Test'}
+        }
       ]);
-      
+
       // Inject LogManager mock
       MagicApp.instance.setInstance('log', MockLogManager(logDriver));
-      
+
       // Instantiate our target class
       service = LaunchService(adapter: adapter);
       MagicApp.instance.setInstance('launch', service);
@@ -104,7 +110,7 @@ void main() {
     group('url()', () {
       test('returns true for successful URL launch', () async {
         final result = await service.url('https://flutter.dev');
-        
+
         expect(result, isTrue);
         expect(adapter.launchCalls.length, 1);
         expect(adapter.launchCalls.first.toString(), 'https://flutter.dev');
@@ -115,7 +121,7 @@ void main() {
       test('returns false when adapter returns false', () async {
         adapter.shouldSucceed = false;
         final result = await service.url('https://flutter.dev');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.length, 1);
       });
@@ -125,14 +131,14 @@ void main() {
           'https://flutter.dev',
           mode: LaunchMode.inAppWebView,
         );
-        
+
         expect(result, isTrue);
         expect(adapter.lastMode, LaunchMode.inAppWebView);
       });
 
       test('returns false for malformed URL', () async {
         final result = await service.url('h t t p://bad url');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.isEmpty, isTrue);
         expect(logDriver.errorMessages.length, 1);
@@ -141,7 +147,7 @@ void main() {
 
       test('returns false for empty URL', () async {
         final result = await service.url('');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.isEmpty, isTrue);
         expect(logDriver.errorMessages.isEmpty, isTrue);
@@ -150,7 +156,7 @@ void main() {
       test('returns false when adapter throws PlatformException', () async {
         adapter.shouldThrow = true;
         final result = await service.url('https://flutter.dev');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.length, 1);
         expect(logDriver.errorMessages.length, 1);
@@ -161,7 +167,7 @@ void main() {
     group('email()', () {
       test('calls adapter with mailto URI', () async {
         final result = await service.email('test@example.com');
-        
+
         expect(result, isTrue);
         expect(adapter.launchCalls.length, 1);
         expect(adapter.launchCalls.first.scheme, 'mailto');
@@ -174,7 +180,7 @@ void main() {
           subject: 'Hello',
           body: 'World',
         );
-        
+
         expect(result, isTrue);
         final uri = adapter.launchCalls.first;
         expect(uri.queryParameters['subject'], 'Hello');
@@ -186,7 +192,7 @@ void main() {
           'test@example.com',
           subject: 'Hello & Welcome = %20',
         );
-        
+
         expect(result, isTrue);
         final uri = adapter.launchCalls.first;
         expect(uri.queryParameters['subject'], 'Hello & Welcome = %20');
@@ -194,7 +200,7 @@ void main() {
 
       test('returns false for empty address', () async {
         final result = await service.email('');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.isEmpty, isTrue);
       });
@@ -203,7 +209,7 @@ void main() {
     group('phone()', () {
       test('calls adapter with tel URI', () async {
         final result = await service.phone('+1234567890');
-        
+
         expect(result, isTrue);
         expect(adapter.launchCalls.length, 1);
         expect(adapter.launchCalls.first.scheme, 'tel');
@@ -212,7 +218,7 @@ void main() {
 
       test('returns false for empty number', () async {
         final result = await service.phone('');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.isEmpty, isTrue);
       });
@@ -221,7 +227,7 @@ void main() {
     group('sms()', () {
       test('calls adapter with sms URI without body', () async {
         final result = await service.sms('+1234567890');
-        
+
         expect(result, isTrue);
         expect(adapter.launchCalls.length, 1);
         expect(adapter.launchCalls.first.scheme, 'sms');
@@ -231,7 +237,7 @@ void main() {
 
       test('includes body in sms URI query params', () async {
         final result = await service.sms('+1234567890', body: 'Hello Text');
-        
+
         expect(result, isTrue);
         final uri = adapter.launchCalls.first;
         expect(uri.scheme, 'sms');
@@ -240,7 +246,7 @@ void main() {
 
       test('returns false for empty number', () async {
         final result = await service.sms('');
-        
+
         expect(result, isFalse);
         expect(adapter.launchCalls.isEmpty, isTrue);
       });
@@ -249,7 +255,7 @@ void main() {
     group('canLaunch()', () {
       test('returns true when adapter returns true', () async {
         final result = await service.canLaunch('https://flutter.dev');
-        
+
         expect(result, isTrue);
         expect(adapter.canLaunchCalls.length, 1);
         expect(adapter.canLaunchCalls.first.toString(), 'https://flutter.dev');
@@ -258,13 +264,13 @@ void main() {
       test('returns false when adapter returns false', () async {
         adapter.shouldSucceed = false;
         final result = await service.canLaunch('https://flutter.dev');
-        
+
         expect(result, isFalse);
       });
 
       test('returns false for malformed URL', () async {
         final result = await service.canLaunch('h t t p://bad url');
-        
+
         expect(result, isFalse);
         expect(adapter.canLaunchCalls.isEmpty, isTrue);
         expect(logDriver.errorMessages.length, 1);
@@ -273,7 +279,7 @@ void main() {
       test('returns false when adapter throws', () async {
         adapter.shouldThrow = true;
         final result = await service.canLaunch('https://flutter.dev');
-        
+
         expect(result, isFalse);
         expect(logDriver.errorMessages.length, 1);
       });
