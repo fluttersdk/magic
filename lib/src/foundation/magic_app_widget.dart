@@ -5,6 +5,7 @@ import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 import '../facades/config.dart';
 import '../facades/lang.dart';
 import '../facades/log.dart';
+import '../facades/vault.dart';
 import '../routing/magic_router.dart';
 
 import 'magic.dart';
@@ -56,6 +57,11 @@ class MagicAppWidgetState extends State<MagicAppWidget> {
 /// Handles all internal initialization (environment, config, routing)
 /// and wraps the app in WindTheme for Wind widget support.
 ///
+/// Theme preference is automatically persisted to Vault.
+/// When a user manually toggles dark/light mode, the preference is saved
+/// and restored on next app launch. If no preference is saved, the app
+/// follows the system brightness setting.
+///
 /// ## Usage
 ///
 /// ```dart
@@ -92,10 +98,11 @@ class MagicApplication extends StatefulWidget {
 
   /// Callback fired when the user manually toggles the theme.
   ///
-  /// Use this to persist the user's preference:
+  /// This is called IN ADDITION to the built-in theme persistence.
+  /// Use this for custom side-effects beyond storage:
   /// ```dart
   /// MagicApplication(
-  ///   onThemeChanged: (brightness) => saveThemePreference(brightness),
+  ///   onThemeChanged: (brightness) => analytics.track('theme_changed'),
   /// )
   /// ```
   final ValueChanged<Brightness>? onThemeChanged;
@@ -128,8 +135,17 @@ class MagicApplication extends StatefulWidget {
 }
 
 class _MagicApplicationState extends State<MagicApplication> {
+  /// Vault storage key for theme preference.
+  static const _themeKey = 'theme_mode';
+
   bool _initialized = false;
   bool _hasError = false;
+
+  /// Saved brightness preference loaded from Vault.
+  ///
+  /// - `null` means no preference saved (follow system).
+  /// - Non-null means user has a manual preference.
+  Brightness? _savedBrightness;
 
   @override
   void initState() {
@@ -137,16 +153,22 @@ class _MagicApplicationState extends State<MagicApplication> {
     _initialize();
   }
 
-  void _initialize() {
+  /// Initialize the application and load saved theme preference.
+  ///
+  /// Loads theme preference from Vault before marking as initialized.
+  /// If Vault is not available (no VaultServiceProvider registered),
+  /// gracefully falls back to system default.
+  Future<void> _initialize() async {
     try {
-      // Magic.init() has already been called in main.dart before runApp()
-      // So we just need to call onInit callback if provided
+      // 1. Load saved theme preference from Vault.
+      _savedBrightness = await _loadThemePreference();
 
-      // Configure initial route if different from default
+      // 2. Configure initial route if different from default.
       if (widget.initialRoute != '/') {
         MagicRouter.instance.setInitialLocation(widget.initialRoute);
       }
 
+      // 3. Call the app's onInit callback.
       widget.onInit?.call();
       setState(() => _initialized = true);
     } catch (e) {
@@ -174,11 +196,14 @@ class _MagicApplicationState extends State<MagicApplication> {
       );
     }
 
-    final windThemeData = widget.windTheme ?? WindThemeData();
+    // 1. Apply saved brightness preference to WindThemeData.
+    final windThemeData = _applyThemePreference(
+        widget.windTheme ?? WindThemeData(),
+    );
 
     return WindTheme(
       data: windThemeData,
-      onThemeChanged: widget.onThemeChanged,
+      onThemeChanged: _onThemeChanged,
       builder: (context, controller) => MagicAppWidget(
         key: MagicAppWidget._appKey,
         themeMode: widget.themeMode,
@@ -235,5 +260,81 @@ class _MagicApplicationState extends State<MagicApplication> {
       if (code is Locale) return code;
       return Locale(code.toString());
     }).toList();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Theme Persistence
+  // ---------------------------------------------------------------------------
+
+  /// Apply saved brightness preference to the theme data.
+  ///
+  /// When a saved preference exists, overrides the brightness and disables
+  /// system sync. Otherwise, returns the original theme data unchanged.
+  WindThemeData _applyThemePreference(WindThemeData data) {
+    if (_savedBrightness == null) {
+      return data;
+    }
+
+    return data.copyWith(
+      brightness: _savedBrightness,
+      syncWithSystem: false,
+    );
+  }
+
+  /// Handle theme change — persist to Vault and forward to user callback.
+  ///
+  /// Called only on user-initiated theme changes (not system changes).
+  void _onThemeChanged(Brightness brightness) {
+    // 1. Persist the preference to Vault.
+    _saveThemePreference(brightness);
+
+    // 2. Forward to user's callback if provided.
+    widget.onThemeChanged?.call(brightness);
+  }
+
+  /// Load theme preference from Vault.
+  ///
+  /// Returns the saved [Brightness], or `null` if no preference is stored.
+  /// Gracefully handles missing VaultServiceProvider.
+  Future<Brightness?> _loadThemePreference() async {
+    try {
+      if (!Magic.bound('vault')) {
+        return null;
+      }
+
+      final saved = await Vault.get(_themeKey);
+
+      if (saved == 'dark') {
+        Log.info('[MagicApplication] Theme preference loaded: dark');
+        return Brightness.dark;
+      }
+
+      if (saved == 'light') {
+        Log.info('[MagicApplication] Theme preference loaded: light');
+        return Brightness.light;
+      }
+
+      return null;
+    } catch (e) {
+      Log.error('[MagicApplication] Failed to load theme preference: $e');
+      return null;
+    }
+  }
+
+  /// Save theme preference to Vault.
+  ///
+  /// Stores 'dark' or 'light' string. Gracefully handles missing Vault.
+  Future<void> _saveThemePreference(Brightness brightness) async {
+    try {
+      if (!Magic.bound('vault')) {
+        return;
+      }
+
+      final value = brightness == Brightness.dark ? 'dark' : 'light';
+      await Vault.put(_themeKey, value);
+      Log.info('[MagicApplication] Theme preference saved: $value');
+    } catch (e) {
+      Log.error('[MagicApplication] Failed to save theme preference: $e');
+    }
   }
 }
