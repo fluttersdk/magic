@@ -58,6 +58,9 @@ class AuthManager {
     _userFactory = factory;
   }
 
+  /// Whether a user factory has been registered.
+  bool get hasUserFactory => _userFactory != null;
+
   /// Create a user instance from data using the registered factory.
   ///
   /// Throws [StateError] if no factory is registered.

@@ -28,17 +28,36 @@ class AuthServiceProvider extends ServiceProvider {
     final authConfig = Config.get<Map<String, dynamic>>('auth', {});
     final autoRefresh = authConfig?['auto_refresh'] ?? true;
 
-    if (autoRefresh) {
-      try {
-        // Automatically restore login state from Vault
-        await Auth.restore();
+    Log.debug(
+      'Auth: boot (autoRefresh=$autoRefresh, '
+      'hasUserFactory=${Auth.manager.hasUserFactory})',
+    );
 
-        if (Auth.check()) {
-          Log.info('User session restored');
-        }
-      } catch (e) {
-        Log.warning('Auth restore failed: $e');
+    if (!autoRefresh) return;
+
+    // Guard: userFactory must be registered before restore.
+    // AppServiceProvider.boot() calls Auth.manager.setUserFactory()
+    // and MUST be listed before AuthServiceProvider in app.providers.
+    if (!Auth.manager.hasUserFactory) {
+      Log.warning(
+        'Auth: Cannot restore session — userFactory not registered. '
+        'Ensure AppServiceProvider is listed BEFORE AuthServiceProvider '
+        'in your app.providers config.',
+      );
+      return;
+    }
+
+    try {
+      // Automatically restore login state from Vault
+      await Auth.restore();
+
+      if (Auth.check()) {
+        Log.info('User session restored');
+      } else {
+        Log.debug('Auth: restore completed but no user authenticated');
       }
+    } catch (e, stackTrace) {
+      Log.warning('Auth restore failed: $e\n$stackTrace');
     }
   }
 

@@ -241,17 +241,23 @@ abstract class BaseGuard implements Guard {
 
   @override
   Future<void> restore() async {
+    Log.debug('Auth: Restoring session (tokenKey=$tokenKey, hasFactory=${userFactory != null})');
     await loadTokenToCache();
 
     if (cachedToken == null) {
-      Log.debug('Auth: No token found');
+      Log.debug('Auth: No token found in storage');
       return;
     }
+
+    Log.debug('Auth: Token loaded from storage');
 
     // 1. Load from cache first (instant)
     final cachedUser = await loadCachedUser();
     if (cachedUser != null) {
       setUser(cachedUser);
+      Log.debug('Auth: Cached user restored');
+    } else {
+      Log.debug('Auth: No cached user found');
     }
 
     // 2. Sync from API (fresh data)
@@ -260,7 +266,13 @@ abstract class BaseGuard implements Guard {
 
   /// Sync user data from API.
   Future<void> _syncUserFromApi() async {
-    if (userEndpoint == null || userFactory == null) return;
+    if (userEndpoint == null || userFactory == null) {
+      Log.debug(
+        'Auth: Skipping API sync '
+        '(endpoint=${userEndpoint ?? 'null'}, hasFactory=${userFactory != null})',
+      );
+      return;
+    }
 
     try {
       final response = await Http.get(userEndpoint!);
