@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../concerns/validates_requests.dart';
 import '../http/magic_controller.dart';
@@ -63,6 +64,9 @@ class MagicFormData {
 
   /// Internal map of value field names to their notifiers.
   final Map<String, ValueNotifier<dynamic>> _valueNotifiers = {};
+
+  /// Whether this form is currently being processed (submitted).
+  final ValueNotifier<bool> _processing = ValueNotifier<bool>(false);
 
   /// The controller that manages validation errors.
   final MagicController? controller;
@@ -231,8 +235,61 @@ class MagicFormData {
     return errors.keys.any((key) => fieldNames.contains(key));
   }
 
+  /// Whether this form is currently being processed (submitted).
+  ///
+  /// Returns `true` while [process] is executing, `false` otherwise.
+  /// Use this for form-scoped loading indicators instead of the
+  /// controller's global [MagicStateMixin.isLoading].
+  bool get isProcessing => _processing.value;
+
+  /// Listenable for granular rebuilds of processing-dependent UI.
+  ///
+  /// Use with [MagicBuilder] for efficient, form-scoped loading indicators
+  /// that don't cause full-page rebuilds:
+  ///
+  /// ```dart
+  /// MagicBuilder<bool>(
+  ///     listenable: form.processingListenable,
+  ///     builder: (isProcessing) => WButton(
+  ///         isLoading: isProcessing,
+  ///         onTap: _submit,
+  ///         child: WText(trans('common.save')),
+  ///     ),
+  /// )
+  /// ```
+  ValueListenable<bool> get processingListenable => _processing;
+
+  /// Execute an async action with automatic processing state management.
+  ///
+  /// Sets [isProcessing] to `true` before execution and `false` after,
+  /// regardless of success or failure. Prevents concurrent submissions
+  /// by throwing [StateError] if already processing.
+  ///
+  /// Returns the action's result on success. Rethrows any exception
+  /// from [action] after resetting the processing state.
+  ///
+  /// ```dart
+  /// await form.process(() => controller.doUpdateProfile(
+  ///     name: form.get('name'),
+  ///     email: form.get('email'),
+  /// ));
+  /// ```
+  Future<T> process<T>(Future<T> Function() action) async {
+    if (_processing.value) {
+      throw StateError('Form is already processing');
+    }
+    _processing.value = true;
+    try {
+      return await action();
+    } finally {
+      _processing.value = false;
+    }
+  }
+
   /// Dispose all controllers and notifiers.
   void dispose() {
+    _processing.dispose();
+
     for (final controller in _textControllers.values) {
       controller.dispose();
     }
