@@ -198,7 +198,7 @@ class _MagicApplicationState extends State<MagicApplication> {
 
     // 1. Apply saved brightness preference to WindThemeData.
     final windThemeData = _applyThemePreference(
-        widget.windTheme ?? WindThemeData(),
+      widget.windTheme ?? WindThemeData(),
     );
 
     return WindTheme(

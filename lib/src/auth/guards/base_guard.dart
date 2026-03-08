@@ -241,7 +241,8 @@ abstract class BaseGuard implements Guard {
 
   @override
   Future<void> restore() async {
-    Log.debug('Auth: Restoring session (tokenKey=$tokenKey, hasFactory=${userFactory != null})');
+    Log.debug(
+        'Auth: Restoring session (tokenKey=$tokenKey, hasFactory=${userFactory != null})');
     await loadTokenToCache();
 
     if (cachedToken == null) {
