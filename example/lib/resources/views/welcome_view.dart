@@ -1,142 +1,204 @@
 import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
 
-import '../../app/controllers/welcome_controller.dart';
+/// Welcome view — the default landing page for a new Magic application.
+///
+/// Centered card layout matching the auth page design pattern.
+/// Displays app name, Magic branding, and quick-link cards.
+class WelcomeView extends StatelessWidget {
+    /// Creates the [WelcomeView].
+    const WelcomeView({super.key});
 
-class WelcomeView extends MagicView<WelcomeController> {
-  const WelcomeView({super.key});
+    @override
+    Widget build(BuildContext context) {
+        final appName = Config.get('app.name', 'Example') ?? 'Example';
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(controller.appName), centerTitle: true),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.auto_awesome,
-                  size: 48,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Text(
-                'Welcome to ${controller.appName}!',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                trans('welcome', {'name': 'Anilcan'}),
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '📦 Config Values',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _configRow('app.name', controller.appName),
-                    _configRow('app.env', controller.appEnv),
-                    _configRow('database.host', controller.dbHost),
-                    _configRow('database.port', controller.dbPort.toString()),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              FilledButton.icon(
-                onPressed: () => MagicRoute.to('/todos'),
-                icon: const Icon(Icons.list),
-                label: const Text('Todo List (Database Demo)'),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () => MagicRoute.to('/user'),
-                icon: const Icon(Icons.person),
-                label: const Text('User Profile (MVC Demo)'),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () => MagicRoute.to('/dashboard'),
-                icon: const Icon(Icons.dashboard),
-                label: const Text('Dashboard (Responsive Demo)'),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () {
-                  Magic.snackbar('Config', 'App Name: ${controller.appName}');
-                },
-                icon: const Icon(Icons.settings),
-                label: const Text('Show Config Snackbar'),
-              ),
-              const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: () => MagicRoute.push('/about'),
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Go to About'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _configRow(String key, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(
-            '$key: ',
-            style: const TextStyle(fontFamily: 'monospace', color: Colors.grey),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF3B82F6),
+        return Scaffold(
+            backgroundColor: wColor(
+                context,
+                'gray',
+                shade: 50,
+                darkColorName: 'gray',
+                darkShade: 900,
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            body: Center(
+                child: SingleChildScrollView(
+                    primary: true,
+                    child: WDiv(
+                        className: 'w-full max-w-[480px] mx-auto p-4 lg:p-8',
+                        child: WDiv(
+                            className: '''
+                                rounded-2xl bg-white dark:bg-gray-800
+                                border border-gray-200 dark:border-gray-700
+                                p-6 lg:p-8 flex flex-col items-center
+                            ''',
+                            children: [
+                                // --------------------------------------------------
+                                // Hero Section
+                                // --------------------------------------------------
+                                WDiv(
+                                    className: '''
+                                        w-20 h-20 rounded-2xl
+                                        flex items-center justify-center
+                                        bg-gradient-to-br from-violet-500 to-purple-600
+                                        animate-bounce
+                                    ''',
+                                    child: WIcon(
+                                        Icons.auto_awesome,
+                                        className: 'text-white text-4xl',
+                                    ),
+                                ),
+                                const WSpacer(className: 'h-6'),
+                                WText(
+                                    appName,
+                                    className: '''
+                                        text-2xl lg:text-3xl font-bold
+                                        text-gray-900 dark:text-white text-center
+                                    ''',
+                                ),
+                                const WSpacer(className: 'h-2'),
+                                WText(
+                                    'Built with Magic Framework',
+                                    className:
+                                        'text-base text-gray-500 dark:text-gray-400',
+                                ),
+
+                                const WSpacer(className: 'h-8'),
+
+                                // --------------------------------------------------
+                                // Quick-link cards
+                                // --------------------------------------------------
+                                WDiv(
+                                    className: 'w-full flex flex-col gap-3',
+                                    children: [
+                                        _buildLinkCard(
+                                            icon: Icons.menu_book,
+                                            title: 'Documentation',
+                                            description:
+                                                'Read the Magic Framework docs to get started.',
+                                            url: 'https://magic.fluttersdk.com',
+                                        ),
+                                        _buildLinkCard(
+                                            icon: Icons.code,
+                                            title: 'GitHub',
+                                            description:
+                                                'Star the repo, report issues, or contribute code.',
+                                            url: 'https://github.com/fluttersdk/magic',
+                                        ),
+                                        _buildLinkCard(
+                                            icon: Icons.terminal,
+                                            title: 'CLI Commands',
+                                            description:
+                                                'Run `magic --help` to see all available commands.',
+                                            url: 'https://magic.fluttersdk.com/cli',
+                                        ),
+                                    ],
+                                ),
+
+                                const WSpacer(className: 'h-8'),
+
+                                // --------------------------------------------------
+                                // Footer
+                                // --------------------------------------------------
+                                WDiv(
+                                    className: 'flex flex-row items-center justify-center gap-1',
+                                    children: [
+                                        WText(
+                                            'Made with',
+                                            className: 'text-xs text-gray-400 dark:text-gray-500',
+                                        ),
+                                        WDiv(
+                                            className: 'animate-pulse',
+                                            child: WText(
+                                                '❤️',
+                                                className: 'text-xs text-red-500',
+                                            ),
+                                        ),
+                                        WText(
+                                            'by',
+                                            className: 'text-xs text-gray-400 dark:text-gray-500',
+                                        ),
+                                        WAnchor(
+                                            onTap: () => Launch.url('https://anilcancakir.com'),
+                                            child: WText(
+                                                'Anılcan Çakır',
+                                                className: '''
+                                                    text-xs font-medium text-primary
+                                                    dark:text-primary-400
+                                                ''',
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ),
+                ),
+            ),
+        );
+    }
+
+    /// Builds a single quick-link card with icon, title, description, and link.
+    Widget _buildLinkCard({
+        required IconData icon,
+        required String title,
+        required String description,
+        required String url,
+    }) {
+        return WDiv(
+            className: '''
+                w-full flex flex-col p-4 rounded-xl
+                bg-gray-50 dark:bg-gray-700/30
+                border border-gray-100 dark:border-gray-700
+            ''',
+            children: [
+                WDiv(
+                    className: 'flex flex-row items-center gap-3 mb-2',
+                    children: [
+                        WDiv(
+                            className: '''
+                                p-2 rounded-lg
+                                bg-primary/10 dark:bg-primary-900/30
+                            ''',
+                            child: WIcon(
+                                icon,
+                                className: 'text-lg text-primary dark:text-primary-400',
+                            ),
+                        ),
+                        WText(
+                            title,
+                            className: '''
+                                text-base font-semibold
+                                text-gray-900 dark:text-white
+                            ''',
+                        ),
+                    ],
+                ),
+                WText(
+                    description,
+                    className: 'text-sm text-gray-500 dark:text-gray-400 mb-3',
+                ),
+                WAnchor(
+                    onTap: () => Launch.url(url),
+                    child: WDiv(
+                        className: 'flex flex-row items-center gap-1',
+                        children: [
+                            WText(
+                                'Learn more',
+                                className: '''
+                                    text-sm font-medium
+                                    text-primary dark:text-primary-400
+                                ''',
+                            ),
+                            WIcon(
+                                Icons.arrow_forward_outlined,
+                                className:
+                                    'text-sm text-primary dark:text-primary-400',
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        );
+    }
 }

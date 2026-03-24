@@ -1,23 +1,39 @@
-import 'package:magic/magic.dart';
-
-import 'middleware/ensure_authenticated.dart';
-import 'middleware/redirect_if_authenticated.dart';
+// Import Magic to access Kernel, middleware base classes, etc.:
+// import 'package:magic/magic.dart';
 
 /// The HTTP Kernel.
 ///
-/// Register all middleware here, similar to Laravel's app/Http/Kernel.php.
+/// Register all middleware here, similar to Laravel's `app/Http/Kernel.php`.
 ///
 /// ## Usage
 ///
+/// This function is called automatically by `RouteServiceProvider.register()`.
+/// You do not need to call it manually.
+///
+/// ## Global Middleware
+///
+/// Global middleware runs on EVERY route:
+///
 /// ```dart
-/// // In main.dart onInit
-/// registerKernel();
+/// Kernel.global([
+///   () => LoggingMiddleware(),
+/// ]);
+/// ```
+///
+/// ## Route Middleware
+///
+/// Route middleware are named aliases you use in route definitions:
+///
+/// ```dart
+/// Kernel.registerAll({
+///   'auth': () => EnsureAuthenticated(),
+///   'guest': () => RedirectIfAuthenticated(),
+/// });
 /// ```
 void registerKernel() {
   // ---------------------------------------------------------------------------
   // Global Middleware
   // ---------------------------------------------------------------------------
-  // These run on EVERY route.
   // Kernel.global([
   //   () => LoggingMiddleware(),
   // ]);
@@ -25,9 +41,9 @@ void registerKernel() {
   // ---------------------------------------------------------------------------
   // Route Middleware
   // ---------------------------------------------------------------------------
-  // These are aliases you can use in routes with .middleware(['alias']).
-  Kernel.registerAll({
-    'auth': () => EnsureAuthenticated(),
-    'guest': () => RedirectIfAuthenticated(),
-  });
+  // Uncomment and add your middleware aliases below:
+  // Kernel.registerAll({
+  //   'auth': () => EnsureAuthenticated(),
+  //   'guest': () => RedirectIfAuthenticated(),
+  // });
 }

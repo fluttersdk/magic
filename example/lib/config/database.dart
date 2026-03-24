@@ -1,21 +1,15 @@
-import 'package:magic/magic.dart';
-
-/// Database Configuration
+/// Database Configuration.
 ///
-/// Configures the SQLite database connection for the Magic framework.
-///
-/// Environment variables:
-/// - `DB_CONNECTION`: Connection name (default: 'sqlite')
-/// - `DB_DATABASE`: Database filename (default: 'magic_app.db')
+/// Uses SQLite by default. On mobile, files are stored in the app's documents
+/// directory. On web, in-memory SQLite is used automatically.
 Map<String, dynamic> get databaseConfig => {
-      'database': {
-        'default': env('DB_CONNECTION', 'sqlite'),
-        'connections': {
-          'sqlite': {
-            'driver': 'sqlite',
-            'database': env('DB_DATABASE', 'magic_app.db'),
-            'prefix': '',
-          },
-        },
+  'database': {
+    'default': 'sqlite',
+    'connections': {
+      'sqlite': {
+        'driver': 'sqlite',
+        'database': 'database.sqlite',
       },
-    };
+    },
+  },
+};

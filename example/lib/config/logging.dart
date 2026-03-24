@@ -1,7 +1,8 @@
-/// Logging Configuration
+/// Logging Configuration.
 ///
-/// Defines the logging channels and levels for the application.
-final Map<String, dynamic> loggingConfig = {
+/// This config file is OPTIONAL. Only create it if you want to customize
+/// the logging behaviour. The default channel is `stack` which logs to console.
+Map<String, dynamic> get loggingConfig => {
   'logging': {
     'default': 'stack',
     'channels': {
@@ -9,7 +10,10 @@ final Map<String, dynamic> loggingConfig = {
         'driver': 'stack',
         'channels': ['console'],
       },
-      'console': {'driver': 'console', 'level': 'debug'},
+      'console': {
+        'driver': 'console',
+        'level': 'debug',
+      },
     },
   },
 };

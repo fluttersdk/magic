@@ -1,21 +1,23 @@
 import 'package:magic/magic.dart';
-import '../../routes/app.dart';
-import '../../routes/auth.dart';
-import '../kernel.dart';
 
+import '../kernel.dart';
+import '../../routes/app.dart';
+
+/// Route Service Provider.
+///
+/// Registers the HTTP kernel and application routes.
 class RouteServiceProvider extends ServiceProvider {
   RouteServiceProvider(super.app);
 
   @override
   void register() {
-    // Register middleware kernel (logic moved from onInit)
+    // Register middleware kernel — runs synchronously during bootstrap.
     registerKernel();
   }
 
   @override
   Future<void> boot() async {
-    // Register routes
+    // Register application route definitions.
     registerAppRoutes();
-    registerAuthRoutes();
   }
 }
