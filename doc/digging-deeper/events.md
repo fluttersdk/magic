@@ -70,7 +70,7 @@ lib/app/
 An event class is a simple data container holding information related to the event:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../models/order.dart';
 
 class OrderShipped extends MagicEvent {
@@ -89,7 +89,7 @@ Events are simple data classes—they don't contain any logic. The listener is r
 Event listeners receive the event instance in their `handle` method:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../events/order_shipped.dart';
 
 class SendShipmentNotification extends MagicListener<OrderShipped> {
@@ -121,7 +121,7 @@ class UpdateAnalytics extends MagicListener<OrderShipped> {
 Register mappings in your `AppEventServiceProvider`:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../events/order_shipped.dart';
 import '../events/user_registered.dart';
 import '../listeners/send_shipment_notification.dart';
@@ -151,7 +151,7 @@ class AppEventServiceProvider extends EventServiceProvider {
 Use the `Event` facade to dispatch events:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../events/order_shipped.dart';
 
 class OrderController extends MagicController {

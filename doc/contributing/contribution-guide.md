@@ -60,7 +60,7 @@ lib/
 │   ├── support/        # Helpers & utilities
 │   ├── ui/             # View system
 │   └── validation/     # Validation rules
-└── fluttersdk_magic.dart  # Barrel export
+└── magic.dart  # Barrel export
 ```
 
 ### Key Files
@@ -70,7 +70,7 @@ lib/
 | `lib/src/foundation/magic.dart` | Core Magic facade |
 | `lib/src/facades/*.dart` | Public API facades |
 | `lib/src/providers/*.dart` | Service providers |
-| `lib/fluttersdk_magic.dart` | Public exports |
+| `lib/magic.dart` | Public exports |
 
 <a name="coding-style"></a>
 ## Coding Style

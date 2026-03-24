@@ -34,7 +34,7 @@ Add `CacheServiceProvider` to your providers in `config/app.dart`:
 Create `lib/config/cache.dart`:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 Map<String, dynamic> get cacheConfig => {
   'cache': {

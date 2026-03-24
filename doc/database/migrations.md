@@ -41,7 +41,7 @@ This creates a file in `lib/database/migrations/` with:
 A migration class contains two methods: `up` and `down`. The `up` method adds new tables, columns, or indexes, while the `down` method should reverse the operations:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 class CreateUsersTable extends Migration {
   @override

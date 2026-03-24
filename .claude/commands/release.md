@@ -137,5 +137,5 @@ Present a summary:
 **Changelog:** {count} features, {count} fixes, {count} improvements
 
 **Local:** ✅ Tests ({count} passed) · ✅ Analyzer (0 issues) · ✅ Format clean · ✅ Dry-run (0 warnings)
-**pub.dev:** ✅ Validate passed → Published (run #{publish_run_id}) — https://pub.dev/packages/fluttersdk_magic
+**pub.dev:** ✅ Validate passed → Published (run #{publish_run_id}) — https://pub.dev/packages/magic
 ```

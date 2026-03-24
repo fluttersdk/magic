@@ -98,10 +98,10 @@ Magic requires:
 
 ### 1. Add the Package
 
-Add `fluttersdk_magic` to your Flutter project:
+Add `magic` to your Flutter project:
 
 ```bash
-flutter pub add fluttersdk_magic
+flutter pub add magic
 ```
 
 This pulls in Magic and all its dependencies, including **Wind UI** and the **Magic CLI**.

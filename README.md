@@ -10,16 +10,16 @@
 </p>
 
 <p align="center">
-  <a href="https://pub.dev/packages/fluttersdk_magic"><img src="https://img.shields.io/pub/v/fluttersdk_magic.svg" alt="pub package"></a>
+  <a href="https://pub.dev/packages/magic"><img src="https://img.shields.io/pub/v/magic.svg" alt="pub package"></a>
   <a href="https://github.com/fluttersdk/magic/actions"><img src="https://img.shields.io/github/actions/workflow/status/fluttersdk/magic/ci.yml?branch=master&label=CI" alt="CI"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://pub.dev/packages/fluttersdk_magic/score"><img src="https://img.shields.io/pub/points/fluttersdk_magic" alt="pub points"></a>
+  <a href="https://pub.dev/packages/magic/score"><img src="https://img.shields.io/pub/points/magic" alt="pub points"></a>
   <a href="https://github.com/fluttersdk/magic/stargazers"><img src="https://img.shields.io/github/stars/fluttersdk/magic?style=flat" alt="GitHub stars"></a>
 </p>
 
 <p align="center">
   <a href="https://magic.fluttersdk.com">Documentation</a> ·
-  <a href="https://pub.dev/packages/fluttersdk_magic">pub.dev</a> ·
+  <a href="https://pub.dev/packages/magic">pub.dev</a> ·
   <a href="https://github.com/fluttersdk/magic/issues">Issues</a>
 </p>
 
@@ -71,7 +71,7 @@ flutter create my_app
 cd my_app
 
 # Add Magic as a dependency
-flutter pub add fluttersdk_magic
+flutter pub add magic
 ```
 
 ### 2. Scaffold with Magic CLI

@@ -33,7 +33,7 @@ This creates `lib/app/middleware/auth.dart` with a `MagicMiddleware` stub ready 
 To create a new middleware, create a class that extends `MagicMiddleware`:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 class EnsureAuthenticated extends MagicMiddleware {
   @override

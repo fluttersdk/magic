@@ -37,7 +37,7 @@ Most of your pages will be stateless, relying on the controller for state manage
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 class DashboardView extends MagicView {
   const DashboardView({super.key});

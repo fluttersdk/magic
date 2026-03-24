@@ -162,7 +162,7 @@ Create a class that extends `LoggerDriver`:
 
 ```dart
 // lib/app/logging/sentry_logger_driver.dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 class SentryLoggerDriver extends LoggerDriver {

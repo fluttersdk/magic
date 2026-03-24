@@ -54,7 +54,7 @@ dart run magic:magic make:seeder UserSeeder
 A seeder class contains a single `run` method which is called when the seeder is executed:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../factories/user_factory.dart';
 
 class UserSeeder extends Seeder {
@@ -71,7 +71,7 @@ class UserSeeder extends Seeder {
 The `DatabaseSeeder` is the entry point for all seeders. Use `call()` to run multiple seeders in order:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import 'user_seeder.dart';
 import 'post_seeder.dart';
 import 'comment_seeder.dart';
@@ -100,7 +100,7 @@ dart run magic:magic make:factory User
 A factory extends `Factory<T>` and defines the model's default attributes:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../../app/models/user.dart';
 
 class UserFactory extends Factory<User> {

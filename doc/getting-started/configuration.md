@@ -168,7 +168,7 @@ Magic recommends organizing your configuration into logical files:
 ### Example: app.dart
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 Map<String, dynamic> get appConfig => {
   'app': {

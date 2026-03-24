@@ -5,7 +5,7 @@ Complete reference for the Magic CLI — an Artisan-inspired code generation and
 ## Installation
 
 ```bash
-dart pub global activate fluttersdk_magic_cli
+dart pub global activate magic_cli
 ```
 
 Ensure `~/.pub-cache/bin` is in your PATH. All commands must be run from the Flutter project root (where `pubspec.yaml` lives).

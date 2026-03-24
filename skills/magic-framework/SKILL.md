@@ -243,7 +243,7 @@ Mock by extending contracts. Inject via `Magic.put<T>(mockController)`. Never us
 
 ## CLI Quick Reference
 
-Magic CLI provides Artisan-inspired code generation. Install with `dart pub global activate fluttersdk_magic_cli`.
+Magic CLI provides Artisan-inspired code generation. Install with `dart pub global activate magic_cli`.
 
 ```bash
 magic install                          # Initialize project

@@ -36,7 +36,7 @@ Create a `test/test_helper.dart` for common setup:
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 Future<void> setupTestEnvironment() async {
   TestWidgetsFlutterBinding.ensureInitialized();

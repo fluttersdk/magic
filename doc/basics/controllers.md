@@ -32,7 +32,7 @@ A basic controller extends `MagicController` and contains action methods that re
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../../resources/views/users/user_list_view.dart';
 import '../../resources/views/users/user_show_view.dart';
 

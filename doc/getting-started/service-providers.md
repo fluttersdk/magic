@@ -35,7 +35,7 @@ This creates `lib/app/providers/payment_service_provider.dart` with a `ServicePr
 All service providers extend the `ServiceProvider` class. Most service providers contain a `register` and a `boot` method. Within the `register` method, you should **only bind things into the service container**. Within the `boot` method, you may do anything else—register routes, event listeners, or any other functionality.
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 class PaymentServiceProvider extends ServiceProvider {
   PaymentServiceProvider(super.app);
@@ -123,7 +123,7 @@ Future<void> boot() async {
 All service providers are registered in your `config/app.dart` configuration file using the `providers` key. Each provider is a factory function that receives the application instance:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 Map<String, dynamic> get appConfig => {
   'app': {

@@ -23,7 +23,7 @@ Laravel-inspired Flutter framework with Facades, Eloquent ORM, Service Providers
 
 ```
 lib/
-├── fluttersdk_magic.dart    # Barrel export (public API)
+├── magic.dart    # Barrel export (public API)
 ├── config/                  # Default configs (app, auth, cache, database, view)
 └── src/
     ├── foundation/          # MagicApp (IoC), Magic (bootstrap), ConfigRepository, Env

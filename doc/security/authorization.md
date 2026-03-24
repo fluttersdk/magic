@@ -123,7 +123,7 @@ Return values:
 Policies organize related authorization logic into classes. This is the recommended approach for complex applications:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../models/post.dart';
 
 class PostPolicy extends Policy {
@@ -234,7 +234,7 @@ MagicCannot(
 Create a dedicated provider for all authorization logic:
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 class AppGateServiceProvider extends GateServiceProvider {
   AppGateServiceProvider(super.app);
@@ -292,7 +292,7 @@ dart run magic:magic make:policy Comment --model=Comment
 ### Generated Policy Template
 
 ```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import '../models/post.dart';
 
 class PostPolicy extends Policy {

@@ -21,7 +21,7 @@ Configure your tests to use an in-memory database:
 ```dart
 // test/test_helper.dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 
 Future<void> setupTestDatabase() async {
   await Magic.init(
