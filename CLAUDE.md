@@ -61,6 +61,23 @@ After ANY source code change, sync **before committing**:
 4. **`skills/magic-framework/`** — Update SKILL.md and references if API, facades, or patterns changed
 5. **`example/`** — Update or create example usage for changed/new features
 
+## Development Flow (TDD)
+
+This project follows strict **Test-Driven Development**. Every feature, fix, or refactor must go through the red-green-refactor cycle:
+
+1. **Red** — Write a failing test that describes the expected behavior
+2. **Green** — Write the minimum code to make the test pass
+3. **Refactor** — Clean up while keeping tests green
+
+**Rules:**
+- No production code without a failing test first
+- Run `flutter test` after every change — all 453+ tests must stay green
+- Run `dart analyze` after every change — zero warnings, zero errors
+- Run `dart format .` before committing — zero formatting issues
+- `dart pub publish --dry-run` must pass before any release
+
+**Verification cycle:** Edit → `flutter test` → `dart analyze` → repeat until green
+
 ## Testing
 
 - `setUp()`: Always `MagicApp.reset()` + `Magic.flush()` — clears IoC and facade caches
