@@ -424,15 +424,15 @@ Full docs at **[magic.fluttersdk.com](https://magic.fluttersdk.com)**.
 
 | Topic | |
 |-------|--|
-| [Installation](doc/getting-started/installation.md) | Setup and requirements |
-| [Configuration](doc/getting-started/configuration.md) | Environment and config files |
-| [Service Providers](doc/getting-started/service-providers.md) | Provider lifecycle |
-| [Routing](doc/basics/routing.md) | Routes and navigation |
-| [Controllers](doc/basics/controllers.md) | Request handlers |
-| [Views](doc/basics/views.md) | UI layer |
-| [HTTP Client](doc/basics/http-client.md) | Network requests |
-| [Middleware](doc/basics/middleware.md) | Request pipeline |
-| [Forms](doc/basics/forms.md) | Form handling and validation |
+| [Installation](https://magic.fluttersdk.com/getting-started/installation) | Setup and requirements |
+| [Configuration](https://magic.fluttersdk.com/getting-started/configuration) | Environment and config files |
+| [Service Providers](https://magic.fluttersdk.com/getting-started/service-providers) | Provider lifecycle |
+| [Routing](https://magic.fluttersdk.com/basics/routing) | Routes and navigation |
+| [Controllers](https://magic.fluttersdk.com/basics/controllers) | Request handlers |
+| [Views](https://magic.fluttersdk.com/basics/views) | UI layer |
+| [HTTP Client](https://magic.fluttersdk.com/basics/http-client) | Network requests |
+| [Middleware](https://magic.fluttersdk.com/basics/middleware) | Request pipeline |
+| [Forms](https://magic.fluttersdk.com/basics/forms) | Form handling and validation |
 
 ## AI Agent Integration
 
