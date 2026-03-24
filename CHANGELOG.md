@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.3] - 2026-03-24
+
+### 🐛 Bug Fixes
+- **Logo on pub.dev**: Use absolute URL for logo image so it renders correctly on pub.dev
+
+### 🔧 Improvements
+- **TDD Development Flow**: Added strict TDD rules and verification cycle to CLAUDE.md
+
 ## [1.0.0-alpha.2] - 2026-03-24
 
 ### ⚠️ Breaking Changes

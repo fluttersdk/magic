@@ -507,7 +507,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.0.0-alpha.1"
+    version: "1.0.0-alpha.3"
   magic_cli:
     dependency: transitive
     description:
