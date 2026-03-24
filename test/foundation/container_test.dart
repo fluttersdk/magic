@@ -81,10 +81,7 @@ void main() {
     test('make() throws Exception for unregistered keys', () {
       final app = MagicApp.instance;
 
-      expect(
-        () => app.make<TestService>('unknown'),
-        throwsA(isA<Exception>()),
-      );
+      expect(() => app.make<TestService>('unknown'), throwsA(isA<Exception>()));
     });
 
     test('bound() checks if a service is registered', () {

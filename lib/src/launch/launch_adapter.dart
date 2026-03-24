@@ -34,11 +34,7 @@ class DefaultLaunchAdapter implements LaunchAdapter {
   Future<bool> launch(
     Uri url, {
     LaunchMode mode = LaunchMode.externalApplication,
-  }) =>
-      launchUrl(
-        url,
-        mode: mode,
-      );
+  }) => launchUrl(url, mode: mode);
 
   /// Checks whether the given [url] can be launched on this device.
   ///

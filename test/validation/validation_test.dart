@@ -280,9 +280,7 @@ void main() {
 
     test('fails when confirmation is missing', () {
       expect(
-        rule.passes('password', 'secret', {
-          'password': 'secret',
-        }),
+        rule.passes('password', 'secret', {'password': 'secret'}),
         isFalse,
       );
     });
@@ -403,13 +401,13 @@ void main() {
 
   group('Validator', () {
     test('passes() returns true when all rules pass', () {
-      final validator = Validator.make({
-        'email': 'user@example.com',
-        'password': 'secret123',
-      }, {
-        'email': [Required(), Email()],
-        'password': [Required(), Min(6)],
-      });
+      final validator = Validator.make(
+        {'email': 'user@example.com', 'password': 'secret123'},
+        {
+          'email': [Required(), Email()],
+          'password': [Required(), Min(6)],
+        },
+      );
 
       expect(validator.passes(), isTrue);
       expect(validator.fails(), isFalse);
@@ -417,13 +415,13 @@ void main() {
     });
 
     test('fails() returns true when any rule fails', () {
-      final validator = Validator.make({
-        'email': 'invalid-email',
-        'password': '123',
-      }, {
-        'email': [Required(), Email()],
-        'password': [Required(), Min(6)],
-      });
+      final validator = Validator.make(
+        {'email': 'invalid-email', 'password': '123'},
+        {
+          'email': [Required(), Email()],
+          'password': [Required(), Min(6)],
+        },
+      );
 
       expect(validator.fails(), isTrue);
       expect(validator.passes(), isFalse);
@@ -431,13 +429,13 @@ void main() {
     });
 
     test('errors() returns correct messages', () {
-      final validator = Validator.make({
-        'email': '',
-        'password': '123',
-      }, {
-        'email': [Required()],
-        'password': [Required(), Min(8)],
-      });
+      final validator = Validator.make(
+        {'email': '', 'password': '123'},
+        {
+          'email': [Required()],
+          'password': [Required(), Min(8)],
+        },
+      );
 
       validator.fails();
       final errors = validator.errors();
@@ -447,14 +445,13 @@ void main() {
     });
 
     test('validate() returns validated data when passing', () {
-      final validator = Validator.make({
-        'email': 'user@example.com',
-        'password': 'secret123',
-        'extra': 'data',
-      }, {
-        'email': [Required(), Email()],
-        'password': [Required()],
-      });
+      final validator = Validator.make(
+        {'email': 'user@example.com', 'password': 'secret123', 'extra': 'data'},
+        {
+          'email': [Required(), Email()],
+          'password': [Required()],
+        },
+      );
 
       final validated = validator.validate();
 
@@ -464,24 +461,23 @@ void main() {
     });
 
     test('validate() throws ValidationException when failing', () {
-      final validator = Validator.make({
-        'email': '',
-      }, {
-        'email': [Required()],
-      });
-
-      expect(
-        () => validator.validate(),
-        throwsA(isA<ValidationException>()),
+      final validator = Validator.make(
+        {'email': ''},
+        {
+          'email': [Required()],
+        },
       );
+
+      expect(() => validator.validate(), throwsA(isA<ValidationException>()));
     });
 
     test('only first error per field is recorded', () {
-      final validator = Validator.make({
-        'email': '',
-      }, {
-        'email': [Required(), Email()],
-      });
+      final validator = Validator.make(
+        {'email': ''},
+        {
+          'email': [Required(), Email()],
+        },
+      );
 
       validator.fails();
       final errors = validator.errors();
@@ -493,14 +489,12 @@ void main() {
     test('stops validation on first failure per field', () {
       var emailRuleCalls = 0;
 
-      final validator = Validator.make({
-        'email': '',
-      }, {
-        'email': [
-          Required(),
-          _CountingRule(() => emailRuleCalls++),
-        ],
-      });
+      final validator = Validator.make(
+        {'email': ''},
+        {
+          'email': [Required(), _CountingRule(() => emailRuleCalls++)],
+        },
+      );
 
       validator.fails();
 
@@ -546,11 +540,12 @@ void main() {
 
   group('Message Resolution', () {
     test('uses Lang translation when key exists', () {
-      final validator = Validator.make({
-        'email': '',
-      }, {
-        'email': [Required()],
-      });
+      final validator = Validator.make(
+        {'email': ''},
+        {
+          'email': [Required()],
+        },
+      );
 
       validator.fails();
       final errors = validator.errors();
@@ -559,11 +554,12 @@ void main() {
     });
 
     test('uses raw message when key does not exist', () {
-      final validator = Validator.make({
-        'name': 'invalid',
-      }, {
-        'name': [_CustomRawRule()],
-      });
+      final validator = Validator.make(
+        {'name': 'invalid'},
+        {
+          'name': [_CustomRawRule()],
+        },
+      );
 
       validator.fails();
       final errors = validator.errors();
@@ -572,11 +568,12 @@ void main() {
     });
 
     test('replaces :attribute placeholder', () {
-      final validator = Validator.make({
-        'user_email': '',
-      }, {
-        'user_email': [Required()],
-      });
+      final validator = Validator.make(
+        {'user_email': ''},
+        {
+          'user_email': [Required()],
+        },
+      );
 
       validator.fails();
       final errors = validator.errors();
@@ -585,11 +582,12 @@ void main() {
     });
 
     test('replaces rule params in message', () {
-      final validator = Validator.make({
-        'password': 'abc',
-      }, {
-        'password': [Min(8)],
-      });
+      final validator = Validator.make(
+        {'password': 'abc'},
+        {
+          'password': [Min(8)],
+        },
+      );
 
       validator.fails();
       final errors = validator.errors();

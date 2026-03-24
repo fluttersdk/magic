@@ -112,10 +112,7 @@ class FormValidator {
       }
 
       // 2. Build data map with just this field
-      final data = <String, dynamic>{
-        field: value,
-        ...?extraData,
-      };
+      final data = <String, dynamic>{field: value, ...?extraData};
 
       // 3. Run each client-side rule
       for (final rule in rules) {

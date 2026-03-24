@@ -19,17 +19,11 @@ extension MagicFileWebExtensions on MagicFile {
   Future<XFile> toXFile() async {
     final bytes = await readAsBytes();
     if (bytes == null) {
-      throw UnsupportedError(
-        'Cannot convert to XFile: no bytes available.',
-      );
+      throw UnsupportedError('Cannot convert to XFile: no bytes available.');
     }
 
     // Create XFile from bytes on Web
-    return XFile.fromData(
-      bytes,
-      name: name,
-      mimeType: mimeType,
-    );
+    return XFile.fromData(bytes, name: name, mimeType: mimeType);
   }
 }
 

@@ -14,10 +14,7 @@ class TestUser extends Model with HasTimestamps, InteractsWithPersistence {
   List<String> get fillable => ['name', 'email', 'born_at', 'settings'];
 
   @override
-  Map<String, String> get casts => {
-        'born_at': 'datetime',
-        'settings': 'json',
-      };
+  Map<String, String> get casts => {'born_at': 'datetime', 'settings': 'json'};
 
   // Enable local, disable remote for tests
   @override
@@ -52,10 +49,7 @@ void main() {
   group('Model Attributes', () {
     test('can fill and retrieve attributes', () {
       final user = TestUser()
-        ..fill({
-          'name': 'John Doe',
-          'email': 'john@example.com',
-        });
+        ..fill({'name': 'John Doe', 'email': 'john@example.com'});
 
       expect(user.name, 'John Doe');
       expect(user.email, 'john@example.com');
@@ -72,10 +66,7 @@ void main() {
 
     test('toArray returns all attributes', () {
       final user = TestUser()
-        ..fill({
-          'name': 'Test User',
-          'email': 'test@example.com',
-        });
+        ..fill({'name': 'Test User', 'email': 'test@example.com'});
 
       final array = user.toArray();
       expect(array['name'], 'Test User');
@@ -237,10 +228,7 @@ void main() {
 
     test('save inserts new model', () async {
       final user = TestUser()
-        ..fill({
-          'name': 'New User',
-          'email': 'new@example.com',
-        });
+        ..fill({'name': 'New User', 'email': 'new@example.com'});
 
       final result = await user.save();
 
@@ -252,7 +240,8 @@ void main() {
     test('save updates existing model', () async {
       // Insert directly
       db.execute(
-          "INSERT INTO test_users (name, email) VALUES ('Original', 'orig@test.com')");
+        "INSERT INTO test_users (name, email) VALUES ('Original', 'orig@test.com')",
+      );
 
       final user = await TestUser.find(1);
       expect(user, isNotNull);
@@ -268,7 +257,8 @@ void main() {
 
     test('find returns model by id', () async {
       db.execute(
-          "INSERT INTO test_users (name, email) VALUES ('Test', 'test@example.com')");
+        "INSERT INTO test_users (name, email) VALUES ('Test', 'test@example.com')",
+      );
 
       final user = await TestUser.find(1);
 
@@ -285,9 +275,11 @@ void main() {
 
     test('all returns all models', () async {
       db.execute(
-          "INSERT INTO test_users (name, email) VALUES ('User 1', 'u1@test.com')");
+        "INSERT INTO test_users (name, email) VALUES ('User 1', 'u1@test.com')",
+      );
       db.execute(
-          "INSERT INTO test_users (name, email) VALUES ('User 2', 'u2@test.com')");
+        "INSERT INTO test_users (name, email) VALUES ('User 2', 'u2@test.com')",
+      );
 
       final users = await TestUser.all();
 
@@ -298,7 +290,8 @@ void main() {
 
     test('delete removes model', () async {
       db.execute(
-          "INSERT INTO test_users (name, email) VALUES ('ToDelete', 'del@test.com')");
+        "INSERT INTO test_users (name, email) VALUES ('ToDelete', 'del@test.com')",
+      );
 
       final user = await TestUser.find(1);
       expect(user, isNotNull);
@@ -314,7 +307,8 @@ void main() {
 
     test('refresh reloads model from database', () async {
       db.execute(
-          "INSERT INTO test_users (name, email) VALUES ('Original', 'orig@test.com')");
+        "INSERT INTO test_users (name, email) VALUES ('Original', 'orig@test.com')",
+      );
 
       final user = await TestUser.find(1);
       expect(user!.name, 'Original');
@@ -348,10 +342,7 @@ void main() {
 
     test('makeHidden temporarily hides attributes', () {
       final user = TestUser()
-        ..fill({
-          'name': 'Jane Doe',
-          'email': 'jane@example.com',
-        });
+        ..fill({'name': 'Jane Doe', 'email': 'jane@example.com'});
 
       final map = user.makeHidden(['email']).toMap();
 
@@ -361,10 +352,7 @@ void main() {
 
     test('makeVisible temporarily shows hidden attributes', () {
       final user = _UserWithHidden()
-        ..fill({
-          'name': 'John',
-          'password': 'hidden_password',
-        });
+        ..fill({'name': 'John', 'password': 'hidden_password'});
 
       final map = user.makeVisible(['password']).toMap();
 
@@ -387,10 +375,7 @@ void main() {
 
     test('append adds runtime attributes to serialization', () {
       final user = TestUser()
-        ..fill({
-          'name': 'John',
-          'email': 'john@test.com',
-        })
+        ..fill({'name': 'John', 'email': 'john@test.com'})
         ..setAttribute('computed_field', 'computed_value');
 
       final map = user.append(['computed_field']).toMap();
@@ -400,11 +385,7 @@ void main() {
     });
 
     test('toJson returns JSON string', () {
-      final user = TestUser()
-        ..fill({
-          'name': 'Test',
-          'email': 'test@test.com',
-        });
+      final user = TestUser()..fill({'name': 'Test', 'email': 'test@test.com'});
 
       final json = user.toJson();
 

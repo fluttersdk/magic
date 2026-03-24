@@ -387,12 +387,14 @@ class QueryBuilder {
   String _buildWhereSql() {
     if (_wheres.isEmpty) return '';
 
-    final clauses = _wheres.map((w) {
-      if (w.isNull) {
-        return '${w.column} ${w.operator} NULL';
-      }
-      return '${w.column} ${w.operator} ?';
-    }).join(' AND ');
+    final clauses = _wheres
+        .map((w) {
+          if (w.isNull) {
+            return '${w.column} ${w.operator} NULL';
+          }
+          return '${w.column} ${w.operator} ?';
+        })
+        .join(' AND ');
 
     return ' WHERE $clauses';
   }
@@ -426,7 +428,8 @@ class QueryBuilder {
 
   /// Filter data map to only include columns that exist in the table.
   Future<Map<String, dynamic>> _filterDataBySchema(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     final columns = await _db.getColumns(_table);
     final filtered = <String, dynamic>{};
 

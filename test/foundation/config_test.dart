@@ -17,10 +17,7 @@ void main() {
 
     test('get() returns value via dot notation', () {
       config.merge({
-        'database': {
-          'host': 'localhost',
-          'port': 5432,
-        }
+        'database': {'host': 'localhost', 'port': 5432},
       });
 
       expect(config.get('database.host'), 'localhost');
@@ -47,16 +44,13 @@ void main() {
 
     test('merge() deeply merges without overwriting', () {
       config.merge({
-        'database': {
-          'host': 'localhost',
-          'port': 5432,
-        }
+        'database': {'host': 'localhost', 'port': 5432},
       });
 
       config.merge({
         'database': {
           'name': 'myapp', // Add new key
-        }
+        },
       });
 
       expect(config.get('database.host'), 'localhost'); // Preserved

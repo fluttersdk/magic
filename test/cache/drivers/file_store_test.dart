@@ -15,9 +15,9 @@ void main() {
     const channel = MethodChannel('plugins.flutter.io/path_provider');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      tempDir = Directory.systemTemp.createTempSync('magic_test_');
-      return tempDir.path;
-    });
+          tempDir = Directory.systemTemp.createTempSync('magic_test_');
+          return tempDir.path;
+        });
   });
 
   tearDownAll(() {

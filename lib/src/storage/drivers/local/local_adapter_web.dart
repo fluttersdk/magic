@@ -126,7 +126,8 @@ class LocalAdapter implements LocalAdapterContract {
 
     // Get MIME type
     final prefs = await SharedPreferences.getInstance();
-    final mimeType = _mimeTypes[path] ??
+    final mimeType =
+        _mimeTypes[path] ??
         prefs.getString(_getMimeKey(path)) ??
         'application/octet-stream';
 

@@ -7,11 +7,7 @@ class MockLoggerDriver extends LoggerDriver {
 
   @override
   void log(String level, String message, [dynamic context]) {
-    logs.add({
-      'level': level,
-      'message': message,
-      'context': context,
-    });
+    logs.add({'level': level, 'message': message, 'context': context});
   }
 
   void clear() => logs.clear();

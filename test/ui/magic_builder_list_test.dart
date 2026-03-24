@@ -13,9 +13,8 @@ void main() {
             data: WindThemeData(),
             child: MagicBuilder<List<String>>(
               listenable: items,
-              builder: (list) => Column(
-                children: list.map((item) => Text(item)).toList(),
-              ),
+              builder: (list) =>
+                  Column(children: list.map((item) => Text(item)).toList()),
             ),
           ),
         ),
@@ -44,9 +43,7 @@ void main() {
               listenable: items,
               builder: (list) => list.isEmpty
                   ? const Text('No items')
-                  : Column(
-                      children: list.map((item) => Text(item)).toList(),
-                    ),
+                  : Column(children: list.map((item) => Text(item)).toList()),
             ),
           ),
         ),
@@ -125,13 +122,10 @@ void main() {
       expect(find.text('Charlie (ID: 3)'), findsOneWidget);
     });
 
-    testWidgets('common pattern: ListView.builder inside MagicBuilder',
-        (tester) async {
-      final items = ValueNotifier<List<String>>([
-        'Item 1',
-        'Item 2',
-        'Item 3',
-      ]);
+    testWidgets('common pattern: ListView.builder inside MagicBuilder', (
+      tester,
+    ) async {
+      final items = ValueNotifier<List<String>>(['Item 1', 'Item 2', 'Item 3']);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -142,9 +136,8 @@ void main() {
                 listenable: items,
                 builder: (list) => ListView.builder(
                   itemCount: list.length,
-                  itemBuilder: (context, index) => ListTile(
-                    title: Text(list[index]),
-                  ),
+                  itemBuilder: (context, index) =>
+                      ListTile(title: Text(list[index])),
                 ),
               ),
             ),
@@ -165,8 +158,9 @@ void main() {
       expect(find.text('Item 3'), findsOneWidget);
     });
 
-    testWidgets('common pattern: loading state with nullable list',
-        (tester) async {
+    testWidgets('common pattern: loading state with nullable list', (
+      tester,
+    ) async {
       final items = ValueNotifier<List<String>?>(null); // null = loading
 
       await tester.pumpWidget(

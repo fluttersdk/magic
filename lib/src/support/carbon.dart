@@ -99,8 +99,15 @@ class Carbon implements Comparable<Carbon> {
     int second = 0,
     int millisecond = 0,
   }) {
-    final dateTime =
-        DateTime(year, month, day, hour, minute, second, millisecond);
+    final dateTime = DateTime(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      second,
+      millisecond,
+    );
     return Carbon.fromDateTime(dateTime);
   }
 

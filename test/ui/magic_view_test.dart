@@ -54,8 +54,9 @@ void main() {
       Magic.flush();
     });
 
-    testWidgets('clears validation errors when view initializes',
-        (tester) async {
+    testWidgets('clears validation errors when view initializes', (
+      tester,
+    ) async {
       // Set validation errors on controller
       controller.setValidationErrors({'email': 'Email is required'});
       expect(controller.validationErrors.isNotEmpty, isTrue);
@@ -63,10 +64,7 @@ void main() {
       // Build the view
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 
@@ -74,8 +72,9 @@ void main() {
       expect(controller.validationErrors.isEmpty, isTrue);
     });
 
-    testWidgets('clears RxStatus error state when view initializes',
-        (tester) async {
+    testWidgets('clears RxStatus error state when view initializes', (
+      tester,
+    ) async {
       // Set error state on controller (simulating a failed login)
       controller.setError('Invalid credentials');
       expect(controller.isError, isTrue);
@@ -84,10 +83,7 @@ void main() {
       // Build the view (simulating navigation to a new page)
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 
@@ -97,8 +93,9 @@ void main() {
       expect(controller.isEmpty, isTrue);
     });
 
-    testWidgets('clears both validation and RxStatus errors on view init',
-        (tester) async {
+    testWidgets('clears both validation and RxStatus errors on view init', (
+      tester,
+    ) async {
       // Set both types of errors
       controller.validationErrors = {'email': 'Email is required'};
       controller.setError('Server error');
@@ -109,10 +106,7 @@ void main() {
       // Build the view
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 
@@ -130,10 +124,7 @@ void main() {
       // Build the view
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 
@@ -150,10 +141,7 @@ void main() {
       // Build the view
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 

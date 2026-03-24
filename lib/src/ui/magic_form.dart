@@ -102,9 +102,9 @@ class MagicForm extends StatelessWidget {
     this.onWillPop,
     this.restorationId,
   }) : assert(
-          formData != null || controller != null,
-          'Either formData or controller must be provided',
-        );
+         formData != null || controller != null,
+         'Either formData or controller must be provided',
+       );
 
   @override
   Widget build(BuildContext context) {

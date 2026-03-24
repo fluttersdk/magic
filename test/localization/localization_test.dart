@@ -19,8 +19,10 @@ class MockTranslationLoader implements TranslationLoader {
   }
 
   /// Flatten nested keys (same logic as JsonAssetLoader).
-  Map<String, dynamic> _flatten(Map<String, dynamic> json,
-      [String prefix = '']) {
+  Map<String, dynamic> _flatten(
+    Map<String, dynamic> json, [
+    String prefix = '',
+  ]) {
     final result = <String, dynamic>{};
     for (final entry in json.entries) {
       final key = prefix.isEmpty ? entry.key : '$prefix.${entry.key}';
@@ -48,15 +50,17 @@ void main() {
 
     test('should load translations and flatten keys', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {
-          'welcome': 'Welcome!',
-          'auth': {
-            'failed': 'Authentication failed.',
-            'throttle': 'Too many attempts.',
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {
+            'welcome': 'Welcome!',
+            'auth': {
+              'failed': 'Authentication failed.',
+              'throttle': 'Too many attempts.',
+            },
           },
-        },
-      }));
+        }),
+      );
 
       await translator.load(const Locale('en'));
 
@@ -75,18 +79,15 @@ void main() {
 
     test('should apply replacements with :key syntax', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {
-          'greeting': 'Hello, :name! You have :count messages.',
-        },
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'greeting': 'Hello, :name! You have :count messages.'},
+        }),
+      );
 
       await translator.load(const Locale('en'));
 
-      final result = translator.get('greeting', {
-        'name': 'John',
-        'count': 5,
-      });
+      final result = translator.get('greeting', {'name': 'John', 'count': 5});
 
       expect(result, 'Hello, John! You have 5 messages.');
     });
@@ -104,20 +105,16 @@ void main() {
 
     test('should track current locale', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {},
-        'tr': {},
-      }));
+      translator.setLoader(MockTranslationLoader({'en': {}, 'tr': {}}));
 
       await translator.load(const Locale('en'));
       expect(translator.locale.languageCode, 'en');
 
       // Reset to allow loading new locale
       Translator.reset();
-      Translator.instance.setLoader(MockTranslationLoader({
-        'en': {},
-        'tr': {},
-      }));
+      Translator.instance.setLoader(
+        MockTranslationLoader({'en': {}, 'tr': {}}),
+      );
 
       await Translator.instance.load(const Locale('tr'));
       expect(Translator.instance.locale.languageCode, 'tr');
@@ -125,9 +122,11 @@ void main() {
 
     test('should check if key exists', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {'exists': 'Yes'},
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'exists': 'Yes'},
+        }),
+      );
 
       await translator.load(const Locale('en'));
 
@@ -137,17 +136,17 @@ void main() {
 
     test('should handle deeply nested keys', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {
-          'level1': {
-            'level2': {
-              'level3': {
-                'deep': 'Found it!',
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {
+            'level1': {
+              'level2': {
+                'level3': {'deep': 'Found it!'},
               },
             },
           },
-        },
-      }));
+        }),
+      );
 
       await translator.load(const Locale('en'));
 
@@ -156,11 +155,11 @@ void main() {
 
     test('should handle multiple replacements in same string', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {
-          'message': ':user sent :count messages to :recipient',
-        },
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'message': ':user sent :count messages to :recipient'},
+        }),
+      );
 
       await translator.load(const Locale('en'));
 
@@ -181,11 +180,11 @@ void main() {
 
     test('should work with __ helper function pattern', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {
-          'hello': 'Hello, :name!',
-        },
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'hello': 'Hello, :name!'},
+        }),
+      );
 
       await translator.load(const Locale('en'));
 
@@ -205,10 +204,12 @@ void main() {
 
     test('setLocale should force reload and notify listeners', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {'hello': 'Hello'},
-        'tr': {'hello': 'Merhaba'},
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'hello': 'Hello'},
+          'tr': {'hello': 'Merhaba'},
+        }),
+      );
 
       // Initial load
       await translator.load(const Locale('en'));
@@ -243,10 +244,7 @@ void main() {
 
     test('detectLocale should return best match from supported', () {
       final translator = Translator.instance;
-      translator.setSupportedLocales([
-        const Locale('en'),
-        const Locale('tr'),
-      ]);
+      translator.setSupportedLocales([const Locale('en'), const Locale('tr')]);
 
       // detectLocale uses PlatformDispatcher.instance.locale
       // In tests, this is typically 'en_US', so it should match 'en'
@@ -256,10 +254,7 @@ void main() {
 
     test('detectLocale should fallback to first supported if no match', () {
       final translator = Translator.instance;
-      translator.setSupportedLocales([
-        const Locale('ja'),
-        const Locale('zh'),
-      ]);
+      translator.setSupportedLocales([const Locale('ja'), const Locale('zh')]);
 
       // Device locale probably won't be Japanese or Chinese in test env
       final detected = translator.detectLocale();
@@ -269,10 +264,7 @@ void main() {
 
     test('removeListener should stop notifications', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {},
-        'tr': {},
-      }));
+      translator.setLoader(MockTranslationLoader({'en': {}, 'tr': {}}));
 
       var notifyCount = 0;
       void listener() => notifyCount++;
@@ -288,9 +280,11 @@ void main() {
 
     test('load should not reload same locale if already loaded', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {'key': 'value'},
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'key': 'value'},
+        }),
+      );
 
       var notifyCount = 0;
       translator.addListener(() => notifyCount++);
@@ -305,9 +299,11 @@ void main() {
 
     test('setLocale should force reload even for same locale', () async {
       final translator = Translator.instance;
-      translator.setLoader(MockTranslationLoader({
-        'en': {'key': 'value'},
-      }));
+      translator.setLoader(
+        MockTranslationLoader({
+          'en': {'key': 'value'},
+        }),
+      );
 
       var notifyCount = 0;
       translator.addListener(() => notifyCount++);

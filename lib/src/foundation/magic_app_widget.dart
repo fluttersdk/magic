@@ -15,11 +15,7 @@ class MagicAppWidget extends StatefulWidget {
   final Widget Function(BuildContext context) builder;
   final ThemeMode? themeMode;
 
-  const MagicAppWidget({
-    super.key,
-    required this.builder,
-    this.themeMode,
-  });
+  const MagicAppWidget({super.key, required this.builder, this.themeMode});
 
   static final GlobalKey<MagicAppWidgetState> _appKey =
       GlobalKey<MagicAppWidgetState>();
@@ -45,10 +41,7 @@ class MagicAppWidgetState extends State<MagicAppWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyedSubtree(
-      key: _appKey,
-      child: widget.builder(context),
-    );
+    return KeyedSubtree(key: _appKey, child: widget.builder(context));
   }
 }
 
@@ -181,18 +174,14 @@ class _MagicApplicationState extends State<MagicApplication> {
   Widget build(BuildContext context) {
     if (_hasError) {
       return MaterialApp(
-        home: Scaffold(
-          body: Center(child: Text('Failed to initialize app')),
-        ),
+        home: Scaffold(body: Center(child: Text('Failed to initialize app'))),
       );
     }
 
     if (!_initialized) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
 
@@ -253,8 +242,10 @@ class _MagicApplicationState extends State<MagicApplication> {
   ///
   /// Reads `localization.supported_locales` from config. Defaults to `[Locale('en')]`.
   List<Locale> _getSupportedLocalesFromConfig() {
-    final locales =
-        Config.get<List<dynamic>>('localization.supported_locales', null);
+    final locales = Config.get<List<dynamic>>(
+      'localization.supported_locales',
+      null,
+    );
     if (locales == null) return [const Locale('en')];
     return locales.map((code) {
       if (code is Locale) return code;
@@ -275,10 +266,7 @@ class _MagicApplicationState extends State<MagicApplication> {
       return data;
     }
 
-    return data.copyWith(
-      brightness: _savedBrightness,
-      syncWithSystem: false,
-    );
+    return data.copyWith(brightness: _savedBrightness, syncWithSystem: false);
   }
 
   /// Handle theme change — persist to Vault and forward to user callback.

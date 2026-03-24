@@ -30,8 +30,9 @@ void main() {
       expect(find.text('Count: 5'), findsOneWidget);
     });
 
-    testWidgets('provides only value to builder (no context or child)',
-        (tester) async {
+    testWidgets('provides only value to builder (no context or child)', (
+      tester,
+    ) async {
       final name = ValueNotifier<String>('John');
       late String receivedValue;
 
@@ -119,8 +120,9 @@ void main() {
       expect(find.byKey(const Key('counter_builder')), findsOneWidget);
     });
 
-    testWidgets('can access BuildContext through enclosing Builder',
-        (tester) async {
+    testWidgets('can access BuildContext through enclosing Builder', (
+      tester,
+    ) async {
       final counter = ValueNotifier<int>(0);
       ThemeData? capturedTheme;
 

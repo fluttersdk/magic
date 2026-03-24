@@ -14,7 +14,7 @@ class LaunchService {
   ///
   /// Defaults to using [DefaultLaunchAdapter] if no adapter is provided.
   LaunchService({LaunchAdapter? adapter})
-      : _adapter = adapter ?? DefaultLaunchAdapter();
+    : _adapter = adapter ?? DefaultLaunchAdapter();
 
   /// Launches a URL using the specified mode.
   ///
@@ -48,19 +48,15 @@ class LaunchService {
   ///
   /// [address] is the recipient's email address.
   /// [subject] and [body] are optional and will be pre-filled in the email.
-  Future<bool> email(
-    String address, {
-    String? subject,
-    String? body,
-  }) async {
+  Future<bool> email(String address, {String? subject, String? body}) async {
     if (address.trim().isEmpty) {
       return false;
     }
 
     try {
       final queryParameters = <String, String>{
-        if (subject != null) 'subject': subject,
-        if (body != null) 'body': body,
+        'subject': ?subject,
+        'body': ?body,
       };
 
       final uri = Uri(
@@ -87,10 +83,7 @@ class LaunchService {
     }
 
     try {
-      final uri = Uri(
-        scheme: 'tel',
-        path: number,
-      );
+      final uri = Uri(scheme: 'tel', path: number);
 
       return await _adapter.launch(uri);
     } catch (e) {
@@ -105,10 +98,7 @@ class LaunchService {
   ///
   /// [number] is the recipient's phone number.
   /// [body] is optional and will be pre-filled in the message.
-  Future<bool> sms(
-    String number, {
-    String? body,
-  }) async {
+  Future<bool> sms(String number, {String? body}) async {
     if (number.trim().isEmpty) {
       return false;
     }

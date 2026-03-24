@@ -87,11 +87,7 @@ class Storage {
   /// final image = await Pick.image();
   /// await Storage.put('avatars/user.jpg', image);
   /// ```
-  static Future<String> put(
-    String path,
-    dynamic contents, {
-    String? mimeType,
-  }) {
+  static Future<String> put(String path, dynamic contents, {String? mimeType}) {
     return disk().put(path, contents, mimeType: mimeType);
   }
 

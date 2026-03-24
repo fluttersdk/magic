@@ -45,11 +45,7 @@ class MagicError {
   /// Is this a 401 Unauthorized error?
   bool get isUnauthorized => statusCode == 401;
 
-  MagicError({
-    this.request,
-    this.response,
-    this.message,
-  });
+  MagicError({this.request, this.response, this.message});
 }
 
 /// The Magic Network Response wrapper.

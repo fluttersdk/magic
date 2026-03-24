@@ -67,10 +67,7 @@ void main() {
     });
 
     test('bracket operator returns null for non-map data', () {
-      final response = MagicResponse(
-        data: 'string data',
-        statusCode: 200,
-      );
+      final response = MagicResponse(data: 'string data', statusCode: 200);
 
       expect(response['key'], isNull);
     });

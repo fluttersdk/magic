@@ -128,10 +128,7 @@ void main() {
       test('throws if bytes cannot be read', () async {
         final file = MagicFile(name: 'empty.bin');
 
-        expect(
-          () => file.store('path/to/file.bin'),
-          throwsException,
-        );
+        expect(() => file.store('path/to/file.bin'), throwsException);
       });
     });
   });

@@ -57,8 +57,10 @@ class LangDelegate extends LocalizationsDelegate<Translator> {
   ///
   /// Reads `localization.supported_locales` from config. If not set, defaults to `['en']`.
   List<Locale> _getSupportedLocales() {
-    final locales =
-        Config.get<List<dynamic>>('localization.supported_locales', null);
+    final locales = Config.get<List<dynamic>>(
+      'localization.supported_locales',
+      null,
+    );
     if (locales == null) return [const Locale('en')];
     return locales.map((code) {
       if (code is Locale) return code;

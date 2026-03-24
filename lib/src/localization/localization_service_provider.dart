@@ -26,10 +26,9 @@ class LocalizationServiceProvider extends ServiceProvider {
     // Bind the translator as a singleton
     app.singleton('translator', () {
       final translator = Translator.instance;
-      translator.setLoader(JsonAssetLoader(
-        basePath: path,
-        fallbackLocale: fallback,
-      ));
+      translator.setLoader(
+        JsonAssetLoader(basePath: path, fallbackLocale: fallback),
+      );
       return translator;
     });
 
@@ -42,8 +41,10 @@ class LocalizationServiceProvider extends ServiceProvider {
     final translator = Translator.instance;
 
     // Load supported locales from config
-    final supportedLocalesConfig =
-        Config.get<List<dynamic>>('localization.supported_locales', null);
+    final supportedLocalesConfig = Config.get<List<dynamic>>(
+      'localization.supported_locales',
+      null,
+    );
     if (supportedLocalesConfig != null) {
       final locales = supportedLocalesConfig.map((code) {
         if (code is Locale) return code;

@@ -65,10 +65,7 @@ class Auth {
   ///   Route.to('/dashboard');
   /// }
   /// ```
-  static Future<void> login(
-    Map<String, dynamic> data,
-    Authenticatable user,
-  ) =>
+  static Future<void> login(Map<String, dynamic> data, Authenticatable user) =>
       guard().login(data, user);
 
   /// Log the user out.

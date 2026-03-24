@@ -75,10 +75,7 @@ class FileStore implements CacheStore {
     final duration = ttl ?? Duration(seconds: Config.get('cache.ttl', 3600)!);
     final int expireAt = DateTime.now().add(duration).millisecondsSinceEpoch;
 
-    _memory[key] = {
-      _keyPayload: value,
-      _keyExpireAt: expireAt,
-    };
+    _memory[key] = {_keyPayload: value, _keyExpireAt: expireAt};
 
     await _persist();
   }

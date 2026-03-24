@@ -148,10 +148,7 @@ void main() {
 
     test('user returns authenticated user', () async {
       final user = MockUser()
-        ..setRawAttributes({
-          'id': 1,
-          'email': 'test@example.com',
-        }, sync: true);
+        ..setRawAttributes({'id': 1, 'email': 'test@example.com'}, sync: true);
       await guard.login({'token': 'token'}, user);
 
       final retrieved = guard.user<MockUser>();
@@ -253,7 +250,8 @@ void main() {
     test('setUserFactory stores factory', () {
       expect(
         () => manager.setUserFactory(
-            (data) => MockUser()..setRawAttributes(data, sync: true)),
+          (data) => MockUser()..setRawAttributes(data, sync: true),
+        ),
         returnsNormally,
       );
     });
@@ -290,7 +288,7 @@ void main() {
       final result = AuthResult.failure(
         message: 'Invalid credentials',
         errors: {
-          'email': ['Email not found']
+          'email': ['Email not found'],
         },
       );
 
@@ -303,7 +301,7 @@ void main() {
     test('firstError returns first error for field', () {
       final result = AuthResult.failure(
         errors: {
-          'email': ['First error', 'Second error']
+          'email': ['First error', 'Second error'],
         },
       );
 
@@ -314,7 +312,7 @@ void main() {
     test('fromResponse creates result from MagicResponse', () {
       final successResponse = MagicResponse(
         data: {
-          'user': {'id': 1}
+          'user': {'id': 1},
         },
         statusCode: 200,
       );
@@ -335,7 +333,7 @@ void main() {
         data: {
           'message': 'Validation failed',
           'errors': {
-            'email': ['Invalid email']
+            'email': ['Invalid email'],
           },
         },
         statusCode: 422,

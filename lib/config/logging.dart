@@ -10,10 +10,7 @@ Map<String, dynamic> defaultLoggingConfig = {
         'driver': 'stack',
         'channels': ['console'],
       },
-      'console': {
-        'driver': 'console',
-        'level': 'debug',
-      },
+      'console': {'driver': 'console', 'level': 'debug'},
       // Future: file, daily, slack, etc.
     },
   },

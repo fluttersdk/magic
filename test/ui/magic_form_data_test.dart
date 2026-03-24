@@ -19,13 +19,7 @@ void main() {
 
     setUp(() {
       controller = _TestController();
-      form = MagicFormData(
-        {
-          'name': '',
-          'email': '',
-        },
-        controller: controller,
-      );
+      form = MagicFormData({'name': '', 'email': ''}, controller: controller);
     });
 
     tearDown(() {
@@ -49,13 +43,7 @@ void main() {
 
     setUp(() {
       controller = _TestController();
-      form = MagicFormData(
-        {
-          'name': '',
-          'email': '',
-        },
-        controller: controller,
-      );
+      form = MagicFormData({'name': '', 'email': ''}, controller: controller);
     });
 
     tearDown(() {
@@ -115,10 +103,7 @@ void main() {
       final first = form.process(() => completer.future);
 
       // 2. Attempt concurrent process — should throw.
-      expect(
-        () => form.process(() async => true),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => form.process(() async => true), throwsA(isA<StateError>()));
 
       // 3. Complete the first process.
       completer.complete(true);
@@ -145,14 +130,14 @@ void main() {
 
     setUp(() {
       controller = _TestController();
-      profileForm = MagicFormData(
-        {'name': '', 'email': ''},
-        controller: controller,
-      );
-      passwordForm = MagicFormData(
-        {'current_password': '', 'password': ''},
-        controller: controller,
-      );
+      profileForm = MagicFormData({
+        'name': '',
+        'email': '',
+      }, controller: controller);
+      passwordForm = MagicFormData({
+        'current_password': '',
+        'password': '',
+      }, controller: controller);
     });
 
     tearDown(() {
@@ -185,10 +170,7 @@ void main() {
 
     setUp(() {
       controller = _TestController();
-      form = MagicFormData(
-        {'name': ''},
-        controller: controller,
-      );
+      form = MagicFormData({'name': ''}, controller: controller);
     });
 
     tearDown(() {
@@ -219,14 +201,11 @@ void main() {
 
     setUp(() {
       controller = _TestController();
-      form = MagicFormData(
-        {
-          'name': 'John',
-          'email': '',
-          'accept_terms': false,
-        },
-        controller: controller,
-      );
+      form = MagicFormData({
+        'name': 'John',
+        'email': '',
+        'accept_terms': false,
+      }, controller: controller);
     });
 
     tearDown(() {
@@ -258,10 +237,7 @@ void main() {
     });
 
     test('fieldNames includes all registered fields', () {
-      expect(
-        form.fieldNames,
-        containsAll(['name', 'email', 'accept_terms']),
-      );
+      expect(form.fieldNames, containsAll(['name', 'email', 'accept_terms']));
     });
   });
 }

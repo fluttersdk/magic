@@ -76,8 +76,9 @@ class Migrator {
     final executed = await _getExecutedMigrations();
 
     // Filter to pending only
-    final pending =
-        migrations.where((m) => !executed.contains(m.name)).toList();
+    final pending = migrations
+        .where((m) => !executed.contains(m.name))
+        .toList();
 
     if (pending.isEmpty) {
       return [];
@@ -230,10 +231,7 @@ class Migrator {
 
   /// Record a migration as executed.
   Future<void> _recordMigration(String name) async {
-    await QueryBuilder(_table).insert({
-      'migration': name,
-      'batch': _batch,
-    });
+    await QueryBuilder(_table).insert({'migration': name, 'batch': _batch});
   }
 
   /// Remove a migration record.

@@ -2,7 +2,7 @@
 
 Laravel-inspired Flutter framework with Facades, Eloquent ORM, Service Providers, and IoC Container.
 
-**Version:** 1.0.0-alpha.1 · **Dart:** >=3.4.0 · **Flutter:** >=3.22.0
+**Version:** 1.0.0-alpha.1 · **Dart:** >=3.11.0 · **Flutter:** >=3.41.0
 
 ## Commands
 
@@ -44,9 +44,6 @@ lib/
     ├── support/             # ServiceProvider base, Carbon date helper
     ├── validation/          # Rules-based validator
     └── ui/                  # MagicView, MagicForm, MagicFeedback, MagicResponsiveView
-plugins/
-├── fluttersdk_wind/         # Wind UI — Tailwind CSS for Flutter (own CLAUDE.md)
-└── magic_cli/               # CLI code generator (own CLAUDE.md)
 doc/                         # Framework documentation (basics, database, security, etc.)
 ```
 
@@ -63,7 +60,6 @@ After ANY source code change, sync **before committing**:
 3. **`README.md`** — Update if new features, facades, or API changes affect the overview
 4. **`skills/magic-framework/`** — Update SKILL.md and references if API, facades, or patterns changed
 5. **`example/`** — Update or create example usage for changed/new features
-6. **`plugins/`** — If change affects magic_cli stubs or Wind UI integration, update those too
 
 ## Testing
 
@@ -87,7 +83,6 @@ After ANY source code change, sync **before committing**:
 | `ValidatesRequests` import | Lives in `concerns/`, not `http/` |
 | Web vs mobile DB | Web = in-memory SQLite, mobile = file-based |
 | `MagicResponse.errors` format | Parses Laravel's `{"errors": {"field": ["msg"]}}` |
-| `analysis_options.yaml` excludes plugins | `plugins/**` excluded — each plugin has own analysis |
 
 ## Skills & Extensions
 

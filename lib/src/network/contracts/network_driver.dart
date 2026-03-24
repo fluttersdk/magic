@@ -75,10 +75,7 @@ abstract class NetworkDriver {
   });
 
   /// Perform a DELETE request.
-  Future<MagicResponse> delete(
-    String url, {
-    Map<String, String>? headers,
-  });
+  Future<MagicResponse> delete(String url, {Map<String, String>? headers});
 
   /// Upload files via multipart form data.
   Future<MagicResponse> upload(

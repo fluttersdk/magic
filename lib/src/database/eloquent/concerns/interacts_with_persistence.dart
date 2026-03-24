@@ -93,9 +93,9 @@ mixin InteractsWithPersistence on Model {
     // Try local first
     if (sample.useLocal) {
       try {
-        final row = await QueryBuilder(sample.table)
-            .where(sample.primaryKey, id)
-            .first();
+        final row = await QueryBuilder(
+          sample.table,
+        ).where(sample.primaryKey, id).first();
 
         if (row != null) {
           return hydrate<T>(row, factory);
@@ -393,14 +393,14 @@ mixin InteractsWithPersistence on Model {
       }
 
       // Check if exists
-      final existing = await QueryBuilder(model.table)
-          .where(model.primaryKey, model.id)
-          .first();
+      final existing = await QueryBuilder(
+        model.table,
+      ).where(model.primaryKey, model.id).first();
 
       if (existing != null) {
-        await QueryBuilder(model.table)
-            .where(model.primaryKey, model.id)
-            .update(data);
+        await QueryBuilder(
+          model.table,
+        ).where(model.primaryKey, model.id).update(data);
       } else {
         await QueryBuilder(model.table).insert(data);
       }

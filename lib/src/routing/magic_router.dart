@@ -193,10 +193,12 @@ class MagicRouter {
     // Add layouts (ShellRoutes) - each layout wraps its children
     final mergedLayouts = _mergeLayouts();
     for (final layout in mergedLayouts) {
-      goRoutes.add(ShellRoute(
-        builder: (context, state, shellChild) => layout.builder(shellChild),
-        routes: layout.children.map((child) => _buildGoRoute(child)).toList(),
-      ));
+      goRoutes.add(
+        ShellRoute(
+          builder: (context, state, shellChild) => layout.builder(shellChild),
+          routes: layout.children.map((child) => _buildGoRoute(child)).toList(),
+        ),
+      );
     }
 
     return goRoutes;
@@ -221,10 +223,7 @@ class MagicRouter {
         merged[layout.id!] = LayoutDefinition(
           id: layout.id,
           builder: merged[layout.id!]!.builder,
-          children: [
-            ...merged[layout.id!]!.children,
-            ...layout.children,
-          ],
+          children: [...merged[layout.id!]!.children, ...layout.children],
         );
       } else {
         merged[layout.id!] = layout;
@@ -264,10 +263,7 @@ class MagicRouter {
     GoRouterState state,
   ) {
     // Wrap child with opaque background to prevent overlap during transitions
-    final opaqueChild = Material(
-      type: MaterialType.canvas,
-      child: child,
-    );
+    final opaqueChild = Material(type: MaterialType.canvas, child: child);
 
     switch (route.transitionType) {
       case RouteTransition.fade:
@@ -285,29 +281,32 @@ class MagicRouter {
           child: opaqueChild,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             // Incoming page slides from right
-            final slideIn = Tween<Offset>(
-              begin: const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ));
+            final slideIn =
+                Tween<Offset>(
+                  begin: const Offset(1, 0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
 
             // Outgoing page slides to left
-            final slideOut = Tween<Offset>(
-              begin: Offset.zero,
-              end: const Offset(-0.3, 0),
-            ).animate(CurvedAnimation(
-              parent: secondaryAnimation,
-              curve: Curves.easeOutCubic,
-            ));
+            final slideOut =
+                Tween<Offset>(
+                  begin: Offset.zero,
+                  end: const Offset(-0.3, 0),
+                ).animate(
+                  CurvedAnimation(
+                    parent: secondaryAnimation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
 
             return SlideTransition(
               position: slideOut,
-              child: SlideTransition(
-                position: slideIn,
-                child: child,
-              ),
+              child: SlideTransition(position: slideIn, child: child),
             );
           },
         );
@@ -318,13 +317,16 @@ class MagicRouter {
           child: opaqueChild,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 1),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-              )),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             );
           },
@@ -344,10 +346,7 @@ class MagicRouter {
 
       case RouteTransition.none:
         // No animation - instant page switch
-        return NoTransitionPage(
-          key: state.pageKey,
-          child: opaqueChild,
-        );
+        return NoTransitionPage(key: state.pageKey, child: opaqueChild);
     }
   }
 
@@ -539,10 +538,7 @@ class _MiddlewareGuard extends StatefulWidget {
   final RouteDefinition route;
   final Map<String, String> pathParameters;
 
-  const _MiddlewareGuard({
-    required this.route,
-    required this.pathParameters,
-  });
+  const _MiddlewareGuard({required this.route, required this.pathParameters});
 
   @override
   State<_MiddlewareGuard> createState() => _MiddlewareGuardState();
@@ -597,9 +593,7 @@ class _MiddlewareGuardState extends State<_MiddlewareGuard> {
   Widget build(BuildContext context) {
     // Still checking middleware
     if (_isChecking) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     // Middleware blocked - show nothing (redirect should handle)

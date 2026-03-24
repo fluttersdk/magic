@@ -106,8 +106,11 @@ abstract class MagicStatefulView<T extends MagicController>
 ///   }
 /// }
 /// ```
-abstract class MagicStatefulViewState<T extends MagicController,
-    V extends MagicStatefulView<T>> extends State<V> {
+abstract class MagicStatefulViewState<
+  T extends MagicController,
+  V extends MagicStatefulView<T>
+>
+    extends State<V> {
   /// Cached controller instance.
   late final T _controller;
 

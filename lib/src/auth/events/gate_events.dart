@@ -39,11 +39,7 @@ class GateAccessDenied extends MagicEvent {
   /// The user who was denied (null if guest).
   final Model? user;
 
-  GateAccessDenied({
-    required this.ability,
-    this.arguments,
-    this.user,
-  });
+  GateAccessDenied({required this.ability, this.arguments, this.user});
 }
 
 /// Fired when a new ability is defined.

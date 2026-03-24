@@ -19,7 +19,7 @@ class MagicEncrypter {
   /// requirement. If the key is invalid, this constructor will throw
   /// an exception to prevent insecure operations.
   MagicEncrypter(String key)
-      : _encrypter = Encrypter(AES(Key.fromUtf8(key), mode: AESMode.cbc)) {
+    : _encrypter = Encrypter(AES(Key.fromUtf8(key), mode: AESMode.cbc)) {
     if (key.length != 32) {
       throw Exception('App Key must be 32 characters for AES-256.');
     }

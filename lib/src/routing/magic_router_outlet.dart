@@ -87,11 +87,7 @@ class MagicShellRoute extends StatelessWidget {
   final StatefulNavigationShell? navigationShell;
 
   /// Create a shell route wrapper.
-  const MagicShellRoute({
-    super.key,
-    required this.child,
-    this.navigationShell,
-  });
+  const MagicShellRoute({super.key, required this.child, this.navigationShell});
 
   @override
   Widget build(BuildContext context) {

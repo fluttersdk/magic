@@ -91,18 +91,28 @@ class AuthInterceptor extends MagicNetworkInterceptor {
     try {
       switch (request.method.toUpperCase()) {
         case 'GET':
-          return await Http.get(request.url,
-              query: request.queryParameters,
-              headers: _stringHeaders(request.headers));
+          return await Http.get(
+            request.url,
+            query: request.queryParameters,
+            headers: _stringHeaders(request.headers),
+          );
         case 'POST':
-          return await Http.post(request.url,
-              data: request.data, headers: _stringHeaders(request.headers));
+          return await Http.post(
+            request.url,
+            data: request.data,
+            headers: _stringHeaders(request.headers),
+          );
         case 'PUT':
-          return await Http.put(request.url,
-              data: request.data, headers: _stringHeaders(request.headers));
+          return await Http.put(
+            request.url,
+            data: request.data,
+            headers: _stringHeaders(request.headers),
+          );
         case 'DELETE':
-          return await Http.delete(request.url,
-              headers: _stringHeaders(request.headers));
+          return await Http.delete(
+            request.url,
+            headers: _stringHeaders(request.headers),
+          );
         default:
           return null;
       }

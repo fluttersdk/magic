@@ -26,7 +26,8 @@ class EncryptionServiceProvider extends ServiceProvider {
       // the app during boot if encryption isn't used immediately.
       app.singleton('encrypter', () {
         throw Exception(
-            'Missing App Key. Please set [app.key] in your config or run "magic key:generate".');
+          'Missing App Key. Please set [app.key] in your config or run "magic key:generate".',
+        );
       });
       return;
     }

@@ -20,11 +20,7 @@ Map<String, dynamic> defaultDatabaseConfig = {
   'database': {
     'default': 'sqlite',
     'connections': {
-      'sqlite': {
-        'driver': 'sqlite',
-        'database': 'magic_app.db',
-        'prefix': '',
-      }
-    }
-  }
+      'sqlite': {'driver': 'sqlite', 'database': 'magic_app.db', 'prefix': ''},
+    },
+  },
 };

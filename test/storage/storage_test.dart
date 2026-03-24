@@ -149,10 +149,7 @@ void main() {
     });
 
     test('url() throws for missing file', () async {
-      expect(
-        () => disk.url('missing.txt'),
-        throwsException,
-      );
+      expect(() => disk.url('missing.txt'), throwsException);
     });
 
     test('download() calls adapter download', () async {
@@ -163,10 +160,7 @@ void main() {
     });
 
     test('put() throws for unsupported content type', () {
-      expect(
-        () => disk.put('bad.txt', 12345),
-        throwsArgumentError,
-      );
+      expect(() => disk.put('bad.txt', 12345), throwsArgumentError);
     });
   });
 
@@ -216,10 +210,7 @@ void main() {
     test('disk() throws for unknown disk', () {
       final manager = StorageManager();
 
-      expect(
-        () => manager.disk('unknown'),
-        throwsException,
-      );
+      expect(() => manager.disk('unknown'), throwsException);
     });
 
     test('flush() clears cached disks', () {

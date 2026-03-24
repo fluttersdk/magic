@@ -43,9 +43,7 @@ class LogManager {
 
   /// Create a console driver.
   LoggerDriver _createConsoleDriver(Map<String, dynamic> config) {
-    return ConsoleLoggerDriver(
-      minLevel: config['level'] ?? 'debug',
-    );
+    return ConsoleLoggerDriver(minLevel: config['level'] ?? 'debug');
   }
 
   /// Create a stack driver.

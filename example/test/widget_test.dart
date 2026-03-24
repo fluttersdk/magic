@@ -3,13 +3,8 @@ import 'package:magic/magic.dart';
 
 void main() {
   testWidgets('Magic app boots smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MagicApplication(
-        title: 'Test App',
-      ),
-    );
+    await tester.pumpWidget(const MagicApplication(title: 'Test App'));
 
     expect(find.byType(MagicApplication), findsOneWidget);
   });
 }
-  

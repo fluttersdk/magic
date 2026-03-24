@@ -83,8 +83,10 @@ class DB {
   ///   [18],
   /// );
   /// ```
-  static List<Map<String, dynamic>> select(String sql,
-      [List<Object?> params = const []]) {
+  static List<Map<String, dynamic>> select(
+    String sql, [
+    List<Object?> params = const [],
+  ]) {
     final result = _db.connection.select(sql, params);
     return result.map((row) {
       final map = <String, dynamic>{};

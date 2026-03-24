@@ -95,14 +95,12 @@ void main() {
       Magic.flush();
     });
 
-    testWidgets('error state is cleared when navigating to new view',
-        (tester) async {
+    testWidgets('error state is cleared when navigating to new view', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 
@@ -125,14 +123,12 @@ void main() {
       expect(find.text('Register Error: false'), findsOneWidget);
     });
 
-    testWidgets('error state remains cleared after navigating back',
-        (tester) async {
+    testWidgets('error state remains cleared after navigating back', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 
@@ -159,14 +155,12 @@ void main() {
       expect(controller.isError, isFalse);
     });
 
-    testWidgets('validation errors are also cleared on navigation',
-        (tester) async {
+    testWidgets('validation errors are also cleared on navigation', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
-          home: WindTheme(
-            data: WindThemeData(),
-            child: const TestLoginView(),
-          ),
+          home: WindTheme(data: WindThemeData(), child: const TestLoginView()),
         ),
       );
 

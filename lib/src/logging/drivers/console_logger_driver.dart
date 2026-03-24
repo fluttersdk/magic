@@ -26,15 +26,15 @@ class ConsoleLoggerDriver extends LoggerDriver {
   ///
   /// [minLevel] is the minimum level to log (default: 'debug').
   ConsoleLoggerDriver({this.minLevel = 'debug'})
-      : _logger = lgr.Logger(
-          printer: lgr.PrettyPrinter(
-            methodCount: 0,
-            errorMethodCount: 5,
-            lineLength: 80,
-            colors: true,
-            printEmojis: true,
-          ),
-        );
+    : _logger = lgr.Logger(
+        printer: lgr.PrettyPrinter(
+          methodCount: 0,
+          errorMethodCount: 5,
+          lineLength: 80,
+          colors: true,
+          printEmojis: true,
+        ),
+      );
 
   @override
   void log(String level, String message, [dynamic context]) {

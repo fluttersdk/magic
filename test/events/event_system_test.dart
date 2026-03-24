@@ -37,9 +37,7 @@ void main() {
     });
 
     test('it registers and dispatches events to listeners', () async {
-      dispatcher.register(TestEvent, [
-        () => TestListener(),
-      ]);
+      dispatcher.register(TestEvent, [() => TestListener()]);
 
       await dispatcher.dispatch(TestEvent('hello'));
 
@@ -64,9 +62,7 @@ void main() {
     });
 
     test('Event facade proxies to dispatcher', () async {
-      dispatcher.register(TestEvent, [
-        () => TestListener(),
-      ]);
+      dispatcher.register(TestEvent, [() => TestListener()]);
 
       await Event.dispatch(TestEvent('facade'));
 

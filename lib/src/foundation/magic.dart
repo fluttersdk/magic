@@ -317,8 +317,10 @@ class Magic {
   /// ```dart
   /// Magic.toast('Copied to clipboard');
   /// ```
-  static void toast(String message,
-      {Duration duration = const Duration(seconds: 2)}) {
+  static void toast(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+  }) {
     MagicFeedback.toast(message, duration: duration);
   }
 
@@ -333,10 +335,7 @@ class Magic {
   ///   ),
   /// );
   /// ```
-  static Future<T?> dialog<T>(
-    Widget dialog, {
-    bool barrierDismissible = true,
-  }) {
+  static Future<T?> dialog<T>(Widget dialog, {bool barrierDismissible = true}) {
     return MagicFeedback.showCustomDialog<T>(
       dialog,
       barrierDismissible: barrierDismissible,

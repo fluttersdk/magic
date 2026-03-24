@@ -92,11 +92,13 @@ void main() {
       adapter = MockLaunchAdapter();
       logDriver = MockLogDriver();
 
-      await Magic.init(configs: [
-        {
-          'app': {'name': 'Test'}
-        }
-      ]);
+      await Magic.init(
+        configs: [
+          {
+            'app': {'name': 'Test'},
+          },
+        ],
+      );
 
       // Inject LogManager mock
       MagicApp.instance.setInstance('log', MockLogManager(logDriver));

@@ -40,10 +40,7 @@ void main() {
       final result = interceptor.onRequest(request) as MagicRequest;
 
       expect(result.headers['X-Timezone'], isNotEmpty);
-      expect(
-        result.headers['X-Timezone'],
-        DateManager.instance.timezoneName,
-      );
+      expect(result.headers['X-Timezone'], DateManager.instance.timezoneName);
     });
 
     test('should set both headers on every request', () {
@@ -51,9 +48,7 @@ void main() {
       final request = MagicRequest(
         url: '/users',
         method: 'POST',
-        headers: <String, dynamic>{
-          'Authorization': 'Bearer token123',
-        },
+        headers: <String, dynamic>{'Authorization': 'Bearer token123'},
         data: {'name': 'Test'},
       );
 
@@ -82,9 +77,7 @@ void main() {
 
     test('should passthrough error unchanged', () {
       final interceptor = LocalizationInterceptor();
-      final error = MagicError(
-        message: 'Not Found',
-      );
+      final error = MagicError(message: 'Not Found');
 
       final result = interceptor.onError(error);
 

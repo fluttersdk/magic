@@ -44,8 +44,7 @@ class Launch {
   static Future<bool> url(
     String url, {
     LaunchMode mode = LaunchMode.externalApplication,
-  }) =>
-      _service.url(url, mode: mode);
+  }) => _service.url(url, mode: mode);
 
   /// Opens the device's email client addressed to [address].
   ///
@@ -62,11 +61,7 @@ class Launch {
   ///   body: 'I found an issue...',
   /// );
   /// ```
-  static Future<bool> email(
-    String address, {
-    String? subject,
-    String? body,
-  }) =>
+  static Future<bool> email(String address, {String? subject, String? body}) =>
       _service.email(address, subject: subject, body: body);
 
   /// Opens the device's phone dialer pre-filled with [number].
@@ -90,10 +85,7 @@ class Launch {
   /// ```dart
   /// await Launch.sms('+1234567890', body: 'On my way!');
   /// ```
-  static Future<bool> sms(
-    String number, {
-    String? body,
-  }) =>
+  static Future<bool> sms(String number, {String? body}) =>
       _service.sms(number, body: body);
 
   /// Checks whether the given [url] can be launched on this device.

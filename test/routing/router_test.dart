@@ -50,12 +50,11 @@ void main() {
 
     test('fluent API supports chaining', () {
       final middleware = _TestMiddleware();
-      final route = RouteDefinition(
-        path: '/profile',
-        handler: () => const SizedBox(),
-      )
-          .name('profile')
-          .middleware([middleware]).transition(RouteTransition.slideUp);
+      final route =
+          RouteDefinition(path: '/profile', handler: () => const SizedBox())
+              .name('profile')
+              .middleware([middleware])
+              .transition(RouteTransition.slideUp);
 
       expect(route.routeName, 'profile');
       expect(route.middlewares, hasLength(1));
@@ -89,9 +88,10 @@ void main() {
     });
 
     test('MagicRoute.page() returns RouteDefinition for chaining', () {
-      final route = MagicRoute.page('/dashboard', () => const SizedBox())
-          .name('dashboard')
-          .transition(RouteTransition.fade);
+      final route = MagicRoute.page(
+        '/dashboard',
+        () => const SizedBox(),
+      ).name('dashboard').transition(RouteTransition.fade);
 
       expect(route.routeName, 'dashboard');
       expect(route.transitionType, RouteTransition.fade);
@@ -123,7 +123,9 @@ void main() {
       );
 
       expect(
-          MagicRouter.instance.routes.first.middlewares, contains(middleware));
+        MagicRouter.instance.routes.first.middlewares,
+        contains(middleware),
+      );
     });
 
     test('nested MagicRoute.group() combines prefixes', () {
@@ -189,14 +191,15 @@ void main() {
   group('RouteTransition', () {
     test('enum contains expected values', () {
       expect(
-          RouteTransition.values,
-          containsAll([
-            RouteTransition.none,
-            RouteTransition.fade,
-            RouteTransition.slideRight,
-            RouteTransition.slideUp,
-            RouteTransition.scale,
-          ]));
+        RouteTransition.values,
+        containsAll([
+          RouteTransition.none,
+          RouteTransition.fade,
+          RouteTransition.slideRight,
+          RouteTransition.slideUp,
+          RouteTransition.scale,
+        ]),
+      );
     });
   });
 

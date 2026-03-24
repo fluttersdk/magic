@@ -40,8 +40,9 @@ class ValidationException implements Exception {
       return 'ValidationException: No errors';
     }
 
-    final messages =
-        errors.entries.map((e) => '  ${e.key}: ${e.value}').join('\n');
+    final messages = errors.entries
+        .map((e) => '  ${e.key}: ${e.value}')
+        .join('\n');
 
     return 'ValidationException:\n$messages';
   }

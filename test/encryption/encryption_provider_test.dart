@@ -9,10 +9,11 @@ void main() {
     setUpAll(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-              const MethodChannel('plugins.flutter.io/path_provider'),
-              (MethodCall methodCall) async {
-        return '.';
-      });
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (MethodCall methodCall) async {
+              return '.';
+            },
+          );
     });
 
     setUp(() {
@@ -20,16 +21,16 @@ void main() {
     });
 
     test('registers Encrypter if key is valid', () async {
-      await Magic.init(configs: [
-        {
-          'app': {
-            'key': '12345678901234567890123456789012',
-            'providers': [
-              (app) => EncryptionServiceProvider(app),
-            ],
-          }
-        }
-      ]);
+      await Magic.init(
+        configs: [
+          {
+            'app': {
+              'key': '12345678901234567890123456789012',
+              'providers': [(app) => EncryptionServiceProvider(app)],
+            },
+          },
+        ],
+      );
 
       expect(Magic.bound('encrypter'), isTrue);
       // expect(Magic.make('encrypter'), isA<MagicEncrypter>()); // Type is internal/exported? Encrypter is internal/exported?
@@ -40,16 +41,16 @@ void main() {
     });
 
     test('throws if key is missing when accessing', () async {
-      await Magic.init(configs: [
-        {
-          'app': {
-            'key': null, // Missing
-            'providers': [
-              (app) => EncryptionServiceProvider(app),
-            ],
-          }
-        }
-      ]);
+      await Magic.init(
+        configs: [
+          {
+            'app': {
+              'key': null, // Missing
+              'providers': [(app) => EncryptionServiceProvider(app)],
+            },
+          },
+        ],
+      );
 
       // Provider lazy registers an error thrower
       expect(Magic.bound('encrypter'), isTrue);
@@ -57,16 +58,16 @@ void main() {
     });
 
     test('throws if key is invalid length', () async {
-      await Magic.init(configs: [
-        {
-          'app': {
-            'key': 'short',
-            'providers': [
-              (app) => EncryptionServiceProvider(app),
-            ],
-          }
-        }
-      ]);
+      await Magic.init(
+        configs: [
+          {
+            'app': {
+              'key': 'short',
+              'providers': [(app) => EncryptionServiceProvider(app)],
+            },
+          },
+        ],
+      );
 
       expect(Magic.bound('encrypter'), isTrue);
       expect(() => Crypt.encrypt('foo'), throwsException);

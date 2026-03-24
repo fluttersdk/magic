@@ -196,9 +196,10 @@ abstract class BaseGuard implements Guard {
     }
 
     try {
-      final response = await Http.post(refreshEndpoint!, data: {
-        'refresh_token': refreshTokenValue,
-      });
+      final response = await Http.post(
+        refreshEndpoint!,
+        data: {'refresh_token': refreshTokenValue},
+      );
 
       if (!response.successful) {
         Log.warning('Auth: Token refresh failed');
@@ -207,7 +208,8 @@ abstract class BaseGuard implements Guard {
 
       // Extract new tokens from response
       final data = response.data;
-      final newToken = data?['token'] ??
+      final newToken =
+          data?['token'] ??
           data?['access_token'] ??
           data?['data']?['token'] ??
           data?['data']?['access_token'];
@@ -242,7 +244,8 @@ abstract class BaseGuard implements Guard {
   @override
   Future<void> restore() async {
     Log.debug(
-        'Auth: Restoring session (tokenKey=$tokenKey, hasFactory=${userFactory != null})');
+      'Auth: Restoring session (tokenKey=$tokenKey, hasFactory=${userFactory != null})',
+    );
     await loadTokenToCache();
 
     if (cachedToken == null) {

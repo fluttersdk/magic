@@ -125,8 +125,9 @@ void main() {
     late Directory tempDir;
 
     setUp(() async {
-      tempDir =
-          await Directory.systemTemp.createTemp('magic_file_integration_');
+      tempDir = await Directory.systemTemp.createTemp(
+        'magic_file_integration_',
+      );
     });
 
     tearDown(() async {

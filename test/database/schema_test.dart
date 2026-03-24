@@ -27,8 +27,10 @@ void main() {
       final result = db.select("PRAGMA table_info(products)");
       final columns = result.map((row) => row['name']).toList();
 
-      expect(columns,
-          containsAll(['id', 'name', 'price', 'created_at', 'updated_at']));
+      expect(
+        columns,
+        containsAll(['id', 'name', 'price', 'created_at', 'updated_at']),
+      );
     });
 
     test('drops table', () async {

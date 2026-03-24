@@ -54,7 +54,8 @@ class MagicViewRegistry {
     String cancelText,
     bool isDangerous,
     void Function(bool) onResult,
-  )? _confirmBuilder;
+  )?
+  _confirmBuilder;
 
   // ---------------------------------------------------------------------------
   // Setters
@@ -126,7 +127,8 @@ class MagicViewRegistry {
       String cancelText,
       bool isDangerous,
       void Function(bool) onResult,
-    ) builder,
+    )
+    builder,
   ) {
     _confirmBuilder = builder;
   }

@@ -75,11 +75,7 @@ class MagicRoute {
   ///     .transition(RouteTransition.slideRight);
   /// ```
   static RouteDefinition page(String path, Function handler) {
-    final route = RouteDefinition(
-      path: path,
-      handler: handler,
-      method: 'PAGE',
-    );
+    final route = RouteDefinition(path: path, handler: handler, method: 'PAGE');
 
     // Apply group context if inside a group
     if (_currentGroup != null) {
@@ -142,10 +138,7 @@ class MagicRoute {
     // Build new group, merging with parent if nested
     _currentGroup = RouteGroup(
       prefix: _combinePrefixes(previousGroup?.prefix, prefix),
-      middleware: [
-        ...?previousGroup?.middleware,
-        ...middleware,
-      ],
+      middleware: [...?previousGroup?.middleware, ...middleware],
       as: as,
     );
 
@@ -158,11 +151,9 @@ class MagicRoute {
     // If layout was provided, register it with collected routes
     if (layout != null) {
       final collected = MagicRouter.instance.stopCollection();
-      MagicRouter.instance.addLayout(LayoutDefinition(
-        id: layoutId,
-        builder: layout,
-        children: collected,
-      ));
+      MagicRouter.instance.addLayout(
+        LayoutDefinition(id: layoutId, builder: layout, children: collected),
+      );
     }
   }
 
@@ -188,11 +179,7 @@ class MagicRoute {
     required Widget Function(Widget child) builder,
     required List<RouteDefinition> routes,
   }) {
-    final layout = LayoutDefinition(
-      id: id,
-      builder: builder,
-      children: routes,
-    );
+    final layout = LayoutDefinition(id: id, builder: builder, children: routes);
 
     MagicRouter.instance.addLayout(layout);
   }

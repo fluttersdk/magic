@@ -58,8 +58,8 @@ class MagicFile {
     this.mimeType,
     Uint8List? bytes,
     Future<Uint8List?> Function()? bytesReader,
-  })  : _bytes = bytes,
-        _bytesReader = bytesReader;
+  }) : _bytes = bytes,
+       _bytesReader = bytesReader;
 
   /// Get the file extension (without dot).
   ///
@@ -78,7 +78,7 @@ class MagicFile {
       'gif',
       'webp',
       'bmp',
-      'heic'
+      'heic',
     ];
     return imageExtensions.contains(extension);
   }

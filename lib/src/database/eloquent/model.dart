@@ -194,8 +194,9 @@ abstract class Model {
     if (value is Carbon) {
       _attributes[key] = value.format('yyyy-MM-ddTHH:mm:ss');
     } else if (value is DateTime) {
-      _attributes[key] =
-          Carbon.fromDateTime(value).format('yyyy-MM-ddTHH:mm:ss');
+      _attributes[key] = Carbon.fromDateTime(
+        value,
+      ).format('yyyy-MM-ddTHH:mm:ss');
     } else if (castType == 'json' && value is Map) {
       _attributes[key] = jsonEncode(value);
     } else {

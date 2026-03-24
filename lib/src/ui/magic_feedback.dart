@@ -60,7 +60,7 @@ class MagicFeedback {
     final context = _context!;
     final durationMs =
         duration?.inMilliseconds ?? // Modified duration calculation
-            _getIntConfig('view.snackbar.duration', 4000);
+        _getIntConfig('view.snackbar.duration', 4000);
     final styleClass = _getConfig(
       'view.snackbar.style.$type',
       'bg-gray-900 text-white', // Modified default value
@@ -155,10 +155,7 @@ class MagicFeedback {
           dialogContent = Center(
             child: Material(
               color: Colors.transparent,
-              child: WDiv(
-                className: containerClass,
-                child: content,
-              ),
+              child: WDiv(className: containerClass, child: content),
             ),
           );
         }
@@ -356,10 +353,7 @@ class MagicFeedback {
   // ---------------------------------------------------------------------------
 
   /// Show a toast message.
-  static void toast(
-    String message, {
-    Duration? duration,
-  }) {
+  static void toast(String message, {Duration? duration}) {
     if (!_isMounted) return;
 
     final durationMs =

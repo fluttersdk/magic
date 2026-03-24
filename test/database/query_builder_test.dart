@@ -24,11 +24,14 @@ void main() {
 
       // Seed data
       db.execute(
-          "INSERT INTO users (name, email, age) VALUES ('Alice', 'alice@example.com', 25)");
+        "INSERT INTO users (name, email, age) VALUES ('Alice', 'alice@example.com', 25)",
+      );
       db.execute(
-          "INSERT INTO users (name, email, age) VALUES ('Bob', 'bob@example.com', 30)");
+        "INSERT INTO users (name, email, age) VALUES ('Bob', 'bob@example.com', 30)",
+      );
       db.execute(
-          "INSERT INTO users (name, email, age) VALUES ('Charlie', null, 35)");
+        "INSERT INTO users (name, email, age) VALUES ('Charlie', null, 35)",
+      );
     });
 
     tearDown(() {
@@ -98,8 +101,9 @@ void main() {
     });
 
     test('updates records', () async {
-      final affected =
-          await DB.table('users').where('name', 'Alice').update({'age': 26});
+      final affected = await DB.table('users').where('name', 'Alice').update({
+        'age': 26,
+      });
 
       expect(affected, 1);
       final alice = await DB.table('users').where('name', 'Alice').first();

@@ -177,11 +177,7 @@ class RouteGroup {
   /// Named route prefix (e.g., 'admin.' makes routes 'admin.dashboard').
   final String? as;
 
-  RouteGroup({
-    this.prefix,
-    this.middleware = const [],
-    this.as,
-  });
+  RouteGroup({this.prefix, this.middleware = const [], this.as});
 }
 
 /// A layout route definition for persistent shells.
@@ -195,9 +191,5 @@ class LayoutDefinition {
   /// Child routes rendered inside this layout.
   final List<RouteDefinition> children;
 
-  LayoutDefinition({
-    this.id,
-    required this.builder,
-    required this.children,
-  });
+  LayoutDefinition({this.id, required this.builder, required this.children});
 }

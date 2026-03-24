@@ -174,20 +174,20 @@ class GateManager {
     bool allowed,
   ) {
     // Always dispatch the general access checked event
-    Event.dispatch(GateAccessChecked(
-      ability: ability,
-      arguments: arguments,
-      allowed: allowed,
-      user: user,
-    ));
+    Event.dispatch(
+      GateAccessChecked(
+        ability: ability,
+        arguments: arguments,
+        allowed: allowed,
+        user: user,
+      ),
+    );
 
     // Dispatch denied event if access was denied
     if (!allowed) {
-      Event.dispatch(GateAccessDenied(
-        ability: ability,
-        arguments: arguments,
-        user: user,
-      ));
+      Event.dispatch(
+        GateAccessDenied(ability: ability, arguments: arguments, user: user),
+      );
     }
   }
 

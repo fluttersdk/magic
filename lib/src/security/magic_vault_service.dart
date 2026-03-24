@@ -23,11 +23,9 @@ class MagicVaultService {
   MagicVaultService() {
     _storage = const FlutterSecureStorage(
       aOptions: AndroidOptions(
-          // encryptedSharedPreferences: true, // Deprecated in v10
-          ),
-      iOptions: IOSOptions(
-        accessibility: KeychainAccessibility.first_unlock,
+        // encryptedSharedPreferences: true, // Deprecated in v10
       ),
+      iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
     );
   }
 

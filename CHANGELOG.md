@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Breaking Changes
+- **Breaking**: Replaced git submodule path dependencies with pub.dev hosted packages (`fluttersdk_wind: ^1.0.0-alpha.4`, `magic_cli: ^0.0.1-alpha.3`). Removed `plugins/` directory.
+
+### Changed
+- Bumped SDK constraints: Dart `>=3.11.0 <4.0.0`, Flutter `>=3.41.0`
+
 ### Added
 - `Launch` facade — URL, email, phone, and SMS launching via `url_launcher`
 - `process()`, `isProcessing`, and `processingListenable` on `MagicFormData` for form-scoped loading state
