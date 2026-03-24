@@ -7,6 +7,7 @@
 - [Guards](#guards)
     - [Built-in Guards](#built-in-guards)
     - [Custom Guards](#custom-guards)
+- [Reactive Auth State](#reactive-auth-state)
 - [Auto Token Refresh](#auto-token-refresh)
 - [Protecting Routes](#protecting-routes)
 - [Login & Logout](#login--logout)
@@ -146,10 +147,14 @@ abstract class Guard {
   bool get guest;
   T? user<T>();
   dynamic id();
+  void setUser(Authenticatable user);
   Future<bool> hasToken();
   Future<String?> getToken();
   Future<bool> refreshToken();
   Future<void> restore();
+
+  /// Bumped on every auth state change (login, logout, restore).
+  ValueNotifier<int> get stateNotifier;
 }
 ```
 
@@ -235,6 +240,37 @@ class FirebaseGuard extends BaseGuard {
   }
 }
 ```
+
+<a name="reactive-auth-state"></a>
+## Reactive Auth State
+
+Every guard exposes a `ValueNotifier<int> stateNotifier` that increments on every auth state change — `setUser()`, `logout()`, and session restore. Use it to reactively rebuild UI without manual state management.
+
+```dart
+// Using ListenableBuilder (Flutter built-in)
+ListenableBuilder(
+  listenable: Auth.guard.stateNotifier,
+  builder: (context, _) {
+    if (Auth.check()) {
+      return Text('Hello, ${Auth.user<User>()?.name}');
+    }
+    return const Text('Not logged in');
+  },
+)
+```
+
+With `MagicBuilder` the pattern is identical — pass `stateNotifier` as the listenable:
+
+```dart
+MagicBuilder(
+  listenable: Auth.guard.stateNotifier,
+  builder: (context, _) => Auth.check()
+      ? const DashboardView()
+      : const LoginView(),
+)
+```
+
+`setUser()` is called internally by `login()`, `restore()`, and any custom guard that calls `setUser(user)` directly. Each call bumps `stateNotifier.value` by 1, triggering all registered listeners.
 
 <a name="auto-token-refresh"></a>
 ## Auto Token Refresh
@@ -353,3 +389,5 @@ void main() async {
 ```
 
 This instantly restores the cached user for a fast startup, then syncs with the API in the background.
+
+If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully — no error is thrown. Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.

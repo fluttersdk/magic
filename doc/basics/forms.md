@@ -12,6 +12,9 @@
     - [WFormSelect](#wformselect)
 - [Form Validation](#form-validation)
 - [Submitting Forms](#submitting-forms)
+- [Form Processing](#form-processing)
+- [Error Management](#error-management)
+- [Form Introspection](#form-introspection)
 - [Complete Example](#complete-example)
 
 <a name="introduction"></a>
@@ -69,14 +72,17 @@ TextEditingController emailController = form['email'];
 ### Setting Values
 
 ```dart
-// Set any value
-form.setValue('email', 'john@example.com');
+// Set text field value
+form.set('email', 'john@example.com');
+
+// Set non-text field value (bool, list, etc.)
 form.setValue('remember_me', true);
 form.setValue('tags', ['flutter', 'magic']);
-
-// Reset form to initial values
-form.reset();
 ```
+
+> [!NOTE]
+> `set(field, value)` is for text fields (backed by `TextEditingController`).
+> `setValue(field, value)` is for non-text fields (backed by `ValueNotifier`).
 
 <a name="magicform-widget"></a>
 ## MagicForm Widget
@@ -265,6 +271,128 @@ void _submit() {
     };
     controller.login(data);
   }
+}
+```
+
+<a name="form-processing"></a>
+## Form Processing
+
+The `process()` method wraps an async action with automatic loading state management. It sets `isProcessing` to `true` before execution and `false` after, regardless of success or failure.
+
+### Basic Usage
+
+```dart
+void _submit() async {
+  final data = form.validated();
+  if (data.isEmpty) return;
+
+  await form.process(() => controller.register(data));
+}
+```
+
+### Preventing Double Submissions
+
+`process()` throws a `StateError` if the form is already processing, preventing concurrent submissions:
+
+```dart
+void _submit() async {
+  final data = form.validated();
+  if (data.isEmpty) return;
+
+  try {
+    await form.process(() => controller.register(data));
+  } on StateError {
+    // Already processing, ignore
+  }
+}
+```
+
+### Processing-Aware UI
+
+Use `isProcessing` for simple checks, or `processingListenable` for granular rebuilds:
+
+```dart
+// Simple: check in build
+WButton(
+  isLoading: form.isProcessing,
+  onTap: _submit,
+  child: WText(trans('common.save')),
+)
+
+// Efficient: rebuild only the button when processing state changes
+MagicBuilder<bool>(
+  listenable: form.processingListenable,
+  builder: (isProcessing) => WButton(
+    isLoading: isProcessing,
+    onTap: _submit,
+    child: WText(trans('common.save')),
+  ),
+)
+```
+
+> [!TIP]
+> Prefer `form.isProcessing` over `controller.isLoading` when you need form-scoped loading state. This avoids full-page rebuilds and keeps loading indicators tied to the specific form being submitted.
+
+<a name="error-management"></a>
+## Error Management
+
+### Clearing All Errors
+
+Use `clearErrors()` on the controller to remove all validation errors at once:
+
+```dart
+class AuthController extends MagicController with ValidatesRequests {
+  Future<void> register(Map<String, dynamic> data) async {
+    clearErrors();  // Clear previous errors before new submission
+
+    final response = await Http.post('/register', data: data);
+
+    if (!response.successful) {
+      handleApiError(response);
+    }
+  }
+}
+```
+
+### Clearing a Single Field Error
+
+Use `clearFieldError(field)` to remove the error for a specific field. This is called automatically when the user types in a text field or changes a non-text field value, thanks to `MagicFormData`'s built-in listeners:
+
+```dart
+// Automatic: MagicFormData auto-clears field errors on input change.
+// No manual wiring needed for fields registered in MagicFormData.
+
+// Manual: clear a specific field error explicitly
+controller.clearFieldError('email');
+```
+
+> [!NOTE]
+> `clearErrors()` and `clearFieldError()` live on the `ValidatesRequests` mixin, not on `MagicFormData`. They are accessed through the controller.
+
+<a name="form-introspection"></a>
+## Form Introspection
+
+### fieldNames
+
+The `fieldNames` getter returns a `Set<String>` of all registered field names (both text and non-text fields):
+
+```dart
+final form = MagicFormData({
+  'name': '',
+  'email': '',
+  'accept_terms': false,
+});
+
+print(form.fieldNames); // {'name', 'email', 'accept_terms'}
+```
+
+### hasRelevantErrors
+
+The `hasRelevantErrors` getter checks if the controller has validation errors that match fields in this form. This prevents cross-form error leakage when multiple forms share a controller:
+
+```dart
+if (form.hasRelevantErrors) {
+  // At least one of this form's fields has a server-side error
 }
 ```
 

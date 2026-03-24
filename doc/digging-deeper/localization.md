@@ -5,6 +5,7 @@
 - [Defining Translation Strings](#defining-translation-strings)
 - [Retrieving Translations](#retrieving-translations)
 - [Pluralization](#pluralization)
+- [Automatic HTTP Headers](#automatic-http-headers)
 - [Changing Locale](#changing-locale)
 - [CLI Commands](#cli-commands)
 
@@ -159,6 +160,32 @@ class AuthController extends MagicController {
 ```
 
 
+
+<a name="automatic-http-headers"></a>
+## Automatic HTTP Headers
+
+When `LocalizationServiceProvider` is registered, Magic automatically attaches two headers to every outgoing HTTP request via `LocalizationInterceptor`. No manual setup is required.
+
+| Header | Value | Example |
+|--------|-------|---------|
+| `Accept-Language` | Current locale language code | `en`, `tr`, `es` |
+| `X-Timezone` | Current IANA timezone identifier | `Europe/Istanbul`, `America/New_York` |
+
+Both values are resolved at request-time, so they always reflect the locale and timezone that are active when the request is dispatched.
+
+```dart
+// When the current locale is 'tr' and timezone is 'Europe/Istanbul',
+// every Http.get/post/put/delete call automatically includes:
+//
+//   Accept-Language: tr
+//   X-Timezone: Europe/Istanbul
+//
+// This works transparently — no configuration needed.
+final response = await Http.get('/api/profile');
+```
+
+> [!NOTE]
+> `LocalizationInterceptor` is registered automatically by `LocalizationServiceProvider`. You do not need to add it to your provider list or network configuration manually.
 
 <a name="changing-locale"></a>
 ## Changing Locale

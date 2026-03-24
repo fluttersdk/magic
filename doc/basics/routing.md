@@ -3,6 +3,7 @@
 - [Introduction](#introduction)
 - [Basic Routing](#basic-routing)
 - [Route Parameters](#route-parameters)
+- [Query Parameters](#query-parameters)
 - [Named Routes](#named-routes)
 - [Route Groups](#route-groups)
     - [Middleware](#middleware)
@@ -79,6 +80,45 @@ MagicRoute.page('/posts/:postId/comments/:commentId', (postId, commentId) {
 
 > [!NOTE]
 > Magic uses `:param` syntax (like Express.js) instead of Laravel's `{param}` syntax.
+
+<a name="query-parameters"></a>
+## Query Parameters
+
+Query parameters are the key-value pairs that appear after the `?` in a URL (e.g., `/search?q=flutter&page=2`). Magic provides the `Request` facade to read them from the current route.
+
+### Reading Query Parameters
+
+Use `Request.query()` to retrieve a single query parameter by key. It returns `null` when the key is absent:
+
+```dart
+// URL: /search?q=flutter&page=2
+final term = Request.query('q');    // 'flutter'
+final page = Request.query('page'); // '2'
+final sort = Request.query('sort'); // null
+```
+
+Use `Request.queryParams` to retrieve all query parameters as a `Map<String, String>`:
+
+```dart
+// URL: /search?q=flutter&sort=desc
+final params = Request.queryParams;
+// {'q': 'flutter', 'sort': 'desc'}
+```
+
+### Navigating With Query Parameters
+
+Pass a `query` map to `MagicRoute.to()` or `MagicRoute.toNamed()` to append query parameters to the URL:
+
+```dart
+// By path
+MagicRoute.to('/search', query: {'q': 'flutter'});
+
+// By name
+MagicRoute.toNamed('search', query: {'q': 'flutter', 'page': '2'});
+```
+
+> [!NOTE]
+> Query parameters are always `String` values. Convert to other types after reading (e.g., `int.tryParse(Request.query('page') ?? '')`).
 
 <a name="named-routes"></a>
 ## Named Routes

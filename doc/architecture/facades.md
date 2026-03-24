@@ -51,6 +51,7 @@ Magic provides the following facades:
 | Facade | Description |
 |--------|-------------|
 | `Auth` | Authentication state and user |
+| `Crypt` | AES-256-CBC encryption and decryption |
 | `Gate` | Authorization abilities and policies |
 | `Vault` | Secure storage (Keychain/Keystore) |
 
@@ -71,6 +72,8 @@ Magic provides the following facades:
 | Facade | Description |
 |--------|-------------|
 | `Cache` | Caching system |
+| `DB` | Raw and query-builder database access |
+| `Schema` | Database schema operations (create, modify, drop tables) |
 | `Storage` | File storage |
 
 ### Utilities
@@ -78,9 +81,11 @@ Magic provides the following facades:
 | Facade | Description |
 |--------|-------------|
 | `Carbon` | Date and time manipulation |
-| `Lang` | Localization and translations |
 | `Event` | Event dispatching |
+| `Lang` | Localization and translations |
+| `Launch` | Open URLs, email, phone, and SMS via url_launcher |
 | `Log` | Logging |
+| `Pick` | File, image, and video picker |
 
 <a name="how-facades-work"></a>
 ## How Facades Work
@@ -149,10 +154,11 @@ await Auth.refreshToken();      // Refresh token
 ```dart
 // Navigation
 MagicRoute.to('/path');
+MagicRoute.to('/search', query: {'q': 'flutter'});
 MagicRoute.push('/path');
 MagicRoute.back();
 MagicRoute.replace('/path');
-MagicRoute.toNamed('route.name', params: {});
+MagicRoute.toNamed('route.name', params: {}, query: {});
 
 // Route definition
 MagicRoute.page('/path', () => Widget());
@@ -204,6 +210,21 @@ await Lang.setLocale(Locale('tr'));
 Lang.isSupported(Locale('en'));
 ```
 
+### Launch
+
+```dart
+await Launch.url('https://flutter.dev');
+await Launch.url('https://flutter.dev', mode: LaunchMode.inAppWebView);
+await Launch.email('support@example.com', subject: 'Hello', body: 'Hi!');
+await Launch.phone('+1234567890');
+await Launch.sms('+1234567890', body: 'On my way!');
+
+// Check before launch
+if (await Launch.canLaunch('tel:+1234567890')) {
+  await Launch.phone('+1234567890');
+}
+```
+
 ### Carbon
 
 ```dart
@@ -226,6 +247,22 @@ await Vault.get('api_key');
 await Vault.delete('api_key');
 await Vault.has('api_key');
 ```
+
+### Pick
+
+Provides `image()`, `images()`, `camera()`, `video()`, `recordVideo()`, `file()`, `files()`, `directory()`, and `saveFile()`. All methods return `MagicFile?` (or `List<MagicFile>`) for seamless integration with the Storage system. See `lib/src/facades/pick.dart` for full parameter details.
+
+### Crypt
+
+Provides `encrypt()` / `decrypt()` using the config-based `app.key`, and `encryptWithDeviceKey()` / `decryptWithDeviceKey()` using a device-unique key stored in Vault. Requires `EncryptionServiceProvider` to be registered. See `lib/src/facades/crypt.dart`.
+
+### DB
+
+Provides `table()` for fluent query-builder access, `select()` / `insert()` / `update()` / `delete()` for raw SQL, `statement()` for DDL, and `transaction()` for wrapped transactions. See `lib/src/facades/db.dart`.
+
+### Schema
+
+Provides `create()` / `table()` for defining and modifying table structures via `Blueprint`, `drop()` / `dropIfExists()` for removal, `rename()` for renaming, and `hasTable()` / `hasColumn()` / `getColumns()` for introspection. See `lib/src/facades/schema.dart`.
 
 > [!TIP]
 > When in doubt, check the facade source file in `/lib/src/facades/` for all available methods.

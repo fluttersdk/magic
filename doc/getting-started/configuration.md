@@ -7,6 +7,7 @@
 - [Accessing Configuration Values](#accessing-configuration-values)
 - [Configuration Files](#configuration-files)
 - [CLI Commands](#cli-commands)
+- [Theme Persistence](#theme-persistence)
 - [Configuration Caching](#configuration-caching)
 
 <a name="introduction"></a>
@@ -242,6 +243,63 @@ magic config:get network.drivers.api.base_url
 magic config:get app.name --show-source
 # Output: My App (from: lib/config/app.dart)
 ```
+
+<a name="theme-persistence"></a>
+## Theme Persistence
+
+MagicApplication automatically persists the user's theme preference (dark or light) to secure storage via the Vault. This allows the application to remember the user's theme choice across restarts.
+
+### How It Works
+
+When the application starts, MagicApplication:
+
+1. Loads the saved theme preference from Vault (stored under the `theme_mode` key)
+2. Restores the saved preference (`'dark'` or `'light'`) if available
+3. Falls back to the system brightness if no preference was previously saved
+4. Gracefully defaults to system theme if `VaultServiceProvider` is not registered
+
+When the user manually toggles the theme, the preference is automatically persisted to Vault. The `onThemeChanged` callback fires during theme toggles, allowing you to add extra side-effects like analytics tracking.
+
+### Example Usage
+
+```dart
+void main() async {
+  await Magic.init(
+    configFactories: [
+      appConfig,
+      authConfig,
+      databaseConfig,
+    ],
+  );
+
+  runApp(
+    MagicApplication(
+      themeMode: ThemeMode.system,  // Follows system by default, or restores saved preference
+      onThemeChanged: (brightness) {
+        // Called when user manually toggles theme
+        // Preference is auto-saved to Vault — use this for extra side-effects
+        analytics.track('theme_changed', {
+          'mode': brightness.name,
+        });
+      },
+      home: const HomePage(),
+    ),
+  );
+}
+```
+
+### Storage Details
+
+- **Storage Key**: `theme_mode`
+- **Storage Values**: `'dark'` or `'light'`
+- **Provider**: Requires `VaultServiceProvider` to be registered in your app config
+- **Fallback**: If Vault is unavailable, the application gracefully uses system brightness
+
+> [!NOTE]
+> Theme persistence is automatic and requires no additional setup beyond including `VaultServiceProvider` in your application providers. The `onThemeChanged` callback is optional and is useful for tracking theme changes or triggering related UI updates.
+
+> [!WARNING]
+> If `VaultServiceProvider` is not registered, theme persistence will not work, and the application will always follow system brightness on startup.
 
 <a name="configuration-caching"></a>
 ## Configuration Caching
