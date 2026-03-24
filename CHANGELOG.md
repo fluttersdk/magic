@@ -4,35 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Breaking Changes
-- **Breaking**: Replaced git submodule path dependencies with pub.dev hosted packages (`fluttersdk_wind: ^1.0.0-alpha.4`, `magic_cli: ^0.0.1-alpha.3`). Removed `plugins/` directory.
+## [1.0.0-alpha.2] - 2026-03-24
 
-### Changed
-- Bumped SDK constraints: Dart `>=3.11.0 <4.0.0`, Flutter `>=3.41.0`
-- Removed `doc/packages/wind-ui.md` — Wind UI documentation now lives at [wind.fluttersdk.com](https://wind.fluttersdk.com/getting-started/installation)
+### ⚠️ Breaking Changes
+- **Pub.dev Migration**: Replaced git submodule path dependencies with pub.dev hosted packages (`fluttersdk_wind: ^1.0.0-alpha.4`, `magic_cli: ^0.0.1-alpha.3`). Removed `plugins/` directory entirely.
+- **SDK Bump**: Dart `>=3.11.0 <4.0.0`, Flutter `>=3.41.0` (previously Dart >=3.4.0, Flutter >=3.22.0)
 
-### Added
-- `Launch` facade — URL, email, phone, and SMS launching via `url_launcher`
-- `process()`, `isProcessing`, and `processingListenable` on `MagicFormData` for form-scoped loading state
-- `stateNotifier` on Guard contract and BaseGuard for reactive auth state UI
-- Query parameter support: `Request.query()`, `Request.queryAll`, `MagicRouter.queryParameter()`
-- `LocalizationInterceptor` — automatic `Accept-Language` and `X-Timezone` headers on HTTP requests
-- Auto-persist dark/light theme preference via Vault in `MagicApplication`
-- `clearErrors()` and `clearFieldError()` on `ValidatesRequests` mixin
-- Route name registration on `RouteDefinition`
+### ✨ New Features
+- **Launch Facade**: URL, email, phone, and SMS launching via `url_launcher` with `Launch.url()`, `Launch.email()`, `Launch.phone()`, `Launch.sms()`
+- **Form Processing**: `process()`, `isProcessing`, and `processingListenable` on `MagicFormData` for form-scoped loading state
+- **Reactive Auth State**: `stateNotifier` on Guard contract and BaseGuard for reactive auth state UI
+- **Query Parameters**: `Request.query()`, `Request.queryAll`, `MagicRouter.queryParameter()` for URL query parameter access
+- **Localization Interceptor**: Automatic `Accept-Language` and `X-Timezone` headers on HTTP requests
+- **Theme Persistence**: Auto-persist dark/light theme preference via Vault in `MagicApplication`
+- **Validation Helpers**: `clearErrors()` and `clearFieldError()` on `ValidatesRequests` mixin
+- **Route Names**: Route name registration on `RouteDefinition`
 
-### Fixed
-- Auth default config now properly wrapped under `'auth'` key
-- Session restore guards against missing `userFactory` — gracefully skips instead of throwing
-- `FileStore` exported from barrel file
+### 🐛 Bug Fixes
+- **Auth Config**: Default config now properly wrapped under `'auth'` key
+- **Session Restore**: Guards against missing `userFactory` — gracefully skips instead of throwing
+- **Barrel Export**: `FileStore` exported from barrel file
+- **Package Name**: Renamed internal references from `fluttersdk_magic` to `magic`
 
-### Changed
-- Rewrote Magic CLI documentation (`doc/packages/magic-cli.md`) with all 16 commands and `dart run magic:magic` syntax
-- Updated CLI command references across all documentation files to use `dart run magic:magic` prefix
-- Removed references to non-existent CLI commands (route:list, config:list, config:get, boost:*)
-
-### Documentation
-- Added CLI generation examples to middleware, events, service-providers, and forms documentation
+### 🔧 Improvements
+- **Dependency Upgrades**: go_router ^17.1.0, sqlite3 ^3.2.0, share_plus ^12.0.1, file_picker ^10.3.10, flutter_lints ^6.0.0, and more
+- **CLI Docs**: Rewrote Magic CLI documentation with all 16 commands and `dart run magic:magic` syntax
+- **Wind UI Docs**: Moved to [wind.fluttersdk.com](https://wind.fluttersdk.com/getting-started/installation), removed local copy
+- **Example App**: Rebuilt with fresh `flutter create` and `magic install`
+- **CI Pipeline**: Upgraded GitHub Actions, added validate gate to publish workflow
+- **Claude Code**: Added path-scoped `.claude/rules/` for 8 domains, auto-format and auto-analyze hooks
 
 ## [1.0.0-alpha.1] - 2026-02-05
 
