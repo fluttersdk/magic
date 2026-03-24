@@ -357,7 +357,7 @@ final appConfig = {
 
 ## Wind UI
 
-Magic includes [Wind UI](https://github.com/fluttersdk/wind) — Tailwind CSS-like styling for Flutter:
+Magic includes [Wind UI](https://wind.fluttersdk.com/getting-started/installation) — a utility-first styling engine inspired by Tailwind CSS. Build UIs with `className` strings instead of nested widget trees.
 
 ```dart
 WDiv(
@@ -372,6 +372,8 @@ WDiv(
   ],
 )
 ```
+
+> See [Wind UI Documentation](https://wind.fluttersdk.com/getting-started/installation) for the complete widget reference and utility class guide.
 
 ## CLI Commands
 

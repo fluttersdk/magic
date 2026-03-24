@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Bumped SDK constraints: Dart `>=3.11.0 <4.0.0`, Flutter `>=3.41.0`
+- Removed `doc/packages/wind-ui.md` — Wind UI documentation now lives at [wind.fluttersdk.com](https://wind.fluttersdk.com/getting-started/installation)
 
 ### Added
 - `Launch` facade — URL, email, phone, and SMS launching via `url_launcher`

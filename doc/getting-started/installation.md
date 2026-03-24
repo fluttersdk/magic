@@ -90,8 +90,8 @@ WDiv(
 
 Magic requires:
 
-- **Dart SDK**: 3.4.0 or higher
-- **Flutter**: 3.22.0 or higher
+- **Dart SDK**: 3.11.0 or higher
+- **Flutter**: 3.41.0 or higher
 
 <a name="installing-magic"></a>
 ## Installing Magic
@@ -236,30 +236,10 @@ runApp(
 <a name="wind-ui-plugin"></a>
 ## Wind UI Plugin
 
-Magic includes **Wind UI** (`fluttersdk_wind`), a utility-first styling engine inspired by Tailwind CSS. Instead of nesting widgets, you compose UIs with className strings:
-
-```dart
-WDiv(
-  className: 'flex flex-col gap-4 p-6 bg-slate-900 rounded-xl',
-  children: [
-    WText('Welcome', className: 'text-2xl font-bold text-white'),
-    WFormInput(
-      controller: emailController,
-      label: 'Email',
-      placeholder: 'you@example.com',
-      className: 'w-full bg-slate-800 border border-gray-700 rounded-lg p-3',
-    ),
-    WButton(
-      onTap: () => submit(),
-      className: 'bg-primary hover:bg-primary/80 px-4 py-3 rounded-lg',
-      child: WText('Sign In', className: 'text-white text-center'),
-    ),
-  ],
-)
-```
+Magic includes **Wind UI** (`fluttersdk_wind`), a utility-first styling engine inspired by Tailwind CSS. Instead of nesting widgets, you compose UIs with className strings like `flex flex-col p-4 bg-white rounded-xl shadow-md`.
 
 > [!TIP]
-> See the [Wind UI Documentation](/packages/wind-ui) for the complete widget reference and utility class guide.
+> For the complete widget reference, utility classes, and advanced patterns, see the [Wind UI Documentation](https://wind.fluttersdk.com/getting-started/installation).
 
 <a name="next-steps"></a>
 ## Next Steps
