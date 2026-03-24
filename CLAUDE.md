@@ -59,11 +59,10 @@ After ANY source code change, sync **before committing**:
 
 1. **`CHANGELOG.md`** — Add entry under `[Unreleased]` section (create section if missing)
 2. **`doc/`** — Update relevant documentation files (match existing format exactly)
-3. **`AGENTS.md`** — Update root and/or child AGENTS.md if API, facades, or architecture changed
-4. **`README.md`** — Update if new features, facades, or API changes affect the overview
-5. **`skills/magic-framework/`** — Update SKILL.md and references if API, facades, or patterns changed
-6. **`example/`** — Update or create example usage for changed/new features
-7. **`plugins/`** — If change affects magic_cli stubs or Wind UI integration, update those too
+3. **`README.md`** — Update if new features, facades, or API changes affect the overview
+4. **`skills/magic-framework/`** — Update SKILL.md and references if API, facades, or patterns changed
+5. **`example/`** — Update or create example usage for changed/new features
+6. **`plugins/`** — If change affects magic_cli stubs or Wind UI integration, update those too
 
 ## Testing
 
@@ -88,17 +87,6 @@ After ANY source code change, sync **before committing**:
 | Web vs mobile DB | Web = in-memory SQLite, mobile = file-based |
 | `MagicResponse.errors` format | Parses Laravel's `{"errors": {"field": ["msg"]}}` |
 | `analysis_options.yaml` excludes plugins | `plugins/**` excluded — each plugin has own analysis |
-
-## Child AGENTS.md
-
-| Path | Covers |
-|------|--------|
-| `lib/src/database/AGENTS.md` | Eloquent ORM, QueryBuilder, migrations, hybrid persistence |
-| `lib/src/http/AGENTS.md` | MagicController, middleware pipeline, Dio, MagicResponse |
-| `lib/src/auth/AGENTS.md` | AuthManager, guards, interceptor, token refresh |
-| `lib/src/ui/AGENTS.md` | MagicView, MagicForm, MagicFeedback, MagicCan |
-| `lib/src/routing/AGENTS.md` | MagicRouter, route definitions, middleware guards |
-| `lib/src/validation/AGENTS.md` | Validator, rules, FormValidator, i18n messages |
 
 ## Skills & Extensions
 

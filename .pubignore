@@ -2,8 +2,6 @@
 .claude/
 CLAUDE.md
 CLAUDE.md.bak
-AGENTS.md
-lib/src/*/AGENTS.md
 .mcp.json
 
 # IDEs
