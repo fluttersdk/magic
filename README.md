@@ -1,55 +1,87 @@
-# Magic ✨
+<p align="center">
+  <img src=".github/magic-logo.svg" width="120" alt="Magic Logo" />
+</p>
 
-[![pub package](https://img.shields.io/pub/v/fluttersdk_magic.svg)](https://pub.dev/packages/fluttersdk_magic)
-[![Flutter Version](https://img.shields.io/badge/Flutter-3.22.0%2B-blue.svg)](https://flutter.dev)
-[![Dart Version](https://img.shields.io/badge/Dart-3.4.0%2B-blue.svg)](https://dart.dev)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+<h1 align="center">Magic</h1>
 
-**The Laravel Experience for Flutter.** Magic brings Laravel's elegant syntax and powerful features to Flutter, letting you build production-ready mobile apps with zero boilerplate.
+<p align="center">
+  <strong>The Laravel Experience for Flutter.</strong><br/>
+  Build production-ready Flutter apps with Facades, Eloquent ORM, Service Providers, and IoC Container — zero boilerplate.
+</p>
 
-```dart
-// Laravel-style routing
-Route.get('/users/:id', (id) => UserController().show(id));
+<p align="center">
+  <a href="https://pub.dev/packages/fluttersdk_magic"><img src="https://img.shields.io/pub/v/fluttersdk_magic.svg" alt="pub package"></a>
+  <a href="https://github.com/fluttersdk/magic/actions"><img src="https://img.shields.io/github/actions/workflow/status/fluttersdk/magic/ci.yml?branch=master&label=CI" alt="CI"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://pub.dev/packages/fluttersdk_magic/score"><img src="https://img.shields.io/pub/points/fluttersdk_magic" alt="pub points"></a>
+  <a href="https://github.com/fluttersdk/magic/stargazers"><img src="https://img.shields.io/github/stars/fluttersdk/magic?style=flat" alt="GitHub stars"></a>
+</p>
 
-// Eloquent-like models
-final user = await User.find(1);
-await user.update({'name': 'John Doe'});
-
-// Familiar facades  
-await Auth.login({'token': token}, user);
-await Cache.put('key', 'value', duration: Duration(hours: 1));
-```
+<p align="center">
+  <a href="https://magic.fluttersdk.com">Documentation</a> ·
+  <a href="https://pub.dev/packages/fluttersdk_magic">pub.dev</a> ·
+  <a href="https://github.com/fluttersdk/magic/issues">Issues</a>
+</p>
 
 ---
 
-## 🚀 Quick Start
+> **Alpha Release** — Magic is under active development. APIs may change before stable. [Star the repo](https://github.com/fluttersdk/magic) to follow progress.
 
-### Install via Magic CLI (Recommended)
+## Why Magic?
+
+Flutter gives you widgets, but not architecture. Building a real app means wiring up HTTP clients, auth flows, caching, validation, routing, and state management — all from scratch, every time.
+
+**Magic fixes this.** If you know Laravel, you already know Magic:
+
+```dart
+// Before — the Flutter way
+final dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'));
+final response = await dio.get('/users/1');
+final user = User.fromJson(response.data['data']);
+// ...manually handle tokens, errors, caching, state...
+
+// After — the Magic way
+final user = await User.find(1);
+```
+
+## Features
+
+| | Feature | Description |
+|:--|:--------|:------------|
+| 🏗️ | **IoC Container** | Service Container with singleton, bind, and instance registration |
+| 🎭 | **16 Facades** | `Auth`, `Http`, `Cache`, `DB`, `Event`, `Gate`, `Log`, `Route`, `Lang`, `Storage`, `Vault`, `Crypt` and more |
+| 🗄️ | **Eloquent ORM** | Models, QueryBuilder, migrations, seeders, factories — hybrid API + SQLite persistence |
+| 🛣️ | **Routing** | GoRouter integration with middleware, named routes, and context-free navigation |
+| 🔐 | **Authentication** | Token-based auth with guards (Bearer, BasicAuth, ApiKey), session restore, auto-refresh |
+| 🛡️ | **Authorization** | Gates, policies, `MagicCan` / `MagicCannot` widgets |
+| ✅ | **Validation** | Laravel-style rules: `Required`, `Email`, `Min`, `Max`, `In`, `Confirmed` |
+| 📡 | **Events** | Pub/sub event system with `MagicEvent` and `MagicListener` |
+| 💾 | **Caching** | Memory and file drivers with TTL and `remember()` |
+| 🌍 | **Localization** | JSON-based i18n with `:attribute` placeholders |
+| 🎨 | **Wind UI** | Built-in Tailwind CSS-like styling with `className` syntax |
+| 🧰 | **Magic CLI** | Artisan-style code generation: `magic make:model`, `magic make:controller` |
+
+## Quick Start
+
+### 1. Install via Magic CLI (Recommended)
 
 ```bash
 # Activate the CLI globally
-dart pub global activate fluttersdk_magic_cli
+dart pub global activate magic_cli
 
 # Navigate to your Flutter project
 cd my_app
 
 # Initialize Magic with all features
-magic init
+magic install
+
+# Or exclude specific features
+magic install --without-database --without-auth
 ```
 
-The CLI will set up everything: dependencies, directory structure, configuration files, and service providers.
+The CLI sets up everything: dependencies, directory structure, config files, service providers, and bootstraps `main.dart`.
 
-### Exclude Features (Optional)
-
-```bash
-magic init --without-database --without-events
-```
-
----
-
-## 📦 Manual Installation
-
-### 1. Add Dependency
+### 2. Manual Installation
 
 ```yaml
 # pubspec.yaml
@@ -59,189 +91,384 @@ dependencies:
       url: https://github.com/fluttersdk/magic.git
 ```
 
-### 2. Create Configuration
-
-```dart
-// lib/config/app.dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
-
-final appConfig = {
-  'app': {
-    'name': Env.get('APP_NAME', 'My App'),
-    'providers': [
-      (app) => RouteServiceProvider(app),
-    ],
-  }
-};
-```
-
-### 3. Bootstrap Magic
-
 ```dart
 // lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
-import 'config/app.dart';
+import 'package:magic/magic.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Magic.init(
     configFactories: [() => appConfig],
+    providers: [AuthServiceProvider(MagicApp.instance)],
   );
 
-  runApp(
-    MagicApplication(title: 'My App'),
+  runApp(const MagicApplication(title: 'My App'));
+}
+```
+
+### 3. Build
+
+```dart
+class UserController extends MagicController with MagicStateMixin<List<User>> {
+  static UserController get instance => Magic.findOrPut(UserController.new);
+
+  Future<void> fetchUsers() async {
+    setLoading();
+    final response = await Http.get('/users');
+    response.successful
+        ? setSuccess(response.data['data'].map((e) => User.fromMap(e)).toList())
+        : setError(response.firstError ?? 'Failed to load');
+  }
+
+  Widget index() => renderState(
+    (users) => ListView.builder(
+      itemCount: users.length,
+      itemBuilder: (_, i) => ListTile(title: Text(users[i].name ?? '')),
+    ),
+    onLoading: const CircularProgressIndicator(),
+    onError: (msg) => Text('Error: $msg'),
   );
 }
 ```
 
----
+## Facades
 
-## 📁 Directory Structure
+### Auth
+
+```dart
+// Login with token and user model
+final response = await Http.post('/login', data: credentials);
+final user = User.fromMap(response['data']['user']);
+await Auth.login({'token': response['data']['token']}, user);
+
+// Check authentication
+if (Auth.check()) {
+  final user = Auth.user<User>();
+}
+
+// Restore session on app start
+await Auth.restore();
+
+// Logout
+await Auth.logout();
+```
+
+### HTTP Client
+
+```dart
+// Standard requests
+final response = await Http.get('/users', query: {'page': 1});
+await Http.post('/users', data: {'name': 'John', 'email': 'john@example.com'});
+await Http.put('/users/1', data: {'name': 'Jane'});
+await Http.delete('/users/1');
+
+// RESTful resource helpers
+final users = await Http.index('users', filters: {'role': 'admin'});
+final user = await Http.show('users', '1');
+await Http.store('users', {'name': 'John'});
+await Http.update('users', '1', {'name': 'Jane'});
+await Http.destroy('users', '1');
+
+// File upload
+await Http.upload('/avatar', data: {'user_id': '1'}, files: {'photo': file});
+
+// Response API
+response.successful   // 200-299
+response.failed       // >= 400
+response.data         // Map<String, dynamic>
+response['key']       // Shorthand access
+response.errors       // Laravel validation errors (422)
+response.firstError   // First error message
+```
+
+### Routing
+
+```dart
+// Define routes
+MagicRoute.page('/home', () => HomeController.instance.index());
+MagicRoute.page('/users/:id', () => UserController.instance.show());
+
+// Route groups with middleware
+MagicRoute.group(
+  prefix: '/admin',
+  middleware: [AuthMiddleware()],
+  routes: () {
+    MagicRoute.page('/dashboard', () => AdminController.instance.index());
+  },
+);
+
+// Navigate (context-free)
+MagicRoute.to('/users');
+MagicRoute.toNamed('user.show', params: {'id': '1'});
+MagicRoute.back();
+MagicRoute.replace('/login');
+```
+
+### Cache
+
+```dart
+// Store and retrieve
+await Cache.put('key', 'value', ttl: Duration(minutes: 30));
+final value = await Cache.get('key');
+
+// Remember pattern — fetch once, cache for duration
+final users = await Cache.remember<List<User>>(
+  'all_users',
+  Duration(minutes: 5),
+  () => fetchUsersFromApi(),
+);
+
+// Check and forget
+if (Cache.has('key')) {
+  await Cache.forget('key');
+}
+await Cache.flush(); // Clear all
+```
+
+## Eloquent ORM
+
+```dart
+class User extends Model with HasTimestamps, InteractsWithPersistence {
+  // Typed getters — always use get<T>()
+  int? get id => get<int>('id');
+  String? get name => get<String>('name');
+  String? get email => get<String>('email');
+
+  // Setters
+  set name(String? v) => set('name', v);
+  set email(String? v) => set('email', v);
+
+  // Required overrides
+  @override String get table => 'users';
+  @override String get resource => 'users';
+  @override List<String> get fillable => ['name', 'email'];
+
+  // Static finders
+  static Future<User?> find(dynamic id) =>
+      InteractsWithPersistence.findById<User>(id, User.new);
+  static Future<List<User>> all() =>
+      InteractsWithPersistence.allModels<User>(User.new);
+}
+
+// CRUD — hybrid persistence (API + local SQLite)
+final user = await User.find(1);     // SQLite first → API fallback → sync
+final users = await User.all();
+await user.save();                    // POST (create) or PUT (update)
+await user.delete();                  // DELETE
+await user.refresh();                 // Re-fetch from API
+```
+
+## Validation
+
+```dart
+final validator = Validator.make(
+  {'email': email, 'password': password},
+  {
+    'email': [Required(), Email()],
+    'password': [Required(), Min(8)],
+  },
+);
+
+if (validator.fails()) {
+  print(validator.errors()); // {'email': 'The email field is required.'}
+}
+
+// Or throw on failure
+final data = validator.validate(); // Throws ValidationException if invalid
+```
+
+## Authorization
+
+```dart
+// Define abilities
+Gate.define('update-post', (user, post) => user.id == post.userId);
+Gate.before((user, ability) {
+  if (user.isAdmin) return true;
+  return null; // Fall through to specific check
+});
+
+// Check in code
+if (Gate.allows('update-post', post)) {
+  // Show edit button
+}
+
+// Check in widgets
+MagicCan(
+  ability: 'update-post',
+  arguments: post,
+  child: EditButton(),
+)
+```
+
+## Forms
+
+```dart
+final form = MagicFormData({
+  'name': user.name ?? '',
+  'email': user.email ?? '',
+});
+
+// In widget tree
+MagicForm(
+  formData: form,
+  child: Column(children: [
+    WFormInput(label: 'Name', controller: form['name']),
+    WFormInput(label: 'Email', controller: form['email']),
+    WButton(
+      onTap: () async {
+        if (form.validate()) {
+          await form.process(() => controller.updateProfile(form.data));
+        }
+      },
+      isLoading: form.isProcessing,
+      child: Text('Save'),
+    ),
+  ]),
+)
+```
+
+## Events
+
+```dart
+// Define event
+class UserRegistered extends MagicEvent {
+  final User user;
+  UserRegistered(this.user);
+}
+
+// Dispatch
+await Event.dispatch(UserRegistered(user));
+
+// Listen (register in ServiceProvider)
+Event.listen<UserRegistered>(() => SendWelcomeEmail());
+```
+
+## Service Providers
+
+```dart
+class AppServiceProvider extends ServiceProvider {
+  @override
+  void register() {
+    // Sync — bind to container
+    app.singleton('payment', () => StripeService());
+  }
+
+  @override
+  Future<void> boot() async {
+    // Async — other services available
+    Auth.registerModel<User>(User.fromMap);
+  }
+}
+
+// Register in config
+final appConfig = {
+  'app': {
+    'providers': [
+      (app) => AppServiceProvider(app),
+    ],
+  },
+};
+```
+
+## Wind UI
+
+Magic includes [Wind UI](https://github.com/fluttersdk/wind) — Tailwind CSS-like styling for Flutter:
+
+```dart
+WDiv(
+  className: 'flex flex-col gap-4 p-6 bg-white dark:bg-gray-900 rounded-xl shadow-lg',
+  children: [
+    WText('Dashboard', className: 'text-2xl font-bold text-gray-900 dark:text-white'),
+    WButton(
+      onTap: _refresh,
+      className: 'bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg',
+      child: Text('Refresh'),
+    ),
+  ],
+)
+```
+
+## CLI Commands
+
+```bash
+magic make:model User -mcf        # Model + migration + controller + factory
+magic make:controller User         # Controller
+magic make:view Login              # View class
+magic make:migration create_users  # Migration
+magic make:seeder UserSeeder       # Database seeder
+magic make:policy Post             # Authorization policy
+magic make:provider Payment        # Service provider
+magic make:event OrderShipped      # Event class
+magic make:listener SendEmail      # Event listener
+magic make:middleware Auth          # Middleware
+magic make:request StoreUser       # Form request
+magic make:lang tr                 # Language file
+magic make:enum Status             # Enum class
+```
+
+## Architecture
+
+```
+Magic.init() → Env.load() → configFactories → providers register() → providers boot() → app ready
+```
 
 ```
 lib/
-├── config/              # Configuration files
-│   ├── app.dart
-│   ├── auth.dart
-│   └── database.dart
+├── config/              # Configuration files (app, auth, cache, database)
 ├── app/
-│   ├── controllers/     # Request handlers
+│   ├── controllers/     # Request handlers (MagicController)
 │   ├── models/          # Eloquent models
 │   └── policies/        # Authorization policies
 ├── database/
 │   ├── migrations/      # Schema migrations
 │   ├── seeders/         # Database seeders
 │   └── factories/       # Model factories
-├── resources/
-│   └── views/           # UI view classes
+├── resources/views/     # UI view classes
 ├── routes/              # Route definitions
 └── main.dart            # Entry point
 ```
 
----
+## Documentation
 
-## ✨ Features
+Full docs at **[magic.fluttersdk.com](https://magic.fluttersdk.com)**.
 
-| Feature | Description |
-|---------|-------------|
-| **Routing** | Named routes, middleware, deep linking with `go_router` |
-| **Eloquent ORM** | Query builder, relationships, migrations |
-| **Authentication** | Token-based auth, guards, session management |
-| **Authorization** | Gates, policies, `MagicCan` widget |
-| **Validation** | Laravel-style validation rules |
-| **Caching** | File, memory, and secure storage |
-| **Events** | Pub/sub event system |
-| **Localization** | JSON-based i18n with `__()` helper |
-| **Service Container** | Dependency injection |
-| **Wind UI** | Tailwind CSS-like styling |
-
----
-
-## 🎨 Wind UI Plugin
-
-Build beautiful UIs with Tailwind CSS-like utility classes:
-
-```dart
-WDiv(
-  className: "flex flex-col p-4 bg-white shadow-lg rounded-xl",
-  children: [
-    WText("Hello World", className: "text-xl font-bold text-blue-500"),
-    WButton(
-      onTap: () => print('Clicked!'),
-      className: "mt-4 px-4 py-2 bg-blue-600 rounded-lg",
-      child: WText("Click Me", className: "text-white"),
-    ),
-  ],
-)
-```
-
----
-
-## ⚙️ Configuration
-
-Magic uses `.env` files for environment-specific configuration:
-
-```bash
-# .env
-APP_NAME="Magic App"
-APP_ENV=local
-APP_DEBUG=true
-API_BASE_URL=https://api.example.com
-```
-
-Access configuration values anywhere:
-
-```dart
-final appName = Config.get('app.name', 'Default');
-final apiUrl = Env.get('API_BASE_URL');
-```
-
----
-
-## 📖 Documentation
-
-| Topic | Description |
-|-------|-------------|
+| Topic | |
+|-------|--|
 | [Installation](doc/getting-started/installation.md) | Setup and requirements |
 | [Configuration](doc/getting-started/configuration.md) | Environment and config files |
-| [Routing](doc/routing/basic-routing.md) | Routes and navigation |
-| [Authentication](doc/security/authentication.md) | Guards and login |
-| [Authorization](doc/security/authorization.md) | Gates and policies |
-| [Database](doc/database/getting-started.md) | Eloquent models and queries |
-| [Validation](doc/validation/validation.md) | Form validation rules |
-| [Caching](doc/cache/cache.md) | Cache drivers and usage |
-| [Events](doc/events/events.md) | Event dispatching |
-| [Localization](doc/localization/localization.md) | Multi-language support |
+| [Service Providers](doc/getting-started/service-providers.md) | Provider lifecycle |
+| [Routing](doc/basics/routing.md) | Routes and navigation |
+| [Controllers](doc/basics/controllers.md) | Request handlers |
+| [Views](doc/basics/views.md) | UI layer |
+| [HTTP Client](doc/basics/http-client.md) | Network requests |
+| [Middleware](doc/basics/middleware.md) | Request pipeline |
+| [Forms](doc/basics/forms.md) | Form handling and validation |
 
----
+## AI Agent Integration
 
-## 🤖 AI Agent Integration
+Use Magic with AI coding assistants like Claude Code, Cursor, or GitHub Copilot. The **magic-framework** skill teaches your AI the correct patterns — Facades, Eloquent ORM, Service Providers, controllers, routing, and common anti-patterns — so it generates correct Magic code on the first try.
 
-For projects using AI coding assistants (Claude Code, Cursor, etc.), Magic provides ready-to-use context files:
+Setup instructions and skill files: **[fluttersdk/ai](https://github.com/fluttersdk/ai)**
 
-```
-doc/claude/
-├── CLAUDE.md                      # Copy to your project's CLAUDE.md
-└── skills/magic-usage/SKILL.md    # Detailed usage patterns
-```
-
-**Setup:**
-1. Copy `doc/claude/CLAUDE.md` to your project root as `CLAUDE.md`
-2. Copy `doc/claude/skills/` to your project's `.claude/skills/`
-
-This helps AI agents understand Magic's patterns (Facades, Eloquent, Service Providers) and generate correct code.
-
----
-
-## 🛠️ CLI Commands
+## Contributing
 
 ```bash
-magic make:model User           # Create Eloquent model
-magic make:controller User      # Create controller  
-magic make:view Login           # Create view class
-magic make:policy Post          # Create authorization policy
-magic make:migration create_users_table  # Create migration
-magic make:seeder UserSeeder    # Create database seeder
-magic make:provider Payment     # Create service provider
-magic make:lang tr              # Create language file
+git clone https://github.com/fluttersdk/magic.git
+cd magic && flutter pub get
+flutter test && dart analyze
 ```
 
----
+[Report a bug](https://github.com/fluttersdk/magic/issues/new?template=bug_report.yml) · [Request a feature](https://github.com/fluttersdk/magic/issues/new?template=feature_request.yml)
 
-## 🤝 Contributing
+## License
 
-Contributions are welcome! Please read our contributing guidelines before submitting a pull request.
-
----
-
-## 📄 License
-
-Magic is open-sourced software licensed under the [MIT license](LICENSE).
+MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
-  <b>Built with ❤️ for Flutter developers who love Laravel</b>
+  <sub>Built with care by <a href="https://github.com/fluttersdk">FlutterSDK</a></sub><br/>
+  <sub>If Magic saves you time, <a href="https://github.com/fluttersdk/magic">give it a star</a> — it helps others discover it.</sub>
 </p>
