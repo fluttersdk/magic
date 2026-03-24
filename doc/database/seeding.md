@@ -48,7 +48,7 @@ await Magic.seed([UserSeeder(), PostSeeder()]);
 Generate a seeder using the CLI:
 
 ```bash
-magic make:seeder UserSeeder
+dart run magic:magic make:seeder UserSeeder
 ```
 
 A seeder class contains a single `run` method which is called when the seeder is executed:
@@ -94,7 +94,7 @@ class DatabaseSeeder extends Seeder {
 Factories define how to generate fake data for a model. Generate a factory using the CLI:
 
 ```bash
-magic make:factory User
+dart run magic:magic make:factory User
 ```
 
 A factory extends `Factory<T>` and defines the model's default attributes:
@@ -221,8 +221,8 @@ await UserFactory().unverified().count(10).create();
 ### Create Seeder
 
 ```bash
-magic make:seeder UserSeeder
-magic make:seeder User           # Auto-appends 'Seeder'
+dart run magic:magic make:seeder UserSeeder
+dart run magic:magic make:seeder User           # Auto-appends 'Seeder'
 ```
 
 **Output:** Creates `lib/database/seeders/user_seeder.dart`
@@ -230,11 +230,11 @@ magic make:seeder User           # Auto-appends 'Seeder'
 ### Create Factory
 
 ```bash
-magic make:factory User
-magic make:factory UserFactory   # Accepts either form
+dart run magic:magic make:factory User
+dart run magic:magic make:factory UserFactory   # Accepts either form
 ```
 
 **Output:** Creates `lib/database/factories/user_factory.dart`
 
 > [!TIP]
-> Use the `--all` flag with `make:model` to generate model, migration, seeder, and factory in one command: `magic make:model User --all`
+> Use the `--all` flag with `make:model` to generate model, migration, seeder, and factory in one command: `dart run magic:magic make:model User --all`

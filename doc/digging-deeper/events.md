@@ -1,6 +1,7 @@
 # Events
 
 - [Introduction](#introduction)
+- [Generating Events & Listeners](#generating-events--listeners)
 - [Configuration](#configuration)
 - [Defining Events](#defining-events)
 - [Defining Listeners](#defining-listeners)
@@ -20,6 +21,23 @@ await Event.dispatch(OrderShipped(order));
 
 // Listeners react to the event (send email, update analytics, etc.)
 ```
+
+<a name="generating-events--listeners"></a>
+## Generating Events & Listeners
+
+Use the Magic CLI to scaffold event and listener classes:
+
+```bash
+dart run magic:magic make:event OrderShipped
+```
+
+This creates `lib/app/events/order_shipped.dart` with a `MagicEvent` stub.
+
+```bash
+dart run magic:magic make:listener SendEmail --event=OrderShipped
+```
+
+This creates `lib/app/listeners/send_email.dart` with a `MagicListener<OrderShipped>` stub, pre-wired to the specified event.
 
 <a name="configuration"></a>
 ## Configuration
@@ -154,6 +172,21 @@ class OrderController extends MagicController {
 ```
 
 
+<a name="inline-listeners"></a>
+## Inline Listeners
+
+For simple event handling, you can register listeners inline using a closure instead of creating a dedicated listener class:
+
+```dart
+Event.listen<OrderShipped>((event) {
+  Log.info('Order shipped: ${event.order.id}');
+});
+```
+
+Inline listeners are useful for quick logging, metrics, or simple side effects. For more complex logic, use dedicated listener classes.
+
+> [!TIP]
+> Register inline listeners in your `EventServiceProvider`'s `boot()` method to keep them organized alongside class-based listener registrations.
 
 <a name="framework-events"></a>
 ## Framework Events

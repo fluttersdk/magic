@@ -22,9 +22,9 @@ Migrations are like version control for your database, allowing your team to def
 Use the `make:migration` command to generate a migration:
 
 ```bash
-magic make:migration create_users_table
-magic make:migration CreateUsersTable    # PascalCase also works
-magic make:migration add_avatar_to_users
+dart run magic:magic make:migration create_users_table
+dart run magic:magic make:migration CreateUsersTable    # PascalCase also works
+dart run magic:magic make:migration add_avatar_to_users
 ```
 
 This creates a file in `lib/database/migrations/` with:

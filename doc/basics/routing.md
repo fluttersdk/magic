@@ -11,7 +11,6 @@
     - [Layouts (Shell Routes)](#layouts-shell-routes)
 - [Context-Free Navigation](#context-free-navigation)
 - [Route Middleware](#route-middleware)
-- [Inspecting Routes](#inspecting-routes)
 
 <a name="introduction"></a>
 ## Introduction
@@ -294,28 +293,3 @@ MagicRoute.page('/admin', () => AdminPanel())
 ```
 
 See the [Middleware documentation](/basics/middleware) for details on creating custom middleware.
-
-<a name="inspecting-routes"></a>
-## Inspecting Routes
-
-Magic CLI provides a command to list all registered routes:
-
-```bash
-magic route:list
-```
-
-Output:
-
-```
-+---------------------+------------+----------+
-| URI                 | Middleware | File     |
-+---------------------+------------+----------+
-| /                   | auth       | app.dart |
-| /monitors           | auth       | app.dart |
-| /auth/login         | -          | auth.dart|
-| /settings/team      | auth       | app.dart |
-+---------------------+------------+----------+
-```
-
-> [!TIP]
-> Run `magic route:list` after making routing changes to verify your routes are registered correctly.

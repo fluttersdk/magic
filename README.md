@@ -63,50 +63,33 @@ final user = await User.find(1);
 
 ## Quick Start
 
-### 1. Install via Magic CLI (Recommended)
+### 1. Add Magic to Your Project
 
 ```bash
-# Activate the CLI globally
-dart pub global activate magic_cli
-
-# Navigate to your Flutter project
+# Create a new Flutter project (or use an existing one)
+flutter create my_app
 cd my_app
 
+# Add Magic as a dependency
+flutter pub add fluttersdk_magic
+```
+
+### 2. Scaffold with Magic CLI
+
+Magic CLI is bundled with the package — no global install needed:
+
+```bash
 # Initialize Magic with all features
-magic install
+dart run magic:magic install
 
 # Or exclude specific features
-magic install --without-database --without-auth
+dart run magic:magic install --without-database --without-auth
 ```
 
-The CLI sets up everything: dependencies, directory structure, config files, service providers, and bootstraps `main.dart`.
+The CLI sets up everything: directory structure, config files, service providers, environment files, and bootstraps `main.dart`.
 
-### 2. Manual Installation
-
-```yaml
-# pubspec.yaml
-dependencies:
-  fluttersdk_magic:
-    git:
-      url: https://github.com/fluttersdk/magic.git
-```
-
-```dart
-// lib/main.dart
-import 'package:flutter/material.dart';
-import 'package:magic/magic.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  await Magic.init(
-    configFactories: [() => appConfig],
-    providers: [AuthServiceProvider(MagicApp.instance)],
-  );
-
-  runApp(const MagicApplication(title: 'My App'));
-}
-```
+> [!TIP]
+> For convenience, you can also activate the CLI globally: `dart pub global activate magic_cli`, then use `magic install` directly.
 
 ### 3. Build
 
@@ -393,20 +376,23 @@ WDiv(
 ## CLI Commands
 
 ```bash
-magic make:model User -mcf        # Model + migration + controller + factory
-magic make:controller User         # Controller
-magic make:view Login              # View class
-magic make:migration create_users  # Migration
-magic make:seeder UserSeeder       # Database seeder
-magic make:policy Post             # Authorization policy
-magic make:provider Payment        # Service provider
-magic make:event OrderShipped      # Event class
-magic make:listener SendEmail      # Event listener
-magic make:middleware Auth          # Middleware
-magic make:request StoreUser       # Form request
-magic make:lang tr                 # Language file
-magic make:enum Status             # Enum class
+dart run magic:magic make:model User -mcf        # Model + migration + controller + factory
+dart run magic:magic make:controller User         # Controller
+dart run magic:magic make:view Login              # View class
+dart run magic:magic make:migration create_users  # Migration
+dart run magic:magic make:seeder UserSeeder       # Database seeder
+dart run magic:magic make:policy Post             # Authorization policy
+dart run magic:magic make:provider Payment        # Service provider
+dart run magic:magic make:event OrderShipped      # Event class
+dart run magic:magic make:listener SendEmail      # Event listener
+dart run magic:magic make:middleware Auth          # Middleware
+dart run magic:magic make:request StoreUser       # Form request
+dart run magic:magic make:lang tr                 # Language file
+dart run magic:magic make:enum Status             # Enum class
 ```
+
+> [!TIP]
+> If you activated the CLI globally (`dart pub global activate magic_cli`), you can use the shorter `magic <command>` syntax instead.
 
 ## Architecture
 

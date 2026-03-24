@@ -1,6 +1,7 @@
 # Middleware
 
 - [Introduction](#introduction)
+- [Generating Middleware](#generating-middleware)
 - [Defining Middleware](#defining-middleware)
 - [Registering Middleware](#registering-middleware)
     - [Global Middleware](#global-middleware)
@@ -14,6 +15,17 @@
 Middleware provide a convenient mechanism for inspecting and filtering navigation requests entering your application. For example, Magic includes a middleware that verifies the user is authenticated. If the user is not authenticated, the middleware will redirect the user to your application's login screen. However, if the user is authenticated, the middleware will allow the request to proceed further into the application.
 
 Of course, additional middleware can be written to perform a variety of tasks besides authentication. Middleware are stored in the `lib/app/middleware` directory.
+
+<a name="generating-middleware"></a>
+## Generating Middleware
+
+Use the Magic CLI to generate a new middleware class:
+
+```bash
+dart run magic:magic make:middleware Auth
+```
+
+This creates `lib/app/middleware/auth.dart` with a `MagicMiddleware` stub ready to implement.
 
 <a name="defining-middleware"></a>
 ## Defining Middleware

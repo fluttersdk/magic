@@ -96,86 +96,80 @@ Magic requires:
 <a name="installing-magic"></a>
 ## Installing Magic
 
-### 1. Add Dependencies
+### 1. Add the Package
 
-Add `fluttersdk_magic` and `fluttersdk_wind` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  fluttersdk_magic:
-    git:
-      url: https://github.com/fluttersdk/magic.git
-  fluttersdk_wind:
-    git:
-      url: https://github.com/fluttersdk/wind.git
-```
-
-Then run:
+Add `fluttersdk_magic` to your Flutter project:
 
 ```bash
-flutter pub get
+flutter pub add fluttersdk_magic
 ```
 
-### 2. Activate Magic CLI
+This pulls in Magic and all its dependencies, including **Wind UI** and the **Magic CLI**.
 
-The Magic CLI provides helpful commands for generating code. Activate it globally:
+### 2. Scaffold Your Application
+
+Magic CLI is bundled with the package — no global install needed. Run it via `dart run`:
 
 ```bash
-dart pub global activate fluttersdk_magic_cli
+dart run magic:magic install
 ```
 
-> [!NOTE]
-> Ensure `~/.pub-cache/bin` is in your system PATH to use the `magic` command globally.
+This command creates everything you need:
+- `lib/config/` — Configuration files (app, auth, cache, database, network, logging, view)
+- `lib/app/` — Controllers, models, providers, middleware, policies
+- `lib/routes/` — Route definitions
+- `lib/resources/views/` — UI view classes
+- `lib/database/` — Migrations, seeders, factories
+- `lib/main.dart` — Bootstrapped entry point with `Magic.init()`
+- `.env` / `.env.example` — Environment configuration
+
+You can exclude features you don't need:
+
+```bash
+dart run magic:magic install --without-database --without-auth --without-cache
+```
+
+> [!TIP]
+> For convenience, you can also activate the CLI globally: `dart pub global activate magic_cli`. This lets you use the shorter `magic install` syntax instead of `dart run magic:magic install`.
 
 <a name="bootstrapping-your-application"></a>
 ## Bootstrapping Your Application
 
-### 1. Create Configuration
+If you used `dart run magic:magic install`, your application is already bootstrapped. The install command generates a ready-to-run `main.dart` and all configuration files. Here's what was created:
 
-Create a `lib/config/app.dart` file to export your application configuration:
+### Generated Entry Point
 
-```dart
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
-
-final appConfig = {
-  'app': {
-    'name': Env.get('APP_NAME', 'Magic App'),
-    'debug': Env.get('APP_DEBUG', true),
-    'url': Env.get('APP_URL', 'http://localhost'),
-    'providers': [
-      // Register logic providers here
-      // (app) => RouteServiceProvider(app),
-    ],
-  }
-};
-```
-
-### 2. Initialize in Main
-
-In your `lib/main.dart`, initialize Magic before running your app:
+The generated `lib/main.dart` initializes Magic and runs your app:
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:fluttersdk_magic/fluttersdk_magic.dart';
+import 'package:magic/magic.dart';
 import 'config/app.dart';
+import 'config/view.dart';
+import 'config/auth.dart';
+import 'config/database.dart';
+import 'config/network.dart';
+import 'config/cache.dart';
+import 'config/logging.dart';
 
 void main() async {
-  // 1. Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Initialize Magic
   await Magic.init(
-    envFileName: '.env',
     configFactories: [
       () => appConfig,
+      () => viewConfig,
+      () => authConfig,
+      () => databaseConfig,
+      () => networkConfig,
+      () => cacheConfig,
+      () => loggingConfig,
     ],
   );
 
-  // 3. Register Routes (if using manual route registration)
-  // registerRoutes();
-
-  // 4. Run App
-  runApp(const MagicApplication());
+  runApp(
+    MagicApplication(title: 'My App'),
+  );
 }
 ```
 
@@ -188,27 +182,55 @@ The `Magic.init()` method accepts:
 | `configs` | `List<Map>` | Direct configuration maps |
 | `providers` | `List<ServiceProvider>` | Additional service providers |
 
-### 3. The Application Widget
+### Manual Setup (Without CLI)
 
-Use `MagicApplication` as your root widget. It handles strict routing, themes, and localization automatically:
+If you prefer to set up manually without the CLI, create a `lib/config/app.dart`:
 
 ```dart
-class MagicApplication extends StatelessWidget {
-  const MagicApplication({super.key});
+import 'package:magic/magic.dart';
 
-  @override
-  Widget build(BuildContext context) {
-    return MagicAppWidget(
-      title: Config.get('app.name', 'Magic App'),
-      initialRoute: '/',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        primarySwatch: Colors.blue,
-      ),
-    );
+final appConfig = {
+  'app': {
+    'name': Env.get('APP_NAME', 'Magic App'),
+    'debug': Env.get('APP_DEBUG', true),
+    'url': Env.get('APP_URL', 'http://localhost'),
+    'providers': [
+      (app) => RouteServiceProvider(app),
+      (app) => AppServiceProvider(app),
+    ],
   }
+};
+```
+
+Then initialize in `lib/main.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:magic/magic.dart';
+import 'config/app.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Magic.init(
+    configFactories: [() => appConfig],
+  );
+
+  runApp(MagicApplication(title: 'My App'));
 }
+```
+
+### The Application Widget
+
+`MagicApplication` is your root widget. It handles routing, themes, localization, and overlays automatically:
+
+```dart
+runApp(
+  MagicApplication(
+    title: 'My App',
+    debugShowCheckedModeBanner: false,
+  ),
+);
 ```
 
 <a name="wind-ui-plugin"></a>

@@ -25,7 +25,7 @@ Instead of defining all of your request handling logic as closures in your route
 To generate a new controller, use the `make:controller` Magic CLI command:
 
 ```bash
-magic make:controller User
+dart run magic:magic make:controller User
 ```
 
 A basic controller extends `MagicController` and contains action methods that return widgets:
@@ -226,23 +226,22 @@ The Magic CLI can generate controllers with various options:
 
 ```bash
 # Basic controller
-magic make:controller User
-
-# With state management (MagicStateMixin)
-magic make:controller Todo --stateful
+dart run magic:magic make:controller User
 
 # Resource controller with CRUD actions and views
-magic make:controller Product --resource
+dart run magic:magic make:controller Product --resource
 
 # Nested in subfolder
-magic make:controller Admin/Dashboard
+dart run magic:magic make:controller Admin/Dashboard
+
+# Resource controller with model binding
+dart run magic:magic make:controller Post --resource --model=Post
 ```
 
 ### Command Options
 
 | Option | Alias | Description |
 |--------|-------|-------------|
-| `--stateful` | `-s` | Include `MagicStateMixin` for state management |
 | `--resource` | `-r` | Generate CRUD controller with associated views |
 
 ### Resource Controllers
@@ -267,7 +266,7 @@ When using `--resource`, the command generates a full resource controller with:
 Example:
 
 ```bash
-magic make:controller Task --resource
+dart run magic:magic make:controller Task --resource
 ```
 
 This generates a TaskController with all CRUD actions and four corresponding views.

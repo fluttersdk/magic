@@ -229,9 +229,9 @@ WFormSelect<String>(
 ### Create Translation File
 
 ```bash
-magic make:lang fr
-magic make:lang de
-magic make:lang tr
+dart run magic:magic make:lang fr
+dart run magic:magic make:lang de
+dart run magic:magic make:lang tr
 ```
 
 This command:

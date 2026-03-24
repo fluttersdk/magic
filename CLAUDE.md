@@ -15,6 +15,7 @@ Laravel-inspired Flutter framework with Facades, Eloquent ORM, Service Providers
 | `dart fix --apply` | Auto-fix issues |
 | `cd example && flutter run` | Run example app |
 | `dart doc .` | Generate API docs |
+| `dart run magic:magic <command>` | Run Magic CLI (no global activate needed) |
 
 ## Architecture
 

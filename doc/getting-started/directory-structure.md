@@ -129,9 +129,6 @@ lib/config/
 └── localization.dart        # Supported locales
 ```
 
-> [!TIP]
-> Use the `magic config:list` command to see all available configuration keys.
-
 <a name="the-resources-directory"></a>
 ## The Resources Directory
 
@@ -197,9 +194,6 @@ void registerRoutes() {
   );
 }
 ```
-
-> [!NOTE]
-> Use `magic route:list` to display all registered routes in your application.
 
 <a name="the-database-directory"></a>
 ## The Database Directory

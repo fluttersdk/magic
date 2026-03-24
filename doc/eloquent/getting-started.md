@@ -25,7 +25,7 @@ Unlike traditional ORMs, Magic's Eloquent supports **Hybrid Persistence**. Your 
 To generate a new model, use the `make:model` Magic CLI command:
 
 ```bash
-magic make:model Post
+dart run magic:magic make:model Post
 ```
 
 ### Available Options
@@ -44,7 +44,7 @@ magic make:model Post
 The `-a` flag is the most convenient way to scaffold a complete feature:
 
 ```bash
-magic make:model Product --all
+dart run magic:magic make:model Product --all
 ```
 
 This single command creates:

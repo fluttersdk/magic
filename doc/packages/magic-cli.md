@@ -3,7 +3,7 @@
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Project Setup](#project-setup)
-    - [magic init](#magic-init)
+    - [install](#install)
     - [key:generate](#keygenerate)
 - [Make Commands](#make-commands)
     - [make:model](#makemodel)
@@ -13,15 +13,13 @@
     - [make:seeder](#makeseeder)
     - [make:factory](#makefactory)
     - [make:policy](#makepolicy)
+    - [make:provider](#makeprovider)
+    - [make:middleware](#makemiddleware)
+    - [make:enum](#makeenum)
+    - [make:event](#makeevent)
+    - [make:listener](#makelistener)
+    - [make:request](#makerequest)
     - [make:lang](#makelang)
-- [Inspection Commands](#inspection-commands)
-    - [route:list](#routelist)
-    - [config:list](#configlist)
-    - [config:get](#configget)
-- [Magic Boost (AI Integration)](#magic-boost)
-    - [Setup](#setup)
-    - [MCP Tools](#mcp-tools)
-    - [IDE Configuration](#ide-configuration)
 
 <a name="introduction"></a>
 ## Introduction
@@ -31,64 +29,74 @@ Magic CLI is the Artisan-like command-line tool for Magic. If you've used Larave
 <a name="installation"></a>
 ## Installation
 
-Install Magic CLI globally via Dart's package manager:
+Magic CLI ships as a Dart package dependency. Add it to your `pubspec.yaml` and run commands via `dart run`:
 
 ```bash
-dart pub global activate fluttersdk_magic_cli
+dart run magic:magic <command> [arguments] [options]
 ```
 
-> [!NOTE]
-> Ensure `~/.pub-cache/bin` is in your system PATH to use the `magic` command globally.
+> [!TIP]
+> For a shorter command, activate Magic CLI globally:
+>
+> ```bash
+> dart pub global activate magic_cli
+> ```
+>
+> Ensure `~/.pub-cache/bin` is in your system PATH, then use `magic <command>` directly.
 
 Verify installation:
 
 ```bash
-magic --version
+dart run magic:magic --version
 ```
 
 <a name="project-setup"></a>
 ## Project Setup
 
-<a name="magic-init"></a>
-### magic init
+<a name="install"></a>
+### install
 
 Initializes Magic in an existing Flutter project with the recommended directory structure and configuration.
 
 ```bash
-cd my_flutter_app
-magic init
+dart run magic:magic install
 ```
 
 This command:
-1. Adds `fluttersdk_magic` dependency to `pubspec.yaml`
-2. Creates directory structure (`app/`, `config/`, `routes/`, etc.)
-3. Generates configuration files with sensible defaults
-4. Sets up service providers
-5. Generates an application encryption key
+1. Creates the directory structure (`lib/app/`, `lib/config/`, `lib/routes/`, etc.)
+2. Generates configuration files with sensible defaults
+3. Creates starter service providers (`AppServiceProvider`, `RouteServiceProvider`)
+4. Writes `lib/main.dart` with Magic bootstrap
+5. Creates `.env` and `.env.example` files
+6. Registers `.env` as a Flutter asset in `pubspec.yaml`
+7. Downloads `sqlite3.wasm` for web platform support (when database is enabled)
 
 #### Excluding Features
 
-You can exclude features you don't need:
+You can exclude features you don't need with `--without-*` flags:
 
 ```bash
-# Skip specific features
-magic init --without-database
-magic init --without-cache
-magic init --without-auth
-magic init --without-events
-magic init --without-localization
-
-# Combine exclusions
-magic init --without-database --without-events
+dart run magic:magic install --without-database
+dart run magic:magic install --without-auth --without-events
 ```
+
+| Flag | What it skips |
+|------|---------------|
+| `--without-auth` | Auth config, `VaultServiceProvider`, `AuthServiceProvider` |
+| `--without-database` | Database directories, `config/database.dart`, `DatabaseServiceProvider`, web SQLite setup |
+| `--without-network` | `config/network.dart`, `NetworkServiceProvider` |
+| `--without-cache` | `config/cache.dart`, `CacheServiceProvider` |
+| `--without-events` | `lib/app/events/` and `lib/app/listeners/` directories |
+| `--without-localization` | `assets/lang/` directory, `LocalizationServiceProvider` |
+| `--without-logging` | `config/logging.dart` |
 
 <a name="keygenerate"></a>
 ### key:generate
 
-Generates a random encryption key for your application:
+Generates a random 32-byte encryption key for your application:
 
 ```bash
-magic key:generate
+dart run magic:magic key:generate
 ```
 
 Updates your `.env` file with:
@@ -97,8 +105,18 @@ Updates your `.env` file with:
 APP_KEY=base64:randomGeneratedKey...
 ```
 
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--show` | Display the key in the terminal instead of writing to `.env` |
+
 <a name="make-commands"></a>
 ## Make Commands
+
+All `make:*` commands support the `--force` flag to overwrite existing files. Nested paths are supported via slash syntax (e.g., `Admin/Dashboard`), which creates subdirectories automatically.
+
+Commands that auto-append a suffix (Controller, View, Factory, Seeder, Policy, ServiceProvider, Request) handle duplicates gracefully — `make:controller UserController` will not produce `UserControllerController`.
 
 <a name="makemodel"></a>
 ### make:model
@@ -106,10 +124,11 @@ APP_KEY=base64:randomGeneratedKey...
 Creates an Eloquent-style model with optional related files:
 
 ```bash
-magic make:model User
-magic make:model Post --migration --controller --factory
-magic make:model Comment -mcf  # Shorthand
-magic make:model Product --all  # Create everything
+dart run magic:magic make:model User
+dart run magic:magic make:model Post --migration --controller --factory
+dart run magic:magic make:model Comment -mcf
+dart run magic:magic make:model Product -mcfsp
+dart run magic:magic make:model Order --all
 ```
 
 #### Options
@@ -121,7 +140,10 @@ magic make:model Product --all  # Create everything
 | `--factory` | `-f` | Create a model factory |
 | `--seeder` | `-s` | Create a database seeder |
 | `--policy` | `-p` | Create an authorization policy |
-| `--all` | `-a` | Create all related files |
+| `--all` | `-a` | Create migration, seeder, factory, policy, and resource controller |
+
+> [!NOTE]
+> The `-mcfsp` shorthand combines all five flags: migration, controller, factory, seeder, and policy. The `--all` flag does the same but also makes the controller a resource controller with CRUD methods.
 
 **Output:** `lib/app/models/<name>.dart`
 
@@ -131,17 +153,19 @@ magic make:model Product --all  # Create everything
 Creates a controller class:
 
 ```bash
-magic make:controller User
-magic make:controller UserController  # Explicit naming
-magic make:controller Admin/Dashboard  # Nested path
+dart run magic:magic make:controller User
+dart run magic:magic make:controller UserController
+dart run magic:magic make:controller Admin/Dashboard
+dart run magic:magic make:controller Post --resource
+dart run magic:magic make:controller Post --resource --model=Post
 ```
 
 #### Options
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--stateful` | `-s` | Include `MagicStateMixin` for state management |
-| `--resource` | `-r` | Create resource controller with CRUD methods and views |
+| `--resource` | `-r` | Generate a resource controller with CRUD methods |
+| `--model` | `-m` | The model the controller applies to |
 
 **Output:** `lib/app/controllers/<name>_controller.dart`
 
@@ -151,37 +175,39 @@ magic make:controller Admin/Dashboard  # Nested path
 Creates a view class:
 
 ```bash
-magic make:view Login
-magic make:view LoginView  # Explicit naming
-magic make:view Auth/Register  # Nested path
+dart run magic:magic make:view Login
+dart run magic:magic make:view LoginView
+dart run magic:magic make:view Auth/Register
+dart run magic:magic make:view Dashboard --stateful
 ```
 
 #### Options
 
 | Option | Description |
 |--------|-------------|
-| `--stateful` | Create stateful view with `MagicFormData` support |
+| `--stateful` | Generate a stateful view with lifecycle hooks |
 
 **Output:** `lib/resources/views/<name>_view.dart`
 
 <a name="makemigration"></a>
 ### make:migration
 
-Creates a database migration file:
+Creates a timestamped database migration file:
 
 ```bash
-magic make:migration create_users_table
-magic make:migration add_email_to_users_table
+dart run magic:magic make:migration create_users_table
+dart run magic:magic make:migration create_users_table --create=users
+dart run magic:magic make:migration add_email_to_users --table=users
 ```
 
 #### Options
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--create` | `-c` | The table to be created |
+| `--create` | `-c` | The table to be created (selects the create stub) |
 | `--table` | `-t` | The table to migrate |
 
-**Output:** `lib/database/migrations/<timestamp>_<name>.dart`
+**Output:** `lib/database/migrations/m_YYYYMMDDHHMMSS_<name>.dart`
 
 <a name="makeseeder"></a>
 ### make:seeder
@@ -189,10 +215,11 @@ magic make:migration add_email_to_users_table
 Creates a database seeder:
 
 ```bash
-magic make:seeder UserSeeder
+dart run magic:magic make:seeder User
+dart run magic:magic make:seeder UserSeeder
 ```
 
-**Output:** `lib/database/seeders/<name>.dart`
+**Output:** `lib/database/seeders/<name>_seeder.dart`
 
 <a name="makefactory"></a>
 ### make:factory
@@ -200,8 +227,8 @@ magic make:seeder UserSeeder
 Creates a model factory for generating fake data:
 
 ```bash
-magic make:factory User
-magic make:factory UserFactory  # Explicit naming
+dart run magic:magic make:factory User
+dart run magic:magic make:factory UserFactory
 ```
 
 **Output:** `lib/database/factories/<name>_factory.dart`
@@ -212,17 +239,102 @@ magic make:factory UserFactory  # Explicit naming
 Creates an authorization policy:
 
 ```bash
-magic make:policy Post
-magic make:policy Comment --model=Comment
+dart run magic:magic make:policy Post
+dart run magic:magic make:policy PostPolicy
+dart run magic:magic make:policy Post --model=Post
+dart run magic:magic make:policy Admin/Dashboard
 ```
 
 #### Options
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--model` | `-m` | The model that the policy applies to |
+| `--model` | `-m` | The model the policy applies to |
 
 **Output:** `lib/app/policies/<name>_policy.dart`
+
+<a name="makeprovider"></a>
+### make:provider
+
+Creates a service provider class with `register()` and `boot()` stubs:
+
+```bash
+dart run magic:magic make:provider Payment
+dart run magic:magic make:provider PaymentServiceProvider
+```
+
+The `ServiceProvider` suffix is appended automatically when omitted.
+
+**Output:** `lib/app/providers/<name>_service_provider.dart`
+
+<a name="makemiddleware"></a>
+### make:middleware
+
+Creates a middleware class:
+
+```bash
+dart run magic:magic make:middleware EnsureAuthenticated
+dart run magic:magic make:middleware Admin/RoleCheck
+```
+
+**Output:** `lib/app/middleware/<name>.dart`
+
+<a name="makeenum"></a>
+### make:enum
+
+Creates a string-backed enum with `fromValue()` factory and `selectOptions` getter:
+
+```bash
+dart run magic:magic make:enum MonitorType
+dart run magic:magic make:enum Status/OrderStatus
+```
+
+**Output:** `lib/app/enums/<name>.dart`
+
+<a name="makeevent"></a>
+### make:event
+
+Creates a dispatchable event class that extends `MagicEvent`:
+
+```bash
+dart run magic:magic make:event UserLoggedIn
+dart run magic:magic make:event Auth/TokenRefreshed
+```
+
+**Output:** `lib/app/events/<name>.dart`
+
+<a name="makelistener"></a>
+### make:listener
+
+Creates an event listener class that extends `MagicListener<TEvent>`:
+
+```bash
+dart run magic:magic make:listener AuthRestore
+dart run magic:magic make:listener AuthRestore --event=UserLoggedInEvent
+dart run magic:magic make:listener Auth/RestoreSession
+```
+
+#### Options
+
+| Option | Shortcut | Description |
+|--------|----------|-------------|
+| `--event` | `-e` | The event class the listener handles (defaults to `MagicEvent`) |
+
+**Output:** `lib/app/listeners/<name>.dart`
+
+<a name="makerequest"></a>
+### make:request
+
+Creates a form request class with a typed `rules()` method for request validation:
+
+```bash
+dart run magic:magic make:request StoreMonitor
+dart run magic:magic make:request StoreMonitorRequest
+```
+
+The `Request` suffix is appended automatically when omitted.
+
+**Output:** `lib/app/validation/requests/<name>_request.dart`
 
 <a name="makelang"></a>
 ### make:lang
@@ -230,139 +342,9 @@ magic make:policy Comment --model=Comment
 Creates a language JSON file:
 
 ```bash
-magic make:lang tr
-magic make:lang es
-magic make:lang de
+dart run magic:magic make:lang tr
+dart run magic:magic make:lang es
+dart run magic:magic make:lang de
 ```
 
 **Output:** `assets/lang/<locale>.json`
-
-<a name="inspection-commands"></a>
-## Inspection Commands
-
-<a name="routelist"></a>
-### route:list
-
-Lists all registered routes in your application:
-
-```bash
-magic route:list
-```
-
-**Output:**
-
-```
-+---------------------+------------+----------+
-| URI                 | Middleware | File     |
-+---------------------+------------+----------+
-| /                   | auth       | app.dart |
-| /auth/login         | -          | auth.dart|
-| /dashboard          | auth       | app.dart |
-| /settings/team      | auth       | app.dart |
-+---------------------+------------+----------+
-```
-
-<a name="configlist"></a>
-### config:list
-
-Lists all configuration files and their keys:
-
-```bash
-magic config:list
-magic config:list --verbose  # Show key previews
-```
-
-<a name="configget"></a>
-### config:get
-
-Gets a specific configuration value using dot notation:
-
-```bash
-magic config:get app.name
-# Output: My App
-
-magic config:get network.drivers.api.base_url
-# Output: http://localhost:8000/api/v1
-
-magic config:get app.url --show-source
-# Output: http://localhost (from: .env)
-```
-
-**Priority:** Project config → `.env` → Framework defaults
-
-<a name="magic-boost"></a>
-## Magic Boost (AI Integration)
-
-Magic Boost provides AI-powered development tools through MCP (Model Context Protocol), allowing AI assistants like Claude to understand your Magic project.
-
-<a name="setup"></a>
-### Setup
-
-Install Boost in your project:
-
-```bash
-magic boost:install
-```
-
-This will:
-- Create `.magic/guidelines/` with framework documentation
-- Configure MCP server in your IDE (Cursor, VS Code)
-- Generate project-aware context for AI assistants
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `boost:install` | Setup AI guidelines + MCP config |
-| `boost:mcp` | Run the MCP server (stdio) |
-| `boost:update` | Refresh guidelines to latest version |
-
-<a name="mcp-tools"></a>
-### MCP Tools
-
-The MCP server exposes these tools to AI assistants:
-
-| Tool | Description |
-|------|-------------|
-| `app_info` | Get pubspec.yaml info (name, version, dependencies) |
-| `list_routes` | List all application routes |
-| `get_config` | Read config values with dot notation |
-| `validate_wind` | Validate Wind UI utility classes |
-| `search_docs` | Search Magic documentation |
-
-<a name="ide-configuration"></a>
-### IDE Configuration
-
-After running `boost:install`, your IDE's MCP config is automatically updated:
-
-**`.cursor/mcp.json` or `.vscode/mcp.json`:**
-
-```json
-{
-  "mcpServers": {
-    "magic-boost": {
-      "command": "dart",
-      "args": ["run", "fluttersdk_magic_cli:magic", "boost:mcp"],
-      "cwd": "/path/to/your/project"
-    }
-  }
-}
-```
-
-### Generated Guidelines
-
-After installation, `.magic/guidelines/` contains:
-
-```
-.magic/
-└── guidelines/
-    ├── core.md      # Core Magic framework
-    ├── wind.md      # Wind UI system
-    ├── eloquent.md  # Eloquent models
-    └── routing.md   # Routing system
-```
-
-These files provide context for AI assistants about your project's architecture and coding conventions.
-
-> [!TIP]
-> Run `magic boost:update` periodically to get the latest framework guidelines.

@@ -6,7 +6,6 @@
     - [Determining the Current Environment](#determining-the-current-environment)
 - [Accessing Configuration Values](#accessing-configuration-values)
 - [Configuration Files](#configuration-files)
-- [CLI Commands](#cli-commands)
 - [Theme Persistence](#theme-persistence)
 - [Configuration Caching](#configuration-caching)
 
@@ -206,42 +205,6 @@ Map<String, dynamic> get networkConfig => {
     },
   },
 };
-```
-
-<a name="cli-commands"></a>
-## CLI Commands
-
-Magic CLI provides commands for inspecting your application's configuration:
-
-### Listing Configuration Files
-
-```bash
-magic config:list
-```
-
-This displays all configuration files and their keys:
-
-```
-+------------------+---------------------------+
-| File             | Keys                      |
-+------------------+---------------------------+
-| app.dart         | app.name, app.debug, ...  |
-| network.dart     | network.default, ...      |
-+------------------+---------------------------+
-```
-
-### Getting Specific Values
-
-```bash
-magic config:get app.name
-# Output: My App
-
-magic config:get network.drivers.api.base_url
-# Output: http://localhost:8000/api/v1
-
-# Show source of the value
-magic config:get app.name --show-source
-# Output: My App (from: lib/config/app.dart)
 ```
 
 <a name="theme-persistence"></a>

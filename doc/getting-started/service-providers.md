@@ -1,6 +1,7 @@
 # Service Providers
 
 - [Introduction](#introduction)
+- [Generating Providers](#generating-providers)
 - [Writing Service Providers](#writing-service-providers)
     - [The Register Method](#the-register-method)
     - [The Boot Method](#the-boot-method)
@@ -16,6 +17,17 @@ Service providers are the central place of all Magic application bootstrapping. 
 But, what do we mean by "bootstrapped"? In general, we mean **registering** things, including registering service container bindings, event listeners, middleware, and even routes. Service providers are the central place to configure your application.
 
 If you open the `config/app.dart` file included with Magic, you will see a `providers` array. These are all of the service provider classes that will be loaded for your application.
+
+<a name="generating-providers"></a>
+## Generating Providers
+
+Use the Magic CLI to generate a new service provider class:
+
+```bash
+dart run magic:magic make:provider Payment
+```
+
+This creates `lib/app/providers/payment_service_provider.dart` with a `ServiceProvider` stub containing empty `register()` and `boot()` methods.
 
 <a name="writing-service-providers"></a>
 ## Writing Service Providers

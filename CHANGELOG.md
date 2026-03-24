@@ -19,6 +19,14 @@ All notable changes to this project will be documented in this file.
 - Session restore guards against missing `userFactory` — gracefully skips instead of throwing
 - `FileStore` exported from barrel file
 
+### Changed
+- Rewrote Magic CLI documentation (`doc/packages/magic-cli.md`) with all 16 commands and `dart run magic:magic` syntax
+- Updated CLI command references across all documentation files to use `dart run magic:magic` prefix
+- Removed references to non-existent CLI commands (route:list, config:list, config:get, boost:*)
+
+### Documentation
+- Added CLI generation examples to middleware, events, service-providers, and forms documentation
+
 ## [1.0.0-alpha.1] - 2026-02-05
 
 ### ✨ Core Features
