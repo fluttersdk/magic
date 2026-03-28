@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 Improvements
+- **Localization Hot Restart**: Translation JSON changes now reflect immediately on hot restart during development. Uses platform-native file reads in debug mode (dart:io on mobile/desktop, fetch with cache-busting on web), bypassing Flutter's asset bundle cache. Zero impact on release builds.
+
 ## [1.0.0-alpha.3] - 2026-03-24
 
 ### 🐛 Bug Fixes

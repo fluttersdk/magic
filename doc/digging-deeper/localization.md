@@ -8,6 +8,7 @@
 - [Automatic HTTP Headers](#automatic-http-headers)
 - [Changing Locale](#changing-locale)
 - [CLI Commands](#cli-commands)
+- [Development: Hot Restart](#development-hot-restart)
 
 <a name="introduction"></a>
 ## Introduction
@@ -272,3 +273,18 @@ The generated file includes common translation keys:
 
 > [!TIP]
 > Keep your translation keys organized by feature (auth, validation, users, etc.) for easier maintenance.
+
+<a name="development-hot-restart"></a>
+## Development: Hot Restart
+
+During development, Magic automatically bypasses Flutter's asset bundle cache so that translation JSON changes are picked up on **hot restart** (`Shift+R`) without a full rebuild.
+
+| Platform | Mechanism |
+|----------|-----------|
+| iOS / Android / macOS / Linux / Windows | Reads JSON directly from disk via `dart:io` |
+| Web (Chrome) | Fetches JSON via HTTP with cache-busting query parameter |
+
+This behavior is **debug-mode only** (`kDebugMode`). Release builds use Flutter's standard `rootBundle` with full caching for optimal performance.
+
+> [!NOTE]
+> Hot **reload** (lowercase `r`) only reloads Dart code — it cannot pick up asset changes. Use hot **restart** (`Shift+R`) to see translation updates.

@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:magic/magic.dart';
+
+import 'debug_asset_reader_stub.dart'
+    if (dart.library.io) 'debug_asset_reader_io.dart'
+    if (dart.library.js_interop) 'debug_asset_reader_web.dart';
 
 /// The JSON Asset Loader.
 ///
@@ -73,6 +78,16 @@ class JsonAssetLoader implements TranslationLoader {
   Future<Map<String, dynamic>> _loadJson(String languageCode) async {
     final path = '$basePath/$languageCode.json';
     Log.info('Loading translation file [$path]');
+
+    // In debug mode, read directly from disk to pick up changes on hot restart.
+    if (kDebugMode) {
+      final content = await debugReadAssetFile(path);
+
+      if (content != null) {
+        return jsonDecode(content) as Map<String, dynamic>;
+      }
+    }
+
     final content = await rootBundle.loadString(path);
     return jsonDecode(content) as Map<String, dynamic>;
   }

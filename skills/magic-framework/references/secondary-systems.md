@@ -256,6 +256,10 @@ Lang.addListener(() {
 await Lang.detectAndSetLocale();
 ```
 
+### Hot Restart in Development
+
+In debug mode, `JsonAssetLoader` bypasses `rootBundle` cache using platform-native reads (`dart:io` on mobile/desktop, `fetch()` with cache-busting on web). Translation JSON changes reflect immediately on hot restart without a full rebuild. Release builds use standard `rootBundle` caching.
+
 ### JSON Format
 
 Translation files use `:attribute` placeholders:
