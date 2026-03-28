@@ -79,7 +79,10 @@ class JsonAssetLoader implements TranslationLoader {
     final path = '$basePath/$languageCode.json';
     Log.info('Loading translation file [$path]');
 
-    // In debug mode, read directly from disk to pick up changes on hot restart.
+    // In debug mode, attempt to bypass the asset bundle cache so that
+    // hot restart picks up JSON changes. Best-effort: works reliably on
+    // desktop and web; on mobile the file usually does not exist on disk,
+    // so we fall back to rootBundle.
     if (kDebugMode) {
       final content = await debugReadAssetFile(path);
 
