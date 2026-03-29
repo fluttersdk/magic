@@ -264,7 +264,7 @@ MagicRoute.back();
 // Go back with an explicit fallback path
 MagicRoute.back(fallback: '/home');
 
-// Replace current route (no back)
+// Replace current route (no new history entry)
 MagicRoute.replace('/home');
 
 // With query parameters

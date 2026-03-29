@@ -475,9 +475,10 @@ class MagicRouter {
 
   /// Replace the current route.
   ///
-  /// When history is non-empty, swaps the last entry with the current
-  /// location so history depth stays constant. When history is empty,
-  /// records the current location so `back()` can return to it.
+  /// History is left untouched — `back()` still returns to the route
+  /// that was active *before* the replaced route, not the replaced route
+  /// itself. This matches the "swap in place" semantic: the user never
+  /// consciously visited the old route, so it shouldn't appear in history.
   ///
   /// ```dart
   /// Route.replace('/home');
@@ -487,15 +488,6 @@ class MagicRouter {
       throw StateError(
         'Router not initialized. Make sure to use routerConfig with MaterialApp.router first.',
       );
-    }
-
-    final current = currentLocation;
-    if (current != null) {
-      if (_history.isNotEmpty) {
-        _history[_history.length - 1] = current;
-      } else {
-        _recordHistory(current);
-      }
     }
 
     _router!.replace(path);

@@ -347,9 +347,9 @@ void main() {
 
   /// History-based back() navigation.
   ///
-  /// These tests drive the red phase of TDD for the history tracking feature.
-  /// [MagicRouter.instance.historyDepth] and the [back(fallback:)] parameter
-  /// do not exist yet — failures here are intentional and expected.
+  /// These tests verify the history tracking feature, including
+  /// [MagicRouter.instance.historyDepth] and the [MagicRouter.back] `fallback`
+  /// behavior.
   group('History-Based back() Navigation', () {
     testWidgets(
       'back() navigates to previous path when canPop() is false (history fallback)',
@@ -472,6 +472,12 @@ void main() {
 
       expect(MagicRouter.instance.historyDepth, depthAfterTwoNavigations);
       expect(MagicRouter.instance.currentLocation, '/c');
+
+      // After replace(), back() should land on the entry before the replaced route.
+      MagicRouter.instance.back();
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentLocation, '/a');
     });
 
     testWidgets('to() records current location in history before navigating', (
