@@ -76,7 +76,7 @@ Use `configFactories` (not `configs`) when any value depends on `Env.get()`. The
 | `Schema` | Migrations | `create()`, `drop()`, `hasTable()` |
 | `Log` | Logging | `info()`, `error()`, `warning()`, `debug()` |
 | `Event` | Events | `dispatch(event)` |
-| `MagicRoute` | Routing | `page()`, `group()`, `layout()`, `to()`, `back()`, `replace()`, `push()`, `toNamed()` |
+| `MagicRoute` | Routing | `page()`, `group()`, `layout()`, `to()`, `back({fallback?})`, `replace()`, `push()`, `toNamed()` |
 | `Gate` | Authorization | `allows()`, `denies()`, `define()`, `policy()` |
 | `Lang` | Localization | `get()`, `locale()` |
 | `Vault` | Secure storage | `get()`, `put()`, `delete()`, `flush()` |

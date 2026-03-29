@@ -240,11 +240,15 @@ class MagicRoute {
 
   /// Go back to the previous route.
   ///
+  /// Tries native pop first, then the internal history stack.
+  /// When both are empty, navigates to [fallback] if provided.
+  ///
   /// ```dart
   /// Route.back();
+  /// Route.back(fallback: '/home');
   /// ```
-  static void back() {
-    MagicRouter.instance.back();
+  static void back({String? fallback}) {
+    MagicRouter.instance.back(fallback: fallback);
   }
 
   /// Replace the current route.

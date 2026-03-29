@@ -261,12 +261,29 @@ MagicRoute.push('/details');
 // Go back
 MagicRoute.back();
 
+// Go back with an explicit fallback path
+MagicRoute.back(fallback: '/home');
+
 // Replace current route (no back)
 MagicRoute.replace('/home');
 
 // With query parameters
 MagicRoute.to('/search', query: {'q': 'flutter'});
 ```
+
+### Cross-Shell Back Navigation
+
+`MagicRoute.back()` works reliably even when navigating across shell routes (layouts). Magic maintains a lightweight history stack automatically—no setup required. When the standard pop is not possible, it falls back to the last tracked history entry.
+
+Pass an optional `fallback` path to control where navigation lands when the history stack is empty:
+
+```dart
+// Falls back to '/dashboard' if there is no navigation history
+MagicRoute.back(fallback: '/dashboard');
+```
+
+> [!NOTE]
+> The history stack is populated automatically by `MagicRoute.to()` and `MagicRoute.toNamed()`. `replace()` swaps the last entry without growing the stack, so back navigation after a replace lands at the entry before the replace.
 
 ### From Controllers
 

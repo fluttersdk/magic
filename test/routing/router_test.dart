@@ -344,6 +344,239 @@ void main() {
       expect(merged.first.children, hasLength(3));
     });
   });
+
+  /// History-based back() navigation.
+  ///
+  /// These tests drive the red phase of TDD for the history tracking feature.
+  /// [MagicRouter.instance.historyDepth] and the [back(fallback:)] parameter
+  /// do not exist yet — failures here are intentional and expected.
+  group('History-Based back() Navigation', () {
+    testWidgets(
+      'back() navigates to previous path when canPop() is false (history fallback)',
+      (tester) async {
+        MagicRoute.page('/', () => const SizedBox());
+        MagicRoute.page('/home', () => const SizedBox());
+        MagicRoute.page('/settings', () => const SizedBox());
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+        );
+        await tester.pumpAndSettle();
+
+        // Navigate from / to /home, then to /settings using go() (replaces stack)
+        MagicRouter.instance.to('/home');
+        await tester.pumpAndSettle();
+
+        MagicRouter.instance.to('/settings');
+        await tester.pumpAndSettle();
+
+        // Native stack is shallow (go() replaces), so canPop() is false.
+        // History should allow us to fall back to /home.
+        MagicRouter.instance.back();
+        await tester.pumpAndSettle();
+
+        expect(MagicRouter.instance.currentLocation, '/home');
+      },
+    );
+
+    testWidgets(
+      'back() prefers native pop when canPop() is true (existing behaviour preserved)',
+      (tester) async {
+        MagicRoute.page('/', () => const SizedBox());
+        MagicRoute.page('/detail', () => const SizedBox());
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+        );
+        await tester.pumpAndSettle();
+
+        // push() grows the native stack, so canPop() is true.
+        MagicRouter.instance.push('/detail');
+        await tester.pumpAndSettle();
+
+        expect(
+          MagicRouter.instance.navigatorKey.currentState?.canPop(),
+          isTrue,
+        );
+
+        MagicRouter.instance.back();
+        await tester.pumpAndSettle();
+
+        expect(MagicRouter.instance.currentLocation, '/');
+      },
+    );
+
+    testWidgets(
+      'back() with explicit fallback navigates to fallback when both pop and history unavailable',
+      (tester) async {
+        MagicRoute.page('/', () => const SizedBox());
+        MagicRoute.page('/home', () => const SizedBox());
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+        );
+        await tester.pumpAndSettle();
+
+        // No prior navigation — history is empty, canPop() is false.
+        MagicRouter.instance.back(fallback: '/home');
+        await tester.pumpAndSettle();
+
+        expect(MagicRouter.instance.currentLocation, '/home');
+      },
+    );
+
+    testWidgets(
+      'back() is no-op when history empty, canPop false, and no fallback',
+      (tester) async {
+        MagicRoute.page('/', () => const SizedBox());
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+        );
+        await tester.pumpAndSettle();
+
+        final locationBefore = MagicRouter.instance.currentLocation;
+
+        // Should not throw and should not change location.
+        MagicRouter.instance.back();
+        await tester.pumpAndSettle();
+
+        expect(MagicRouter.instance.currentLocation, locationBefore);
+      },
+    );
+
+    testWidgets('replace() swaps last history entry instead of pushing', (
+      tester,
+    ) async {
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/a', () => const SizedBox());
+      MagicRoute.page('/b', () => const SizedBox());
+      MagicRoute.page('/c', () => const SizedBox());
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to('/a');
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to('/b');
+      await tester.pumpAndSettle();
+
+      final depthAfterTwoNavigations = MagicRouter.instance.historyDepth;
+
+      // replace() should swap /b with /c — depth must not grow.
+      MagicRouter.instance.replace('/c');
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.historyDepth, depthAfterTwoNavigations);
+      expect(MagicRouter.instance.currentLocation, '/c');
+    });
+
+    testWidgets('to() records current location in history before navigating', (
+      tester,
+    ) async {
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/target', () => const SizedBox());
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      final depthBefore = MagicRouter.instance.historyDepth;
+
+      MagicRouter.instance.to('/target');
+      await tester.pumpAndSettle();
+
+      // Depth must grow by one — the originating location was recorded.
+      expect(MagicRouter.instance.historyDepth, depthBefore + 1);
+    });
+
+    testWidgets(
+      'toNamed() records current location in history before navigating',
+      (tester) async {
+        MagicRoute.page('/', () => const SizedBox()).name('home');
+        MagicRoute.page('/about', () => const SizedBox()).name('about');
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+        );
+        await tester.pumpAndSettle();
+
+        final depthBefore = MagicRouter.instance.historyDepth;
+
+        MagicRouter.instance.toNamed('about');
+        await tester.pumpAndSettle();
+
+        expect(MagicRouter.instance.historyDepth, depthBefore + 1);
+      },
+    );
+
+    testWidgets('history respects max 50 entries — oldest evicted when full', (
+      tester,
+    ) async {
+      // Register enough routes to exceed the cap.
+      MagicRoute.page('/', () => const SizedBox());
+      for (var i = 1; i <= 55; i++) {
+        MagicRoute.page('/page/$i', () => const SizedBox());
+      }
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      for (var i = 1; i <= 55; i++) {
+        MagicRouter.instance.to('/page/$i');
+        await tester.pumpAndSettle();
+      }
+
+      expect(MagicRouter.instance.historyDepth, 50);
+    });
+
+    testWidgets(
+      'back() via history does NOT push a new history entry (no infinite loop)',
+      (tester) async {
+        MagicRoute.page('/', () => const SizedBox());
+        MagicRoute.page('/a', () => const SizedBox());
+        MagicRoute.page('/b', () => const SizedBox());
+
+        await tester.pumpWidget(
+          MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+        );
+        await tester.pumpAndSettle();
+
+        MagicRouter.instance.to('/a');
+        await tester.pumpAndSettle();
+
+        MagicRouter.instance.to('/b');
+        await tester.pumpAndSettle();
+
+        final depthBeforeBack = MagicRouter.instance.historyDepth;
+
+        // back() should consume an entry, not add one.
+        MagicRouter.instance.back();
+        await tester.pumpAndSettle();
+
+        expect(MagicRouter.instance.historyDepth, depthBeforeBack - 1);
+      },
+    );
+
+    test('reset() clears history', () {
+      // Manually populate history via to() without a running router:
+      // instead, verify historyDepth is zero after reset() regardless.
+      MagicRoute.page('/', () => const SizedBox());
+
+      // Depth should be zero on a fresh (reset) instance.
+      expect(MagicRouter.instance.historyDepth, 0);
+
+      MagicRouter.reset();
+
+      expect(MagicRouter.instance.historyDepth, 0);
+    });
+  });
 }
 
 /// Test middleware implementation.

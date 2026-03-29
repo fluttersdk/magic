@@ -428,7 +428,7 @@ The facade class is `MagicRoute`. Resolves `MagicRouter.instance`.
 | `MagicRoute.to(String path, {Map<String, String>? query})` | `void` | Navigate to path — no BuildContext needed. |
 | `MagicRoute.toNamed(String name, {Map<String, String> params, Map<String, String> query})` | `void` | Navigate by named route. |
 | `MagicRoute.push(String path)` | `void` | Push path onto the navigation stack. |
-| `MagicRoute.back()` | `void` | Pop the current route. |
+| `MagicRoute.back({String? fallback})` | `void` | Pop the current route. Works across shell routes via history tracking. Uses `fallback` path when history is empty. |
 | `MagicRoute.replace(String path)` | `void` | Replace current route in history. |
 | `MagicRoute.config` | `GoRouter` | **Getter.** Pass to `MaterialApp.router(routerConfig:)`. |
 

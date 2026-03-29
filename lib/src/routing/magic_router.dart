@@ -83,6 +83,15 @@ class MagicRouter {
   /// Saved intended URL for redirect-after-login pattern.
   String? _intendedUrl;
 
+  /// Navigation history for back() fallback when canPop() is false.
+  ///
+  /// Populated by [to] and [toNamed] before each `go()` call.
+  /// Consumed by [back] when native pop is unavailable.
+  final List<String> _history = [];
+
+  /// Maximum number of entries retained in the navigation history.
+  static const int _maxHistorySize = 50;
+
   /// active route collector stack for group layouts.
   final List<List<RouteDefinition>> _collectionStack = [];
 
@@ -378,6 +387,13 @@ class MagicRouter {
       );
     }
 
+    // 1. Record current location before navigating.
+    final current = currentLocation;
+    if (current != null) {
+      _recordHistory(current);
+    }
+
+    // 2. Navigate via go() (replaces the entire stack).
     if (queryParameters != null && queryParameters.isNotEmpty) {
       final uri = Uri(path: path, queryParameters: queryParameters);
       _router!.go(uri.toString());
@@ -396,6 +412,18 @@ class MagicRouter {
     Map<String, String> pathParameters = const {},
     Map<String, String> queryParameters = const {},
   }) {
+    if (_router == null) {
+      throw StateError(
+        'Router not initialized. Make sure to use routerConfig with MaterialApp.router first.',
+      );
+    }
+
+    // Record current location before navigating.
+    final current = currentLocation;
+    if (current != null) {
+      _recordHistory(current);
+    }
+
     _router!.goNamed(
       name,
       pathParameters: pathParameters,
@@ -416,21 +444,60 @@ class MagicRouter {
 
   /// Go back to the previous route.
   ///
+  /// Tries native pop first. When `canPop()` is false (e.g. after a
+  /// cross-shell `go()` navigation), falls back to the internal history
+  /// stack. If history is also empty, navigates to [fallback] when
+  /// provided, otherwise does nothing.
+  ///
   /// ```dart
   /// Route.back();
+  /// Route.back(fallback: '/home');
   /// ```
-  void back() {
+  void back({String? fallback}) {
+    // 1. Prefer native pop when available.
     if (navigatorKey.currentState?.canPop() ?? false) {
       navigatorKey.currentState!.pop();
+      return;
+    }
+
+    // 2. Fall back to history stack.
+    if (_history.isNotEmpty) {
+      final previous = _history.removeLast();
+      _router?.go(previous);
+      return;
+    }
+
+    // 3. Use explicit fallback if provided.
+    if (fallback != null) {
+      _router?.go(fallback);
     }
   }
 
   /// Replace the current route.
   ///
+  /// When history is non-empty, swaps the last entry with the current
+  /// location so history depth stays constant. When history is empty,
+  /// records the current location so `back()` can return to it.
+  ///
   /// ```dart
   /// Route.replace('/home');
   /// ```
   void replace(String path) {
+    if (_router == null) {
+      throw StateError(
+        'Router not initialized. Make sure to use routerConfig with MaterialApp.router first.',
+      );
+    }
+
+    final current = currentLocation;
+    if (current != null) {
+      if (_history.isNotEmpty) {
+        _history[_history.length - 1] = current;
+      } else {
+        _recordHistory(current);
+      }
+    }
+
     _router!.replace(path);
   }
 
@@ -512,6 +579,31 @@ class MagicRouter {
   }
 
   // ---------------------------------------------------------------------------
+  // History
+  // ---------------------------------------------------------------------------
+
+  /// The number of entries in the navigation history.
+  ///
+  /// Primarily exposed for testing purposes.
+  int get historyDepth => _history.length;
+
+  /// Record a location in the navigation history.
+  ///
+  /// Deduplicates consecutive identical entries and evicts the oldest
+  /// entry when the history exceeds [_maxHistorySize].
+  void _recordHistory(String location) {
+    if (_history.isNotEmpty && _history.last == location) {
+      return;
+    }
+
+    if (_history.length >= _maxHistorySize) {
+      _history.removeAt(0);
+    }
+
+    _history.add(location);
+  }
+
+  // ---------------------------------------------------------------------------
   // Reset (Testing)
   // ---------------------------------------------------------------------------
 
@@ -522,6 +614,7 @@ class MagicRouter {
     _instance?._router = null;
     _instance?._isBuilt = false;
     _instance?._intendedUrl = null;
+    _instance?._history.clear();
     _instance = null;
   }
 }
