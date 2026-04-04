@@ -449,6 +449,100 @@ void main() {
       expect(response.data, equals({'version': 2}));
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 11. reset() — clears recorded, stubs, and stray flag
+  // ---------------------------------------------------------------------------
+
+  group('reset()', () {
+    test('clears recorded requests', () async {
+      final fake = FakeNetworkDriver();
+
+      await fake.get('/users');
+      await fake.post('/users', data: {'name': 'John'});
+      expect(fake.recorded, hasLength(2));
+
+      fake.reset();
+
+      expect(fake.recorded, isEmpty);
+    });
+
+    test('clears stubs so previously matched URLs fall to default', () async {
+      final fake = FakeNetworkDriver();
+      fake.stub('users/*', MagicResponse(data: {'id': 1}, statusCode: 404));
+
+      final before = await fake.get('/users/1');
+      expect(before.statusCode, equals(404));
+
+      fake.reset();
+
+      final after = await fake.get('/users/1');
+      expect(after.statusCode, equals(200));
+    });
+
+    test('disables preventStrayRequests after reset', () async {
+      final fake = FakeNetworkDriver();
+      fake.stub('users/*', MagicResponse(data: null, statusCode: 200));
+      fake.preventStrayRequests();
+
+      fake.reset();
+
+      // Should NOT throw — stray prevention was cleared
+      final response = await fake.get('/unknown');
+      expect(response.statusCode, equals(200));
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 12. Pattern escaping — regex metacharacters in URLs
+  // ---------------------------------------------------------------------------
+
+  group('pattern escaping', () {
+    test(
+      'dot in URL pattern is treated literally, not as regex wildcard',
+      () async {
+        final fake = FakeNetworkDriver();
+        fake.stub(
+          'api.v2/users',
+          MagicResponse(data: {'version': 2}, statusCode: 200),
+        );
+
+        // Should match exactly 'api.v2/users'
+        final matched = await fake.get('/api.v2/users');
+        expect(matched.data, equals({'version': 2}));
+
+        // Should NOT match 'apiXv2/users' (dot is not a regex wildcard)
+        final unmatched = await fake.get('/apiXv2/users');
+        expect(unmatched.data, isNot(equals({'version': 2})));
+      },
+    );
+
+    test('question mark in URL is treated literally', () async {
+      final fake = FakeNetworkDriver();
+      fake.stub(
+        'search?q=flutter',
+        MagicResponse(data: {'found': true}, statusCode: 200),
+      );
+
+      final matched = await fake.get('/search?q=flutter');
+      expect(matched.data, equals({'found': true}));
+
+      // 'searchXq=flutter' should NOT match
+      final unmatched = await fake.get('/searchXq=flutter');
+      expect(unmatched.data, isNot(equals({'found': true})));
+    });
+
+    test('plus sign in URL is treated literally', () async {
+      final fake = FakeNetworkDriver();
+      fake.stub(
+        'tags/c++',
+        MagicResponse(data: {'tag': 'c++'}, statusCode: 200),
+      );
+
+      final matched = await fake.get('/tags/c++');
+      expect(matched.data, equals({'tag': 'c++'}));
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

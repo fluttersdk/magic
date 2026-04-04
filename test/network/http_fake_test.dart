@@ -166,10 +166,16 @@ void main() {
       expect(response.data['key'], equals('val'));
     });
 
-    test('returns MagicResponse with empty map data when null passed', () {
-      final response = Http.response(null, 500);
+    test('preserves null data when explicitly passed', () {
+      final response = Http.response(null, 204);
 
-      expect(response.statusCode, equals(500));
+      expect(response.statusCode, equals(204));
+      expect(response.data, isNull);
+    });
+
+    test('default response (no args) returns empty map data', () {
+      final response = Http.response();
+
       expect(response.data, equals(<String, dynamic>{}));
     });
 
