@@ -1,5 +1,6 @@
 import '../foundation/magic.dart';
 import '../logging/log_manager.dart';
+import '../testing/fake_log_manager.dart';
 
 /// The Log Facade.
 ///
@@ -54,4 +55,28 @@ class Log {
   /// Log.channel('slack').error('Server down!');
   /// ```
   static LogManager channel(String name) => _manager;
+
+  /// Replace the bound [LogManager] with a [FakeLogManager] for testing.
+  ///
+  /// Returns the [FakeLogManager] so callers can make assertions.
+  ///
+  /// ```dart
+  /// final fake = Log.fake();
+  ///
+  /// Log.error('Something failed');
+  ///
+  /// fake.assertLoggedError('Something failed');
+  /// ```
+  static FakeLogManager fake() {
+    final driver = FakeLogManager();
+    Magic.app.setInstance('log', driver);
+    return driver;
+  }
+
+  /// Restore the real [LogManager] binding, removing the fake.
+  ///
+  /// ```dart
+  /// Log.unfake();
+  /// ```
+  static void unfake() => Magic.app.removeInstance('log');
 }

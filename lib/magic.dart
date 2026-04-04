@@ -95,6 +95,12 @@ export 'src/logging/log_manager.dart';
 
 export 'src/facades/log.dart';
 
+// Testing
+export 'src/testing/fake_auth_manager.dart';
+export 'src/testing/fake_cache_manager.dart';
+export 'src/testing/fake_vault_service.dart';
+export 'src/testing/fake_log_manager.dart';
+
 // Database
 export 'src/database/database_manager.dart';
 export 'src/database/database_service_provider.dart';

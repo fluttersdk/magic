@@ -309,3 +309,7 @@ void main() {
   });
 }
 ```
+
+## See Also
+
+- [Facade Testing](facades.md) — `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()`

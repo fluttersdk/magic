@@ -29,6 +29,13 @@ class MagicVaultService {
     );
   }
 
+  /// Named constructor for testing — skips [FlutterSecureStorage] initialisation.
+  ///
+  /// Use this as the `super` constructor in [FakeVaultService] so that the
+  /// `late final _storage` field is never assigned and therefore never accessed.
+  // ignore: avoid_unused_constructor_parameters
+  MagicVaultService.forTesting();
+
   /// Store a value in the vault.
   Future<void> put(String key, String value) async {
     try {
