@@ -273,6 +273,14 @@ Resolves `Magic.make<NetworkDriver>('network')`.
 | `Http.delete(String url, {Map<String, String>? headers})` | `Future<MagicResponse>` | DELETE. |
 | `Http.upload(String url, {required Map<String, dynamic> data, required Map<String, dynamic> files, Map<String, String>? headers})` | `Future<MagicResponse>` | Multipart file upload. |
 
+**Testing utilities:**
+
+| Signature | Return Type | Notes |
+|-----------|-------------|-------|
+| `Http.fake([dynamic stubs])` | `FakeNetworkDriver` | Swap real driver for testing. No args = all 200. Map = URL pattern stubs (`*` wildcard). `FakeRequestHandler` = callback stub. |
+| `Http.response([dynamic data, int statusCode = 200])` | `MagicResponse` | Build a stub response. Use as values in the `fake()` stubs map. |
+| `Http.unfake()` | `void` | Restore real driver. Call in `tearDown`. |
+
 ```dart
 import 'package:magic/magic.dart';
 

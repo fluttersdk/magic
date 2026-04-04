@@ -83,6 +83,7 @@ export 'src/network/magic_response.dart';
 export 'src/network/contracts/magic_network_interceptor.dart';
 export 'src/network/contracts/network_driver.dart';
 export 'src/network/drivers/dio_network_driver.dart';
+export 'src/network/drivers/fake_network_driver.dart';
 export 'src/network/network_service_provider.dart';
 export 'src/facades/http.dart';
 

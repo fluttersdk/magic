@@ -218,6 +218,18 @@ class MagicApp {
     _instances[key] = value;
   }
 
+  /// Remove a cached instance from the container.
+  ///
+  /// After removal, the next `make()` call for this key will
+  /// resolve from the binding factory instead of the cached instance.
+  ///
+  /// ```dart
+  /// app.removeInstance('config');
+  /// ```
+  void removeInstance(String key) {
+    _instances.remove(key);
+  }
+
   // ---------------------------------------------------------------------------
   // Service Resolution
   // ---------------------------------------------------------------------------

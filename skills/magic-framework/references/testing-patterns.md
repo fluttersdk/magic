@@ -448,6 +448,106 @@ setUp(() {
 });
 ```
 
+## Http Faking
+
+Magic provides a built-in `Http.fake()` API — no third-party mock libraries needed. It swaps the IoC-bound `NetworkDriver` with a `FakeNetworkDriver` that records requests and returns stubbed responses.
+
+### setUp / tearDown Pattern
+
+```dart
+late FakeNetworkDriver fake;
+
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+
+  fake = Http.fake(); // All requests return 200 with null data by default
+});
+
+tearDown(() {
+  Http.unfake(); // Restore real driver
+});
+```
+
+### URL Pattern Stubs
+
+Patterns support `*` as a wildcard. Leading `/` is stripped before matching.
+
+```dart
+final fake = Http.fake({
+  'users/*': Http.response({'id': 1, 'name': 'Alice'}, 200),
+  'auth/login': Http.response({'token': 'test-token'}, 200),
+  'posts': Http.response({'message': 'Forbidden'}, 403),
+});
+
+final response = await Http.get('/users/42');
+expect(response['name'], 'Alice');
+```
+
+### Callback Stubs
+
+Pass a `FakeRequestHandler` for dynamic per-request logic.
+
+```dart
+final fake = Http.fake((request) {
+  if (request.method == 'DELETE') {
+    return Http.response({}, 403);
+  }
+
+  return Http.response({'ok': true}, 200);
+});
+```
+
+### Adding Stubs After Construction
+
+Use `fake.stub()` to register patterns incrementally. Later stubs take priority.
+
+```dart
+final fake = Http.fake();
+
+fake.stub('users/*', Http.response({'id': 1}, 200));
+fake.stub('users/99', Http.response({'error': 'Not found'}, 404)); // Takes priority
+```
+
+### Assertion Methods
+
+```dart
+// At least one request matched predicate
+fake.assertSent((r) => r.url.contains('users'));
+
+// No request matched predicate
+fake.assertNotSent((r) => r.url.contains('payments'));
+
+// Exactly zero requests
+fake.assertNothingSent();
+
+// Exact request count
+fake.assertSentCount(3);
+```
+
+### Prevent Stray Requests
+
+```dart
+final fake = Http.fake({
+  'users': Http.response([], 200),
+})..preventStrayRequests();
+
+// Throws StrayRequestException for any URL not matched above
+```
+
+### Reset Between Tests
+
+```dart
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+  fake = Http.fake();
+});
+
+// Or reset without restoring real driver:
+fake.reset(); // Clears recorded + stubs
+```
+
 ## Middleware Testing
 
 Middleware is tested by verifying whether it calls `next()` or halts the pipeline.
