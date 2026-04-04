@@ -461,7 +461,7 @@ setUp(() {
   MagicApp.reset();
   Magic.flush();
 
-  fake = Http.fake(); // All requests return 200 with null data by default
+  fake = Http.fake(); // All requests return 200 with empty data ({}) by default
 });
 
 tearDown(() {

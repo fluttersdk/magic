@@ -39,7 +39,7 @@ final fake = Http.fake();
 final response = await Http.get('/users');
 
 expect(response.successful, isTrue);
-expect(response.data, isNull);
+expect(response.data, equals({}));
 ```
 
 <a name="url-pattern-stubs"></a>

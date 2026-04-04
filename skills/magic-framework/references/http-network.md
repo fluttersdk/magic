@@ -433,7 +433,7 @@ setUp(() {
 Factory helper for building stub responses.
 
 ```dart
-Http.response()                                  // 200, null data
+Http.response()                                  // 200, empty Map ({})
 Http.response({'id': 1, 'name': 'Alice'})        // 200, Map
 Http.response({'message': 'Not found'}, 404)     // 404, Map
 Http.response([{'id': 1}, {'id': 2}], 200)       // 200, List
