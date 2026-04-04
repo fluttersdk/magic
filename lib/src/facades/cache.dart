@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../cache/cache_manager.dart';
 import '../foundation/magic.dart';
+import '../testing/fake_cache_manager.dart';
 
 /// Laravel-style Cache Facade.
 ///
@@ -91,4 +92,27 @@ class Cache {
     await put(key, value, ttl: ttl);
     return value;
   }
+
+  // ---------------------------------------------------------------------------
+  // Testing
+  // ---------------------------------------------------------------------------
+
+  /// Swap the real cache manager with a [FakeCacheManager] for testing.
+  ///
+  /// ```dart
+  /// final fake = Cache.fake();
+  /// await Cache.put('key', 'value');
+  /// fake.assertHas('key');
+  /// ```
+  static FakeCacheManager fake() {
+    final driver = FakeCacheManager();
+    Magic.app.setInstance('cache', driver);
+    return driver;
+  }
+
+  /// Restore the real cache manager after faking.
+  ///
+  /// Removes the fake instance so the next call resolves
+  /// the original singleton binding.
+  static void unfake() => Magic.app.removeInstance('cache');
 }

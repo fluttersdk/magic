@@ -548,6 +548,128 @@ setUp(() {
 fake.reset(); // Clears recorded + stubs
 ```
 
+## Facade Faking
+
+Magic provides built-in fakes for Auth, Cache, Vault, and Log — no third-party mock libraries needed. Each facade exposes `fake()` / `unfake()` methods that swap the IoC-bound service with an in-memory implementation.
+
+### setUp / tearDown Pattern
+
+```dart
+late FakeAuthManager authFake;
+late FakeCacheManager cacheFake;
+late FakeVaultService vaultFake;
+late FakeLogManager logFake;
+
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+
+  authFake = Auth.fake();         // In-memory auth, no storage
+  cacheFake = Cache.fake();       // In-memory cache, records operations
+  vaultFake = Vault.fake();       // In-memory secure storage, no platform channels
+  logFake = Log.fake();           // Captures log entries, no console output
+});
+
+tearDown(() {
+  Auth.unfake();
+  Cache.unfake();
+  Vault.unfake();
+  Log.unfake();
+});
+```
+
+### Auth.fake()
+
+```dart
+// Pre-authenticate with a user
+final fake = Auth.fake(user: myUser);
+expect(Auth.check(), isTrue);
+
+// Or start as guest
+final fake = Auth.fake();
+expect(Auth.guest, isTrue);
+
+// Assertions
+fake.assertLoggedIn();             // User is authenticated
+fake.assertLoggedOut();            // No user authenticated
+fake.assertLoginAttempted();       // At least one login() call
+fake.assertLoginCount(2);          // Exactly 2 login() calls
+```
+
+### Cache.fake()
+
+```dart
+final fake = Cache.fake();
+
+await Cache.put('users', ['Alice', 'Bob']);
+final value = Cache.get('users');
+
+// Assertions
+fake.assertHas('users');           // Key exists in store
+fake.assertMissing('missing_key'); // Key not in store
+fake.assertPut('users');           // put() was called with this key
+
+// Recorded operations: List<CacheRecord> ({operation, key, value})
+expect(fake.recorded.first.operation, 'put');
+```
+
+### Vault.fake()
+
+```dart
+// Pre-seed with initial values
+final fake = Vault.fake({'auth_token': 'seed-token'});
+
+await Vault.put('key', 'value');
+await Vault.delete('key');
+
+// Assertions
+fake.assertWritten('key');         // put() was called with this key
+fake.assertDeleted('key');         // delete() was called with this key
+fake.assertContains('key');        // Key currently exists in store
+fake.assertMissing('key');         // Key not in store
+
+// Recorded operations: List<VaultOperation> ({operation, key})
+expect(fake.recorded.first.operation, 'put');
+```
+
+### Log.fake()
+
+```dart
+final fake = Log.fake();
+
+Log.error('Payment failed', {'order': 42});
+Log.info('User logged in');
+
+// Assertions
+fake.assertLogged('error', 'Payment failed');  // Level + message match
+fake.assertLoggedError('Payment failed');       // Shorthand for error level
+fake.assertNothingLogged();                     // No entries at all
+fake.assertNothingLogged('warning');            // No entries at 'warning' level
+fake.assertLoggedCount(2);                      // Exactly 2 entries total
+
+// Entries: List<FakeLogEntry> ({level, message, context})
+expect(fake.entries[0].level, 'error');
+```
+
+### Reset Without Unfaking
+
+Use `fake.reset()` when reusing a fake across multiple tests in a group:
+
+```dart
+final logFake = Log.fake();
+
+test('first test', () {
+  Log.error('a');
+  logFake.assertLoggedCount(1);
+  logFake.reset(); // Clear entries — fake remains installed
+});
+
+test('second test', () {
+  Log.error('b');
+  logFake.assertLoggedCount(1); // Starts from zero
+});
+```
+
 ## Middleware Testing
 
 Middleware is tested by verifying whether it calls `next()` or halts the pipeline.

@@ -1,5 +1,6 @@
 import '../foundation/magic.dart';
 import '../security/magic_vault_service.dart';
+import '../testing/fake_vault_service.dart';
 
 /// The Vault Facade.
 ///
@@ -35,4 +36,30 @@ class Vault {
   static Future<void> flush() async {
     return _service.flush();
   }
+
+  // ---------------------------------------------------------------------------
+  // Testing helpers
+  // ---------------------------------------------------------------------------
+
+  /// Swap the vault service with a [FakeVaultService] for testing.
+  ///
+  /// Returns the fake so tests can inspect recorded operations and run
+  /// assertions.
+  ///
+  /// ```dart
+  /// final fake = Vault.fake({'token': 'seed_value'});
+  /// await Vault.put('key', 'value');
+  /// fake.assertWritten('key');
+  /// ```
+  static FakeVaultService fake([Map<String, String> initialValues = const {}]) {
+    final driver = FakeVaultService(initialValues);
+    Magic.app.setInstance('vault', driver);
+    return driver;
+  }
+
+  /// Remove the [FakeVaultService] from the container.
+  ///
+  /// After this call the container falls back to its registered binding,
+  /// restoring normal resolution behaviour.
+  static void unfake() => Magic.app.removeInstance('vault');
 }

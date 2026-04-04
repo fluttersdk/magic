@@ -40,6 +40,9 @@ class AuthManager {
 
   AuthManager._internal();
 
+  /// Named constructor for testing — allows subclasses to bypass the singleton.
+  AuthManager.forTesting() : _userFactory = null;
+
   /// Resolved guard instances.
   final Map<String, Guard> _guards = {};
 

@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 import '../auth/auth_manager.dart';
-import '../auth/contracts/guard.dart';
 import '../auth/authenticatable.dart';
+import '../auth/contracts/guard.dart';
 import '../database/eloquent/model.dart';
+import '../foundation/magic.dart';
+import '../testing/fake_auth_manager.dart';
 
 /// The Auth Facade.
 ///
@@ -38,7 +40,7 @@ import '../database/eloquent/model.dart';
 /// ```
 class Auth {
   /// The auth manager instance.
-  static final AuthManager _manager = AuthManager();
+  static AuthManager get _manager => Magic.make<AuthManager>('auth');
 
   /// Get the auth manager.
   static AuthManager get manager => _manager;
@@ -190,4 +192,26 @@ class Auth {
   /// Auth.stateNotifier.addListener(() => setState(() {}));
   /// ```
   static ValueNotifier<int> get stateNotifier => guard().stateNotifier;
+
+  // ---------------------------------------------------------------------------
+  // Testing
+  // ---------------------------------------------------------------------------
+
+  /// Replace the auth manager with a [FakeAuthManager] for testing.
+  ///
+  /// Optionally pre-authenticates with the given [user].
+  ///
+  /// ```dart
+  /// final fake = Auth.fake(user: myUser);
+  /// expect(Auth.check(), isTrue);
+  /// fake.assertLoggedIn();
+  /// ```
+  static FakeAuthManager fake({Authenticatable? user}) {
+    final driver = FakeAuthManager(user: user);
+    Magic.app.setInstance('auth', driver);
+    return driver;
+  }
+
+  /// Remove the fake and restore normal auth resolution.
+  static void unfake() => Magic.app.removeInstance('auth');
 }
