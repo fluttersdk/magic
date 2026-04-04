@@ -448,6 +448,58 @@ setUp(() {
 });
 ```
 
+## Test Bootstrap
+
+Magic ships a `MagicTest` helper in `package:magic/testing.dart` that replaces boilerplate `setUp`/`tearDown` wiring.
+
+### Unit / Widget Tests — `MagicTest.init()`
+
+Call once at the top of `main()`. Registers all hooks automatically:
+
+```dart
+import 'package:magic/testing.dart';
+
+void main() {
+  MagicTest.init(); // setUpAll + setUp + tearDown wired in one call
+
+  test('container is clean', () {
+    // MagicApp.reset() + Magic.flush() already ran
+  });
+}
+```
+
+Hooks registered by `MagicTest.init()`:
+- `setUpAll` → `TestWidgetsFlutterBinding.ensureInitialized()`
+- `setUp` → `MagicApp.reset()` + `Magic.flush()`
+- `tearDown` → `Magic.flush()`
+
+### Integration Tests — `MagicTest.boot()`
+
+Use when providers must boot (full `Magic.init()` lifecycle):
+
+```dart
+import 'package:magic/testing.dart';
+
+void main() {
+  setUpAll(() async {
+    await MagicTest.boot(
+      configs: [
+        {'database': {'default': 'sqlite', 'connections': {'sqlite': {'driver': 'sqlite', 'database': ':memory:'}}}},
+      ],
+      envFileName: '.env.testing',
+    );
+  });
+
+  test('full lifecycle', () async {
+    // All service providers have run register() + boot()
+  });
+}
+```
+
+**When to use which:**
+- `MagicTest.init()` — unit tests, controller tests, validation tests, facade faking
+- `MagicTest.boot()` — integration tests that exercise the full provider lifecycle
+
 ## Http Faking
 
 Magic provides a built-in `Http.fake()` API — no third-party mock libraries needed. It swaps the IoC-bound `NetworkDriver` with a `FakeNetworkDriver` that records requests and returns stubbed responses.
