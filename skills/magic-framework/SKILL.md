@@ -421,7 +421,7 @@ All major facades support `fake()` / `unfake()` — no third-party mock librarie
 | `Http.fake([stubs])` | `FakeNetworkDriver` | `assertSent`, `assertNotSent`, `assertSentCount`, `assertNothingSent` |
 | `Auth.fake({user:})` | `FakeAuthManager` | `assertLoggedIn`, `assertLoggedOut`, `assertLoginAttempted`, `assertLoginCount` |
 | `Cache.fake()` | `FakeCacheManager` | `assertHas`, `assertMissing`, `assertPut` |
-| `Vault.fake({initialValues:})` | `FakeVaultService` | `assertWritten`, `assertDeleted`, `assertContains`, `assertMissing` |
+| `Vault.fake([initialValues])` | `FakeVaultService` | `assertWritten`, `assertDeleted`, `assertContains`, `assertMissing` |
 | `Log.fake()` | `FakeLogManager` | `assertLogged`, `assertLoggedError`, `assertNothingLogged`, `assertLoggedCount` |
 
 ```dart
