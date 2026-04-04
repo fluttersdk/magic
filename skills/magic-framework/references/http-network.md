@@ -395,6 +395,85 @@ final users = response['data']; // [{"id": 1, "name": "John"}]
 // Or: response.data['data']
 ```
 
+## Testing
+
+Magic provides a built-in `Http.fake()` API that swaps the real `NetworkDriver` with a `FakeNetworkDriver`. No third-party mock libraries are required.
+
+### `Http.fake([dynamic stubs])` → `FakeNetworkDriver`
+
+Registers a fake driver in the IoC container and returns it for assertion.
+
+- No args — all requests return 200 with `null` data.
+- `Map<String, MagicResponse>` — URL pattern to response mapping (`*` wildcard supported).
+- `FakeRequestHandler` — callback receiving `MagicRequest`, returning `MagicResponse`.
+
+```dart
+setUp(() {
+  MagicApp.reset();
+  Magic.flush();
+
+  // All requests → 200 empty
+  final fake = Http.fake();
+
+  // URL pattern stubs
+  final fake = Http.fake({
+    'users/*': Http.response({'id': 1, 'name': 'Alice'}, 200),
+    'auth/login': Http.response({'token': 'abc'}, 200),
+  });
+
+  // Callback stub
+  final fake = Http.fake((request) {
+    return Http.response({'ok': true}, 200);
+  });
+});
+```
+
+### `Http.response([dynamic data, int statusCode = 200])` → `MagicResponse`
+
+Factory helper for building stub responses.
+
+```dart
+Http.response()                                  // 200, empty Map ({})
+Http.response({'id': 1, 'name': 'Alice'})        // 200, Map
+Http.response({'message': 'Not found'}, 404)     // 404, Map
+Http.response([{'id': 1}, {'id': 2}], 200)       // 200, List
+```
+
+### `Http.unfake()` → `void`
+
+Removes the fake from the IoC container and restores the original singleton binding. Call in `tearDown`.
+
+```dart
+tearDown(() {
+  Http.unfake();
+});
+```
+
+### Assertion Methods on `FakeNetworkDriver`
+
+| Method | Description |
+|:-------|:------------|
+| `assertSent(bool Function(MagicRequest) predicate)` | Pass if at least one recorded request matches. |
+| `assertNotSent(bool Function(MagicRequest) predicate)` | Pass if no recorded request matches. |
+| `assertNothingSent()` | Pass if no requests were recorded at all. |
+| `assertSentCount(int expected)` | Pass if exactly `expected` requests were recorded. |
+| `preventStrayRequests()` | Throw `StrayRequestException` for unmatched requests. |
+| `stub(String pattern, MagicResponse)` | Add a URL pattern stub after construction. |
+| `reset()` | Clear recorded requests and stubs without restoring real driver. |
+| `recorded` | `List<(MagicRequest, MagicResponse)>` of all request/response pairs. |
+
+```dart
+final fake = Http.fake({
+  'users/*': Http.response({'id': 1}, 200),
+})..preventStrayRequests();
+
+await Http.get('/users/42');
+
+fake.assertSent((r) => r.url.contains('users'));
+fake.assertSentCount(1);
+fake.assertNotSent((r) => r.method == 'DELETE');
+```
+
 ## Gotchas
 
 - **Null data on network errors**: `response.data` is `null` for timeouts or connection failures. Always guard before access.

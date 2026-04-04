@@ -1,5 +1,6 @@
 import '../foundation/magic.dart';
 import '../network/contracts/network_driver.dart';
+import '../network/drivers/fake_network_driver.dart';
 import '../network/magic_response.dart';
 
 /// The HTTP Facade.
@@ -112,5 +113,38 @@ class Http {
     Map<String, String>? headers,
   }) {
     return _driver.upload(url, data: data, files: files, headers: headers);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Testing Utilities
+  // ---------------------------------------------------------------------------
+
+  /// Fake all HTTP requests for testing.
+  ///
+  /// Replaces the real [NetworkDriver] in the IoC container with a
+  /// [FakeNetworkDriver] that returns stubbed responses and records
+  /// all requests for assertion.
+  ///
+  /// [stubs] can be:
+  /// - `null` → all requests return 200 empty response
+  /// - `Map<String, MagicResponse>` → URL pattern to response mapping
+  /// - `FakeRequestHandler` → callback invoked for every request
+  static FakeNetworkDriver fake([dynamic stubs]) {
+    final driver = FakeNetworkDriver(stubs: stubs);
+    Magic.app.setInstance('network', driver);
+    return driver;
+  }
+
+  /// Create a stubbed [MagicResponse] for use with [fake].
+  static MagicResponse response([dynamic data, int statusCode = 200]) {
+    return MagicResponse(data: data ?? {}, statusCode: statusCode);
+  }
+
+  /// Restore the real HTTP driver after faking.
+  ///
+  /// Removes the fake instance so the next `make()` resolves
+  /// the original singleton binding.
+  static void unfake() {
+    Magic.app.removeInstance('network');
   }
 }
