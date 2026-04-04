@@ -59,6 +59,7 @@ final user = await User.find(1);
 | 💾 | **Caching** | Memory and file drivers with TTL and `remember()` |
 | 🌍 | **Localization** | JSON-based i18n with `:attribute` placeholders |
 | 🎨 | **Wind UI** | Built-in Tailwind CSS-like styling with `className` syntax |
+| 🧪 | **Testing** | Laravel-style `Http.fake()`, `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()` — no mockito needed |
 | 🧰 | **Magic CLI** | Artisan-style code generation: `magic make:model`, `magic make:controller` |
 
 ## Quick Start
@@ -97,13 +98,7 @@ The CLI sets up everything: directory structure, config files, service providers
 class UserController extends MagicController with MagicStateMixin<List<User>> {
   static UserController get instance => Magic.findOrPut(UserController.new);
 
-  Future<void> fetchUsers() async {
-    setLoading();
-    final response = await Http.get('/users');
-    response.successful
-        ? setSuccess(response.data['data'].map((e) => User.fromMap(e)).toList())
-        : setError(response.firstError ?? 'Failed to load');
-  }
+  Future<void> fetchUsers() => fetchList('users', User.fromMap);
 
   Widget index() => renderState(
     (users) => ListView.builder(
@@ -395,6 +390,39 @@ dart run magic:magic make:enum Status             # Enum class
 
 > [!TIP]
 > If you activated the CLI globally (`dart pub global activate magic_cli`), you can use the shorter `magic <command>` syntax instead.
+
+## Testing
+
+Magic ships with first-class test fakes — no third-party mock libraries needed.
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/testing.dart';
+
+void main() {
+  MagicTest.init(); // Auto-registers setUp/tearDown with clean container
+
+  test('fetches users', () async {
+    Http.fake({
+      'users': Http.response({'data': [{'id': 1, 'name': 'Alice'}]}, 200),
+    });
+
+    final controller = UserController();
+    await controller.fetchUsers();
+
+    expect(controller.isSuccess, isTrue);
+  });
+
+  test('auth fake', () {
+    final fake = Auth.fake(user: testUser);
+
+    expect(Auth.check(), isTrue);
+    fake.assertLoggedIn();
+  });
+}
+```
+
+All facades support `fake()` / `unfake()`: `Http`, `Auth`, `Cache`, `Vault`, `Log`. Each fake records operations and exposes assertion helpers.
 
 ## Architecture
 

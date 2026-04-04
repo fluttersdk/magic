@@ -2,13 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0.0-alpha.6] - 2026-04-05
 
 ### ✨ Features
-- `MagicTest.init()` / `MagicTest.boot()` — standardized test bootstrap helper, `package:magic/testing.dart` barrel export (#21)
-- `fetchList()` / `fetchOne()` on `MagicStateMixin` — auto state management for HTTP fetches (#20)
 - **Http Faking**: `Http.fake()` enables Laravel-style HTTP faking for testing. Swap the real network driver with a `FakeNetworkDriver` that records requests and returns stubbed responses. Supports URL pattern stubs, callback stubs, and assertion methods (`assertSent`, `assertNotSent`, `assertNothingSent`, `assertSentCount`). (#18)
 - **Facade Faking**: `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()` — Laravel-style facade faking for testing. Swap real service implementations with in-memory fakes that record operations and expose assertion helpers. (#19)
+- **Fetch Helpers**: `fetchList()` / `fetchOne()` on `MagicStateMixin` — auto state management for HTTP fetches with defensive type guards against malformed responses (#20)
+- **MagicTest**: `MagicTest.init()` / `MagicTest.boot()` — standardized test bootstrap helper, `package:magic/testing.dart` barrel export (#21)
+
+### 🐛 Bug Fixes
+- **Log.channel()**: Now returns `LoggerDriver` via `_manager.driver(name)` instead of `LogManager`, enabling `Log.channel('slack').error(...)` as documented (#27)
+- **Http.response() null data**: Sentinel pattern allows `Http.response(null, 204)` for No Content stubs while `Http.response()` still returns mutable empty map (#26)
+- **URL pattern escaping**: `FakeNetworkDriver` stub patterns now escape regex metacharacters (`.`, `?`, `+`) via `RegExp.escape()` — only `*` is treated as wildcard (#26)
+- **fetchList/fetchOne defensive guards**: Type-check `response.data` as `Map` before indexing, filter non-`Map` elements in lists via `whereType<Map>()`, guard `fetchOne` data cast (#28)
 
 ## [1.0.0-alpha.5] - 2026-03-29
 
