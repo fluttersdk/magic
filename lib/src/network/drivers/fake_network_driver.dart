@@ -282,7 +282,7 @@ class _Stub {
   final FakeRequestHandler? _handler;
 
   _Stub.pattern(String pattern, MagicResponse response)
-    : _pattern = RegExp('^${pattern.replaceAll('*', '.*')}\$'),
+    : _pattern = RegExp('^${RegExp.escape(pattern).replaceAll(r'\*', '.*')}\$'),
       _response = response,
       _handler = null;
 

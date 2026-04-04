@@ -136,8 +136,11 @@ class Http {
   }
 
   /// Create a stubbed [MagicResponse] for use with [fake].
-  static MagicResponse response([dynamic data, int statusCode = 200]) {
-    return MagicResponse(data: data ?? {}, statusCode: statusCode);
+  static MagicResponse response([
+    dynamic data = const <String, dynamic>{},
+    int statusCode = 200,
+  ]) {
+    return MagicResponse(data: data, statusCode: statusCode);
   }
 
   /// Restore the real HTTP driver after faking.
