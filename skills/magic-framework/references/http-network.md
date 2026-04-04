@@ -344,6 +344,83 @@ The mixin provides:
 - `hasError(String field)`: Check if a field has errors
 - `fieldError(String field)`: Get error message for a field
 
+## MagicStateMixin Fetch Helpers
+
+`MagicStateMixin<T>` ships `fetchList()` and `fetchOne()` to eliminate boilerplate loading/success/error state transitions for HTTP fetches.
+
+### `fetchList<E>(url, fromMap, {dataKey, query, headers})`
+
+Fetches a JSON array under `dataKey` (default `'data'`) and calls `setSuccess(items)`, `setEmpty()`, or `setError(message)` automatically.
+
+```dart
+class ProjectController extends MagicController
+    with MagicStateMixin<List<Project>> {
+  Future<void> loadProjects(String teamId) =>
+      fetchList('teams/$teamId/projects', Project.fromMap);
+}
+```
+
+Signature:
+```dart
+Future<void> fetchList<E>(
+  String url,
+  E Function(Map<String, dynamic>) fromMap, {
+  String dataKey = 'data',
+  Map<String, dynamic>? query,
+  Map<String, String>? headers,
+})
+```
+
+Note: `E` is the element type of the list. The resulting `List<E>` is cast to `T` (the mixin's type parameter), so declare the controller as `MagicStateMixin<List<E>>`.
+
+### `fetchOne(url, fromMap, {dataKey, query, headers})`
+
+Fetches a single object under `dataKey` (default `'data'`) and calls `setSuccess(item)` or `setError(message)` automatically.
+
+```dart
+class ProjectDetailController extends MagicController
+    with MagicStateMixin<Project> {
+  Future<void> loadProject(String id) =>
+      fetchOne('projects/$id', Project.fromMap);
+}
+```
+
+Signature:
+```dart
+Future<void> fetchOne(
+  String url,
+  T Function(Map<String, dynamic>) fromMap, {
+  String dataKey = 'data',
+  Map<String, dynamic>? query,
+  Map<String, String>? headers,
+})
+```
+
+State transition table (both helpers):
+
+| Condition | State |
+|-----------|-------|
+| Response `failed` (>= 400) | `setError(response.errorMessage ?? 'Failed to load')` |
+| `fetchList`: list null or empty | `setEmpty()` |
+| `fetchOne`: `dataKey` value null | `setError('Resource not found')` |
+| Data present | `setSuccess(parsed)` |
+
+Testing with `Http.fake()`:
+```dart
+Http.fake({
+  'teams/*/projects': Http.response({
+    'data': [
+      {'id': 1, 'name': 'Project A'},
+    ],
+  }, 200),
+});
+
+await controller.loadProjects('team-1');
+
+expect(controller.isSuccess, isTrue);
+expect(controller.rxState?.length, 1);
+```
+
 ## Common Patterns
 
 ### Error Handling with Network Requests

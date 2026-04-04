@@ -310,6 +310,133 @@ void main() {
 }
 ```
 
+## Testing fetchList and fetchOne
+
+Controllers that use `fetchList()` or `fetchOne()` from `MagicStateMixin` can be tested with `Http.fake()` the same way as any other HTTP call. Stub the URL the helper will request, then assert on the resulting controller state.
+
+### fetchList
+
+```dart
+// lib/controllers/project_controller.dart
+class ProjectController extends MagicController
+    with MagicStateMixin<List<Project>> {
+  Future<void> loadProjects(String teamId) =>
+      fetchList('teams/$teamId/projects', Project.fromMap);
+}
+
+// test/http/project_controller_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+void main() {
+  group('ProjectController.fetchList', () {
+    late ProjectController controller;
+    late FakeNetworkDriver fake;
+
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+
+      controller = ProjectController();
+      Magic.put<ProjectController>(controller);
+
+      fake = Http.fake({
+        'teams/*/projects': Http.response({
+          'data': [
+            {'id': 1, 'name': 'Project A'},
+            {'id': 2, 'name': 'Project B'},
+          ],
+        }, 200),
+      });
+    });
+
+    tearDown(() => Http.unfake());
+
+    test('sets success state with parsed list', () async {
+      await controller.loadProjects('team-1');
+
+      expect(controller.isSuccess, isTrue);
+      expect(controller.rxState?.length, 2);
+      expect(controller.rxState?.first.name, 'Project A');
+      fake.assertSent((r) => r.url.contains('teams/team-1/projects'));
+    });
+
+    test('sets empty state when data list is empty', () async {
+      fake.stub('teams/*/projects', Http.response({'data': []}, 200));
+
+      await controller.loadProjects('team-1');
+
+      expect(controller.isEmpty, isTrue);
+    });
+
+    test('sets error state on failed response', () async {
+      fake.stub(
+        'teams/*/projects',
+        Http.response({'message': 'Unauthorized'}, 401),
+      );
+
+      await controller.loadProjects('team-1');
+
+      expect(controller.isError, isTrue);
+    });
+  });
+}
+```
+
+### fetchOne
+
+```dart
+// lib/controllers/project_detail_controller.dart
+class ProjectDetailController extends MagicController
+    with MagicStateMixin<Project> {
+  Future<void> loadProject(String id) =>
+      fetchOne('projects/$id', Project.fromMap);
+}
+
+// test/http/project_detail_controller_test.dart
+void main() {
+  group('ProjectDetailController.fetchOne', () {
+    late ProjectDetailController controller;
+    late FakeNetworkDriver fake;
+
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+
+      controller = ProjectDetailController();
+      Magic.put<ProjectDetailController>(controller);
+
+      fake = Http.fake({
+        'projects/*': Http.response({
+          'data': {'id': 1, 'name': 'Project A'},
+        }, 200),
+      });
+    });
+
+    tearDown(() => Http.unfake());
+
+    test('sets success state with parsed model', () async {
+      await controller.loadProject('1');
+
+      expect(controller.isSuccess, isTrue);
+      expect(controller.rxState?.name, 'Project A');
+      fake.assertSent((r) => r.url.contains('projects/1'));
+    });
+
+    test('sets error state when data key is absent', () async {
+      fake.stub('projects/*', Http.response({'meta': {}}, 200));
+
+      await controller.loadProject('1');
+
+      expect(controller.isError, isTrue);
+    });
+  });
+}
+```
+
+> [!TIP]
+> Use `fake.stub()` inside individual tests to override the default stub registered in `setUp`. This keeps the happy path in `setUp` and edge cases inline.
+
 ## See Also
 
 - [Facade Testing](facades.md) — `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()`
