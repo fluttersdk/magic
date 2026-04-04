@@ -2,7 +2,7 @@
 
 Laravel-inspired Flutter framework with Facades, Eloquent ORM, Service Providers, and IoC Container.
 
-**Version:** 1.0.0-alpha.5 · **Dart:** >=3.11.0 · **Flutter:** >=3.41.0
+**Dart:** >=3.11.0 · **Flutter:** >=3.41.0
 
 ## Commands
 
