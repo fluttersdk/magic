@@ -220,9 +220,14 @@ mixin MagicStateMixin<T> on MagicController {
       return;
     }
 
-    final items = rawList
-        .map((e) => fromMap(e as Map<String, dynamic>))
-        .toList();
+    final validElements = rawList.whereType<Map<String, dynamic>>();
+
+    if (validElements.isEmpty) {
+      setEmpty();
+      return;
+    }
+
+    final items = validElements.map(fromMap).toList();
 
     setSuccess(items as T);
   }

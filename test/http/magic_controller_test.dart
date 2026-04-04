@@ -381,5 +381,34 @@ void main() {
 
       expect(controller.isEmpty, isTrue);
     });
+
+    test('list with non-map elements: filters them out gracefully', () async {
+      Http.fake({
+        'items': Http.response({
+          'data': ['string', 42, null],
+        }, 200),
+      });
+
+      await controller.fetchList<Map<String, dynamic>>('items', (m) => m);
+
+      expect(controller.isEmpty, isTrue);
+    });
+
+    test('list with mixed elements: only maps are kept', () async {
+      Http.fake({
+        'items': Http.response({
+          'data': [
+            {'id': 1},
+            'invalid',
+            {'id': 2},
+          ],
+        }, 200),
+      });
+
+      await controller.fetchList<Map<String, dynamic>>('items', (m) => m);
+
+      expect(controller.isSuccess, isTrue);
+      expect(controller.rxState!.length, equals(2));
+    });
   });
 }
