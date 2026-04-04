@@ -129,6 +129,86 @@ class UserController extends MagicController
 | `isEmpty` | bool | Empty/no data |
 | `rxState` | T? | The current data |
 
+<a name="fetch-helpers"></a>
+### Fetch Helpers
+
+`MagicStateMixin` ships two convenience methods that handle the full loading → success/error/empty cycle without boilerplate. Both delegate to `Http.get()` internally.
+
+#### `fetchList<E>`
+
+Fetch a paginated or collection endpoint. The response body must contain a JSON array under `dataKey` (default: `'data'`).
+
+```dart
+Future<void> fetchList<E>(
+  String url,
+  E Function(Map<String, dynamic>) fromMap, {
+  String dataKey = 'data',
+  Map<String, dynamic>? query,
+  Map<String, String>? headers,
+})
+```
+
+```dart
+class ProjectController extends MagicController
+    with MagicStateMixin<List<Project>> {
+
+  static ProjectController get instance =>
+      Magic.findOrPut(ProjectController.new);
+
+  Future<void> loadProjects(String teamId) =>
+      fetchList('teams/$teamId/projects', Project.fromMap);
+
+  // With query parameters
+  Future<void> search(String q) =>
+      fetchList('projects', Project.fromMap, query: {'q': q});
+}
+```
+
+State transitions:
+
+| Condition | Resulting State |
+|-----------|----------------|
+| Request fails (4xx/5xx) | `isError` with `response.errorMessage` |
+| `dataKey` list is null or empty | `isEmpty` |
+| List has items | `isSuccess` with `List<E>` cast to `T` |
+
+#### `fetchOne`
+
+Fetch a single resource. The response body must contain the resource object under `dataKey` (default: `'data'`).
+
+```dart
+Future<void> fetchOne(
+  String url,
+  T Function(Map<String, dynamic>) fromMap, {
+  String dataKey = 'data',
+  Map<String, dynamic>? query,
+  Map<String, String>? headers,
+})
+```
+
+```dart
+class ProjectDetailController extends MagicController
+    with MagicStateMixin<Project> {
+
+  static ProjectDetailController get instance =>
+      Magic.findOrPut(ProjectDetailController.new);
+
+  Future<void> loadProject(String id) =>
+      fetchOne('projects/$id', Project.fromMap);
+}
+```
+
+State transitions:
+
+| Condition | Resulting State |
+|-----------|----------------|
+| Request fails (4xx/5xx) | `isError` with `response.errorMessage` |
+| `dataKey` value is null | `isError` with `'Resource not found'` |
+| Data present | `isSuccess` with parsed `T` |
+
+> [!TIP]
+> Both helpers accept optional `query` and `headers` parameters, forwarded directly to `Http.get()`. Use `query` for pagination or filtering parameters.
+
 <a name="rendering-state"></a>
 ### Rendering State
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 
+import '../facades/http.dart';
 import 'rx_status.dart';
 
 /// The Base Controller for Magic MVC.
@@ -180,6 +181,74 @@ mixin MagicStateMixin<T> on MagicController {
   /// ```
   void setEmpty() {
     setState(null, status: const RxStatus.empty());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fetch Helpers
+  // ---------------------------------------------------------------------------
+
+  /// Fetch a list of resources and auto-manage loading/success/error/empty states.
+  ///
+  /// ```dart
+  /// await fetchList<User>('api/users', User.fromMap);
+  /// ```
+  Future<void> fetchList<E>(
+    String url,
+    E Function(Map<String, dynamic>) fromMap, {
+    String dataKey = 'data',
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    setLoading();
+    final response = await Http.get(url, query: query, headers: headers);
+
+    if (response.failed) {
+      setError(response.errorMessage ?? 'Failed to load');
+      return;
+    }
+
+    final rawList = response.data[dataKey] as List?;
+
+    if (rawList == null || rawList.isEmpty) {
+      setEmpty();
+      return;
+    }
+
+    final items = rawList
+        .map((e) => fromMap(e as Map<String, dynamic>))
+        .toList();
+
+    setSuccess(items as T);
+  }
+
+  /// Fetch a single resource and auto-manage loading/success/error states.
+  ///
+  /// ```dart
+  /// await fetchOne('api/users/1', User.fromMap);
+  /// ```
+  Future<void> fetchOne(
+    String url,
+    T Function(Map<String, dynamic>) fromMap, {
+    String dataKey = 'data',
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    setLoading();
+    final response = await Http.get(url, query: query, headers: headers);
+
+    if (response.failed) {
+      setError(response.errorMessage ?? 'Failed to load');
+      return;
+    }
+
+    final data = response.data[dataKey];
+
+    if (data == null) {
+      setError('Resource not found');
+      return;
+    }
+
+    setSuccess(fromMap(data as Map<String, dynamic>));
   }
 
   /// Render UI based on current status.
