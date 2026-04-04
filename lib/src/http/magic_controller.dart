@@ -207,9 +207,15 @@ mixin MagicStateMixin<T> on MagicController {
       return;
     }
 
-    final rawList = response.data[dataKey] as List?;
+    final Object? payload = response.data;
+    if (payload is! Map<String, dynamic>) {
+      setEmpty();
+      return;
+    }
 
-    if (rawList == null || rawList.isEmpty) {
+    final rawList = payload[dataKey];
+
+    if (rawList is! List || rawList.isEmpty) {
       setEmpty();
       return;
     }
@@ -241,14 +247,25 @@ mixin MagicStateMixin<T> on MagicController {
       return;
     }
 
-    final data = response.data[dataKey];
+    final Object? payload = response.data;
+    if (payload is! Map<String, dynamic>) {
+      setError('Invalid response format');
+      return;
+    }
+
+    final data = payload[dataKey];
 
     if (data == null) {
       setError('Resource not found');
       return;
     }
 
-    setSuccess(fromMap(data as Map<String, dynamic>));
+    if (data is! Map<String, dynamic>) {
+      setError('Invalid response: "$dataKey" must contain a JSON object');
+      return;
+    }
+
+    setSuccess(fromMap(data));
   }
 
   /// Render UI based on current status.

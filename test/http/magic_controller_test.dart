@@ -329,5 +329,57 @@ void main() {
       expect(controller.isSuccess, isTrue);
       expect(controller.isLoading, isFalse);
     });
+
+    test('non-map response data: sets isError with format message', () async {
+      Http.fake({'user': Http.response('plain string', 200)});
+
+      await controller.fetchOne('user', (m) => m);
+
+      expect(controller.isError, isTrue);
+      expect(controller.rxStatus.message, contains('Invalid response'));
+    });
+
+    test('non-map data under dataKey: sets isError', () async {
+      Http.fake({
+        'user': Http.response({'data': 'not a map'}, 200),
+      });
+
+      await controller.fetchOne('user', (m) => m);
+
+      expect(controller.isError, isTrue);
+      expect(controller.rxStatus.message, contains('Invalid response'));
+    });
+  });
+
+  group('MagicStateMixin.fetchList — defensive', () {
+    late _ListController controller;
+
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+      controller = _ListController();
+    });
+
+    tearDown(() {
+      Http.unfake();
+    });
+
+    test('non-map response data: sets isEmpty', () async {
+      Http.fake({'items': Http.response('plain string', 200)});
+
+      await controller.fetchList<Map<String, dynamic>>('items', (m) => m);
+
+      expect(controller.isEmpty, isTrue);
+    });
+
+    test('non-list data under dataKey: sets isEmpty', () async {
+      Http.fake({
+        'items': Http.response({'data': 'not a list'}, 200),
+      });
+
+      await controller.fetchList<Map<String, dynamic>>('items', (m) => m);
+
+      expect(controller.isEmpty, isTrue);
+    });
   });
 }
