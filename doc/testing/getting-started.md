@@ -32,22 +32,42 @@ test/
 
 ### Test Helper
 
-Create a `test/test_helper.dart` for common setup:
+Magic provides a `MagicTest` bootstrap helper via `package:magic/testing.dart`. Call `MagicTest.init()` once at the top of `main()` — it registers `setUpAll`, `setUp`, and `tearDown` automatically:
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:magic/magic.dart';
+import 'package:magic/testing.dart';
 
-Future<void> setupTestEnvironment() async {
-  TestWidgetsFlutterBinding.ensureInitialized();
-  
-  await Magic.init(
-    envFileName: '.env.testing',
-    configFactories: [
-      () => appConfig,
-      () => testDatabaseConfig,
-    ],
-  );
+void main() {
+  MagicTest.init(); // Registers setUpAll + setUp + tearDown automatically
+
+  test('my test', () {
+    // Magic container is clean, facades are reset
+  });
+}
+```
+
+`MagicTest.init()` handles:
+- `setUpAll`: `TestWidgetsFlutterBinding.ensureInitialized()`
+- `setUp`: `MagicApp.reset()` + `Magic.flush()`
+- `tearDown`: `Magic.flush()`
+
+For integration tests that need a full `Magic.init()` lifecycle, use `MagicTest.boot()` instead:
+
+```dart
+import 'package:magic/testing.dart';
+
+void main() {
+  setUpAll(() async {
+    await MagicTest.boot(
+      configs: [testDatabaseConfig],
+      envFileName: '.env.testing',
+    );
+  });
+
+  test('full lifecycle test', () async {
+    // Magic is fully initialised with providers booted
+  });
 }
 
 Map<String, dynamic> get testDatabaseConfig => {
@@ -56,7 +76,7 @@ Map<String, dynamic> get testDatabaseConfig => {
     'connections': {
       'sqlite': {
         'driver': 'sqlite',
-        'database': ':memory:',  // In-memory for tests
+        'database': ':memory:', // In-memory for tests
       },
     },
   },
@@ -70,12 +90,10 @@ Map<String, dynamic> get testDatabaseConfig => {
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
-import '../test_helper.dart';
+import 'package:magic/testing.dart';
 
 void main() {
-  setUpAll(() async {
-    await setupTestEnvironment();
-  });
+  MagicTest.init();
 
   group('User', () {
     test('can create a user', () async {
