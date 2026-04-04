@@ -1,4 +1,5 @@
 import '../foundation/magic.dart';
+import '../logging/contracts/logger_driver.dart';
 import '../logging/log_manager.dart';
 import '../testing/fake_log_manager.dart';
 
@@ -54,7 +55,7 @@ class Log {
   /// ```dart
   /// Log.channel('slack').error('Server down!');
   /// ```
-  static LogManager channel(String name) => _manager;
+  static LoggerDriver channel(String name) => _manager.driver(name);
 
   /// Replace the bound [LogManager] with a [FakeLogManager] for testing.
   ///

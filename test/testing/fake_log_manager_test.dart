@@ -387,7 +387,29 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 11. Log.unfake()
+  // 11. Log.channel()
+  // ---------------------------------------------------------------------------
+
+  group('Log.channel()', () {
+    test('returns a LoggerDriver for the named channel', () {
+      Log.fake();
+
+      final driver = Log.channel('console');
+
+      expect(driver, isA<LoggerDriver>());
+    });
+
+    test('channel driver can log messages', () {
+      final fake = Log.fake();
+
+      Log.channel('console').error('channel error');
+
+      fake.assertLoggedError('channel error');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 12. Log.unfake()
   // ---------------------------------------------------------------------------
 
   group('Log.unfake()', () {

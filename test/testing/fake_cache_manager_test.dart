@@ -244,7 +244,25 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 7. reset()
+  // 7. driver() and init()
+  // ---------------------------------------------------------------------------
+
+  group('driver and init', () {
+    test('driver returns a CacheStore', () {
+      final fake = FakeCacheManager();
+
+      expect(fake.driver(), isA<CacheStore>());
+    });
+
+    test('init completes without error', () async {
+      final fake = FakeCacheManager();
+
+      await expectLater(fake.init(), completes);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 8. reset()
   // ---------------------------------------------------------------------------
 
   group('reset()', () {

@@ -382,7 +382,7 @@ Resolves `Magic.make<LogManager>('log')`. Supports all RFC 5424 levels.
 | `Log.info(String message, [dynamic context])` | `void` | Interesting events. |
 | `Log.debug(String message, [dynamic context])` | `void` | Detailed debug information. |
 | `Log.log(String level, String message, [dynamic context])` | `void` | Log at an arbitrary level string. |
-| `Log.channel(String name)` | `LogManager` | Get a named log channel. |
+| `Log.channel(String name)` | `LoggerDriver` | Get a named log channel driver. |
 | `Log.fake()` | `FakeLogManager` | **Testing.** Swap real `LogManager` with `FakeLogManager` that captures entries in memory (no console output). Returns fake for assertions (`assertLogged`, `assertLoggedError`, `assertNothingLogged`, `assertLoggedCount`). |
 | `Log.unfake()` | `void` | **Testing.** Remove fake and restore real `LogManager`. Call in `tearDown`. |
 

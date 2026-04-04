@@ -172,7 +172,7 @@ void main() {
   group('Vault.fake() - facade integration', () {
     test('fake() returns FakeVaultService', () {
       final fake = Vault.fake();
-      expect(fake.runtimeType.toString(), equals('FakeVaultService'));
+      expect(fake, isA<FakeVaultService>());
     });
 
     test('fake() registers service in container', () async {
@@ -203,10 +203,7 @@ void main() {
       // After unfake, the container resolves from the singleton binding (not a fake)
       final resolved = Magic.make<MagicVaultService>('vault');
       expect(resolved, isA<MagicVaultService>());
-      expect(
-        resolved.runtimeType.toString(),
-        isNot(equals('FakeVaultService')),
-      );
+      expect(resolved, isNot(isA<FakeVaultService>()));
     });
   });
 }
