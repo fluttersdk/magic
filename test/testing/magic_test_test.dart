@@ -76,6 +76,16 @@ void main() {
 
       await expectLater(MagicTest.boot(), completes);
     });
+
+    test('boot() resets container before initializing', () async {
+      // Pre-pollute the container
+      MagicApp.instance.bind('stale_key', () => Object());
+
+      await MagicTest.boot();
+
+      // Container was reset before init — stale binding should be gone
+      expect(MagicApp.instance.bound('stale_key'), isFalse);
+    });
   });
 
   // ---------------------------------------------------------------------------

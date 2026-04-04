@@ -43,6 +43,8 @@ class MagicTest {
     String envFileName = '.env.testing',
   }) async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    MagicApp.reset();
+    Magic.flush();
     await Magic.init(envFileName: envFileName, configs: configs);
   }
 }

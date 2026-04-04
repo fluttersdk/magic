@@ -35,6 +35,7 @@ test/
 Magic provides a `MagicTest` bootstrap helper via `package:magic/testing.dart`. Call `MagicTest.init()` once at the top of `main()` — it registers `setUpAll`, `setUp`, and `tearDown` automatically:
 
 ```dart
+import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/testing.dart';
 
 void main() {

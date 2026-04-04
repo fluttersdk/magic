@@ -457,6 +457,7 @@ Magic ships a `MagicTest` helper in `package:magic/testing.dart` that replaces b
 Call once at the top of `main()`. Registers all hooks automatically:
 
 ```dart
+import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/testing.dart';
 
 void main() {
