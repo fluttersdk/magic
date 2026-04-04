@@ -401,9 +401,11 @@ State transition table (both helpers):
 | Condition | State |
 |-----------|-------|
 | Response `failed` (>= 400) | `setError(response.errorMessage ?? 'Failed to load')` |
-| `fetchList`: list null or empty | `setEmpty()` |
-| `fetchOne`: `dataKey` value null | `setError('Resource not found')` |
-| Data present | `setSuccess(parsed)` |
+| Response body is not a JSON object (`Map`) | `fetchList`: `setEmpty()` / `fetchOne`: `setError('Invalid response format')` |
+| `fetchList`: `dataKey` value is not a `List`, is empty, or contains no valid `Map` elements | `setEmpty()` |
+| `fetchOne`: `dataKey` value is `null` | `setError('Resource not found')` |
+| `fetchOne`: `dataKey` value is not a `Map<String, dynamic>` | `setError('Invalid response: "<dataKey>" must contain a JSON object')` (interpolates actual key) |
+| Data present and valid | `setSuccess(parsed)` |
 
 Testing with `Http.fake()`:
 ```dart

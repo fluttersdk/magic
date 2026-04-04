@@ -207,16 +207,27 @@ mixin MagicStateMixin<T> on MagicController {
       return;
     }
 
-    final rawList = response.data[dataKey] as List?;
-
-    if (rawList == null || rawList.isEmpty) {
+    final Object? payload = response.data;
+    if (payload is! Map<String, dynamic>) {
       setEmpty();
       return;
     }
 
-    final items = rawList
-        .map((e) => fromMap(e as Map<String, dynamic>))
-        .toList();
+    final rawList = payload[dataKey];
+
+    if (rawList is! List || rawList.isEmpty) {
+      setEmpty();
+      return;
+    }
+
+    final validElements = rawList.whereType<Map<String, dynamic>>();
+
+    if (validElements.isEmpty) {
+      setEmpty();
+      return;
+    }
+
+    final items = validElements.map(fromMap).toList();
 
     setSuccess(items as T);
   }
@@ -241,14 +252,25 @@ mixin MagicStateMixin<T> on MagicController {
       return;
     }
 
-    final data = response.data[dataKey];
+    final Object? payload = response.data;
+    if (payload is! Map<String, dynamic>) {
+      setError('Invalid response format');
+      return;
+    }
+
+    final data = payload[dataKey];
 
     if (data == null) {
       setError('Resource not found');
       return;
     }
 
-    setSuccess(fromMap(data as Map<String, dynamic>));
+    if (data is! Map<String, dynamic>) {
+      setError('Invalid response: "$dataKey" must contain a JSON object');
+      return;
+    }
+
+    setSuccess(fromMap(data));
   }
 
   /// Render UI based on current status.
