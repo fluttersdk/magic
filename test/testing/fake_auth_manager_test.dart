@@ -366,7 +366,25 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // 13. guard() always returns same fake guard regardless of name
+  // 13. forgetGuards
+  // ---------------------------------------------------------------------------
+
+  group('forgetGuards', () {
+    test('forgetGuards resets internal guard state', () async {
+      final fake = FakeAuthManager(user: _makeUser());
+
+      await fake.guard().login({'token': 'x'}, _makeUser());
+      expect(fake.guard().check(), isTrue);
+
+      fake.forgetGuards();
+
+      expect(fake.guard().check(), isFalse);
+      expect(await fake.guard().hasToken(), isFalse);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 14. guard() always returns same fake guard regardless of name
   // ---------------------------------------------------------------------------
 
   group('guard resolution', () {
