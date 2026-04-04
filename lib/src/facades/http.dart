@@ -3,6 +3,12 @@ import '../network/contracts/network_driver.dart';
 import '../network/drivers/fake_network_driver.dart';
 import '../network/magic_response.dart';
 
+const Object _omitted = _Omitted();
+
+class _Omitted {
+  const _Omitted();
+}
+
 /// The HTTP Facade.
 ///
 /// Provides static access to the network driver for making HTTP requests.
@@ -137,10 +143,13 @@ class Http {
 
   /// Create a stubbed [MagicResponse] for use with [fake].
   static MagicResponse response([
-    dynamic data = const <String, dynamic>{},
+    dynamic data = _omitted,
     int statusCode = 200,
   ]) {
-    return MagicResponse(data: data, statusCode: statusCode);
+    return MagicResponse(
+      data: identical(data, _omitted) ? <String, dynamic>{} : data,
+      statusCode: statusCode,
+    );
   }
 
   /// Restore the real HTTP driver after faking.
