@@ -345,6 +345,50 @@ void main() {
     });
   });
 
+  group('Observer Support', () {
+    test('addObserver() stores observer', () {
+      final observer = _TestNavigatorObserver();
+
+      MagicRouter.instance.addObserver(observer);
+
+      expect(MagicRouter.instance.observers, contains(observer));
+    });
+
+    test('observers persist after router build', () {
+      final observer = _TestNavigatorObserver();
+
+      MagicRouter.instance.addObserver(observer);
+      MagicRoute.page('/', () => const SizedBox());
+
+      final config = MagicRouter.instance.routerConfig;
+
+      expect(config, isNotNull);
+      expect(MagicRouter.instance.observers, contains(observer));
+    });
+
+    test('addObserver() throws after build', () {
+      MagicRoute.page('/', () => const SizedBox());
+
+      // Trigger the lazy build.
+      MagicRouter.instance.routerConfig;
+
+      expect(
+        () => MagicRouter.instance.addObserver(_TestNavigatorObserver()),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('reset() clears observers', () {
+      final observer = _TestNavigatorObserver();
+
+      MagicRouter.instance.addObserver(observer);
+
+      MagicRouter.reset();
+
+      expect(MagicRouter.instance.observers, isEmpty);
+    });
+  });
+
   /// History-based back() navigation.
   ///
   /// These tests verify the history tracking feature, including
@@ -590,3 +634,6 @@ class _TestMiddleware extends MagicMiddleware {
   @override
   Future<void> handle(void Function() next) async => next();
 }
+
+/// Test NavigatorObserver implementation.
+class _TestNavigatorObserver extends NavigatorObserver {}

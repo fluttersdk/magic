@@ -17,3 +17,4 @@ path: "lib/src/routing/**/*.dart"
 - `LayoutDefinition` — shell route wrapper for persistent navigation (sidebar, bottom nav)
 - `RouteServiceProvider` registers routes in boot phase — recommended place for all route definitions
 - Custom transitions: `Route.get('/path', () => Page()).transition(TransitionType.fade)`
+- Observer support: `MagicRouter.instance.addObserver(observer)` — must register before `routerConfig` is accessed. Passed to GoRouter `observers` param. Read-only via `observers` getter

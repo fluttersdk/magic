@@ -11,6 +11,7 @@
     - [Layouts (Shell Routes)](#layouts-shell-routes)
 - [Context-Free Navigation](#context-free-navigation)
 - [Route Middleware](#route-middleware)
+- [Navigator Observers](#navigator-observers)
 
 <a name="introduction"></a>
 ## Introduction
@@ -310,3 +311,37 @@ MagicRoute.page('/admin', () => AdminPanel())
 ```
 
 See the [Middleware documentation](/basics/middleware) for details on creating custom middleware.
+
+<a name="navigator-observers"></a>
+## Navigator Observers
+
+Register `NavigatorObserver` instances for analytics, monitoring, or performance tracking. Observers must be added before the router is built (typically in your `RouteServiceProvider`):
+
+```dart
+class RouteServiceProvider extends ServiceProvider {
+  @override
+  Future<void> boot() async {
+    // Add observers before registering routes
+    MagicRouter.instance.addObserver(SentryNavigatorObserver(
+      enableAutoTransactions: true,
+      setRouteNameAsTransaction: true,
+    ));
+
+    MagicRouter.instance.addObserver(FirebaseAnalyticsObserver(
+      analytics: FirebaseAnalytics.instance,
+    ));
+
+    registerAppRoutes();
+  }
+
+  void registerAppRoutes() {
+    MagicRoute.page('/', () => HomePage());
+    // ...
+  }
+}
+```
+
+Observers are passed directly to GoRouter and receive all navigation events (`didPush`, `didPop`, `didReplace`, `didRemove`).
+
+> [!NOTE]
+> Observers must be registered before `routerConfig` is accessed. Adding observers after the router is built throws a `StateError`.

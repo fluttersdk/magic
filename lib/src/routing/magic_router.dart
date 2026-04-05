@@ -68,6 +68,9 @@ class MagicRouter {
   /// Registered layout definitions.
   final List<LayoutDefinition> _layouts = [];
 
+  /// Registered navigator observers.
+  final List<NavigatorObserver> _observers = [];
+
   /// The built GoRouter instance (lazily created).
   GoRouter? _router;
 
@@ -144,6 +147,22 @@ class MagicRouter {
   /// Get all registered routes.
   List<RouteDefinition> get routes => List.unmodifiable(_routes);
 
+  /// Get all registered navigator observers.
+  List<NavigatorObserver> get observers => List.unmodifiable(_observers);
+
+  /// Add a navigator observer.
+  ///
+  /// Must be called before the router is built (before [routerConfig] is accessed).
+  void addObserver(NavigatorObserver observer) {
+    if (_isBuilt) {
+      throw StateError(
+        'Cannot add observers after the router has been built. '
+        'Register all observers before accessing routerConfig.',
+      );
+    }
+    _observers.add(observer);
+  }
+
   // ---------------------------------------------------------------------------
   // Router Configuration
   // ---------------------------------------------------------------------------
@@ -182,6 +201,7 @@ class MagicRouter {
     return GoRouter(
       navigatorKey: navigatorKey,
       initialLocation: _initialLocation,
+      observers: _observers,
       routes: _buildRoutes(),
       redirect: _handleRedirect,
       onException: (context, state, router) {
@@ -603,6 +623,7 @@ class MagicRouter {
   static void reset() {
     _instance?._routes.clear();
     _instance?._layouts.clear();
+    _instance?._observers.clear();
     _instance?._router = null;
     _instance?._isBuilt = false;
     _instance?._intendedUrl = null;
