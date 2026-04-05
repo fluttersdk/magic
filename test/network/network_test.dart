@@ -105,10 +105,11 @@ void main() {
       driver.addInterceptor(interceptor);
     });
 
-    test('configureDriver() applies configurator to Dio instance', () {
-      var called = false;
+    test('configureDriver() mutates the driver-owned Dio instance', () {
+      late int countBefore;
+
       driver.configureDriver((dio) {
-        called = true;
+        countBefore = dio.interceptors.length;
         dio.interceptors.add(
           InterceptorsWrapper(
             onRequest: (options, handler) => handler.next(options),
@@ -116,22 +117,37 @@ void main() {
         );
       });
 
-      expect(called, isTrue);
+      // Verify interceptor persists on the same Dio instance.
+      late int countAfter;
+      driver.configureDriver((dio) {
+        countAfter = dio.interceptors.length;
+      });
+
+      expect(countAfter, countBefore + 1);
     });
 
     test('configureDriver() allows multiple configurators', () {
-      var firstCalled = false;
-      var secondCalled = false;
+      late int countAfterFirst;
+      late int countAfterSecond;
 
       driver.configureDriver((dio) {
-        firstCalled = true;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.next(options),
+          ),
+        );
+        countAfterFirst = dio.interceptors.length;
       });
       driver.configureDriver((dio) {
-        secondCalled = true;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.next(options),
+          ),
+        );
+        countAfterSecond = dio.interceptors.length;
       });
 
-      expect(firstCalled, isTrue);
-      expect(secondCalled, isTrue);
+      expect(countAfterSecond, countAfterFirst + 1);
     });
   });
 }
