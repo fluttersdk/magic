@@ -9,6 +9,22 @@ import 'drivers/stack_logger_driver.dart';
 class LogManager {
   LoggerDriver? _cachedDriver;
 
+  static final Map<String, LoggerDriver Function(Map<String, dynamic>)>
+  _customDrivers = {};
+
+  /// Register a custom log driver factory.
+  static void extend(
+    String driver,
+    LoggerDriver Function(Map<String, dynamic> config) factory,
+  ) {
+    _customDrivers[driver] = factory;
+  }
+
+  /// Reset all custom drivers (for testing).
+  static void resetDrivers() {
+    _customDrivers.clear();
+  }
+
   /// Get the default logger driver based on configuration.
   LoggerDriver driver([String? channel]) {
     if (_cachedDriver != null && channel == null) {
@@ -31,6 +47,10 @@ class LogManager {
     final channels = Config.get<Map<String, dynamic>>('logging.channels') ?? {};
     final channelConfig = channels[name] as Map<String, dynamic>? ?? {};
     final driverName = channelConfig['driver'] ?? 'console';
+
+    if (_customDrivers.containsKey(driverName)) {
+      return _customDrivers[driverName]!(channelConfig);
+    }
 
     switch (driverName) {
       case 'stack':
