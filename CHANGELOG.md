@@ -2,13 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0.0-alpha.7] - 2026-04-06
 
 ### ✨ Features
-- **Broadcasting**: `Echo` facade, `BroadcastManager`, `ReverbBroadcastDriver` (Pusher-compatible WebSocket with reconnection, dedup, heartbeat), `NullBroadcastDriver`, `BroadcastInterceptor` pipeline, `FakeBroadcastManager`, `BroadcastServiceProvider`. Laravel Echo equivalent for real-time channels. (#37)
-- **Router Observers**: `MagicRouter.instance.addObserver()` enables NavigatorObserver integration for analytics/monitoring (Sentry, Firebase Analytics, custom observers). Observers are passed to GoRouter automatically. (#31)
-- **Network Driver Plugin Hook**: `DioNetworkDriver.configureDriver()` exposes the underlying Dio instance for SDK integrations (sentry_dio, certificate pinning, custom adapters). (#32)
-- **Custom Log Drivers**: `LogManager.extend()` enables custom LoggerDriver registration (Sentry, file, Slack). Config-driven resolution with built-in override support. (#33)
+- **Broadcasting**: `Echo` facade, `BroadcastManager`, `ReverbBroadcastDriver` (Pusher-compatible WebSocket with reconnection, dedup, heartbeat), `NullBroadcastDriver`, `BroadcastInterceptor` pipeline, `FakeBroadcastManager`, `BroadcastServiceProvider`. Laravel Echo equivalent for real-time channels. (#38)
+- **Router Observers**: `MagicRouter.instance.addObserver()` enables NavigatorObserver integration for analytics/monitoring (Sentry, Firebase Analytics, custom observers). Observers are passed to GoRouter automatically. (#34)
+- **Network Driver Plugin Hook**: `DioNetworkDriver.configureDriver()` exposes the underlying Dio instance for SDK integrations (sentry_dio, certificate pinning, custom adapters). (#35)
+- **Custom Log Drivers**: `LogManager.extend()` enables custom LoggerDriver registration (Sentry, file, Slack). Config-driven resolution with built-in override support. (#36)
 
 ## [1.0.0-alpha.6] - 2026-04-05
 

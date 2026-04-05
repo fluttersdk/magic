@@ -14,8 +14,9 @@ lib/
 ├── config/                 # Default configs
 └── src/
     ├── foundation/         # MagicApp (IoC), Magic (bootstrap), ConfigRepository, Env
-    ├── facades/            # 16 facades: Auth, Cache, Config, Crypt, DB, Event, Gate, Http, Lang, Launch, Log, Pick, Route, Schema, Storage, Vault
+    ├── facades/            # 17 facades: Auth, Cache, Config, Crypt, DB, Echo, Event, Gate, Http, Lang, Launch, Log, Pick, Route, Schema, Storage, Vault
     ├── auth/               # AuthManager, guards, events
+    ├── broadcasting/       # BroadcastManager, Echo facade, Reverb/Null drivers
     ├── cache/              # CacheManager, drivers (memory, file)
     ├── database/           # Eloquent ORM, QueryBuilder, migrations, seeders, factories
     ├── http/               # MagicController, middleware pipeline, Kernel
@@ -48,7 +49,7 @@ lib/
 | Facade call before `Magic.init()` | Always `await Magic.init()` in `main()` first |
 | Missing `Auth.manager.setUserFactory()` | Must call in boot phase |
 | Forgetting test reset | `MagicApp.reset()` + `Magic.flush()` in every `setUp()` |
-| `EncryptionServiceProvider` / `LaunchServiceProvider` | NOT auto-registered -- add explicitly |
+| `BroadcastServiceProvider` / `EncryptionServiceProvider` / `LaunchServiceProvider` | NOT auto-registered -- add explicitly |
 | `ValidatesRequests` import | Lives in `concerns/`, not `http/` |
 | `Event.register()` takes factories | `List<Listener Function()>`, not listener instances |
 
