@@ -264,6 +264,31 @@ void main() {
       expect(driver, isA<_StubDriver>());
     });
 
+    test('reverb driver name resolves to ReverbBroadcastDriver', () {
+      _setConfig(
+        defaultConnection: 'reverb',
+        connections: {
+          'reverb': {
+            'driver': 'reverb',
+            'host': 'localhost',
+            'port': 8080,
+            'scheme': 'ws',
+            'app_key': 'test',
+            'auth_endpoint': '/broadcasting/auth',
+            'reconnect': false,
+            'max_reconnect_delay': 30000,
+            'activity_timeout': 30,
+            'dedup_buffer_size': 100,
+          },
+        },
+      );
+
+      final manager = BroadcastManager();
+      final driver = manager.connection();
+
+      expect(driver, isA<ReverbBroadcastDriver>());
+    });
+
     test('unknown driver name falls back to NullBroadcastDriver', () {
       _setConfig(
         defaultConnection: 'weird',

@@ -759,6 +759,442 @@ void main() {
     });
   });
 
+  group('ReverbBroadcastDriver — onDone and onError', () {
+    test('onDone triggers reconnecting state when connected', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      // Simulate server closing the connection.
+      mock.simulateClose();
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(states, contains(BroadcastConnectionState.reconnecting));
+
+      await driver.disconnect();
+    });
+
+    test('onError routes through interceptor chain', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      final interceptor = _TestInterceptor();
+      driver.addInterceptor(interceptor);
+
+      mock.simulateError(Exception('test error'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(interceptor.errors, isNotEmpty);
+
+      await driver.disconnect();
+    });
+
+    test(
+      'onDone completes connection completer with error if not yet connected',
+      () async {
+        final mock = _MockWebSocketChannel();
+        final driver = ReverbBroadcastDriver(
+          _defaultConfig(overrides: {'reconnect': false}),
+          channelFactory: (_) => mock,
+        );
+
+        // Close before handshake completes.
+        Future<void>.delayed(const Duration(milliseconds: 10), () {
+          mock.simulateClose();
+        });
+
+        await expectLater(driver.connect(), throwsA(isA<StateError>()));
+      },
+    );
+  });
+
+  group('ReverbBroadcastDriver — Pusher error handling', () {
+    test('fatal error (4000-4099) does not reconnect', () async {
+      final (driver, mock) = await _createConnectedDriver(
+        configOverrides: {'reconnect': true},
+      );
+
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      mock.simulateMessage({
+        'event': 'pusher:error',
+        'data': jsonEncode({'code': 4001, 'message': 'App disabled'}),
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      // Fatal error should NOT trigger reconnecting state.
+      expect(states, isNot(contains(BroadcastConnectionState.reconnecting)));
+
+      await driver.disconnect();
+    });
+
+    test('reconnectImmediate error (4100-4199) schedules reconnect', () async {
+      final (driver, mock) = await _createConnectedDriver(
+        configOverrides: {'reconnect': true},
+      );
+
+      final interceptor = _TestInterceptor();
+      driver.addInterceptor(interceptor);
+
+      mock.simulateMessage({
+        'event': 'pusher:error',
+        'data': jsonEncode({'code': 4100, 'message': 'Over capacity'}),
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Error should be routed through interceptor.
+      expect(interceptor.errors, isNotEmpty);
+
+      await driver.disconnect();
+    });
+
+    test('reconnectBackoff error (4200-4299) schedules reconnect', () async {
+      final (driver, mock) = await _createConnectedDriver(
+        configOverrides: {'reconnect': true},
+      );
+
+      final interceptor = _TestInterceptor();
+      driver.addInterceptor(interceptor);
+
+      mock.simulateMessage({
+        'event': 'pusher:error',
+        'data': jsonEncode({'code': 4200, 'message': 'Rate limited'}),
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(interceptor.errors, isNotEmpty);
+
+      await driver.disconnect();
+    });
+
+    test('malformed error data does not crash', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      mock.simulateMessage({'event': 'pusher:error', 'data': 'not-json'});
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Should not throw — malformed data is caught.
+      expect(driver.isConnected, isTrue);
+
+      await driver.disconnect();
+    });
+
+    test('non-string error data is handled', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      mock.simulateMessage({'event': 'pusher:error', 'data': 42});
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(driver.isConnected, isTrue);
+
+      await driver.disconnect();
+    });
+  });
+
+  group('ReverbBroadcastDriver — presence events via driver', () {
+    test('routes member_added through driver to presence channel', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      final ch = driver.join('room.1');
+      final joined = <Map<String, dynamic>>[];
+      ch.onJoin.listen(joined.add);
+
+      mock.simulateMessage({
+        'event': 'pusher_internal:member_added',
+        'channel': 'presence-room.1',
+        'data': jsonEncode({
+          'user_id': '1',
+          'user_info': {'name': 'Alice'},
+        }),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(joined, hasLength(1));
+      expect(ch.members, hasLength(1));
+
+      await driver.disconnect();
+    });
+
+    test('routes member_removed through driver to presence channel', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      final ch = driver.join('room.1');
+
+      // Add a member first.
+      mock.simulateMessage({
+        'event': 'pusher_internal:member_added',
+        'channel': 'presence-room.1',
+        'data': jsonEncode({
+          'user_id': '1',
+          'user_info': {'name': 'Alice'},
+        }),
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      final left = <Map<String, dynamic>>[];
+      ch.onLeave.listen(left.add);
+
+      mock.simulateMessage({
+        'event': 'pusher_internal:member_removed',
+        'channel': 'presence-room.1',
+        'data': jsonEncode({
+          'user_id': '1',
+          'user_info': {'name': 'Alice'},
+        }),
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      expect(left, hasLength(1));
+      expect(ch.members, isEmpty);
+
+      await driver.disconnect();
+    });
+
+    test('subscription_succeeded populates members via driver', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      final ch = driver.join('room.1');
+
+      mock.simulateMessage({
+        'event': 'pusher:subscription_succeeded',
+        'channel': 'presence-room.1',
+        'data': jsonEncode({
+          'presence': {
+            'count': 2,
+            'ids': ['1', '2'],
+            'hash': {
+              '1': {'name': 'Alice'},
+              '2': {'name': 'Bob'},
+            },
+          },
+        }),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ch.members, hasLength(2));
+
+      await driver.disconnect();
+    });
+
+    test('presence event on non-presence channel is ignored', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      // Subscribe to a regular (non-presence) channel.
+      driver.channel('orders');
+
+      // Send a presence event to it — should be silently ignored.
+      mock.simulateMessage({
+        'event': 'pusher_internal:member_added',
+        'channel': 'orders',
+        'data': jsonEncode({'user_id': '1'}),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      // No crash — test passes if no exception.
+      await driver.disconnect();
+    });
+
+    test('presence event without channel name is ignored', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      mock.simulateMessage({
+        'event': 'pusher_internal:member_added',
+        'data': jsonEncode({'user_id': '1'}),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      await driver.disconnect();
+    });
+
+    test(
+      'subscription_succeeded with Map data (not String) is handled',
+      () async {
+        final (driver, mock) = await _createConnectedDriver();
+
+        final ch = driver.join('room.1');
+
+        mock.simulateMessage({
+          'event': 'pusher:subscription_succeeded',
+          'channel': 'presence-room.1',
+          'data': {
+            'presence': {
+              'count': 1,
+              'ids': ['1'],
+              'hash': {
+                '1': {'name': 'Alice'},
+              },
+            },
+          },
+        });
+
+        await Future<void>.delayed(Duration.zero);
+
+        expect(ch.members, hasLength(1));
+
+        await driver.disconnect();
+      },
+    );
+
+    test('subscription_succeeded without channel is ignored', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      mock.simulateMessage({
+        'event': 'pusher:subscription_succeeded',
+        'data': jsonEncode({'presence': {}}),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      await driver.disconnect();
+    });
+
+    test('subscription_succeeded on non-presence channel is ignored', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      driver.channel('orders');
+
+      mock.simulateMessage({
+        'event': 'pusher:subscription_succeeded',
+        'channel': 'orders',
+        'data': jsonEncode({'presence': {}}),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      await driver.disconnect();
+    });
+  });
+
+  group('ReverbBroadcastDriver — subscription queue', () {
+    test('queues private subscribe when not connected', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(),
+        channelFactory: (_) => mock,
+      );
+
+      // Call private() before connect — should queue.
+      driver.private('secret');
+
+      // Now connect — queued subscription should flush.
+      _simulateConnectionEstablished(mock);
+      await driver.connect();
+
+      await Future<void>.delayed(Duration.zero);
+
+      // Channel should exist with private- prefix.
+      expect(driver.private('secret').name, equals('private-secret'));
+
+      await driver.disconnect();
+    });
+
+    test('queues presence subscribe when not connected', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(),
+        channelFactory: (_) => mock,
+      );
+
+      // Call join() before connect — should queue.
+      driver.join('room.1');
+
+      _simulateConnectionEstablished(mock);
+      await driver.connect();
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(driver.join('room.1').name, equals('presence-room.1'));
+
+      await driver.disconnect();
+    });
+  });
+
+  group('ReverbBroadcastDriver — disconnect cleanup', () {
+    test('disconnect clears channels and dedup state', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      // Subscribe to channels.
+      driver.channel('orders');
+      driver.channel('notifications');
+
+      // Send events to populate dedup buffer.
+      mock.simulateMessage({
+        'event': 'Test',
+        'channel': 'orders',
+        'data': jsonEncode({'id': 1}),
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      await driver.disconnect();
+
+      expect(driver.isConnected, isFalse);
+      expect(driver.socketId, isNull);
+    });
+  });
+
+  group('ReverbBroadcastDriver — application event edge cases', () {
+    test('event for unknown channel is ignored', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      mock.simulateMessage({
+        'event': 'SomeEvent',
+        'channel': 'nonexistent',
+        'data': jsonEncode({'key': 'value'}),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      // No crash — passes if no exception.
+      await driver.disconnect();
+    });
+
+    test('event without channel is ignored', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      mock.simulateMessage({
+        'event': 'SomeEvent',
+        'data': jsonEncode({'key': 'value'}),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      await driver.disconnect();
+    });
+
+    test('event with non-Map non-String data uses empty map', () async {
+      final (driver, mock) = await _createConnectedDriver();
+
+      final ch = driver.channel('orders');
+      final events = <BroadcastEvent>[];
+      ch.events.listen(events.add);
+
+      mock.simulateMessage({
+        'event': 'OrderShipped',
+        'channel': 'orders',
+        'data': 42,
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, hasLength(1));
+      expect(events.first.data, isEmpty);
+
+      await driver.disconnect();
+    });
+  });
+
   group('ReverbBroadcastChannel', () {
     test('listen() filters events by name and returns this', () async {
       final ch = ReverbBroadcastChannel('test');

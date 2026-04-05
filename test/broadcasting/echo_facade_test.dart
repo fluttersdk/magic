@@ -84,6 +84,44 @@ void main() {
     });
   });
 
+  group('Echo facade — listen and leave', () {
+    test('listen() subscribes to channel event', () {
+      final events = <BroadcastEvent>[];
+      final channel = Echo.listen('orders', 'OrderShipped', events.add);
+      expect(channel, isA<BroadcastChannel>());
+    });
+
+    test('leave() does not throw', () {
+      Echo.channel('orders');
+      expect(() => Echo.leave('orders'), returnsNormally);
+    });
+  });
+
+  group('BroadcastInterceptor — default pass-through', () {
+    test('onSend returns message unchanged', () {
+      final interceptor = _NoOpInterceptor();
+      final message = <String, dynamic>{'event': 'test'};
+      expect(interceptor.onSend(message), same(message));
+    });
+
+    test('onReceive returns event unchanged', () {
+      final interceptor = _NoOpInterceptor();
+      final event = BroadcastEvent(
+        event: 'test',
+        channel: 'ch',
+        data: const {},
+        receivedAt: DateTime.now(),
+      );
+      expect(interceptor.onReceive(event), same(event));
+    });
+
+    test('onError returns error unchanged', () {
+      final interceptor = _NoOpInterceptor();
+      final error = Exception('test');
+      expect(interceptor.onError(error), same(error));
+    });
+  });
+
   group('Echo facade — fake/unfake', () {
     test('fake() replaces manager with FakeBroadcastManager', () {
       final fake = Echo.fake();

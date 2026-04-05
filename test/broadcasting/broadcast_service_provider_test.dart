@@ -46,6 +46,29 @@ void main() {
     );
   });
 
+  group('BroadcastServiceProvider — boot with non-null driver', () {
+    test('boot() calls connect() when default is not "null"', () async {
+      var connectCalled = false;
+
+      BroadcastManager.extend('spy', (Map<String, dynamic> config) {
+        return _SpyNullDriver(onConnect: () => connectCalled = true);
+      });
+
+      Config.set('broadcasting.default', 'my_conn');
+      Config.set('broadcasting.connections', {
+        'my_conn': <String, dynamic>{'driver': 'spy'},
+      });
+
+      final app = MagicApp.instance;
+      final provider = BroadcastServiceProvider(app);
+
+      provider.register();
+      await provider.boot();
+
+      expect(connectCalled, isTrue);
+    });
+  });
+
   group('BroadcastServiceProvider — boot with null driver', () {
     test('boot() completes without error when default is "null"', () async {
       Config.set('broadcasting.default', 'null');
