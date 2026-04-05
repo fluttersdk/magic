@@ -10,8 +10,8 @@ import 'broadcast_presence_channel.dart';
 /// vends typed channel objects to consumers.
 ///
 /// ```dart
-/// await Broadcast.driver().connect();
-/// final channel = Broadcast.driver().channel('orders');
+/// await Echo.connect();
+/// final channel = Echo.channel('orders');
 /// channel.listen('OrderShipped', (event) => print(event.data));
 /// ```
 abstract class BroadcastDriver {

@@ -16,7 +16,7 @@ import '../contracts/broadcast_presence_channel.dart';
 /// ```dart
 /// Magic.init(
 ///   providers: [BroadcastServiceProvider()],
-///   config: {'broadcast': {'default': 'null'}},
+///   config: {'broadcasting': {'default': 'null'}},
 /// );
 /// ```
 class NullBroadcastDriver implements BroadcastDriver {

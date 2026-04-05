@@ -242,7 +242,6 @@ void main() {
       final (driver, mock) = await _createConnectedDriver();
 
       // Clear frames from handshake.
-      mock.sentFrames;
       mock._sink.messages.clear();
 
       mock.simulateMessage({

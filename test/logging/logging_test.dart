@@ -13,6 +13,19 @@ class MockLoggerDriver extends LoggerDriver {
   void clear() => logs.clear();
 }
 
+/// A custom logger driver for testing extend() registration.
+class _CustomLoggerDriver extends LoggerDriver {
+  final List<Map<String, dynamic>> logs = [];
+  final Map<String, dynamic> config;
+
+  _CustomLoggerDriver(this.config);
+
+  @override
+  void log(String level, String message, [dynamic context]) {
+    logs.add({'level': level, 'message': message, 'context': context});
+  }
+}
+
 void main() {
   group('LoggerDriver', () {
     late MockLoggerDriver driver;
@@ -112,6 +125,90 @@ void main() {
       // This won't throw, just won't print (can't easily test console output)
       driver.debug('Should be ignored');
       driver.error('Should be logged');
+    });
+  });
+
+  group('Custom Driver Registration', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+      LogManager.resetDrivers();
+    });
+
+    test('extend() registers custom driver factory', () {
+      LogManager.extend(
+        'custom',
+        (Map<String, dynamic> config) => _CustomLoggerDriver(config),
+      );
+
+      Config.set('logging.channels', {
+        'custom_channel': {'driver': 'custom', 'level': 'debug'},
+      });
+
+      final manager = LogManager();
+      final resolved = manager.driver('custom_channel');
+
+      expect(resolved, isA<_CustomLoggerDriver>());
+    });
+
+    test('custom driver receives channel config', () {
+      Map<String, dynamic>? capturedConfig;
+
+      LogManager.extend('custom', (Map<String, dynamic> config) {
+        capturedConfig = config;
+        return _CustomLoggerDriver(config);
+      });
+
+      Config.set('logging.channels', {
+        'custom_channel': {
+          'driver': 'custom',
+          'level': 'warning',
+          'tag': 'my-app',
+        },
+      });
+
+      final manager = LogManager();
+      manager.driver('custom_channel');
+
+      expect(capturedConfig, isNotNull);
+      expect(capturedConfig!['level'], equals('warning'));
+      expect(capturedConfig!['tag'], equals('my-app'));
+    });
+
+    test('custom driver overrides built-in', () {
+      LogManager.extend(
+        'console',
+        (Map<String, dynamic> config) => _CustomLoggerDriver(config),
+      );
+
+      Config.set('logging.channels', {
+        'custom_channel': {'driver': 'console'},
+      });
+
+      final manager = LogManager();
+      final resolved = manager.driver('custom_channel');
+
+      expect(resolved, isA<_CustomLoggerDriver>());
+    });
+
+    test('stack driver can include custom channels', () {
+      LogManager.extend(
+        'custom',
+        (Map<String, dynamic> config) => _CustomLoggerDriver(config),
+      );
+
+      Config.set('logging.channels', {
+        'custom_channel': {'driver': 'custom', 'level': 'debug'},
+        'stack_channel': {
+          'driver': 'stack',
+          'channels': ['custom_channel'],
+        },
+      });
+
+      final manager = LogManager();
+      final resolved = manager.driver('stack_channel');
+
+      expect(resolved, isA<StackLoggerDriver>());
     });
   });
 }

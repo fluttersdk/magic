@@ -7,7 +7,7 @@ import '../broadcast_event.dart';
 /// emits every event received on this channel regardless of registration.
 ///
 /// ```dart
-/// final channel = Broadcast.channel('orders');
+/// final channel = Echo.channel('orders');
 /// channel.listen('OrderShipped', (event) {
 ///   print('Order shipped: ${event.data}');
 /// });

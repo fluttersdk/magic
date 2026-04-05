@@ -104,6 +104,51 @@ void main() {
       // Should not throw
       driver.addInterceptor(interceptor);
     });
+
+    test('configureDriver() mutates the driver-owned Dio instance', () {
+      late int countBefore;
+
+      driver.configureDriver((dio) {
+        countBefore = dio.interceptors.length;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.next(options),
+          ),
+        );
+      });
+
+      // Verify interceptor persists on the same Dio instance.
+      late int countAfter;
+      driver.configureDriver((dio) {
+        countAfter = dio.interceptors.length;
+      });
+
+      expect(countAfter, countBefore + 1);
+    });
+
+    test('configureDriver() allows multiple configurators', () {
+      late int countAfterFirst;
+      late int countAfterSecond;
+
+      driver.configureDriver((dio) {
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.next(options),
+          ),
+        );
+        countAfterFirst = dio.interceptors.length;
+      });
+      driver.configureDriver((dio) {
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.next(options),
+          ),
+        );
+        countAfterSecond = dio.interceptors.length;
+      });
+
+      expect(countAfterSecond, countAfterFirst + 1);
+    });
   });
 }
 

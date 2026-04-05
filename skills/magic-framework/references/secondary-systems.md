@@ -169,6 +169,19 @@ Log.channel('slack').error('Critical server issue');
 - **`console`**: Outputs to standard output with configurable log level.
 - **`stack`**: Aggregates multiple drivers (e.g., console + file simultaneously).
 
+### Custom Drivers
+
+Register custom log drivers via `LogManager.extend()` — follows the same pattern as `Auth.manager.extend(...)`:
+
+```dart
+// In a ServiceProvider boot():
+LogManager.extend('sentry', (config) => SentryLoggerDriver(
+  minLevel: config['level'] ?? 'warning',
+));
+```
+
+Custom drivers implement the `LoggerDriver` abstract class. They can be referenced in config by name and included in stack channels.
+
 ### Configuration
 
 ```dart
@@ -178,11 +191,15 @@ Log.channel('slack').error('Critical server issue');
   'channels': {
     'stack': {
       'driver': 'stack',
-      'channels': ['console'],
+      'channels': ['console', 'sentry'],
     },
     'console': {
       'driver': 'console',
       'level': 'debug',
+    },
+    'sentry': {
+      'driver': 'sentry',
+      'level': 'warning',
     },
   },
 }

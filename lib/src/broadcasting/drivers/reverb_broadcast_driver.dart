@@ -573,8 +573,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         },
       );
 
-      final authData = response.data as Map<String, dynamic>?;
-      if (authData == null || authData['auth'] == null) return;
+      final authData = response.data;
+      if (authData is! Map<String, dynamic> || authData['auth'] == null) return;
 
       final subscribeData = <String, dynamic>{
         'channel': channelName,
@@ -645,6 +645,9 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         _streamSubscription = null;
         _broadcastStreamController?.close();
         _broadcastStreamController = null;
+        try {
+          await _channel?.sink.close();
+        } catch (_) {}
         _channel = null;
         _isConnected = false;
 

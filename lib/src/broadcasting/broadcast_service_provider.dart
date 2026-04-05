@@ -32,7 +32,7 @@ class BroadcastServiceProvider extends ServiceProvider {
   /// Bind the [BroadcastManager] singleton into the service container.
   ///
   /// After this phase any other provider or service can resolve the manager via
-  /// `app.make<BroadcastManager>('broadcasting')` or the `Broadcast` facade.
+  /// `app.make<BroadcastManager>('broadcasting')` or the `Echo` facade.
   @override
   void register() {
     app.singleton('broadcasting', () => BroadcastManager());

@@ -219,33 +219,24 @@ class SentryLoggerDriver extends LoggerDriver {
 <a name="registering-the-custom-driver"></a>
 ### Registering the Custom Driver
 
-Register your driver in a Service Provider:
+Register your driver via `LogManager.extend()` in a Service Provider's `boot()` phase:
 
 ```dart
 // lib/app/providers/logging_service_provider.dart
 class LoggingServiceProvider extends ServiceProvider {
+  LoggingServiceProvider(super.app);
+
   @override
-  void register() {
-    // Extend LogManager to support custom drivers
-    app.extend('log', (manager) {
-      final logManager = manager as LogManager;
-      
-      // Register custom driver factory
-      logManager.registerDriver('sentry', (config) {
-        return SentryLoggerDriver(
-          dsn: config['dsn'] ?? '',
-          minLevel: config['level'] ?? 'error',
-        );
-      });
-      
-      return logManager;
-    });
+  Future<void> boot() async {
+    LogManager.extend('sentry', (config) => SentryLoggerDriver(
+      dsn: config['dsn'] ?? '',
+      minLevel: config['level'] ?? 'error',
+    ));
   }
 }
 ```
 
-> [!NOTE]
-> The `registerDriver` method is a convention. If `LogManager` doesn't support it natively, you can extend it or customize resolution logic.
+This follows the same `extend()` pattern as `Auth.manager.extend(...)` for custom auth guards. The factory receives the channel's config map and returns a `LoggerDriver` instance.
 
 Then use it in your config:
 
@@ -271,7 +262,17 @@ Log.channel('sentry').error('Something went wrong', {
 
 ## Example: Slack Notifications
 
-Here's a complete example for Slack webhook logging:
+Register the driver, then use it via config:
+
+```dart
+// In ServiceProvider boot()
+LogManager.extend('slack', (config) => SlackLoggerDriver(
+  webhookUrl: config['webhook_url'],
+  channel: config['channel'] ?? '#alerts',
+));
+```
+
+Here's the driver implementation:
 
 ```dart
 class SlackLoggerDriver extends LoggerDriver {
