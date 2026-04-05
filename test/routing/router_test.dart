@@ -354,7 +354,7 @@ void main() {
       expect(MagicRouter.instance.observers, contains(observer));
     });
 
-    test('observers are passed to GoRouter', () {
+    test('observers persist after router build', () {
       final observer = _TestNavigatorObserver();
 
       MagicRouter.instance.addObserver(observer);
