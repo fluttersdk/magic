@@ -612,6 +612,7 @@ late FakeAuthManager authFake;
 late FakeCacheManager cacheFake;
 late FakeVaultService vaultFake;
 late FakeLogManager logFake;
+late FakeBroadcastManager echoFake;
 
 setUp(() {
   MagicApp.reset();
@@ -730,12 +731,13 @@ test('second test', () {
 ```dart
 final fake = Echo.fake();
 
+await Echo.connect();
+
 Echo.channel('orders');
 Echo.private('user.1');
 
-// Assertions
+// Assertions while connected
 fake.assertConnected();
-fake.assertDisconnected();
 fake.assertSubscribed('orders');
 fake.assertNotSubscribed('chat');
 fake.assertInterceptorAdded();
@@ -743,6 +745,9 @@ fake.assertInterceptorAdded();
 // Low-level driver access
 expect(fake.driver.subscribedChannels, contains('orders'));
 expect(fake.driver.subscribedChannels, contains('private-user.1'));
+
+await Echo.disconnect();
+fake.assertDisconnected();
 
 // Reset recorded state
 fake.reset();

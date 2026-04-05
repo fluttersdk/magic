@@ -197,7 +197,7 @@ Proxies to `BroadcastManager` for real-time WebSocket communication. `BroadcastS
 | `Echo.channel(String name)` | `BroadcastChannel` | Subscribe to a public channel. |
 | `Echo.private(String name)` | `BroadcastChannel` | Subscribe to a private channel (auth required). |
 | `Echo.join(String name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking). |
-| `Echo.listen(String channel, String event, Function(BroadcastEvent) callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call. |
+| `Echo.listen(String channel, String event, void Function(BroadcastEvent) callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call. |
 | `Echo.leave(String name)` | `void` | Unsubscribe from a channel. |
 | `Echo.connect()` | `Future<void>` | Establish the WebSocket connection. |
 | `Echo.disconnect()` | `Future<void>` | Close connection and release resources. |

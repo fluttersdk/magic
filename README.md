@@ -423,7 +423,7 @@ void main() {
 }
 ```
 
-All facades support `fake()` / `unfake()`: `Http`, `Auth`, `Cache`, `Vault`, `Log`, `Echo`. Each fake records operations and exposes assertion helpers.
+The following facades support `fake()` / `unfake()`: `Http`, `Auth`, `Cache`, `Vault`, `Log`, `Echo`. Each fake records operations and exposes assertion helpers.
 
 ## Architecture
 
