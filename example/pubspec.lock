@@ -512,10 +512,10 @@ packages:
     dependency: transitive
     description:
       name: magic_cli
-      sha256: "4101d1523015be47e9a91e3610f9a719cb04840623dd125fc2af1f6b0c4ec9e3"
+      sha256: a7190d3aac4e028feb6d68342dc5db3e4e62b5a340dbfc27181198daac297223
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.1-alpha.3"
+    version: "0.0.1-alpha.4"
   matcher:
     dependency: transitive
     description:
