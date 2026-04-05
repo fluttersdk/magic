@@ -104,6 +104,35 @@ void main() {
       // Should not throw
       driver.addInterceptor(interceptor);
     });
+
+    test('configureDriver() applies configurator to Dio instance', () {
+      var called = false;
+      driver.configureDriver((dio) {
+        called = true;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) => handler.next(options),
+          ),
+        );
+      });
+
+      expect(called, isTrue);
+    });
+
+    test('configureDriver() allows multiple configurators', () {
+      var firstCalled = false;
+      var secondCalled = false;
+
+      driver.configureDriver((dio) {
+        firstCalled = true;
+      });
+      driver.configureDriver((dio) {
+        secondCalled = true;
+      });
+
+      expect(firstCalled, isTrue);
+      expect(secondCalled, isTrue);
+    });
   });
 }
 

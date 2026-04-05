@@ -109,6 +109,21 @@ class DioNetworkDriver implements NetworkDriver {
     );
   }
 
+  /// Configure the underlying Dio instance directly.
+  ///
+  /// Use this for SDK integrations that need raw Dio access
+  /// (e.g., `sentry_dio`, certificate pinning, custom adapters).
+  ///
+  /// ```dart
+  /// final driver = Magic.make<DioNetworkDriver>('network');
+  /// driver.configureDriver((dio) {
+  ///   dio.addSentry();
+  /// });
+  /// ```
+  void configureDriver(void Function(Dio dio) configurator) {
+    configurator(_dio);
+  }
+
   // ---------------------------------------------------------------------------
   // RESTful Resource Methods
   // ---------------------------------------------------------------------------

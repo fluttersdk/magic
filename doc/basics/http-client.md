@@ -299,3 +299,17 @@ class NetworkServiceProvider extends ServiceProvider {
   }
 }
 ```
+
+### Driver Plugin Hook
+
+For SDK integrations that need direct Dio access (e.g., `sentry_dio` for performance tracing, certificate pinning), use `configureDriver()`:
+
+```dart
+final driver = Magic.make<DioNetworkDriver>('network');
+driver.configureDriver((dio) {
+  dio.addSentry(); // Full Sentry performance tracing
+});
+```
+
+> [!NOTE]
+> `configureDriver()` is specific to `DioNetworkDriver`. Resolve using `Magic.make<DioNetworkDriver>('network')` to access it.
