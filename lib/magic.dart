@@ -100,6 +100,7 @@ export 'src/testing/fake_auth_manager.dart';
 export 'src/testing/fake_cache_manager.dart';
 export 'src/testing/fake_vault_service.dart';
 export 'src/testing/fake_log_manager.dart';
+export 'src/testing/fake_broadcast_manager.dart';
 
 // Database
 export 'src/database/database_manager.dart';
@@ -193,3 +194,17 @@ export 'src/launch/launch_adapter.dart';
 export 'src/launch/launch_service.dart';
 export 'src/launch/launch_service_provider.dart';
 export 'src/facades/launch.dart';
+
+// Broadcasting
+export 'config/broadcasting.dart';
+export 'src/broadcasting/broadcast_connection_state.dart';
+export 'src/broadcasting/broadcast_event.dart';
+export 'src/broadcasting/broadcast_manager.dart';
+export 'src/broadcasting/broadcast_service_provider.dart';
+export 'src/broadcasting/contracts/broadcast_channel.dart';
+export 'src/broadcasting/contracts/broadcast_driver.dart';
+export 'src/broadcasting/contracts/broadcast_interceptor.dart';
+export 'src/broadcasting/contracts/broadcast_presence_channel.dart';
+export 'src/broadcasting/drivers/null_broadcast_driver.dart';
+export 'src/broadcasting/drivers/reverb_broadcast_driver.dart';
+export 'src/facades/echo.dart';

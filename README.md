@@ -59,7 +59,8 @@ final user = await User.find(1);
 | 💾 | **Caching** | Memory and file drivers with TTL and `remember()` |
 | 🌍 | **Localization** | JSON-based i18n with `:attribute` placeholders |
 | 🎨 | **Wind UI** | Built-in Tailwind CSS-like styling with `className` syntax |
-| 🧪 | **Testing** | Laravel-style `Http.fake()`, `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()` — no mockito needed |
+| 📡 | **Broadcasting** | Laravel Echo equivalent — real-time WebSocket channels via `Echo` facade, `ReverbBroadcastDriver`, presence channels, and `Echo.fake()` for testing |
+| 🧪 | **Testing** | Laravel-style `Http.fake()`, `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()`, `Echo.fake()` — no mockito needed |
 | 🧰 | **Magic CLI** | Artisan-style code generation: `magic make:model`, `magic make:controller` |
 
 ## Quick Start

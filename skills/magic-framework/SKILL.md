@@ -64,7 +64,7 @@ Use `configFactories` (not `configs`) when any value depends on `Env.get()`. The
 | `Magic.flush()` | Clear all controllers (testing) |
 | `MagicApp.reset()` | Full container reset (testing) |
 
-### Facade Summary (16 Facades)
+### Facade Summary (17 Facades)
 
 | Facade | Purpose | Key Methods |
 |--------|---------|-------------|
@@ -76,6 +76,7 @@ Use `configFactories` (not `configs`) when any value depends on `Env.get()`. The
 | `Schema` | Migrations | `create()`, `drop()`, `hasTable()` |
 | `Log` | Logging | `info()`, `error()`, `warning()`, `debug()` |
 | `Event` | Events | `dispatch(event)` |
+| `Echo` | Broadcasting | `channel()`, `private()`, `join()`, `listen()`, `leave()`, `connect()`, `disconnect()`, `socketId`, `fake()` |
 | `MagicRoute` | Routing | `page()`, `group()`, `layout()`, `to()`, `back({fallback?})`, `replace()`, `push()`, `toNamed()` |
 | `Gate` | Authorization | `allows()`, `denies()`, `define()`, `policy()` |
 | `Lang` | Localization | `get()`, `locale()` |
@@ -623,7 +624,7 @@ Official plugins extending Magic Framework. Each has its own package, service pr
 | `references/routing-navigation.md` | MagicRoute.page(), group(), layout(), navigation (to/back/replace/push/toNamed), middleware, transitions, MagicRouterOutlet, path/query parameters, navigator observers | Defining routes, navigation, middleware, or observers |
 | `references/http-network.md` | Http facade (get/post/put/delete/upload + RESTful resource methods), MagicResponse API, interceptors, network config | Making HTTP requests, handling responses, or configuring network layer |
 | `references/auth-system.md` | Auth facade, AuthManager, guards (Bearer, BasicAuth, ApiKey), token refresh, setUserFactory, restore, policies, Gate, MagicCan | Implementing authentication, authorization, or token management |
-| `references/secondary-systems.md` | Cache, Events (EventDispatcher, register listeners), Logging, Localization (trans()), Storage, Encryption, Vault, Carbon date helper, Launch, Policies | Using caching, events, logging, i18n, file storage, encryption, or URL launching |
+| `references/secondary-systems.md` | Cache, Events (EventDispatcher, register listeners), Logging, Localization (trans()), Storage, Encryption, Vault, Carbon date helper, Launch, Policies, Broadcasting (Echo facade, BroadcastManager, channels, interceptors) | Using caching, events, logging, i18n, file storage, encryption, URL launching, or real-time broadcasting |
 | `references/testing-patterns.md` | Test setup (MagicApp.reset + Magic.flush), mocking via contracts, controller/model/middleware testing patterns | Writing tests for any Magic framework code |
 | `references/cli-commands.md` | Full CLI reference: install, all make:* generators with flags, key:generate | Scaffolding code, initializing projects, or generating files with the CLI |
 | `references/plugin-deeplink.md` | DeeplinkManager, handlers, drivers, config, RouteDeeplinkHandler, OneSignalDeeplinkHandler | Working with deep links, universal links, or app links |

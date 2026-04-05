@@ -89,6 +89,7 @@ dart run magic:magic install --without-auth --without-events
 | `--without-events` | `lib/app/events/` and `lib/app/listeners/` directories |
 | `--without-localization` | `assets/lang/` directory, `LocalizationServiceProvider` |
 | `--without-logging` | `config/logging.dart` |
+| `--without-broadcasting` | `config/broadcasting.dart`, `BroadcastServiceProvider` |
 
 <a name="keygenerate"></a>
 ### key:generate

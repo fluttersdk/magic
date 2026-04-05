@@ -115,7 +115,7 @@ dart run magic:magic install
 ```
 
 This command creates everything you need:
-- `lib/config/` — Configuration files (app, auth, cache, database, network, logging, view)
+- `lib/config/` — Configuration files (app, auth, broadcasting, cache, database, network, logging, view)
 - `lib/app/` — Controllers, models, providers, middleware, policies
 - `lib/routes/` — Route definitions
 - `lib/resources/views/` — UI view classes
@@ -128,6 +128,8 @@ You can exclude features you don't need:
 ```bash
 dart run magic:magic install --without-database --without-auth --without-cache
 ```
+
+Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/doc/packages/magic-cli.md#install) for details.
 
 > [!TIP]
 > For convenience, you can also activate the CLI globally: `dart pub global activate magic_cli`. This lets you use the shorter `magic install` syntax instead of `dart run magic:magic install`.
