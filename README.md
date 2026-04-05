@@ -49,7 +49,7 @@ final user = await User.find(1);
 | | Feature | Description |
 |:--|:--------|:------------|
 | 🏗️ | **IoC Container** | Service Container with singleton, bind, and instance registration |
-| 🎭 | **16 Facades** | `Auth`, `Http`, `Cache`, `DB`, `Event`, `Gate`, `Log`, `Route`, `Lang`, `Storage`, `Vault`, `Crypt` and more |
+| 🎭 | **17 Facades** | `Auth`, `Http`, `Cache`, `DB`, `Echo`, `Event`, `Gate`, `Log`, `Route`, `Lang`, `Storage`, `Vault`, `Crypt` and more |
 | 🗄️ | **Eloquent ORM** | Models, QueryBuilder, migrations, seeders, factories — hybrid API + SQLite persistence |
 | 🛣️ | **Routing** | GoRouter integration with middleware, named routes, and context-free navigation |
 | 🔐 | **Authentication** | Token-based auth with guards (Bearer, BasicAuth, ApiKey), session restore, auto-refresh |
@@ -423,7 +423,7 @@ void main() {
 }
 ```
 
-All facades support `fake()` / `unfake()`: `Http`, `Auth`, `Cache`, `Vault`, `Log`. Each fake records operations and exposes assertion helpers.
+All facades support `fake()` / `unfake()`: `Http`, `Auth`, `Cache`, `Vault`, `Log`, `Echo`. Each fake records operations and exposes assertion helpers.
 
 ## Architecture
 
@@ -433,7 +433,7 @@ Magic.init() → Env.load() → configFactories → providers register() → pro
 
 ```
 lib/
-├── config/              # Configuration files (app, auth, cache, database)
+├── config/              # Configuration files (app, auth, broadcasting, cache, database)
 ├── app/
 │   ├── controllers/     # Request handlers (MagicController)
 │   ├── models/          # Eloquent models
@@ -462,6 +462,7 @@ Full docs at **[magic.fluttersdk.com](https://magic.fluttersdk.com)**.
 | [HTTP Client](https://magic.fluttersdk.com/basics/http-client) | Network requests |
 | [Middleware](https://magic.fluttersdk.com/basics/middleware) | Request pipeline |
 | [Forms](https://magic.fluttersdk.com/basics/forms) | Form handling and validation |
+| [Broadcasting](https://magic.fluttersdk.com/digging-deeper/broadcasting) | Real-time WebSocket channels |
 
 ## AI Agent Integration
 

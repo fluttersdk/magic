@@ -617,7 +617,7 @@ Official plugins extending Magic Framework. Each has its own package, service pr
 | File | Content | Load When |
 |------|---------|-----------|
 | `references/bootstrap-lifecycle.md` | Magic.init 7-step sequence, IoC API, ServiceProvider register/boot, Env/Config, Kernel, MagicApplication | Setting up app bootstrap, creating providers, or configuring environment |
-| `references/facades-api.md` | All 16 facades with method signatures and return types | Looking up any facade method signature or return type |
+| `references/facades-api.md` | All 17 facades with method signatures and return types | Looking up any facade method signature or return type |
 | `references/eloquent-orm.md` | Model definition, attributes, casts, relations, `InteractsWithPersistence`, QueryBuilder, migrations, Blueprint | Working with models, database queries, or migrations |
 | `references/controllers-views.md` | MagicController, MagicStateMixin, RxStatus, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicBuilder, MagicCan/MagicCannot | Building controllers or views, reactive state, authorization widgets |
 | `references/forms-validation.md` | MagicFormData, MagicForm, rules(), FormValidator, ValidatesRequests, built-in rules (Required, Email, Min, Max, Confirmed, Same, Accepted), process(), processingListenable | Building forms, adding validation, handling server-side errors |

@@ -24,11 +24,12 @@ Laravel-inspired Flutter framework with Facades, Eloquent ORM, Service Providers
 ```
 lib/
 ├── magic.dart    # Barrel export (public API)
-├── config/                  # Default configs (app, auth, cache, database, view)
+├── config/                  # Default configs (app, auth, broadcasting, cache, database, view)
 └── src/
     ├── foundation/          # MagicApp (IoC), Magic (bootstrap), ConfigRepository, Env
-    ├── facades/             # 16 facades: Auth, Cache, Config, Crypt, DB, Event, Gate, Http, Lang, Launch, Log, Pick, Route, Schema, Storage, Vault
+    ├── facades/             # 17 facades: Auth, Cache, Config, Crypt, DB, Echo, Event, Gate, Http, Lang, Launch, Log, Pick, Route, Schema, Storage, Vault
     ├── auth/                # AuthManager, guards (Bearer, BasicAuth, ApiKey), events
+    ├── broadcasting/        # BroadcastManager, Echo facade, Reverb/Null drivers, interceptors
     ├── cache/               # CacheManager, drivers (memory, file)
     ├── database/            # Eloquent ORM, QueryBuilder, migrations, seeders, factories
     ├── encryption/          # EncryptionServiceProvider (NOT auto-registered)
@@ -71,7 +72,7 @@ This project follows strict **Test-Driven Development**. Every feature, fix, or 
 
 **Rules:**
 - No production code without a failing test first
-- Run `flutter test` after every change — all 453+ tests must stay green
+- Run `flutter test` after every change — all 858+ tests must stay green
 - Run `dart analyze` after every change — zero warnings, zero errors
 - Run `dart format .` before committing — zero formatting issues
 - `dart pub publish --dry-run` must pass before any release
@@ -93,7 +94,7 @@ This project follows strict **Test-Driven Development**. Every feature, fix, or 
 | Facade call before `Magic.init()` | Always `await Magic.init()` in `main()` first |
 | Missing `Auth.manager.setUserFactory()` | Must call in boot phase — auth won't work without it |
 | Forgetting test reset | `MagicApp.reset()` + `Magic.flush()` in every `setUp()` |
-| `EncryptionServiceProvider` / `LaunchServiceProvider` | NOT auto-registered — add explicitly to config providers |
+| `BroadcastServiceProvider` / `EncryptionServiceProvider` / `LaunchServiceProvider` | NOT auto-registered — add explicitly to config providers |
 | `configFactories` vs `configs` param | Use `configFactories` for configs needing `Env.get()` |
 | `Event.register()` takes factories | `List<Listener Function()>`, not listener instances |
 | `routerConfig` before init | Only accessible after `Magic.init()` completes |

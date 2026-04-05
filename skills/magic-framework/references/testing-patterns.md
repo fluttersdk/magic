@@ -621,6 +621,7 @@ setUp(() {
   cacheFake = Cache.fake();       // In-memory cache, records operations
   vaultFake = Vault.fake();       // In-memory secure storage, no platform channels
   logFake = Log.fake();           // Captures log entries, no console output
+  echoFake = Echo.fake();         // In-memory broadcasting, no WebSocket
 });
 
 tearDown(() {
@@ -628,6 +629,7 @@ tearDown(() {
   Cache.unfake();
   Vault.unfake();
   Log.unfake();
+  Echo.unfake();
 });
 ```
 
@@ -721,6 +723,29 @@ test('second test', () {
   Log.error('b');
   logFake.assertLoggedCount(1); // Starts from zero
 });
+```
+
+### Echo.fake()
+
+```dart
+final fake = Echo.fake();
+
+Echo.channel('orders');
+Echo.private('user.1');
+
+// Assertions
+fake.assertConnected();
+fake.assertDisconnected();
+fake.assertSubscribed('orders');
+fake.assertNotSubscribed('chat');
+fake.assertInterceptorAdded();
+
+// Low-level driver access
+expect(fake.driver.subscribedChannels, contains('orders'));
+expect(fake.driver.subscribedChannels, contains('private-user.1'));
+
+// Reset recorded state
+fake.reset();
 ```
 
 ## Middleware Testing
