@@ -171,7 +171,7 @@ Log.channel('slack').error('Critical server issue');
 
 ### Custom Drivers
 
-Register custom log drivers via `LogManager.extend()` — follows the same pattern as `AuthManager.extend()`:
+Register custom log drivers via `LogManager.extend()` — follows the same pattern as `Auth.manager.extend(...)`:
 
 ```dart
 // In a ServiceProvider boot():

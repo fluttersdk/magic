@@ -236,7 +236,7 @@ class LoggingServiceProvider extends ServiceProvider {
 }
 ```
 
-This follows the same `extend()` pattern as `AuthManager.extend()` for custom auth guards. The factory receives the channel's config map and returns a `LoggerDriver` instance.
+This follows the same `extend()` pattern as `Auth.manager.extend(...)` for custom auth guards. The factory receives the channel's config map and returns a `LoggerDriver` instance.
 
 Then use it in your config:
 
