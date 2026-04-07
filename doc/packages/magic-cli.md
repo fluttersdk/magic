@@ -64,7 +64,7 @@ dart run magic:magic install
 
 This command:
 1. Creates the directory structure (`lib/app/`, `lib/config/`, `lib/routes/`, etc.)
-2. Generates configuration files with sensible defaults
+2. Generates configuration files with sensible defaults (app, routing, view are always created; others are optional)
 3. Creates starter service providers (`AppServiceProvider`, `RouteServiceProvider`)
 4. Writes `lib/main.dart` with Magic bootstrap
 5. Creates `.env` and `.env.example` files
