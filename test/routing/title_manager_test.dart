@@ -61,13 +61,23 @@ void main() {
   });
 
   group('TitleManager — suffix application', () {
-    test('suffix is appended as "title - suffix" when both present', () {
+    test('suffix is appended to route title as "title - suffix"', () {
+      TitleManager.configure();
+      TitleManager.instance
+        ..setAppTitle('App')
+        ..setRouteTitle('Dashboard')
+        ..setSuffix('MySite');
+
+      expect(TitleManager.instance.effectiveTitle, 'Dashboard - MySite');
+    });
+
+    test('suffix is not appended to appTitle fallback', () {
       TitleManager.configure();
       TitleManager.instance
         ..setAppTitle('App')
         ..setSuffix('MySite');
 
-      expect(TitleManager.instance.effectiveTitle, 'App - MySite');
+      expect(TitleManager.instance.effectiveTitle, 'App');
     });
 
     test('override title uses suffix', () {
@@ -172,16 +182,16 @@ void main() {
       expect(titles.last, 'Override');
     });
 
-    test('callback receives effectiveTitle (with suffix)', () {
+    test('callback receives effectiveTitle (with suffix on route title)', () {
       final titles = <String>[];
       TitleManager.configure(onTitleChanged: (title, _) => titles.add(title));
 
       TitleManager.instance
         ..setSuffix('Site')
-        ..setAppTitle('Home');
+        ..setRouteTitle('Home');
 
-      // setSuffix fires first with no app title yet → empty string
-      // setAppTitle fires second → 'Home - Site'
+      // setSuffix fires first with no title yet → empty string
+      // setRouteTitle fires second → 'Home - Site'
       expect(titles.last, 'Home - Site');
     });
 

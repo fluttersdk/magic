@@ -2,10 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import '../routing/title_manager.dart';
 
-/// A widget that sets the page title while it is mounted.
-///
-/// On web, this updates the browser tab title. On mobile, it updates the
-/// app switcher description. The configured suffix is applied automatically.
+/// A widget that applies a temporary title override through [TitleManager]
+/// while mounted. The configured suffix is applied automatically.
 class MagicTitle extends StatefulWidget {
   /// The page title to display.
   final String title;

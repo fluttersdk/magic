@@ -77,7 +77,7 @@ class MagicApplication extends StatefulWidget {
   /// The app title.
   final String title;
 
-  /// Optional title suffix appended to page titles (e.g. '| My App').
+  /// Optional title suffix appended to page titles (e.g. '- My App').
   final String? titleSuffix;
 
   /// Wind theme data for styling.
@@ -170,8 +170,8 @@ class _MagicApplicationState extends State<MagicApplication> {
       widget.onInit?.call();
 
       // 4. Configure TitleManager with app title and optional suffix.
-      TitleManager.instance.setSuffix(widget.titleSuffix);
       TitleManager.instance.setAppTitle(widget.title);
+      TitleManager.instance.setSuffix(widget.titleSuffix);
 
       setState(() => _initialized = true);
     } catch (e) {

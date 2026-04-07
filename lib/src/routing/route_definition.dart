@@ -120,7 +120,7 @@ class RouteDefinition {
   /// Set the page title for this route.
   ///
   /// ```dart
-  /// MagicRoute.get('/dashboard', () => DashboardPage())
+  /// MagicRoute.page('/dashboard', () => DashboardPage())
   ///     .title('Dashboard');
   /// ```
   RouteDefinition title(String pageTitle) {

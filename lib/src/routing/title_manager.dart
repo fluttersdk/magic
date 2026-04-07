@@ -107,15 +107,24 @@ class TitleManager {
 
   /// Returns the computed title **with** the suffix applied.
   ///
-  /// When both a raw title and a suffix are present the result is
-  /// `"$rawTitle - $_suffix"`. When there is no raw title the suffix is
-  /// omitted and the app title (or empty string) is returned.
+  /// When an override or route title is active and a suffix is present, the
+  /// result is `"$title - $_suffix"`. When the resolved title falls back to
+  /// the application title, the suffix is omitted and the app title is
+  /// returned as-is. When no title is available, an empty string is returned.
   String get effectiveTitle {
-    final rawTitle = _overrideTitle ?? _routeTitle ?? _appTitle;
-    if (rawTitle != null && _suffix != null) {
-      return '$rawTitle - $_suffix';
+    final overrideTitle = _overrideTitle;
+    if (overrideTitle != null) {
+      final suffix = _suffix;
+      return suffix != null ? '$overrideTitle - $suffix' : overrideTitle;
     }
-    return rawTitle ?? '';
+
+    final routeTitle = _routeTitle;
+    if (routeTitle != null) {
+      final suffix = _suffix;
+      return suffix != null ? '$routeTitle - $suffix' : routeTitle;
+    }
+
+    return _appTitle ?? '';
   }
 
   // ---------------------------------------------------------------------------

@@ -459,7 +459,7 @@ Observers are passed to GoRouter's `observers` parameter automatically. Adding o
 
 ## Page Titles
 
-Automatic page title management — updates `document.title` on web and app switcher on mobile via `TitleManager` singleton.
+Automatic page title management via `TitleManager` singleton. Uses `SystemChrome.setApplicationSwitcherDescription` which updates the browser tab title on web and the app switcher on mobile.
 
 ### Title Suffix
 

@@ -371,7 +371,7 @@ Observers are passed directly to GoRouter and receive all navigation events (`di
 
 ## Page Titles
 
-Magic provides automatic page title management — updates `document.title` on web and the app switcher description on mobile.
+Magic provides automatic page title management via `SystemChrome.setApplicationSwitcherDescription` — updates the browser tab title on web and the app switcher description on mobile.
 
 ### Title Suffix
 
@@ -384,7 +384,7 @@ MagicApplication(
 )
 ```
 
-Page titles render as `"Dashboard - Kodizm.AI"`. When no page title is set, only `"My App"` is shown (no suffix).
+Page titles render as `"Dashboard - Kodizm.AI"`. The suffix is only applied to route-level and override titles — when no page title is set, the fallback app title is shown without suffix.
 
 ### Static Route Titles
 
