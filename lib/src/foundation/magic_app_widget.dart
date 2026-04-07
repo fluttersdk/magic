@@ -207,7 +207,7 @@ class _MagicApplicationState extends State<MagicApplication> {
         key: MagicAppWidget._appKey,
         themeMode: widget.themeMode,
         builder: (context) => MaterialApp.router(
-          title: widget.title,
+          onGenerateTitle: (_) => TitleManager.instance.effectiveTitle,
           theme: controller.toThemeData(),
           themeMode: widget.themeMode,
           locale: widget.locale ?? _getLocaleFromConfig(),
