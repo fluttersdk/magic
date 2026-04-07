@@ -58,6 +58,9 @@ class RouteDefinition {
   /// Page transition animation type.
   RouteTransition _transition = RouteTransition.none;
 
+  /// Page title for browser tab / app switcher.
+  String? _title;
+
   /// Parent group prefix (set by Route.group).
   String? _groupPrefix;
 
@@ -114,6 +117,17 @@ class RouteDefinition {
     return this;
   }
 
+  /// Set the page title for this route.
+  ///
+  /// ```dart
+  /// MagicRoute.page('/dashboard', () => DashboardPage())
+  ///     .title('Dashboard');
+  /// ```
+  RouteDefinition title(String pageTitle) {
+    _title = pageTitle;
+    return this;
+  }
+
   // ---------------------------------------------------------------------------
   // Internal Getters
   // ---------------------------------------------------------------------------
@@ -126,6 +140,9 @@ class RouteDefinition {
 
   /// Get the transition type.
   RouteTransition get transitionType => _transition;
+
+  /// Get the page title, if defined.
+  String? get routeTitle => _title;
 
   /// Get the full path including any group prefix.
   String get fullPath {

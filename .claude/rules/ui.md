@@ -18,4 +18,5 @@ path: "lib/src/ui/**/*.dart"
 - Auto-validation: `MagicForm` switches to `AutovalidateMode.always` when controller has server-side errors
 - `MagicResponsiveView` — responsive layout widget using Wind breakpoints (`sm`, `md`, `lg`, `xl`)
 - `MagicFeedback` — toast/snackbar feedback integration
+- `MagicTitle(title: 'Page', child: widget)` — declarative title override widget. Sets `TitleManager.setOverride()` on mount, clears on dispose. Updates on `didUpdateWidget` when title changes. Use for data-dependent titles that resolve after route mount
 - Wind UI integration: views use `WDiv`, `WText`, `WButton` etc. for styling via `className` props

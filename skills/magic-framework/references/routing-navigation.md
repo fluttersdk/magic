@@ -41,6 +41,7 @@ After calling `MagicRoute.page()`, chain these methods:
 | Method | Purpose | Example |
 |--------|---------|---------|
 | `.name(String)` | Assign a name for named navigation | `.name('users.show')` |
+| `.title(String)` | Set page title (document.title on web, app switcher on mobile) | `.title('Dashboard')` |
 | `.middleware(List<dynamic>)` | Attach middleware (aliases or factories) | `.middleware(['auth', 'admin'])` |
 | `.transition(RouteTransition)` | Set page transition animation | `.transition(RouteTransition.slideUp)` |
 
@@ -455,6 +456,58 @@ final observers = MagicRouter.instance.observers; // List<NavigatorObserver> (un
 ```
 
 Observers are passed to GoRouter's `observers` parameter automatically. Adding observers after `routerConfig` is accessed throws `StateError`.
+
+## Page Titles
+
+Automatic page title management via `TitleManager` singleton. Uses `SystemChrome.setApplicationSwitcherDescription` which updates the browser tab title on web and the app switcher on mobile.
+
+### Title Suffix
+
+```dart
+MagicApplication(
+  title: 'My App',
+  titleSuffix: 'Kodizm.AI',
+)
+// Page titles render as "Dashboard - Kodizm.AI"
+```
+
+### Static Route Titles
+
+```dart
+MagicRoute.page('/dashboard', () => DashboardPage())
+    .title('Dashboard');
+```
+
+### MagicTitle Widget (Dynamic Titles)
+
+```dart
+MagicTitle(
+  title: project.name, // data-dependent
+  child: ProjectContent(),
+)
+```
+
+Sets override on mount, updates on rebuild, clears on dispose.
+
+### Imperative API
+
+```dart
+MagicRoute.setTitle('Custom Title');
+final title = MagicRoute.currentTitle; // without suffix
+```
+
+### Resolution Priority
+
+1. `MagicTitle` / `MagicRoute.setTitle()` — override
+2. `RouteDefinition.title()` — route-level
+3. `MagicApplication.title` — fallback
+
+### TitleManager (Internal)
+
+- `TitleManager.instance` — singleton, lazy-initialized
+- `TitleManager.configure(onTitleChanged: callback)` — injectable callback for testing
+- `TitleManager.reset()` — clears state, called by `MagicRouter.reset()`
+- Route listener: `GoRouter.routerDelegate.addListener` — fires on all navigation types
 
 ## Gotchas
 
