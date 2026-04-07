@@ -1551,5 +1551,61 @@ void main() {
 
       await driver.disconnect();
     });
+
+    test('malformed auth response (missing auth key) logs warning', () async {
+      final fakeLog = Log.fake();
+
+      final (driver, mock1, _) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async => <String, dynamic>{'token': 'x'},
+      );
+
+      driver.private('malformed');
+      await Future<void>.delayed(Duration.zero);
+
+      // Simulate reconnect to trigger auth with malformed response.
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      final warnings = fakeLog.entries.where((e) => e.level == 'warning');
+      expect(
+        warnings.any((e) => e.message.contains('private-malformed')),
+        isTrue,
+        reason: 'Should log warning for malformed auth response',
+      );
+
+      await driver.disconnect();
+    });
+
+    test('auth factory returning empty map triggers warning path', () async {
+      final fakeLog = Log.fake();
+
+      final (driver, mock1, getReconnectMock) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async => <String, dynamic>{},
+      );
+
+      driver.private('empty-auth');
+      await Future<void>.delayed(Duration.zero);
+
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      // Empty map has null 'auth' key — should trigger warning.
+      final warnings = fakeLog.entries.where((e) => e.level == 'warning');
+      expect(
+        warnings.any((e) => e.message.contains('private-empty-auth')),
+        isTrue,
+        reason: 'Empty auth response should log warning',
+      );
+
+      // Channel should NOT receive a subscribe frame (auth was missing).
+      final reconnectMock = getReconnectMock();
+      final subscribed = reconnectMock.sentFrames
+          .where((f) => f['event'] == 'pusher:subscribe')
+          .map((f) => (f['data'] as Map<String, dynamic>)['channel'] as String)
+          .toSet();
+      expect(subscribed, isNot(contains('private-empty-auth')));
+
+      await driver.disconnect();
+    });
   });
 }
