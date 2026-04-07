@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../facades/http.dart';
+import '../../facades/log.dart';
 import '../broadcast_connection_state.dart';
 import '../broadcast_event.dart';
 import '../contracts/broadcast_channel.dart';
@@ -60,10 +61,18 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// [config] contains connection parameters read from
   /// `broadcasting.connections.reverb`. [channelFactory] overrides WebSocket
   /// creation for testing — defaults to [WebSocketChannel.connect].
+  /// [authFactory] overrides the HTTP auth call for testing — defaults to
+  /// calling [Http.post] and returning the response data.
   ReverbBroadcastDriver(
     this._config, {
     WebSocketChannel Function(Uri uri)? channelFactory,
-  }) : _channelFactory = channelFactory ?? WebSocketChannel.connect;
+    Future<Map<String, dynamic>> Function(
+      String endpoint,
+      Map<String, dynamic> data,
+    )?
+    authFactory,
+  }) : _channelFactory = channelFactory ?? WebSocketChannel.connect,
+       _authFactory = authFactory ?? _defaultAuthFactory;
 
   // ---------------------------------------------------------------------------
   // Dependencies
@@ -71,6 +80,19 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
   final Map<String, dynamic> _config;
   final WebSocketChannel Function(Uri uri) _channelFactory;
+  final Future<Map<String, dynamic>> Function(
+    String endpoint,
+    Map<String, dynamic> data,
+  )
+  _authFactory;
+
+  static Future<Map<String, dynamic>> _defaultAuthFactory(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await Http.post(endpoint, data: data);
+    return response.data as Map<String, dynamic>;
+  }
 
   // ---------------------------------------------------------------------------
   // Connection state
@@ -565,16 +587,17 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       final authEndpoint =
           _config['auth_endpoint'] as String? ?? '/broadcasting/auth';
 
-      final response = await Http.post(
-        authEndpoint,
-        data: <String, dynamic>{
-          'socket_id': _socketId,
-          'channel_name': channelName,
-        },
-      );
+      final authData = await _authFactory(authEndpoint, <String, dynamic>{
+        'socket_id': _socketId,
+        'channel_name': channelName,
+      });
 
-      final authData = response.data;
-      if (authData is! Map<String, dynamic> || authData['auth'] == null) return;
+      if (authData['auth'] == null) {
+        Log.warning(
+          'Broadcasting auth response malformed for channel: $channelName',
+        );
+        return;
+      }
 
       final subscribeData = <String, dynamic>{
         'channel': channelName,
@@ -587,8 +610,12 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       }
 
       _send({'event': 'pusher:subscribe', 'data': subscribeData});
-    } catch (_) {
-      // Auth failure — channel will not be subscribed.
+    } catch (error) {
+      Log.error('Broadcasting auth failed for channel: $channelName', error);
+      dynamic processed = error;
+      for (final interceptor in _interceptors) {
+        processed = interceptor.onError(processed);
+      }
     }
   }
 
@@ -653,11 +680,16 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
         await connect();
 
-        // Resubscribe all channels.
-        for (final entry in _channels.entries) {
-          final name = entry.key;
+        // Resubscribe all channels. Snapshot keys to avoid concurrent
+        // modification if a handler modifies _channels during iteration.
+        for (final name in _channels.keys.toList()) {
           if (name.startsWith('presence-') || name.startsWith('private-')) {
-            _authenticateAndSubscribe(name);
+            try {
+              await _authenticateAndSubscribe(name);
+            } catch (_) {
+              // Per-channel failure — continue to next channel.
+              // Auth errors are already logged in _authenticateAndSubscribe.
+            }
           } else {
             _send({
               'event': 'pusher:subscribe',
@@ -667,7 +699,13 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         }
 
         _onReconnectController.add(null);
-      } catch (_) {
+      } catch (error) {
+        // Route through interceptor chain before scheduling retry.
+        dynamic processed = error;
+        for (final interceptor in _interceptors) {
+          processed = interceptor.onError(processed);
+        }
+        Log.error('Reconnect failed', error);
         _scheduleReconnect();
       }
     });

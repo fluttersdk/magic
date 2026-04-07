@@ -189,6 +189,7 @@ void main() {
   setUp(() {
     MagicApp.reset();
     Magic.flush();
+    Log.fake();
   });
 
   group('ReverbBroadcastDriver — connection lifecycle', () {
@@ -1304,6 +1305,250 @@ void main() {
       expect(ch.members, hasLength(2));
 
       ch.dispose();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reconnect resubscription
+  // ---------------------------------------------------------------------------
+
+  group('reconnect resubscription', () {
+    /// Helper: creates a driver with an [authFactory] and a [channelFactory]
+    /// that returns a fresh mock for each connection attempt. The reconnect
+    /// mock auto-completes the Pusher handshake after a microtask.
+    Future<
+      (
+        ReverbBroadcastDriver,
+        _MockWebSocketChannel,
+        _MockWebSocketChannel Function(),
+      )
+    >
+    createReconnectableDriver({
+      Future<Map<String, dynamic>> Function(
+        String endpoint,
+        Map<String, dynamic> data,
+      )?
+      authFactory,
+      Map<String, dynamic>? configOverrides,
+    }) async {
+      final mock1 = _MockWebSocketChannel();
+      _MockWebSocketChannel? reconnectMock;
+      var connectionCount = 0;
+
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'reconnect': true, ...?configOverrides}),
+        channelFactory: (_) {
+          connectionCount++;
+          if (connectionCount == 1) return mock1;
+          reconnectMock = _MockWebSocketChannel();
+          Future<void>.delayed(Duration.zero, () {
+            reconnectMock!.simulateMessage({
+              'event': 'pusher:connection_established',
+              'data': jsonEncode({
+                'socket_id': 'reconnected-socket-id',
+                'activity_timeout': 30,
+              }),
+            });
+          });
+          return reconnectMock!;
+        },
+        authFactory: authFactory,
+      );
+
+      _simulateConnectionEstablished(mock1);
+      await driver.connect();
+
+      return (driver, mock1, () => reconnectMock!);
+    }
+
+    test('auth failure routes through interceptor.onError()', () async {
+      final authError = Exception('Auth request failed: 403 Forbidden');
+
+      final (driver, mock1, getReconnectMock) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async => throw authError,
+      );
+
+      final interceptor = _TestInterceptor();
+      driver.addInterceptor(interceptor);
+
+      // Subscribe to a private channel (triggers auth on reconnect).
+      driver.private('secret');
+      await Future<void>.delayed(Duration.zero);
+
+      // Simulate server closing the connection — triggers reconnect.
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      // Auth failure should have been routed through the interceptor.
+      expect(
+        interceptor.errors,
+        contains(
+          predicate<dynamic>((e) => e.toString().contains('403 Forbidden')),
+        ),
+      );
+
+      await driver.disconnect();
+    });
+
+    test('auth failure logs via Log.error()', () async {
+      final fakeLog = Log.fake();
+
+      final (driver, mock1, _) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async =>
+            throw Exception('Auth denied for channel'),
+      );
+
+      // Subscribe to a private channel.
+      driver.private('payments');
+      await Future<void>.delayed(Duration.zero);
+
+      // Simulate reconnect.
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      // Verify Log.error was called with channel name context.
+      final errorEntries = fakeLog.entries.where((e) => e.level == 'error');
+      expect(
+        errorEntries,
+        isNotEmpty,
+        reason: 'Expected at least one error log entry for auth failure',
+      );
+      expect(
+        errorEntries.any((e) => e.message.contains('private-payments')),
+        isTrue,
+        reason: 'Error log should contain the channel name',
+      );
+
+      await driver.disconnect();
+    });
+
+    test('all channels resubscribed after reconnect', () async {
+      final (driver, mock1, getReconnectMock) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async => {'auth': 'test-token'},
+      );
+
+      // Subscribe to 1 public + 1 private channel.
+      driver.channel('orders');
+      driver.private('payments');
+      await Future<void>.delayed(Duration.zero);
+
+      // Simulate reconnect.
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      // Verify both channels received subscribe frames on the new connection.
+      final reconnectMock = getReconnectMock();
+      final frames = reconnectMock.sentFrames;
+      final subscribeChannels = frames
+          .where((f) => f['event'] == 'pusher:subscribe')
+          .map((f) => (f['data'] as Map<String, dynamic>)['channel'] as String)
+          .toSet();
+
+      expect(subscribeChannels, contains('orders'));
+      expect(subscribeChannels, contains('private-payments'));
+
+      // Private channel should include auth data.
+      final privateFrame = frames.firstWhere(
+        (f) =>
+            f['event'] == 'pusher:subscribe' &&
+            (f['data'] as Map<String, dynamic>)['channel'] ==
+                'private-payments',
+      );
+      expect(
+        (privateFrame['data'] as Map<String, dynamic>)['auth'],
+        equals('test-token'),
+      );
+
+      await driver.disconnect();
+    });
+
+    test('onReconnect emits only after all resubscriptions complete', () async {
+      final subscriptionTimestamps = <DateTime>[];
+
+      final (driver, mock1, _) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async {
+          // Simulate slow auth — 100ms delay.
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          subscriptionTimestamps.add(DateTime.now());
+          return {'auth': 'delayed-token'};
+        },
+      );
+
+      // Subscribe to a private channel.
+      driver.private('slow-auth');
+      await Future<void>.delayed(Duration.zero);
+
+      DateTime? reconnectEmitTime;
+      driver.onReconnect.listen((_) {
+        reconnectEmitTime = DateTime.now();
+      });
+
+      // Simulate reconnect.
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+
+      // onReconnect must have fired.
+      expect(
+        reconnectEmitTime,
+        isNotNull,
+        reason: 'onReconnect should have emitted',
+      );
+
+      // The auth call must have completed before onReconnect emitted.
+      expect(
+        subscriptionTimestamps,
+        isNotEmpty,
+        reason: 'Auth factory should have been called during reconnect',
+      );
+      expect(
+        reconnectEmitTime!.isAfter(subscriptionTimestamps.last) ||
+            reconnectEmitTime!.isAtSameMomentAs(subscriptionTimestamps.last),
+        isTrue,
+        reason:
+            'onReconnect should emit after auth+subscribe completes, '
+            'not before',
+      );
+
+      await driver.disconnect();
+    });
+
+    test('auth failure on one channel does not block others', () async {
+      final (driver, mock1, getReconnectMock) = await createReconnectableDriver(
+        authFactory: (endpoint, data) async {
+          final channelName = data['channel_name'] as String?;
+          if (channelName == 'private-failing') {
+            throw Exception('Auth denied for failing channel');
+          }
+          return {'auth': 'valid-token'};
+        },
+      );
+
+      // Subscribe to two private channels.
+      driver.private('failing');
+      driver.private('succeeding');
+      await Future<void>.delayed(Duration.zero);
+
+      // Simulate reconnect.
+      mock1.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
+      // The succeeding channel should still be subscribed.
+      final reconnectMock = getReconnectMock();
+      final frames = reconnectMock.sentFrames;
+      final subscribedChannels = frames
+          .where((f) => f['event'] == 'pusher:subscribe')
+          .map((f) => (f['data'] as Map<String, dynamic>)['channel'] as String)
+          .toSet();
+
+      expect(
+        subscribedChannels,
+        contains('private-succeeding'),
+        reason:
+            'Auth failure on one channel should not prevent other channels '
+            'from subscribing',
+      );
+
+      await driver.disconnect();
     });
   });
 }
