@@ -294,7 +294,7 @@ class Pick {
     List<String>? extensions,
     bool withData = true,
   }) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: extensions != null ? FileType.custom : FileType.any,
       allowedExtensions: extensions,
       withData: withData,
@@ -317,7 +317,7 @@ class Pick {
     List<String>? extensions,
     bool withData = true,
   }) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       type: extensions != null ? FileType.custom : FileType.any,
       allowedExtensions: extensions,
@@ -340,7 +340,7 @@ class Pick {
   /// }
   /// ```
   static Future<String?> directory() async {
-    return FilePicker.platform.getDirectoryPath();
+    return FilePicker.getDirectoryPath();
   }
 
   /// Open a save file dialog.
@@ -363,7 +363,7 @@ class Pick {
     String? fileName,
     Uint8List? bytes,
   }) async {
-    return FilePicker.platform.saveFile(
+    return FilePicker.saveFile(
       dialogTitle: dialogTitle,
       fileName: fileName,
       bytes: bytes,
