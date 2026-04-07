@@ -48,7 +48,7 @@ dependencies:
   image_picker: ^1.1.2
   faker: ^2.2.0
   web_socket_channel: ^3.0.0
-  magic_cli: ^0.0.1-alpha.4
+  magic_cli: ^0.0.1-alpha.5
   flutter_test:
     sdk: flutter
 
