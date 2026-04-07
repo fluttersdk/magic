@@ -1368,18 +1368,19 @@ void main() {
         authFactory: (endpoint, data) async => throw authError,
       );
 
-      final interceptor = _TestInterceptor();
-      driver.addInterceptor(interceptor);
-
-      // Subscribe to a private channel (triggers auth on reconnect).
+      // Subscribe to a private channel (triggers auth immediately — will fail).
       driver.private('secret');
       await Future<void>.delayed(Duration.zero);
+
+      // Add interceptor AFTER initial subscribe so we only capture reconnect errors.
+      final interceptor = _TestInterceptor();
+      driver.addInterceptor(interceptor);
 
       // Simulate server closing the connection — triggers reconnect.
       mock1.simulateClose();
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
-      // Auth failure should have been routed through the interceptor.
+      // Auth failure during reconnect should have been routed through the interceptor.
       expect(
         interceptor.errors,
         contains(

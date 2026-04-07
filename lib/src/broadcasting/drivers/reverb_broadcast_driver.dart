@@ -91,7 +91,17 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     Map<String, dynamic> data,
   ) async {
     final response = await Http.post(endpoint, data: data);
-    return response.data as Map<String, dynamic>;
+    final responseData = response.data;
+
+    if (responseData is Map<String, dynamic>) {
+      return responseData;
+    }
+
+    if (responseData is Map) {
+      return Map<String, dynamic>.from(responseData);
+    }
+
+    return <String, dynamic>{};
   }
 
   // ---------------------------------------------------------------------------
@@ -683,6 +693,9 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         // Resubscribe all channels. Snapshot keys to avoid concurrent
         // modification if a handler modifies _channels during iteration.
         for (final name in _channels.keys.toList()) {
+          // Skip channels that were left after the snapshot was taken.
+          if (!_channels.containsKey(name)) continue;
+
           if (name.startsWith('presence-') || name.startsWith('private-')) {
             try {
               await _authenticateAndSubscribe(name);
