@@ -896,7 +896,11 @@ Config keys under `broadcasting.connections.reverb`:
 | `max_reconnect_delay` | `30000` | Max backoff delay in ms |
 | `dedup_buffer_size` | `100` | Ring buffer size for deduplication |
 
-The `channelFactory` constructor parameter overrides WebSocket creation for testing (dependency injection).
+Constructor DI parameters for testing:
+- `channelFactory` — overrides WebSocket creation (inject mock channels)
+- `authFactory` — overrides the HTTP auth call for private/presence channels (inject mock auth responses)
+
+Auth failures in `_authenticateAndSubscribe()` are logged via `Log.error()` and routed through the interceptor `onError()` chain. On reconnect, all channels are re-subscribed with `await` — `onReconnect` emits only after completion. Per-channel error handling ensures partial failures don't block other channels.
 
 ### NullBroadcastDriver
 

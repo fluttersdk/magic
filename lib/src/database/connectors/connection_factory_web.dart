@@ -38,7 +38,7 @@ class ConnectionFactory implements ConnectionFactoryContract {
     final dbName = config['database'] as String? ?? 'magic_app.db';
 
     // Load WASM if not already loaded
-    _sqlite3 ??= await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.wasm'));
+    _sqlite3 ??= await WasmSqlite3.loadFromUrl(Uri.parse('/sqlite3.wasm'));
 
     // Setup IndexedDB file system if not already setup
     if (_fileSystem == null) {

@@ -56,8 +56,10 @@ Register via `Echo.addInterceptor()` or `driver.addInterceptor()` in a ServicePr
 ## ReverbBroadcastDriver
 
 - Implements Pusher-compatible WebSocket protocol (Laravel Reverb, Soketi, etc.)
-- `channelFactory` constructor DI parameter overrides WebSocket creation — use for testing without a real server
+- Constructor DI: `channelFactory` overrides WebSocket creation, `authFactory` overrides HTTP auth call — both for testing
 - Auto-reconnection: exponential backoff `min(500ms × 2^attempt, max_reconnect_delay)` — set `reconnect: false` to disable
+- Reconnect resubscription: all channels re-subscribed with `await` after reconnect. Private/presence re-authenticate. `onReconnect` emits only after all resubscriptions complete
+- Auth error handling: failures logged via `Log.error()` with channel name, routed through interceptor `onError()` chain. Per-channel try/catch — one failure doesn't block others
 - Pusher error codes: 4000–4099 = fatal (no reconnect), 4100–4199 = immediate, 4200–4299 = backoff
 - Deduplication: ring buffer of size `dedup_buffer_size` (default 100) fingerprints — suppresses duplicate events on reconnect
 - Heartbeat: responds to `pusher:ping` with `pusher:pong` automatically
