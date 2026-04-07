@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
 import 'config/app.dart';
-import 'config/view.dart';
 import 'config/auth.dart';
-import 'config/database.dart';
-import 'config/network.dart';
 import 'config/cache.dart';
+import 'config/database.dart';
 import 'config/logging.dart';
+import 'config/network.dart';
+import 'config/routing.dart';
+import 'config/view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,12 +15,13 @@ void main() async {
   await Magic.init(
     configFactories: [
       () => appConfig,
-      () => viewConfig,
       () => authConfig,
-      () => databaseConfig,
-      () => networkConfig,
       () => cacheConfig,
+      () => databaseConfig,
       () => loggingConfig,
+      () => networkConfig,
+      () => routingConfig,
+      () => viewConfig,
     ],
   );
 

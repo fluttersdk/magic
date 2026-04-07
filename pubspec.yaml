@@ -24,6 +24,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
   fluttersdk_wind: ^1.0.0-alpha.4
   dio: ^5.9.0
   flutter_dotenv: ^6.0.0

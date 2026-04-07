@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 import '../database/seeding/seeder.dart';
 import '../facades/config.dart';
@@ -74,6 +75,11 @@ class Magic {
 
     // 3. Initialize MagicApp
     await MagicApp.init(envFileName: envFileName, configs: allConfigs);
+
+    // Configure URL strategy for web (must be before runApp)
+    if (Config.get('routing.url_strategy') == 'path') {
+      usePathUrlStrategy();
+    }
 
     // 2. Bind Core Services (before providers so they can use Log)
     app.singleton('log', () => LogManager());

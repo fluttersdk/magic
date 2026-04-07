@@ -29,6 +29,7 @@ export 'config/database.dart';
 export 'config/logging.dart';
 export 'config/localization.dart';
 export 'config/network.dart';
+export 'config/routing.dart';
 export 'config/view.dart';
 
 // Support
