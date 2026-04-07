@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0.0-alpha.9] - 2026-04-07
 
 ### 🐛 Bug Fixes
 - **Broadcasting**: Auth failures in private/presence channels now surface via `Log.error()` and interceptor `onError()` chain instead of being silently swallowed. Reconnect resubscribes all channels with `await` — `onReconnect` stream emits only after completion. Per-channel error handling ensures one auth failure does not block other channels. (#45)
