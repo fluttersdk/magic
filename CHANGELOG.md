@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+- **Routing**: Fix intermittent page title loss on web — Flutter's `Title` widget was overwriting TitleManager's route-level title on `didChangeDependencies()` rebuilds. Use `onGenerateTitle` to keep both in sync
+
 ### 📦 Dependencies
 - **file_picker**: Upgrade from `^10.3.10` to `^11.0.2` — migrates to static API (`FilePicker.platform` removed). Includes Android path traversal security fix (CWE-22) and WASM web support
 
