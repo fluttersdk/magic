@@ -433,7 +433,7 @@ Magic.init() → Env.load() → configFactories → providers register() → pro
 
 ```
 lib/
-├── config/              # Configuration files (app, auth, broadcasting, cache, database)
+├── config/              # Configuration files (app, auth, broadcasting, cache, database, routing)
 ├── app/
 │   ├── controllers/     # Request handlers (MagicController)
 │   ├── models/          # Eloquent models

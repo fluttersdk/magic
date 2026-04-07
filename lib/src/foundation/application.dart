@@ -6,6 +6,7 @@ import '../../config/broadcasting.dart';
 import '../../config/localization.dart';
 import '../../config/logging.dart';
 import '../../config/network.dart';
+import '../../config/routing.dart';
 import '../../config/view.dart';
 import '../support/service_provider.dart';
 import 'config_repository.dart';
@@ -138,7 +139,8 @@ class MagicApp {
       ..addAll(defaultNetworkConfig)
       ..addAll(defaultViewConfig)
       ..addAll(defaultLocalizationConfig)
-      ..addAll(defaultBroadcastingConfig);
+      ..addAll(defaultBroadcastingConfig)
+      ..addAll(defaultRoutingConfig);
   }
 
   // ---------------------------------------------------------------------------

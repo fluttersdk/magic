@@ -11,6 +11,7 @@
     - [Layouts (Shell Routes)](#layouts-shell-routes)
 - [Context-Free Navigation](#context-free-navigation)
 - [Route Middleware](#route-middleware)
+- [URL Strategy](#url-strategy)
 - [Navigator Observers](#navigator-observers)
 
 <a name="introduction"></a>
@@ -311,6 +312,28 @@ MagicRoute.page('/admin', () => AdminPanel())
 ```
 
 See the [Middleware documentation](/basics/middleware) for details on creating custom middleware.
+
+<a name="url-strategy"></a>
+## URL Strategy
+
+Flutter web defaults to hash-based URLs (`/#/path`). Magic can enable clean path-based URLs (`/path`) via config — no code changes needed elsewhere.
+
+```dart
+'routing': {
+  'url_strategy': 'path', // 'path' | 'hash' | null (default: null — hash strategy)
+},
+```
+
+> [!NOTE]
+> This setting has no effect on iOS, Android, or desktop — it is web-only.
+
+When using path-based URLs, your web server must serve `index.html` for all routes. Example nginx config:
+
+```nginx
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
 
 <a name="navigator-observers"></a>
 ## Navigator Observers

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### ✨ Features
+- feat: config-driven path URL strategy for Flutter web (#40)
+
 ## [1.0.0-alpha.7] - 2026-04-06
 
 ### ✨ Features

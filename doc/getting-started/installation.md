@@ -115,7 +115,7 @@ dart run magic:magic install
 ```
 
 This command creates everything you need:
-- `lib/config/` — Configuration files (app, auth, broadcasting, cache, database, network, logging, view)
+- `lib/config/` — Configuration files (app, auth, broadcasting, cache, database, network, logging, routing, view)
 - `lib/app/` — Controllers, models, providers, middleware, policies
 - `lib/routes/` — Route definitions
 - `lib/resources/views/` — UI view classes
@@ -153,6 +153,7 @@ import 'config/database.dart';
 import 'config/network.dart';
 import 'config/cache.dart';
 import 'config/logging.dart';
+import 'config/routing.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -166,6 +167,7 @@ void main() async {
       () => networkConfig,
       () => cacheConfig,
       () => loggingConfig,
+      () => routingConfig,
     ],
   );
 

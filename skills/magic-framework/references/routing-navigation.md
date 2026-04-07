@@ -420,6 +420,18 @@ MagicRoute.layout(
 );
 ```
 
+## URL Strategy (Web)
+
+Flutter web defaults to hash-based URLs (`/#/path`). Set `url_strategy` in routing config to `'path'` for clean path-based URLs (`/path`), or `'hash'` to explicitly keep hash-based URLs:
+
+```dart
+'routing': {
+  'url_strategy': 'path', // 'path' | 'hash' | null (default: null — hash strategy)
+},
+```
+
+No effect on iOS, Android, or desktop. Requires server-side fallback to `index.html` for all routes (e.g., nginx `try_files $uri $uri/ /index.html`).
+
 ## Navigator Observers
 
 Register `NavigatorObserver` instances for analytics, monitoring, or performance tracking. Observers must be registered before the router is built.
