@@ -368,3 +368,80 @@ Observers are passed directly to GoRouter and receive all navigation events (`di
 
 > [!NOTE]
 > Observers must be registered before `routerConfig` is accessed. Adding observers after the router is built throws a `StateError`.
+
+## Page Titles
+
+Magic provides automatic page title management — updates `document.title` on web and the app switcher description on mobile.
+
+### Title Suffix
+
+Set a global suffix via `MagicApplication`:
+
+```dart
+MagicApplication(
+  title: 'My App',
+  titleSuffix: 'Kodizm.AI',
+)
+```
+
+Page titles render as `"Dashboard - Kodizm.AI"`. When no page title is set, only `"My App"` is shown (no suffix).
+
+### Static Route Titles
+
+Assign titles to routes using the fluent `.title()` method:
+
+```dart
+MagicRoute.page('/dashboard', () => DashboardPage())
+    .name('dashboard')
+    .title('Dashboard')
+    .middleware(['auth']);
+```
+
+The title is set automatically when the route becomes active.
+
+### Dynamic Titles with MagicTitle Widget
+
+For data-dependent titles that resolve after the route mounts, wrap your widget with `MagicTitle`:
+
+```dart
+class ProjectPage extends StatelessWidget {
+  final String projectName;
+
+  const ProjectPage({super.key, required this.projectName});
+
+  @override
+  Widget build(BuildContext context) {
+    return MagicTitle(
+      title: projectName,
+      child: Scaffold(
+        appBar: AppBar(title: Text(projectName)),
+        body: ProjectContent(),
+      ),
+    );
+  }
+}
+```
+
+`MagicTitle` sets the title on mount, updates on rebuild, and clears on dispose (falling back to the route title).
+
+### Imperative Title API
+
+Set or read the title from anywhere — controllers, services, callbacks:
+
+```dart
+// Set title imperatively
+MagicRoute.setTitle('User Profile — John');
+
+// Read the current title (without suffix)
+final title = MagicRoute.currentTitle;
+```
+
+### Title Resolution Priority
+
+Highest to lowest:
+
+1. `MagicTitle` widget / `MagicRoute.setTitle()` — explicit override
+2. `RouteDefinition.title()` — static route title
+3. `MagicApplication.title` — app-level fallback
+
+When a higher-priority source is cleared (e.g., `MagicTitle` disposes), the next level takes over automatically.

@@ -51,7 +51,7 @@ final user = await User.find(1);
 | 🏗️ | **IoC Container** | Service Container with singleton, bind, and instance registration |
 | 🎭 | **17 Facades** | `Auth`, `Http`, `Cache`, `DB`, `Echo`, `Event`, `Gate`, `Log`, `Route`, `Lang`, `Storage`, `Vault`, `Crypt` and more |
 | 🗄️ | **Eloquent ORM** | Models, QueryBuilder, migrations, seeders, factories — hybrid API + SQLite persistence |
-| 🛣️ | **Routing** | GoRouter integration with middleware, named routes, and context-free navigation |
+| 🛣️ | **Routing** | GoRouter integration with middleware, named routes, context-free navigation, and automatic page title management |
 | 🔐 | **Authentication** | Token-based auth with guards (Bearer, BasicAuth, ApiKey), session restore, auto-refresh |
 | 🛡️ | **Authorization** | Gates, policies, `MagicCan` / `MagicCannot` widgets |
 | ✅ | **Validation** | Laravel-style rules: `Required`, `Email`, `Min`, `Max`, `In`, `Confirmed` |

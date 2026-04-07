@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✨ New Features
+- **Routing**: Route-level page title management with `TitleManager` singleton. Per-route titles via `RouteDefinition.title()`, automatic suffix pattern via `MagicApplication(titleSuffix:)`, declarative `MagicTitle` widget for data-dependent titles, and imperative `MagicRoute.setTitle()` / `MagicRoute.currentTitle` API. Title resolution: MagicTitle > setTitle > RouteDefinition.title > MagicApplication.title. Updates `document.title` on web and app switcher on mobile. (#49)
+
 ## [1.0.0-alpha.9] - 2026-04-07
 
 ### 🐛 Bug Fixes
