@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.9
   magic:
     path: ..
-    version: 1.0.0-alpha.7
+    version: 1.0.0-alpha.8
 
 dev_dependencies:
   flutter_test:
