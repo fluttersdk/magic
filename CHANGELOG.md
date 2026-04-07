@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📦 Dependencies
+- **file_picker**: Upgrade from `^10.3.10` to `^11.0.2` — migrates to static API (`FilePicker.platform` removed). Includes Android path traversal security fix (CWE-22) and WASM web support
+
 ## [1.0.0-alpha.10] - 2026-04-07
 
 ### ✨ New Features
