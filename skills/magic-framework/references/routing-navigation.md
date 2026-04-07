@@ -422,11 +422,11 @@ MagicRoute.layout(
 
 ## URL Strategy (Web)
 
-Flutter web defaults to hash-based URLs (`/#/path`). Set `url_strategy: 'path'` in routing config to enable clean path-based URLs (`/path`):
+Flutter web defaults to hash-based URLs (`/#/path`). Set `url_strategy` in routing config to `'path'` for clean path-based URLs (`/path`), or `'hash'` to explicitly keep hash-based URLs:
 
 ```dart
 'routing': {
-  'url_strategy': 'path', // 'path' | null (default: null — hash strategy)
+  'url_strategy': 'path', // 'path' | 'hash' | null (default: null — hash strategy)
 },
 ```
 

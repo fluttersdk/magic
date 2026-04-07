@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+// url_strategy.dart uses internal conditional export — no-op on non-web.
+// No platform-split wrapper needed.
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 import '../database/seeding/seeder.dart';

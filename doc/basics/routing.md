@@ -320,7 +320,7 @@ Flutter web defaults to hash-based URLs (`/#/path`). Magic can enable clean path
 
 ```dart
 'routing': {
-  'url_strategy': 'path', // 'path' | null (default: null — hash strategy)
+  'url_strategy': 'path', // 'path' | 'hash' | null (default: null — hash strategy)
 },
 ```
 
