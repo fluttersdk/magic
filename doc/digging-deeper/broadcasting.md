@@ -476,13 +476,17 @@ Echo.connectionState.listen((state) {
 });
 ```
 
-Re-subscribe to channels after a reconnect using `Echo.onReconnect`:
+After a successful reconnect, the driver automatically re-subscribes **all** previously subscribed channels (public, private, and presence). Private and presence channels re-authenticate via the `auth_endpoint`. The `onReconnect` stream emits only after all resubscriptions complete, so listeners can safely assume channels are ready:
 
 ```dart
 Echo.onReconnect.listen((_) {
-  Echo.channel('orders').listen('OrderShipped', onShipped);
+  // All channels are already resubscribed at this point.
+  // Use this for UI updates or additional logic — not for re-subscribing.
+  print('Reconnected and all channels restored');
 });
 ```
+
+If a private/presence channel auth fails during reconnect, the error is logged via `Log.error()` and routed through the interceptor `onError()` chain. Other channels continue resubscribing — one failure does not block the rest.
 
 <a name="reconnection-and-heartbeat"></a>
 ### Reconnection and Heartbeat
