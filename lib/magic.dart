@@ -43,6 +43,7 @@ export 'src/helpers/date_helpers.dart';
 export 'src/routing/magic_router.dart';
 export 'src/routing/magic_router_outlet.dart';
 export 'src/routing/route_definition.dart';
+export 'src/routing/title_manager.dart';
 
 // Facades
 export 'src/facades/config.dart';
@@ -78,6 +79,7 @@ export 'src/ui/magic_view.dart';
 export 'src/ui/magic_form.dart';
 export 'src/ui/magic_form_data.dart';
 export 'src/ui/magic_responsive_view.dart';
+export 'src/ui/magic_title.dart';
 
 // Network
 export 'src/network/magic_response.dart';

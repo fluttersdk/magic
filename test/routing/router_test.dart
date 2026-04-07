@@ -3,8 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
 void main() {
+  setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
+  });
+
   // Reset router before each test
   setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+    TitleManager.reset();
     MagicRouter.reset();
   });
 
@@ -625,6 +632,79 @@ void main() {
       MagicRouter.reset();
 
       expect(MagicRouter.instance.historyDepth, 0);
+    });
+  });
+
+  group('TitleManager Integration', () {
+    test('routerConfig attaches routerDelegate listener', () {
+      MagicRoute.page('/', () => const SizedBox());
+
+      // Accessing routerConfig should not throw.
+      final config = MagicRouter.instance.routerConfig;
+
+      // The delegate should have at least one listener (ours).
+      // We verify indirectly: the router built without error.
+      expect(config, isNotNull);
+    });
+
+    testWidgets('route navigation updates TitleManager with route title', (
+      tester,
+    ) async {
+      final titles = <String>[];
+      TitleManager.configure(onTitleChanged: (title, _) => titles.add(title));
+
+      MagicRoute.page('/', () => const SizedBox()).title('Home');
+      MagicRoute.page('/about', () => const SizedBox()).title('About');
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      // Initial route title should be set.
+      expect(titles, contains('Home'));
+
+      titles.clear();
+
+      MagicRouter.instance.to('/about');
+      await tester.pumpAndSettle();
+
+      expect(titles, contains('About'));
+    });
+
+    testWidgets('route without title sets null route title on TitleManager', (
+      tester,
+    ) async {
+      final titles = <String>[];
+      TitleManager.configure(onTitleChanged: (title, _) => titles.add(title));
+
+      TitleManager.instance.setAppTitle('App');
+
+      MagicRoute.page('/', () => const SizedBox()).title('Home');
+      MagicRoute.page('/plain', () => const SizedBox());
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      titles.clear();
+
+      MagicRouter.instance.to('/plain');
+      await tester.pumpAndSettle();
+
+      // Route title is null so it falls back to app title.
+      expect(titles, contains('App'));
+    });
+
+    test('reset() resets TitleManager', () {
+      TitleManager.configure(onTitleChanged: (_, _) {});
+      TitleManager.instance.setAppTitle('Test App');
+
+      MagicRouter.reset();
+
+      // After reset, TitleManager should be a fresh instance.
+      expect(TitleManager.instance.currentTitle, isNull);
     });
   });
 }

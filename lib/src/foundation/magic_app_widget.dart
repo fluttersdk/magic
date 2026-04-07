@@ -7,6 +7,7 @@ import '../facades/lang.dart';
 import '../facades/log.dart';
 import '../facades/vault.dart';
 import '../routing/magic_router.dart';
+import '../routing/title_manager.dart';
 
 import 'magic.dart';
 
@@ -76,6 +77,9 @@ class MagicApplication extends StatefulWidget {
   /// The app title.
   final String title;
 
+  /// Optional title suffix appended to page titles (e.g. '| My App').
+  final String? titleSuffix;
+
   /// Wind theme data for styling.
   /// MaterialApp theme will be derived from this using controller.toThemeData().
   final WindThemeData? windTheme;
@@ -113,6 +117,7 @@ class MagicApplication extends StatefulWidget {
   const MagicApplication({
     super.key,
     this.title = 'Magic App',
+    this.titleSuffix,
     this.windTheme,
     this.themeMode = ThemeMode.system,
     this.initialRoute = '/',
@@ -163,6 +168,11 @@ class _MagicApplicationState extends State<MagicApplication> {
 
       // 3. Call the app's onInit callback.
       widget.onInit?.call();
+
+      // 4. Configure TitleManager with app title and optional suffix.
+      TitleManager.instance.setSuffix(widget.titleSuffix);
+      TitleManager.instance.setAppTitle(widget.title);
+
       setState(() => _initialized = true);
     } catch (e) {
       Log.error('MagicApplication: Init error', e);

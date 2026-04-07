@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../routing/magic_router.dart';
 import '../routing/route_definition.dart';
+import '../routing/title_manager.dart';
 
 /// The Magic Route Facade.
 ///
@@ -259,6 +260,20 @@ class MagicRoute {
   static void replace(String path) {
     MagicRouter.instance.replace(path);
   }
+
+  // ---------------------------------------------------------------------------
+  // Title Management
+  // ---------------------------------------------------------------------------
+
+  /// Set the page title imperatively from a controller or callback.
+  ///
+  /// Applies the configured suffix automatically.
+  static void setTitle(String title) {
+    TitleManager.instance.setOverride(title);
+  }
+
+  /// Get the current effective page title (without suffix).
+  static String? get currentTitle => TitleManager.instance.currentTitle;
 
   // ---------------------------------------------------------------------------
   // Router Access

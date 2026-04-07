@@ -5,6 +5,7 @@ import '../http/kernel.dart';
 import '../http/middleware/magic_middleware.dart';
 import '../facades/log.dart';
 import 'route_definition.dart';
+import 'title_manager.dart';
 
 /// The Magic Router.
 ///
@@ -76,6 +77,9 @@ class MagicRouter {
 
   /// Current route state (for parameter access).
   GoRouterState? _currentState;
+
+  /// Current route definition (for title resolution).
+  RouteDefinition? _currentRoute;
 
   /// Whether the router has been built.
   bool _isBuilt = false;
@@ -175,8 +179,11 @@ class MagicRouter {
   /// )
   /// ```
   GoRouter get routerConfig {
-    _router ??= _buildRouter();
-    _isBuilt = true;
+    if (_router == null) {
+      _router = _buildRouter();
+      _isBuilt = true;
+      _router!.routerDelegate.addListener(_onRouteChanged);
+    }
     return _router!;
   }
 
@@ -272,8 +279,12 @@ class MagicRouter {
       path: route.fullPath,
       name: route.routeName,
       pageBuilder: (context, state) {
-        // Store current state for Request.route() access
+        // Store current state and route for Request.route() / title access
         _currentState = state;
+        _currentRoute = route;
+
+        // Push the route-level title to TitleManager immediately.
+        TitleManager.instance.setRouteTitle(route.routeTitle);
 
         // Wrap widget with middleware guard
         final widget = _MiddlewareGuard(
@@ -616,18 +627,39 @@ class MagicRouter {
   }
 
   // ---------------------------------------------------------------------------
+  // Title Management
+  // ---------------------------------------------------------------------------
+
+  /// Called when the router delegate notifies of a route change.
+  ///
+  /// Reads the current [RouteDefinition]'s title and pushes it to
+  /// [TitleManager]. Routes without a title clear the route-level title,
+  /// allowing [TitleManager] to fall back to the app title.
+  void _onRouteChanged() {
+    // Title is applied in pageBuilder where the RouteDefinition is available.
+    // This listener ensures the title updates even when GoRouter re-evaluates
+    // routes without a full page rebuild (e.g. redirect resolution).
+    TitleManager.instance.setRouteTitle(_currentRoute?.routeTitle);
+  }
+
+  // ---------------------------------------------------------------------------
   // Reset (Testing)
   // ---------------------------------------------------------------------------
 
   /// Reset the router (useful for testing).
   static void reset() {
+    _instance?._router?.routerDelegate.removeListener(
+      _instance!._onRouteChanged,
+    );
     _instance?._routes.clear();
     _instance?._layouts.clear();
     _instance?._observers.clear();
     _instance?._router = null;
+    _instance?._currentRoute = null;
     _instance?._isBuilt = false;
     _instance?._intendedUrl = null;
     _instance?._history.clear();
+    TitleManager.reset();
     _instance = null;
   }
 }
