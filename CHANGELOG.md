@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.10] - 2026-04-07
+
 ### ✨ New Features
-- **Routing**: Route-level page title management with `TitleManager` singleton. Per-route titles via `RouteDefinition.title()`, automatic suffix pattern via `MagicApplication(titleSuffix:)`, declarative `MagicTitle` widget for data-dependent titles, and imperative `MagicRoute.setTitle()` / `MagicRoute.currentTitle` API. Title resolution: MagicTitle > setTitle > RouteDefinition.title > MagicApplication.title. Updates `document.title` on web and app switcher on mobile. (#49)
+- **Routing**: Route-level page title management with `TitleManager` singleton. Per-route titles via `RouteDefinition.title()`, automatic suffix pattern via `MagicApplication(titleSuffix:)`, declarative `MagicTitle` widget for data-dependent titles, and imperative `MagicRoute.setTitle()` / `MagicRoute.currentTitle` API. Title resolution: MagicTitle > setTitle > RouteDefinition.title > MagicApplication.title. (#49)
+
+### 🔧 Improvements
+- **Dependencies**: Bump `magic_cli` to `^0.0.1-alpha.6` (scaffold templates now include `.title()` and `titleSuffix`)
 
 ## [1.0.0-alpha.9] - 2026-04-07
 
