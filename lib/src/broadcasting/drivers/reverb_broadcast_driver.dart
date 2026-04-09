@@ -387,7 +387,10 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// herd when many clients reconnect simultaneously after a server restart.
   Duration backoffDelay(int attempt) {
     final maxDelay = _config['max_reconnect_delay'] as int? ?? 30000;
-    final base = min(500 * pow(2, attempt).toInt(), maxDelay);
+    var base = 500;
+    for (var i = 0; i < attempt && base < maxDelay; i++) {
+      base = min(base * 2, maxDelay);
+    }
     final jitter = (_random.nextDouble() * base * 0.3).toInt();
     return Duration(milliseconds: base + jitter);
   }
@@ -714,6 +717,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     final shouldReconnect = _config['reconnect'] as bool? ?? true;
     if (!shouldReconnect) return;
 
+    _cancelActivityTimers();
     _reconnectTimer?.cancel();
 
     final delay = immediate ? Duration.zero : backoffDelay(_attempt);

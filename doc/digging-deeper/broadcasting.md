@@ -517,7 +517,7 @@ The `ReverbBroadcastDriver` implements client-side activity monitoring per the P
 
 - After connecting, the driver starts an inactivity timer using the server-provided `activity_timeout` value (sent in the `pusher:connection_established` handshake)
 - If no message is received within `activity_timeout` seconds, the driver sends a `pusher:ping` to the server
-- If no `pusher:pong` response arrives within 30 seconds, the connection is declared dead and the driver closes the socket, triggering the standard reconnection flow with exponential backoff
+- If no `pusher:pong` response arrives within the configured `pongTimeout` window (30 seconds by default), the connection is declared dead and the driver closes the socket, triggering the standard reconnection flow with exponential backoff
 - The inactivity timer resets on **any** inbound message, not just pong responses
 - All timers are cancelled on `disconnect()` and during reconnection cycles to prevent stale timer interference
 

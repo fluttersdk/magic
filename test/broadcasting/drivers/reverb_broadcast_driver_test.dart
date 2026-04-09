@@ -249,9 +249,7 @@ void main() {
       );
 
       // Do NOT simulate connection_established — server is unresponsive.
-      expect(driver.connect(), throwsA(isA<TimeoutException>()));
-
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      await expectLater(driver.connect(), throwsA(isA<TimeoutException>()));
 
       // Socket should have been closed.
       expect(mock._sink.isClosed, isTrue);
@@ -1715,7 +1713,7 @@ void main() {
       await driver.disconnect();
     });
 
-    test('reconnects when pong not received within timeout', () async {
+    test('closes socket when pong not received within timeout', () async {
       final mock = _MockWebSocketChannel();
       final driver = ReverbBroadcastDriver(
         _defaultConfig(overrides: {'activity_timeout': 1, 'reconnect': false}),
