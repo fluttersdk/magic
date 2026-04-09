@@ -155,14 +155,16 @@ void _simulateConnectionEstablished(
   _MockWebSocketChannel mock, {
   String socketId = 'test-socket-id',
   int activityTimeout = 30,
+  bool includeActivityTimeout = true,
 }) {
   Future<void>.delayed(Duration.zero, () {
+    final data = <String, dynamic>{'socket_id': socketId};
+    if (includeActivityTimeout) {
+      data['activity_timeout'] = activityTimeout;
+    }
     mock.simulateMessage({
       'event': 'pusher:connection_established',
-      'data': jsonEncode({
-        'socket_id': socketId,
-        'activity_timeout': activityTimeout,
-      }),
+      'data': jsonEncode(data),
     });
   });
 }
@@ -1712,6 +1714,30 @@ void main() {
 
       await driver.disconnect();
     });
+
+    test(
+      'falls back to config activity_timeout when server omits it',
+      () async {
+        final mock = _MockWebSocketChannel();
+        final driver = ReverbBroadcastDriver(
+          _defaultConfig(overrides: {'activity_timeout': 1}),
+          channelFactory: (_) => mock,
+          pongTimeout: const Duration(seconds: 1),
+        );
+
+        // Handshake WITHOUT activity_timeout — driver should use config value.
+        _simulateConnectionEstablished(mock, includeActivityTimeout: false);
+        await driver.connect();
+
+        expect(
+          driver.activityTimeout,
+          equals(1),
+          reason: 'Should fall back to config activity_timeout',
+        );
+
+        await driver.disconnect();
+      },
+    );
 
     test('closes socket when pong not received within timeout', () async {
       final mock = _MockWebSocketChannel();

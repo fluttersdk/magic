@@ -904,7 +904,7 @@ Constructor DI parameters for testing:
 - `pongTimeout` — override the 30-second pong deadline (use short durations in tests)
 - `random` — inject a seeded `Random` for deterministic backoff jitter in tests
 
-**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake, configurable as fallback). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → closes socket, triggers reconnect. Timer resets on ANY inbound message.
+**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → closes socket, triggers reconnect. Timer resets on ANY inbound message.
 
 **Reconnection backoff**: Exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd when many clients reconnect simultaneously.
 
