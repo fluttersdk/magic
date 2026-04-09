@@ -71,8 +71,15 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       Map<String, dynamic> data,
     )?
     authFactory,
+    this.pongTimeout = _kPongTimeout,
   }) : _channelFactory = channelFactory ?? WebSocketChannel.connect,
        _authFactory = authFactory ?? _defaultAuthFactory;
+
+  // ---------------------------------------------------------------------------
+  // Constants
+  // ---------------------------------------------------------------------------
+
+  static const Duration _kPongTimeout = Duration(seconds: 30);
 
   // ---------------------------------------------------------------------------
   // Dependencies
@@ -85,6 +92,9 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     Map<String, dynamic> data,
   )
   _authFactory;
+
+  /// The duration to wait for a pong response after sending a ping.
+  final Duration pongTimeout;
 
   static Future<Map<String, dynamic>> _defaultAuthFactory(
     String endpoint,
@@ -157,6 +167,13 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
   Timer? _reconnectTimer;
   int _attempt = 0;
+
+  // ---------------------------------------------------------------------------
+  // Activity monitor
+  // ---------------------------------------------------------------------------
+
+  Timer? _activityTimer;
+  Timer? _pongTimer;
 
   // ---------------------------------------------------------------------------
   // Interceptors
@@ -247,6 +264,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   Future<void> disconnect() async {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _cancelActivityTimers();
     _attempt = 0;
 
     _subscriptionQueue.clear();
@@ -385,6 +403,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       );
     }
 
+    _resetActivityTimer();
+
     switch (event) {
       case 'pusher:connection_established':
         _handleConnectionEstablished(json);
@@ -409,6 +429,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     activityTimeout = data['activity_timeout'] as int? ?? 30;
     _isConnected = true;
     _attempt = 0;
+
+    _resetActivityTimer();
 
     _connectionStateController.add(BroadcastConnectionState.connected);
 
@@ -634,6 +656,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // ---------------------------------------------------------------------------
 
   void _onDone() {
+    _cancelActivityTimers();
+
     if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
       _connectionCompleter!.completeError(
         StateError('WebSocket closed before connection established'),
@@ -722,6 +746,29 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         _scheduleReconnect();
       }
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Activity monitor helpers
+  // ---------------------------------------------------------------------------
+
+  void _resetActivityTimer() {
+    _activityTimer?.cancel();
+    _pongTimer?.cancel();
+    _pongTimer = null;
+    _activityTimer = Timer(Duration(seconds: activityTimeout), () {
+      _send({'event': 'pusher:ping', 'data': <String, dynamic>{}});
+      _pongTimer = Timer(pongTimeout, () {
+        _channel?.sink.close();
+      });
+    });
+  }
+
+  void _cancelActivityTimers() {
+    _activityTimer?.cancel();
+    _activityTimer = null;
+    _pongTimer?.cancel();
+    _pongTimer = null;
   }
 
   // ---------------------------------------------------------------------------

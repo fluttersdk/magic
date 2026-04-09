@@ -22,6 +22,7 @@
 - [Connection](#connection)
     - [Connection Lifecycle](#connection-lifecycle)
     - [Reconnection and Heartbeat](#reconnection-and-heartbeat)
+    - [Connection Health Monitoring](#connection-health-monitoring)
     - [Deduplication](#deduplication)
 
 <a name="introduction"></a>
@@ -506,6 +507,17 @@ Pusher protocol error codes determine the reconnect strategy:
 | 4200–4299 | Reconnect with exponential backoff |
 
 The driver handles `pusher:ping` frames automatically, responding with `pusher:pong` to satisfy the server keepalive requirement.
+
+<a name="connection-health-monitoring"></a>
+### Connection Health Monitoring
+
+The `ReverbBroadcastDriver` implements client-side activity monitoring per the Pusher protocol specification. This detects silent connection loss — such as server crashes, network partitions, or deployments that don't send a WebSocket close frame — and automatically triggers reconnection.
+
+- After connecting, the driver starts an inactivity timer using the server-provided `activity_timeout` value (sent in the `pusher:connection_established` handshake)
+- If no message is received within `activity_timeout` seconds, the driver sends a `pusher:ping` to the server
+- If no `pusher:pong` response arrives within 30 seconds, the connection is declared dead and the driver closes the socket, triggering the standard reconnection flow with exponential backoff
+- The inactivity timer resets on **any** inbound message, not just pong responses
+- All timers are cancelled on `disconnect()` and during reconnection cycles to prevent stale timer interference
 
 <a name="deduplication"></a>
 ### Deduplication

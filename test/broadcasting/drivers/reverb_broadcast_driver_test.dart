@@ -1608,4 +1608,204 @@ void main() {
       await driver.disconnect();
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Activity Monitor (client-side ping/pong timeout)
+  // ---------------------------------------------------------------------------
+
+  group('ReverbBroadcastDriver — Activity Monitor', () {
+    test('sends pusher:ping after activity_timeout silence', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'activity_timeout': 1}),
+        channelFactory: (_) => mock,
+        pongTimeout: const Duration(seconds: 1),
+      );
+
+      // Handshake with 1-second activity_timeout.
+      _simulateConnectionEstablished(mock, activityTimeout: 1);
+      await driver.connect();
+
+      // Clear handshake frames.
+      mock._sink.messages.clear();
+
+      // Wait longer than activity_timeout (1s) for ping to be sent.
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+      final frames = mock.sentFrames;
+      expect(
+        frames,
+        contains(
+          predicate<Map<String, dynamic>>((f) => f['event'] == 'pusher:ping'),
+        ),
+        reason: 'Driver should send pusher:ping after activity_timeout silence',
+      );
+
+      await driver.disconnect();
+    });
+
+    test('reconnects when pong not received within timeout', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'activity_timeout': 1, 'reconnect': false}),
+        channelFactory: (_) => mock,
+        pongTimeout: const Duration(seconds: 1),
+      );
+
+      _simulateConnectionEstablished(mock, activityTimeout: 1);
+      await driver.connect();
+
+      // Wait for activity_timeout (1s) + pong timeout (1s) + buffer.
+      await Future<void>.delayed(const Duration(milliseconds: 2500));
+
+      // Socket should have been closed (triggering reconnect via _onDone).
+      expect(
+        mock._sink.isClosed,
+        isTrue,
+        reason:
+            'Socket should be closed when pong is not received within timeout',
+      );
+
+      await driver.disconnect();
+    });
+
+    test('resets activity timer on any inbound message', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'activity_timeout': 1}),
+        channelFactory: (_) => mock,
+        pongTimeout: const Duration(seconds: 1),
+      );
+
+      _simulateConnectionEstablished(mock, activityTimeout: 1);
+      await driver.connect();
+
+      // Clear handshake frames.
+      mock._sink.messages.clear();
+
+      // Wait 700ms (partial timeout — less than 1s activity_timeout).
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      // Send a data message — should reset the activity timer.
+      mock.simulateMessage({
+        'event': 'SomeEvent',
+        'channel': 'orders',
+        'data': jsonEncode({'id': 1}),
+      });
+
+      // Wait another 700ms — total 1400ms since connect, but only 700ms since
+      // last inbound message, so ping should NOT have been sent.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      final frames = mock.sentFrames;
+      final pings = frames.where((f) => f['event'] == 'pusher:ping');
+      expect(
+        pings,
+        isEmpty,
+        reason:
+            'No ping should be sent because activity timer was reset by '
+            'inbound message',
+      );
+
+      await driver.disconnect();
+    });
+
+    test('cancels activity timers on disconnect', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'activity_timeout': 1}),
+        channelFactory: (_) => mock,
+        pongTimeout: const Duration(seconds: 1),
+      );
+
+      _simulateConnectionEstablished(mock, activityTimeout: 1);
+      await driver.connect();
+
+      // Clear handshake frames.
+      mock._sink.messages.clear();
+
+      // Disconnect immediately.
+      await driver.disconnect();
+
+      // Wait longer than activity_timeout.
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+
+      // No ping should have been sent after disconnect.
+      final frames = mock._sink.sentFrames;
+      final pings = frames.where((f) {
+        final decoded = jsonDecode(f as String) as Map<String, dynamic>;
+        return decoded['event'] == 'pusher:ping';
+      });
+      expect(pings, isEmpty, reason: 'No ping should be sent after disconnect');
+    });
+
+    test('restarts activity monitor after reconnect', () async {
+      _MockWebSocketChannel? firstConnection;
+      _MockWebSocketChannel? secondConnection;
+      var connectionCount = 0;
+
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'activity_timeout': 1, 'reconnect': true}),
+        channelFactory: (_) {
+          connectionCount++;
+          if (connectionCount == 1) {
+            firstConnection = _MockWebSocketChannel();
+            // Schedule handshake for first connection.
+            Future<void>.delayed(Duration.zero, () {
+              firstConnection!.simulateMessage({
+                'event': 'pusher:connection_established',
+                'data': jsonEncode({
+                  'socket_id': 'first-socket-id',
+                  'activity_timeout': 1,
+                }),
+              });
+            });
+            return firstConnection!;
+          }
+          secondConnection = _MockWebSocketChannel();
+          // Schedule handshake for reconnected connection.
+          Future<void>.delayed(Duration.zero, () {
+            secondConnection!.simulateMessage({
+              'event': 'pusher:connection_established',
+              'data': jsonEncode({
+                'socket_id': 'reconnected-socket-id',
+                'activity_timeout': 1,
+              }),
+            });
+          });
+          return secondConnection!;
+        },
+        pongTimeout: const Duration(seconds: 1),
+      );
+
+      await driver.connect();
+
+      // Simulate server closing the connection — triggers reconnect.
+      firstConnection!.simulateClose();
+
+      // Wait for reconnect (500ms backoff) + handshake.
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      // Clear frames on new connection.
+      secondConnection!._sink.messages.clear();
+
+      // Wait for activity_timeout (1s) on the new connection.
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+      // Activity monitor should have restarted — ping should be sent on new
+      // connection.
+      final frames = secondConnection!.sentFrames;
+      expect(
+        frames,
+        contains(
+          predicate<Map<String, dynamic>>((f) => f['event'] == 'pusher:ping'),
+        ),
+        reason:
+            'Activity monitor should restart after reconnect and send ping '
+            'on new connection',
+      );
+
+      await driver.disconnect();
+    });
+  });
 }
