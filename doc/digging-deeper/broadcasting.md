@@ -104,6 +104,7 @@ await Magic.init(
 | `reconnect` | `bool` | `true` | Whether to auto-reconnect on unexpected disconnect |
 | `max_reconnect_delay` | `int` | `30000` | Maximum backoff delay in milliseconds |
 | `activity_timeout` | `int` | `120` | Seconds before a heartbeat ping is expected |
+| `connection_timeout` | `int` | `15` | Seconds to wait for `pusher:connection_established` before timing out |
 | `dedup_buffer_size` | `int` | `100` | Number of recent event fingerprints kept for deduplication |
 
 <a name="environment-variables"></a>

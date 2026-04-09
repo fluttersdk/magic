@@ -13,6 +13,7 @@
 /// - `reconnect` — Auto-reconnect on unexpected disconnect
 /// - `max_reconnect_delay` — Maximum back-off delay in milliseconds
 /// - `activity_timeout` — Seconds of inactivity before ping is sent
+/// - `connection_timeout` — Seconds to wait for connection establishment
 /// - `dedup_buffer_size` — Number of recent event IDs kept for deduplication
 final Map<String, dynamic> defaultBroadcastingConfig = {
   'broadcasting': {
@@ -35,6 +36,7 @@ final Map<String, dynamic> defaultBroadcastingConfig = {
         'reconnect': true,
         'max_reconnect_delay': 30000,
         'activity_timeout': 120,
+        'connection_timeout': 15,
         'dedup_buffer_size': 100,
       },
       'null': {'driver': 'null'},

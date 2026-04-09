@@ -261,7 +261,18 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       },
     );
 
-    return _connectionCompleter!.future;
+    final timeout = _config['connection_timeout'] as int? ?? 15;
+    return _connectionCompleter!.future.timeout(
+      Duration(seconds: timeout),
+      onTimeout: () {
+        _channel?.sink.close();
+        _connectionCompleter = null;
+        _scheduleReconnect();
+        throw TimeoutException(
+          'Connection establishment timed out after ${timeout}s',
+        );
+      },
+    );
   }
 
   @override

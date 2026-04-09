@@ -95,6 +95,7 @@ final broadcastingConfig = {
         'auth_endpoint': '/broadcasting/auth',
         'reconnect': true,
         'max_reconnect_delay': 30000,
+        'connection_timeout': 15,
         'dedup_buffer_size': 100,
       },
       'null': {'driver': 'null'},

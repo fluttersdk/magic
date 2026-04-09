@@ -237,6 +237,66 @@ void main() {
       expect(driver.socketId, isNull);
       expect(states, contains(BroadcastConnectionState.disconnected));
     });
+
+    test('throws TimeoutException when server does not send '
+        'connection_established within timeout', () async {
+      final mock = _MockWebSocketChannel();
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(
+          overrides: {'connection_timeout': 1, 'reconnect': false},
+        ),
+        channelFactory: (_) => mock,
+      );
+
+      // Do NOT simulate connection_established — server is unresponsive.
+      expect(driver.connect(), throwsA(isA<TimeoutException>()));
+
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+      // Socket should have been closed.
+      expect(mock._sink.isClosed, isTrue);
+    });
+
+    test('schedules reconnect after connection timeout', () async {
+      final mock1 = _MockWebSocketChannel();
+      _MockWebSocketChannel? mock2;
+      var connectionCount = 0;
+
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'connection_timeout': 1, 'reconnect': true}),
+        channelFactory: (_) {
+          connectionCount++;
+          if (connectionCount == 1) return mock1;
+          mock2 = _MockWebSocketChannel();
+          Future<void>.delayed(Duration.zero, () {
+            mock2!.simulateMessage({
+              'event': 'pusher:connection_established',
+              'data': jsonEncode({
+                'socket_id': 'retry-socket-id',
+                'activity_timeout': 30,
+              }),
+            });
+          });
+          return mock2!;
+        },
+        random: Random(42),
+      );
+
+      // connect() will timeout, but reconnect should be scheduled.
+      try {
+        await driver.connect();
+      } on TimeoutException catch (_) {
+        // Expected.
+      }
+
+      // Wait for reconnect timer (attempt 0 backoff ~500ms + jitter + connect).
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      // Driver should have reconnected successfully.
+      expect(connectionCount, greaterThanOrEqualTo(2));
+
+      await driver.disconnect();
+    });
   });
 
   group('ReverbBroadcastDriver — ping/pong', () {
