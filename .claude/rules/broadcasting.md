@@ -57,7 +57,10 @@ Register via `Echo.addInterceptor()` or `driver.addInterceptor()` in a ServicePr
 
 - Implements Pusher-compatible WebSocket protocol (Laravel Reverb, Soketi, etc.)
 - Constructor DI: `channelFactory` overrides WebSocket creation, `authFactory` overrides HTTP auth call — both for testing
-- Auto-reconnection: exponential backoff `min(500ms × 2^attempt, max_reconnect_delay)` — set `reconnect: false` to disable
+- Auto-reconnection: exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), then `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd on server restart. Set `reconnect: false` to disable
+- Activity monitor: client-side inactivity detection using Pusher protocol `activity_timeout` (from server handshake). After `activity_timeout` seconds of silence → sends `pusher:ping`. If no `pusher:pong` within 30s (`pongTimeout`) → closes socket, triggers reconnect. Timer resets on ANY inbound message
+- Connection timeout: configurable via `connection_timeout` (default 15s). If server doesn't complete Pusher handshake within timeout → closes socket, schedules reconnect, throws `TimeoutException`
+- Constructor DI: `pongTimeout` (Duration, default 30s) and `random` (Random) — both for testing determinism
 - Reconnect resubscription: all channels re-subscribed with `await` after reconnect. Private/presence re-authenticate. `onReconnect` emits only after all resubscriptions complete
 - Auth error handling: failures logged via `Log.error()` with channel name, routed through interceptor `onError()` chain. Per-channel try/catch — one failure doesn't block others
 - Pusher error codes: 4000–4099 = fatal (no reconnect), 4100–4199 = immediate, 4200–4299 = backoff
@@ -95,6 +98,7 @@ final broadcastingConfig = {
         'auth_endpoint': '/broadcasting/auth',
         'reconnect': true,
         'max_reconnect_delay': 30000,
+        'activity_timeout': 120,
         'connection_timeout': 15,
         'dedup_buffer_size': 100,
       },

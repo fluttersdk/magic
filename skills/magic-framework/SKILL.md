@@ -76,7 +76,7 @@ Use `configFactories` (not `configs`) when any value depends on `Env.get()`. The
 | `Schema` | Migrations | `create()`, `drop()`, `hasTable()` |
 | `Log` | Logging | `info()`, `error()`, `warning()`, `debug()` |
 | `Event` | Events | `dispatch(event)` |
-| `Echo` | Broadcasting | `channel()`, `private()`, `join()`, `listen()`, `leave()`, `connect()`, `disconnect()`, `socketId`, `fake()` |
+| `Echo` | Broadcasting | `channel()`, `private()`, `join()`, `listen()`, `leave()`, `connect()`, `disconnect()`, `socketId`, `connectionState`, `onReconnect`, `fake()` |
 | `MagicRoute` | Routing | `page()`, `group()`, `layout()`, `to()`, `back({fallback?})`, `replace()`, `push()`, `toNamed()` |
 | `Gate` | Authorization | `allows()`, `denies()`, `define()`, `policy()` |
 | `Lang` | Localization | `get()`, `locale()` |
