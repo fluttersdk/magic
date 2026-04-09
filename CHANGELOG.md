@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.12] - 2026-04-09
+
 ### ✨ New Features
 - **Broadcasting**: Client-side activity monitor — detects silent connection loss using Pusher protocol `activity_timeout` and `pusher:ping`/`pusher:pong`. Automatically reconnects when the server stops responding
 - **Broadcasting**: Random jitter (up to 30%) on reconnection backoff delay — prevents thundering herd when many clients reconnect simultaneously after a server restart

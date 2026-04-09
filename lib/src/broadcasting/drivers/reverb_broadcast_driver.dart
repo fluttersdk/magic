@@ -127,11 +127,11 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   bool _isConnected = false;
   String? _socketId;
 
-  /// The activity timeout in seconds reported by the server.
+  /// The activity timeout in seconds.
   ///
-  /// Parsed from the `pusher:connection_established` frame. Used to determine
-  /// how frequently the server expects keepalive traffic.
-  int activityTimeout = 30;
+  /// Parsed from the `pusher:connection_established` frame if provided by the
+  /// server; otherwise falls back to the `activity_timeout` config key.
+  late int activityTimeout = _config['activity_timeout'] as int? ?? 120;
   Completer<void>? _connectionCompleter;
 
   /// Broadcast controller that re-exposes the single-subscription
@@ -448,7 +448,9 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   void _handleConnectionEstablished(Map<String, dynamic> json) {
     final data = jsonDecode(json['data'] as String) as Map<String, dynamic>;
     _socketId = data['socket_id'] as String;
-    activityTimeout = data['activity_timeout'] as int? ?? 30;
+    activityTimeout =
+        data['activity_timeout'] as int? ??
+        (_config['activity_timeout'] as int? ?? 120);
     _isConnected = true;
     _attempt = 0;
 
