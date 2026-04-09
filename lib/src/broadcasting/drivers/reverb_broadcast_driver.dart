@@ -71,8 +71,17 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       Map<String, dynamic> data,
     )?
     authFactory,
+    this.pongTimeout = _kPongTimeout,
+    Random? random,
   }) : _channelFactory = channelFactory ?? WebSocketChannel.connect,
-       _authFactory = authFactory ?? _defaultAuthFactory;
+       _authFactory = authFactory ?? _defaultAuthFactory,
+       _random = random ?? Random();
+
+  // ---------------------------------------------------------------------------
+  // Constants
+  // ---------------------------------------------------------------------------
+
+  static const Duration _kPongTimeout = Duration(seconds: 30);
 
   // ---------------------------------------------------------------------------
   // Dependencies
@@ -85,6 +94,11 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     Map<String, dynamic> data,
   )
   _authFactory;
+
+  final Random _random;
+
+  /// The duration to wait for a pong response after sending a ping.
+  final Duration pongTimeout;
 
   static Future<Map<String, dynamic>> _defaultAuthFactory(
     String endpoint,
@@ -157,6 +171,13 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
   Timer? _reconnectTimer;
   int _attempt = 0;
+
+  // ---------------------------------------------------------------------------
+  // Activity monitor
+  // ---------------------------------------------------------------------------
+
+  Timer? _activityTimer;
+  Timer? _pongTimer;
 
   // ---------------------------------------------------------------------------
   // Interceptors
@@ -240,13 +261,25 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       },
     );
 
-    return _connectionCompleter!.future;
+    final timeout = _config['connection_timeout'] as int? ?? 15;
+    return _connectionCompleter!.future.timeout(
+      Duration(seconds: timeout),
+      onTimeout: () {
+        _channel?.sink.close();
+        _connectionCompleter = null;
+        _scheduleReconnect();
+        throw TimeoutException(
+          'Connection establishment timed out after ${timeout}s',
+        );
+      },
+    );
   }
 
   @override
   Future<void> disconnect() async {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _cancelActivityTimers();
     _attempt = 0;
 
     _subscriptionQueue.clear();
@@ -346,13 +379,20 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // Backoff delay — pure function, exposed for testing
   // ---------------------------------------------------------------------------
 
-  /// Computes the reconnect delay for [attempt] using exponential backoff.
+  /// Computes the reconnect delay for [attempt] using exponential backoff
+  /// with random jitter.
   ///
-  /// Formula: `min(500 * 2^attempt, maxReconnectDelay)` milliseconds.
+  /// Formula: `min(500 * 2^attempt, maxReconnectDelay) * (1 + random(0..0.3))`
+  /// milliseconds. The jitter (up to 30% of base delay) prevents thundering
+  /// herd when many clients reconnect simultaneously after a server restart.
   Duration backoffDelay(int attempt) {
     final maxDelay = _config['max_reconnect_delay'] as int? ?? 30000;
-    final ms = min(500 * pow(2, attempt).toInt(), maxDelay);
-    return Duration(milliseconds: ms);
+    var base = 500;
+    for (var i = 0; i < attempt && base < maxDelay; i++) {
+      base = min(base * 2, maxDelay);
+    }
+    final jitter = (_random.nextDouble() * base * 0.3).toInt();
+    return Duration(milliseconds: base + jitter);
   }
 
   /// Classifies a Pusher error [code] into a reconnection action.
@@ -385,6 +425,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       );
     }
 
+    _resetActivityTimer();
+
     switch (event) {
       case 'pusher:connection_established':
         _handleConnectionEstablished(json);
@@ -409,6 +451,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     activityTimeout = data['activity_timeout'] as int? ?? 30;
     _isConnected = true;
     _attempt = 0;
+
+    _resetActivityTimer();
 
     _connectionStateController.add(BroadcastConnectionState.connected);
 
@@ -634,6 +678,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // ---------------------------------------------------------------------------
 
   void _onDone() {
+    _cancelActivityTimers();
+
     if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
       _connectionCompleter!.completeError(
         StateError('WebSocket closed before connection established'),
@@ -671,6 +717,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     final shouldReconnect = _config['reconnect'] as bool? ?? true;
     if (!shouldReconnect) return;
 
+    _cancelActivityTimers();
     _reconnectTimer?.cancel();
 
     final delay = immediate ? Duration.zero : backoffDelay(_attempt);
@@ -722,6 +769,29 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         _scheduleReconnect();
       }
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Activity monitor helpers
+  // ---------------------------------------------------------------------------
+
+  void _resetActivityTimer() {
+    _activityTimer?.cancel();
+    _pongTimer?.cancel();
+    _pongTimer = null;
+    _activityTimer = Timer(Duration(seconds: activityTimeout), () {
+      _send({'event': 'pusher:ping', 'data': <String, dynamic>{}});
+      _pongTimer = Timer(pongTimeout, () {
+        _channel?.sink.close();
+      });
+    });
+  }
+
+  void _cancelActivityTimers() {
+    _activityTimer?.cancel();
+    _activityTimer = null;
+    _pongTimer?.cancel();
+    _pongTimer = null;
   }
 
   // ---------------------------------------------------------------------------
