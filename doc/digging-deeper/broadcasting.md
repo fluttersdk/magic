@@ -494,7 +494,8 @@ If a private/presence channel auth fails during reconnect, the error is logged v
 
 `ReverbBroadcastDriver` implements automatic reconnection with **exponential backoff**:
 
-- Formula: `min(500ms × 2^attempt, max_reconnect_delay)`
+- Formula: `min(500ms × 2^attempt, max_reconnect_delay) × (1 + jitter)` where jitter is a random value between 0 and 0.3 (30%)
+- The random jitter prevents **thundering herd** — when a server restarts, clients spread their reconnection attempts over time instead of hitting the server at the exact same moment
 - Default `max_reconnect_delay` is 30,000 ms (30 seconds)
 - Set `reconnect: false` in config to disable auto-reconnect
 

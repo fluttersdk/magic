@@ -72,8 +72,10 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     )?
     authFactory,
     this.pongTimeout = _kPongTimeout,
+    Random? random,
   }) : _channelFactory = channelFactory ?? WebSocketChannel.connect,
-       _authFactory = authFactory ?? _defaultAuthFactory;
+       _authFactory = authFactory ?? _defaultAuthFactory,
+       _random = random ?? Random();
 
   // ---------------------------------------------------------------------------
   // Constants
@@ -92,6 +94,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     Map<String, dynamic> data,
   )
   _authFactory;
+
+  final Random _random;
 
   /// The duration to wait for a pong response after sending a ping.
   final Duration pongTimeout;
@@ -364,13 +368,17 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // Backoff delay — pure function, exposed for testing
   // ---------------------------------------------------------------------------
 
-  /// Computes the reconnect delay for [attempt] using exponential backoff.
+  /// Computes the reconnect delay for [attempt] using exponential backoff
+  /// with random jitter.
   ///
-  /// Formula: `min(500 * 2^attempt, maxReconnectDelay)` milliseconds.
+  /// Formula: `min(500 * 2^attempt, maxReconnectDelay) * (1 + random(0..0.3))`
+  /// milliseconds. The jitter (up to 30% of base delay) prevents thundering
+  /// herd when many clients reconnect simultaneously after a server restart.
   Duration backoffDelay(int attempt) {
     final maxDelay = _config['max_reconnect_delay'] as int? ?? 30000;
-    final ms = min(500 * pow(2, attempt).toInt(), maxDelay);
-    return Duration(milliseconds: ms);
+    final base = min(500 * pow(2, attempt).toInt(), maxDelay);
+    final jitter = (_random.nextDouble() * base * 0.3).toInt();
+    return Duration(milliseconds: base + jitter);
   }
 
   /// Classifies a Pusher error [code] into a reconnection action.

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
@@ -523,42 +524,50 @@ void main() {
   });
 
   group('ReverbBroadcastDriver — exponential backoff', () {
-    test('computes correct backoff delays capped at max', () {
+    test('computes backoff delays within expected range with jitter', () {
       final driver = ReverbBroadcastDriver(
         _defaultConfig(overrides: {'max_reconnect_delay': 16000}),
       );
 
-      // Formula: min(500 * 2^attempt, maxDelay)
-      expect(driver.backoffDelay(0), equals(const Duration(milliseconds: 500)));
-      expect(
-        driver.backoffDelay(1),
-        equals(const Duration(milliseconds: 1000)),
-      );
-      expect(
-        driver.backoffDelay(2),
-        equals(const Duration(milliseconds: 2000)),
-      );
-      expect(
-        driver.backoffDelay(3),
-        equals(const Duration(milliseconds: 4000)),
-      );
-      expect(
-        driver.backoffDelay(4),
-        equals(const Duration(milliseconds: 8000)),
-      );
-      expect(
-        driver.backoffDelay(5),
-        equals(const Duration(milliseconds: 16000)),
-      );
+      // Formula: base = min(500 * 2^attempt, maxDelay), jitter = 0..30%
+      // Result is in [base, base * 1.3]
+      void expectRange(int attempt, int base) {
+        final delay = driver.backoffDelay(attempt);
+        final ms = delay.inMilliseconds;
+        final maxWithJitter = (base * 1.3).ceil();
+        expect(
+          ms,
+          greaterThanOrEqualTo(base),
+          reason: 'attempt $attempt: $ms should be >= $base',
+        );
+        expect(
+          ms,
+          lessThanOrEqualTo(maxWithJitter),
+          reason: 'attempt $attempt: $ms should be <= $maxWithJitter',
+        );
+      }
+
+      expectRange(0, 500);
+      expectRange(1, 1000);
+      expectRange(2, 2000);
+      expectRange(3, 4000);
+      expectRange(4, 8000);
+      expectRange(5, 16000);
       // Capped at max.
-      expect(
-        driver.backoffDelay(6),
-        equals(const Duration(milliseconds: 16000)),
+      expectRange(6, 16000);
+      expectRange(10, 16000);
+    });
+
+    test('produces deterministic delays with seeded Random', () {
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'max_reconnect_delay': 16000}),
+        random: Random(42),
       );
-      expect(
-        driver.backoffDelay(10),
-        equals(const Duration(milliseconds: 16000)),
-      );
+
+      // With a seeded Random, delays are deterministic but include jitter.
+      final delay0 = driver.backoffDelay(0);
+      expect(delay0.inMilliseconds, greaterThan(500));
+      expect(delay0.inMilliseconds, lessThanOrEqualTo(650));
     });
   });
 
@@ -665,6 +674,7 @@ void main() {
           });
           return mock2;
         },
+        random: Random(42),
       );
 
       // Connect and subscribe to two channels.
@@ -1353,6 +1363,7 @@ void main() {
           return reconnectMock!;
         },
         authFactory: authFactory,
+        random: Random(42),
       );
 
       _simulateConnectionEstablished(mock1);
