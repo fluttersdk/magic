@@ -243,6 +243,43 @@ void main() {
     test('currentLocation returns null when no state is set', () {
       expect(MagicRouter.instance.currentLocation, isNull);
     });
+
+    test('currentPath returns null when no state is set', () {
+      expect(MagicRouter.instance.currentPath, isNull);
+    });
+  });
+
+  group('currentPath', () {
+    testWidgets('returns path without query string', (tester) async {
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/profile', () => const SizedBox());
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to('/profile', queryParameters: {'tab': 'security'});
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentPath, '/profile');
+      expect(MagicRouter.instance.currentLocation, contains('tab=security'));
+    });
+
+    testWidgets('returns path for simple routes', (tester) async {
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/home', () => const SizedBox());
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to('/home');
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentPath, '/home');
+    });
   });
 
   group('Layout Merging', () {
