@@ -196,6 +196,9 @@ final allQueryParams = MagicRouter.instance.queryParameters;
 
 // Current location (path + query)
 final location = MagicRouter.instance.currentLocation;
+
+// Current path only (without query string)
+final path = MagicRouter.instance.currentPath;
 ```
 
 ## Named Routes

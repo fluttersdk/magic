@@ -558,6 +558,16 @@ class MagicRouter {
   /// ```
   String? get currentLocation => _currentState?.uri.toString();
 
+  /// Get the current route path (without query string).
+  ///
+  /// Returns `null` if no route state is available yet.
+  ///
+  /// ```dart
+  /// final path = MagicRouter.instance.currentPath;
+  /// // e.g. '/profile'
+  /// ```
+  String? get currentPath => _currentState?.uri.path;
+
   // ---------------------------------------------------------------------------
   // Intended URL (Redirect-After-Login)
   // ---------------------------------------------------------------------------
