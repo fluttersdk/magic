@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✨ New Features
+- **Routing**: Add `currentPath` getter to `MagicRouter` — returns the current route path without query string, complementing the existing `currentLocation` property
+
 ## [1.0.0-alpha.12] - 2026-04-09
 
 ### ✨ New Features
