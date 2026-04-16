@@ -485,9 +485,10 @@ class MagicRouter {
   /// Route.back(fallback: '/home');
   /// ```
   void back({String? fallback}) {
-    // 1. Prefer native pop when available.
-    if (navigatorKey.currentState?.canPop() ?? false) {
-      navigatorKey.currentState!.pop();
+    // 1. Prefer GoRouter pop when available (syncs state + preserves
+    //    custom page transitions on reverse animation).
+    if (_router != null && _router!.canPop()) {
+      _router!.pop();
       return;
     }
 
