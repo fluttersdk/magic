@@ -38,12 +38,13 @@ Update the version string in these files:
 | `pubspec.yaml` | `version:` field |
 | `CHANGELOG.md` | Move `[Unreleased]` content → `[{version}] - {YYYY-MM-DD}`, **keep empty `## [Unreleased]` section above** |
 | `skills/magic-framework/SKILL.md` | Frontmatter `version:` field + `<!-- Magic v{version} ... -->` comment |
+| `example/pubspec.yaml` | `version:` constraint on the `magic` path dependency (e.g. `version: {new_version}`) |
+| `example/pubspec.lock` | Run `cd example && flutter pub get` to sync lock file |
 
 **IMPORTANT — files that do NOT need version updates:**
 - `CLAUDE.md` — has no version field
 - `README.md` — has no pinned version numbers
 - `doc/getting-started/installation.md` — has no pinned version numbers
-- `example/pubspec.yaml` — uses `path: ..` dependency, **NEVER add a `version:` constraint** (path deps resolve locally, a version constraint causes CI failure when it doesn't match the bumped pubspec)
 
 ### Phase 3: Changelog Enhancement
 
@@ -206,7 +207,7 @@ Present a summary:
 
 | Mistake | Prevention |
 |---------|------------|
-| Adding `version:` to `example/pubspec.yaml` path dep | Path deps resolve locally — version constraint causes CI failure. NEVER add it. |
+| Forgetting `example/pubspec.yaml` version bump | Update `version:` constraint on the magic path dep and run `flutter pub get` in example/. Otherwise dependabot creates a separate PR for it. |
 | Removing `[Unreleased]` section from CHANGELOG | Always keep empty `## [Unreleased]` at top after moving entries to dated section. |
 | Pushing directly to master | Master is protected. Always create a branch + PR. |
 | Using `dart analyze --no-fatal-infos` | Flag doesn't exist. Use plain `dart analyze`. |
