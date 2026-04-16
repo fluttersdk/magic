@@ -33,7 +33,7 @@ lib/
 │   ├── views/             # Full-screen pages
 │   └── widgets/           # Reusable components
 ├── routes/app.dart        # MagicRoute.page() / .group() / .layout()
-└── assets/lang/en.json    # trans('key') i18n strings
+└── assets/lang/en.json    # trans('key') i18n strings (add to pubspec.yaml assets if enabled)
 ```
 
 ## Key Decisions
@@ -59,9 +59,9 @@ IMPORTANT: W-prefix components for ALL layout and styling. Banned natives:
 | TextFormField | `WFormInput` (MagicForm) or `WInput` |
 | String interpolation in className | `states` param + prefixed classes |
 
-Exceptions: `Scaffold`, `AppBar`, `Form`, `CircularProgressIndicator`.
+Exceptions (keep native): `Scaffold`, `AppBar`, `Form`, `Center`, `SingleChildScrollView`, `CircularProgressIndicator`, `Navigator`.
 
-**className**: Triple-quoted `'''`, one concern per line. Every `bg-`/`text-`/`border-` needs `dark:` pair. Responsive via `sm:`/`md:`/`lg:`/`xl:` prefix. States via `states` param (`hover:`, `focus:`, `disabled:`, `active:`, `loading:`, `error:`, custom). Modifiers stack: `dark:hover:bg-gray-700`.
+**className**: Use triple-quoted `'''` for multi-line; single-line strings fine for simple cases. One concern per line. Every `bg-`/`text-`/`border-` needs `dark:` pair. Responsive via `sm:`/`md:`/`lg:`/`xl:` prefix. States via `states` param (`hover:`, `focus:`, `disabled:`, `active:`, `loading:`, `error:`, custom). Modifiers stack: `dark:hover:bg-gray-700`.
 
 ```dart
 WDiv(
@@ -105,7 +105,7 @@ Project rules:
 - `setUp()`: `MagicApp.reset()` + `Magic.flush()`
 - Mock via contract inheritance (no mockito)
 - `Magic.put<T>(controller)` for controller injection
-- Wind UI layouts: `tester.view.physicalSize = Size(1440, 900)`
+- Wind UI layouts: `tester.view.physicalSize = const Size(1440, 900); addTearDown(tester.view.resetPhysicalSize)`
 
 ## Gotchas
 
