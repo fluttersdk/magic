@@ -59,15 +59,58 @@ Review the `[Unreleased]` section and the git log since the last tag:
 5. **Date** — Use today's date in `YYYY-MM-DD` format
 6. **[Unreleased] section** — ALWAYS keep an empty `## [Unreleased]` section at the top of the changelog after moving entries to the dated section. Never remove it.
 
-### Phase 4: Doc & Skill Sync
+### Phase 4: Skill & Doc Sync
 
-Check if any doc/skill files need updating based on the changes in this release:
+**Step 1 — Always update version metadata** in `skills/magic-framework/SKILL.md` line 7:
 
-1. **`doc/`** — Update if the release changes documented behavior or APIs
-2. **`skills/magic-framework/`** — Update if facade APIs, patterns, or gotchas changed
-3. **`.claude/rules/`** — Update if conventions or domain rules changed
+```
+<!-- Magic v{new_version} | magic_starter v{starter_version} | Skill updated: {YYYY-MM-DD} -->
+```
 
-Skip if the release is purely version bump + changelog (no behavioral changes).
+Keep `magic_starter` version unchanged unless that package was also updated. Update `Skill updated` to today's date.
+
+**Step 2 — Detect changed source domains.** Run:
+
+```bash
+git diff $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~20)..HEAD --name-only -- lib/src/
+```
+
+Map changed `lib/src/` directories to skill files using this table:
+
+| Source directory | Skill reference file | `.claude/rules/` |
+|-----------------|---------------------|-------------------|
+| `foundation/`, `facades/`, `providers/` | `references/bootstrap-lifecycle.md`, `references/facades-api.md` | — |
+| `auth/`, `policies/` | `references/auth-system.md` | `rules/auth.md` |
+| `broadcasting/` | `references/secondary-systems.md` (Broadcasting section) | `rules/broadcasting.md` |
+| `cache/`, `events/`, `localization/`, `logging/`, `encryption/`, `security/`, `storage/`, `launch/` | `references/secondary-systems.md` | — |
+| `database/` | `references/eloquent-orm.md` | `rules/database.md` |
+| `http/`, `concerns/` | `references/controllers-views.md`, `references/http-network.md` | `rules/http.md` |
+| `network/` | `references/http-network.md` | — |
+| `routing/` | `references/routing-navigation.md` | `rules/routing.md` |
+| `ui/` | `references/controllers-views.md`, `references/forms-validation.md` | `rules/ui.md` |
+| `validation/` | `references/forms-validation.md` | `rules/validation.md` |
+| `testing/` | `references/testing-patterns.md` | `rules/tests.md` |
+| `helpers/`, `support/` | `references/templates.md` (if helper APIs changed) | — |
+
+**Step 3 — For each matched file**, read the current source code and the skill reference side by side. Update the reference to reflect:
+- New/renamed/removed public APIs (methods, properties, constructors)
+- Changed method signatures or return types
+- New configuration keys or options
+- New anti-patterns or gotchas discovered during this release
+- Updated code examples if old ones are now incorrect
+
+**Step 4 — Update SKILL.md body** if the release introduces:
+- A new facade → add to Core Laws facade list (Section 1, line 16) and `when_to_use` frontmatter
+- A new anti-pattern → add to Anti-patterns section (Section 6)
+- A new checklist item → add to Pre-commit Checklist (Section 7)
+- A new CLI command → add to CLI Quick Reference (Section 8)
+- A new ecosystem plugin → add to Ecosystem Plugins table (Section 10.5)
+
+**Step 5 — Update `doc/`** if documented behavior or APIs changed. Match existing doc format exactly.
+
+**Step 6 — Update `.claude/rules/`** for matched domains (see table above). Rules files document conventions and gotchas, not full API refs.
+
+**Skip Steps 2-6** if the release is purely version bump + changelog with no `lib/src/` changes. Step 1 (version metadata) is always required.
 
 ### Phase 5: Local Verification
 
@@ -163,3 +206,5 @@ Present a summary:
 | Using `dart analyze --no-fatal-infos` | Flag doesn't exist. Use plain `dart analyze`. |
 | Tag with `v` prefix | Convention is NO prefix: `1.0.0-alpha.9`, not `v1.0.0-alpha.9`. |
 | Updating CLAUDE.md/README.md for version | These files have no version refs — skip them. |
+| Forgetting SKILL.md version comment | Always update `<!-- Magic v{version} ... -->` in SKILL.md line 7, even for changelog-only releases. |
+| Skill reference drift | Map changed `lib/src/` dirs to reference files (see Phase 4 table). A new facade without a skill update means the next agent session has stale knowledge. |
