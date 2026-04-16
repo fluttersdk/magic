@@ -337,7 +337,7 @@ Before finalizing any Magic framework task, verify:
 - [ ] Forms use `MagicFormData` with `controller:` parameter, disposed in `onClose()`
 - [ ] Validation uses `rules()` helper in `MagicStatefulViewState` or `FormValidator.rules()`
 - [ ] `ValidatesRequests` import from `package:magic/magic.dart` (lives in `src/concerns/`)
-- [ ] Routes registered in provider's `register()`, not `boot()`
+- [ ] Routes registered before `routerConfig` is accessed (typically in `RouteServiceProvider.boot()`)
 - [ ] `configFactories` used (not `configs`) when values depend on `Env.get()`
 - [ ] Routes have `.title('Page Name')` for browser tab / app switcher
 - [ ] Test `setUp()` has `MagicApp.reset()` + `Magic.flush()` (or use `MagicTest.init()`)

@@ -311,7 +311,7 @@ class PaymentServiceProvider extends ServiceProvider {
 
     @override
     void register() {
-        // Sync bindings only. Routes go here.
+        // Sync IoC bindings only. No async, no resolving other services.
         app.singleton('payment', () => StripePaymentService());
     }
 
@@ -333,7 +333,7 @@ import 'package:magic/magic.dart';
 
 class EnsureAuthenticated extends MagicMiddleware {
     @override
-    void handle(void Function() next) {
+    Future<void> handle(void Function() next) async {
         if (Auth.check()) {
             next(); // Proceed to next middleware or route
         } else {
