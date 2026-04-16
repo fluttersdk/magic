@@ -4,8 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.13] - 2026-04-16
+
 ### ✨ New Features
 - **Routing**: Add `currentPath` getter to `MagicRouter` — returns the current route path without query string, complementing the existing `currentLocation` property
+
+### 🐛 Bug Fixes
+- **Routing**: Use `GoRouter.pop()` instead of `Navigator.pop()` in `back()` — syncs router state and preserves custom page transitions on reverse animation. Add `StateError` guard when router is not initialized, consistent with `to()` and `replace()`
+
+### 🔧 Improvements
+- **Skill**: Optimize `magic-framework` skill for Claude Code progressive disclosure — split frontmatter, extract templates to references, compress sections (669 → 416 lines). Add version frontmatter and source-to-skill mapping in release command
+- **Deps**: Bump magic version constraint in example app
 
 ## [1.0.0-alpha.12] - 2026-04-09
 
