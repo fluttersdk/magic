@@ -485,22 +485,29 @@ class MagicRouter {
   /// Route.back(fallback: '/home');
   /// ```
   void back({String? fallback}) {
-    // 1. Prefer native pop when available.
-    if (navigatorKey.currentState?.canPop() ?? false) {
-      navigatorKey.currentState!.pop();
+    if (_router == null) {
+      throw StateError(
+        'Router not initialized. Make sure to use routerConfig with MaterialApp.router first.',
+      );
+    }
+
+    // 1. Prefer GoRouter pop when available (syncs state + preserves
+    //    custom page transitions on reverse animation).
+    if (_router!.canPop()) {
+      _router!.pop();
       return;
     }
 
     // 2. Fall back to history stack.
     if (_history.isNotEmpty) {
       final previous = _history.removeLast();
-      _router?.go(previous);
+      _router!.go(previous);
       return;
     }
 
     // 3. Use explicit fallback if provided.
     if (fallback != null) {
-      _router?.go(fallback);
+      _router!.go(fallback);
     }
   }
 
