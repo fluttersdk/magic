@@ -37,6 +37,7 @@ Update the version string in these files:
 |------|----------------|
 | `pubspec.yaml` | `version:` field |
 | `CHANGELOG.md` | Move `[Unreleased]` content → `[{version}] - {YYYY-MM-DD}`, **keep empty `## [Unreleased]` section above** |
+| `skills/magic-framework/SKILL.md` | Frontmatter `version:` field + `<!-- Magic v{version} ... -->` comment |
 
 **IMPORTANT — files that do NOT need version updates:**
 - `CLAUDE.md` — has no version field
@@ -61,11 +62,16 @@ Review the `[Unreleased]` section and the git log since the last tag:
 
 ### Phase 4: Skill & Doc Sync
 
-**Step 1 — Always update version metadata** in `skills/magic-framework/SKILL.md` line 7:
+**Step 1 — Always update version metadata** in `skills/magic-framework/SKILL.md`:
 
-```
-<!-- Magic v{new_version} | magic_starter v{starter_version} | Skill updated: {YYYY-MM-DD} -->
-```
+1. Frontmatter `version:` field (must match `pubspec.yaml` version exactly):
+   ```yaml
+   version: {new_version}
+   ```
+2. HTML comment (line after frontmatter closing `---`):
+   ```
+   <!-- Magic v{new_version} | magic_starter v{starter_version} | Skill updated: {YYYY-MM-DD} -->
+   ```
 
 Keep `magic_starter` version unchanged unless that package was also updated. Update `Skill updated` to today's date.
 

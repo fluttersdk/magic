@@ -1,6 +1,7 @@
 ---
 name: magic-framework
 description: "Magic Framework: Flutter IoC + 17 Facades (Auth, Http, Cache, DB, Echo, Log, Event, Gate, MagicRoute...), Eloquent ORM, Service Providers, GoRouter, MagicController/View, forms, testing, 4 plugins."
+version: 1.0.0-alpha.12
 when_to_use: "TRIGGER when: code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or user mentions Magic.init, MagicApp, MagicController, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicFormData, MagicForm, MagicBuilder, MagicRoute, MagicResponse, Model with HasTimestamps, InteractsWithPersistence, ServiceProvider, MagicMiddleware, MagicStateMixin, ValidatesRequests, RxStatus, Auth/Http/Config/Cache/DB/Gate/Log/Event/Lang/Schema/Vault/Storage/Pick/Crypt/Launch/Echo facade, MagicApplication, MagicTitle, TitleManager, MagicTest, fetchList, fetchOne, Http.fake, Auth.fake, Echo.fake, Magic.findOrPut, Magic.make, Magic.put, Magic.find, Magic.singleton, Magic.snackbar, Magic.toast, Magic.dialog, Magic.confirm, Carbon, trans(), env(), rules(), handleApiError, MagicStarter, magic_deeplink, magic_notifications, magic_social_auth, dart run magic:magic, make:model, make:controller, make:view. DO NOT TRIGGER when: code only uses Wind UI without Magic framework, or plain Flutter without package:magic import."
 ---
 
