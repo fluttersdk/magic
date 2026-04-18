@@ -148,6 +148,38 @@ Rules are evaluated in order. If any rule fails, validation stops and the error 
 | `Confirmed()` | Must match `{field}_confirmation` | `[Confirmed()]` |
 | `Same('field')` | Must match another field | `[Same('password', valueGetter: ...)]` |
 | `Accepted()` | Must be true/1/"yes"/"on" | `[Accepted()]` |
+| `In<T>(values)` | Value must appear in whitelist | `[In<String>(['public', 'private'])]` |
+| `InList<T extends Enum>(values)` | Value must match an enum (name or instance) | `[InList(Severity.values)]` |
+
+### Whitelist Rules (`In` / `InList`)
+
+`In<T>` validates against a primitive whitelist. The generic `T` is the element type, so type mismatches fail explicitly rather than silently coercing:
+
+```dart
+'visibility': [In<String>(['public', 'private'])],
+'priority':   [In<int>([1, 2, 3, 5, 8])],
+```
+
+`InList<T extends Enum>` is the enum-aware variant. By default it compares against `Enum.name` and also accepts the enum instance itself. Use `caseInsensitive: true` for loose matching, or `wire:` to map enums onto a custom wire representation (snake_case, kebab-case, or bespoke codes):
+
+```dart
+enum Severity { low, medium, high, critical }
+
+InList(Severity.values);                          // matches 'low', 'medium', ...
+InList(Severity.values, caseInsensitive: true);   // also 'HIGH', 'Critical'
+
+enum ThresholdDirection { highBad, lowBad }
+
+InList<ThresholdDirection>(
+  ThresholdDirection.values,
+  wire: (d) => switch (d) {
+    ThresholdDirection.highBad => 'high_bad',
+    ThresholdDirection.lowBad  => 'low_bad',
+  },
+);
+```
+
+Both rules pass on `null` so you pair them with `Required()` when presence matters. The failure message resolves `validation.in` with a comma-joined `:values` placeholder (`"The severity must be one of low, medium, high, critical."`).
 
 ### Same Rule with ValueGetter
 

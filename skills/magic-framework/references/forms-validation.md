@@ -241,6 +241,8 @@ if (response.isValidationError) {
 | `Confirmed` | `Confirmed()` | Value matches `{field}_confirmation` key in data |
 | `Same` | `Same(String other, {String Function()? valueGetter})` | Value matches `other` field; use `valueGetter` for live Flutter controller values |
 | `Accepted` | `Accepted()` | Value is `true`, `1`, `'1'`, `'yes'`, `'on'`, or `'true'` (case-insensitive) |
+| `In<T>` | `In<T>(List<T> values)` | Value appears in the primitive whitelist; type mismatch fails explicitly |
+| `InList<T extends Enum>` | `InList(List<T> values, {bool caseInsensitive, String Function(T)? wire})` | Value matches an enum by instance or by `.name` / `wire` mapping |
 
 **Same with valueGetter (recommended for Flutter forms):**
 
@@ -433,6 +435,7 @@ class _RegisterViewState
 - `rules()` is bound to `MagicStatefulViewState`. Use `FormValidator.rules()` in standard `State` classes.
 - `Confirmed` looks for `{field}_confirmation` in form data. `Same` requires an explicit field name and supports `valueGetter` for live values.
 - `Accepted` accepts `true`, `1`, `'1'`, `'yes'`, `'on'`, `'true'` — use it for terms checkboxes, not `Required`.
+- `In<T>` / `InList<T extends Enum>` short-circuit on `null` (pair with `Required()` for presence). `InList` accepts the enum itself or a string compared against `.name`; pass `wire:` to map enums onto snake_case or bespoke wire codes, `caseInsensitive: true` for loose matching. Both emit `validation.in` with a comma-joined `:values`.
 - Always call `form.dispose()` in `onClose()` to prevent memory leaks.
 
 

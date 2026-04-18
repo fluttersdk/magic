@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - **Validation**: `AsyncRule` contract plus `Unique(endpoint, field: ...)` rule, an async uniqueness check with per-instance debounce (coalesces rapid calls) and a pluggable `.via()` resolver. Network errors log and pass so they never block submission. `Validator.validateAsync()` runs async rules after sync rules; sync failures short-circuit per field. (#68)
 - **Session**: Add `Session` facade with Laravel-style flash data — `Session.flash(data)`, `Session.flashErrors(errors)`, `Session.old(field, [fallback])`, `Session.error(field)`, `Session.errors(field)`, `Session.hasError(field)`, `Session.hasFlash`, `Session.tick()`. Two-bucket store promotes flashed data exactly one navigation hop so forms can repopulate after a failed submit. Top-level helpers `old()` and `error()` mirror Laravel's Blade API
 - **UI**: `MagicFormData.validate()` automatically flashes form data on validation failure — downstream views can repopulate via `old('field')` without manual wiring
+- **Validation**: `In<T>` rule accepts a primitive whitelist (strings, ints, etc.) and `InList<T extends Enum>` validates enum-backed fields, accepting either the enum instance or a wire string. `InList` supports `caseInsensitive:` and an optional `wire:` mapper for snake_case or custom representations. Both emit the shared `validation.in` message with a comma-joined `:values` parameter. (#81)
 
 ## [1.0.0-alpha.13] - 2026-04-16
 
