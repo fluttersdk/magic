@@ -3,7 +3,8 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/localization/translator.dart';
 import 'package:magic/src/localization/contracts/translation_loader.dart';
-import 'package:magic/src/validation/rules/in_rule.dart';
+import 'package:magic/src/validation/rules/in.dart';
+import 'package:magic/src/validation/rules/in_list.dart';
 import 'package:magic/src/validation/rules/required.dart';
 import 'package:magic/src/validation/validator.dart';
 
