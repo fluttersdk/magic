@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 
+import '../facades/gate.dart';
 import '../facades/http.dart';
+import '../validation/exceptions/authorization_exception.dart';
 import 'rx_status.dart';
 
 /// The Base Controller for Magic MVC.
@@ -63,6 +65,26 @@ abstract class MagicController extends ChangeNotifier {
   void refreshUI() {
     if (!_disposed) {
       notifyListeners();
+    }
+  }
+
+  /// Authorize an action against the current [Auth.user] via the [Gate].
+  ///
+  /// Mirrors Laravel's `$this->authorize('update', $model)` helper inside
+  /// controllers. Delegates to `Gate.allows(ability, arguments)`; on denial
+  /// it throws [AuthorizationException] so the caller can route to a 403
+  /// view or surface a feedback toast.
+  ///
+  /// ```dart
+  /// Future<Monitor?> update(String id, MonitorFormValues values) async {
+  ///   final monitor = await Monitor.find(id);
+  ///   authorize('update', monitor);
+  ///   ...
+  /// }
+  /// ```
+  void authorize(String ability, [Object? arguments]) {
+    if (!Gate.allows(ability, arguments)) {
+      throw AuthorizationException('This action is unauthorized: $ability');
     }
   }
 }

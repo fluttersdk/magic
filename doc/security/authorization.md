@@ -95,7 +95,33 @@ if (Gate.denies('delete-post', post)) {
 if (Gate.check('view-admin')) {
   // Same as allows
 }
+
+// Any ability passes (short-circuits on first match)
+if (Gate.allowsAny(['owner', 'admin'], project)) {
+  // At least one ability allows access
+}
+
+// All abilities must pass (short-circuits on first failure)
+if (Gate.allowsAll(['update', 'publish'], post)) {
+  // Every ability allows access
+}
 ```
+
+### Inside Controllers
+
+`MagicController` exposes an `authorize()` helper that delegates to the Gate and throws `AuthorizationException` when access is denied. This mirrors Laravel's `$this->authorize()` inside controller actions:
+
+```dart
+class MonitorController extends MagicController with MagicStateMixin<Monitor> {
+  Future<void> update(String id, MonitorFormValues values) async {
+    final monitor = await Monitor.find(id);
+    authorize('update', monitor);
+    // ... proceed with update, exception already thrown on denial
+  }
+}
+```
+
+Catch `AuthorizationException` at the boundary (route handler, form submit) to surface a 403 view or feedback toast.
 
 <a name="super-admin-bypass"></a>
 ## Super Admin Bypass

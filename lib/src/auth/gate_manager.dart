@@ -215,6 +215,34 @@ class GateManager {
     return allows(ability, arguments);
   }
 
+  /// Check if the authenticated user has any of the given abilities.
+  ///
+  /// Short-circuits on the first ability that passes.
+  ///
+  /// ```dart
+  /// if (Gate.allowsAny(['owner', 'admin'], project)) { ... }
+  /// ```
+  bool allowsAny(List<String> abilities, [dynamic arguments]) {
+    for (final ability in abilities) {
+      if (allows(ability, arguments)) return true;
+    }
+    return false;
+  }
+
+  /// Check if the authenticated user has every one of the given abilities.
+  ///
+  /// Short-circuits on the first ability that fails.
+  ///
+  /// ```dart
+  /// if (Gate.allowsAll(['update', 'publish'], post)) { ... }
+  /// ```
+  bool allowsAll(List<String> abilities, [dynamic arguments]) {
+    for (final ability in abilities) {
+      if (!allows(ability, arguments)) return false;
+    }
+    return true;
+  }
+
   /// Check if an ability has been defined.
   bool has(String ability) {
     return _abilities.containsKey(ability);
