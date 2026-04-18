@@ -160,8 +160,10 @@ export 'src/validation/rules/confirmed.dart';
 export 'src/validation/rules/same.dart';
 export 'src/validation/rules/accepted.dart';
 export 'src/validation/exceptions/validation_exception.dart';
+export 'src/validation/exceptions/authorization_exception.dart';
 export 'src/validation/validator.dart';
 export 'src/validation/form_validator.dart';
+export 'src/validation/form_request.dart';
 export 'src/concerns/validates_requests.dart';
 
 // Events
