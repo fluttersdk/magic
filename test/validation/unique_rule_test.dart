@@ -43,7 +43,7 @@ void main() {
     });
 
     test('passes on network error and logs', () async {
-      Log.fake();
+      final log = Log.fake();
       final rule = Unique(
         '/validate/unique',
         field: 'slug',
@@ -59,7 +59,62 @@ void main() {
 
       final validated = await validator.validateAsync();
       expect(validated, {'slug': 'x'});
+      log.assertLoggedError('Unique rule network error');
       Log.unfake();
+    });
+
+    test(
+      'passes without calling resolver when value is null or empty',
+      () async {
+        var called = false;
+        final rule =
+            Unique(
+              '/validate/unique',
+              field: 'slug',
+              debounce: Duration.zero,
+            ).via((_, _, _) async {
+              called = true;
+              return false;
+            });
+
+        expect(await rule.passesAsync('slug', null, {}), isTrue);
+        expect(await rule.passesAsync('slug', '', {}), isTrue);
+        expect(await rule.passesAsync('slug', '   ', {}), isTrue);
+        expect(
+          called,
+          isFalse,
+          reason: 'Resolver must not run for empty input',
+        );
+      },
+    );
+
+    test('stale resolver result after debounce is discarded', () async {
+      var slowCompleter = 0;
+      final rule =
+          Unique(
+            '/validate/unique',
+            field: 'slug',
+            debounce: const Duration(milliseconds: 10),
+          ).via((_, _, value) async {
+            slowCompleter++;
+            // First (stale) call has a long resolver; second (fresh) call is
+            // fast and should win the race.
+            if (value == 'stale') {
+              await Future<void>.delayed(const Duration(milliseconds: 100));
+              return false;
+            }
+            return true;
+          });
+
+      final stale = rule.passesAsync('slug', 'stale', {});
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      final fresh = rule.passesAsync('slug', 'fresh', {});
+
+      final results = await Future.wait([stale, fresh]);
+
+      expect(slowCompleter, 2, reason: 'Both resolvers were dispatched');
+      expect(results[0], isTrue, reason: 'Stale in-flight result is discarded');
+      expect(results[1], isTrue);
     });
 
     test('sync rules short-circuit async rules', () async {

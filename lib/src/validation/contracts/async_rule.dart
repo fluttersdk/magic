@@ -18,7 +18,7 @@ import 'rule.dart';
 ///   final String endpoint;
 ///
 ///   @override
-///   Future<bool> passesAsync(String attr, value, Map<String, dynamic> data) async {
+///   Future<bool> passesAsync(String attr, dynamic value, Map<String, dynamic> data) async {
 ///     final response = await Http.get(endpoint, query: {attr: value?.toString() ?? ''});
 ///     return response.successful;
 ///   }

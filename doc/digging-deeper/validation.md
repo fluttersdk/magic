@@ -295,7 +295,7 @@ Unique('/validate/unique', field: 'slug');
 // Custom resolver
 Unique('/validate/unique', field: 'slug').via((endpoint, field, value) async {
   final response = await Http.post(endpoint, data: {field: value});
-  return response.data?['unique'] == true;
+  return response['unique'] == true;
 });
 ```
 

@@ -18,9 +18,11 @@ typedef UniqueResolver =
 /// submission; the authoritative check still happens on the server.
 ///
 /// ```dart
-/// Validator.make(data, {
-///   'slug': [Required(), Unique('/validate/unique', field: 'slug')],
-/// }).validateAsync();
+/// Future<void> submit() async {
+///   await Validator.make(data, {
+///     'slug': [Required(), Unique('/validate/unique', field: 'slug')],
+///   }).validateAsync();
+/// }
 /// ```
 ///
 /// ## Debounce
@@ -37,7 +39,7 @@ typedef UniqueResolver =
 /// ```dart
 /// Unique('/validate/unique', field: 'slug').via((endpoint, field, value) async {
 ///   final response = await Http.post(endpoint, data: {field: value});
-///   return response.data?['unique'] == true;
+///   return response['unique'] == true;
 /// });
 /// ```
 class Unique extends AsyncRule {
@@ -72,6 +74,11 @@ class Unique extends AsyncRule {
     dynamic value,
     Map<String, dynamic> data,
   ) async {
+    // Presence is `Required`'s job — skip null/empty so optional fields never
+    // trigger a network call or report a false uniqueness failure.
+    if (value == null) return true;
+    if (value is String && value.trim().isEmpty) return true;
+
     final token = ++_token;
 
     if (debounce > Duration.zero) {
@@ -86,7 +93,12 @@ class Unique extends AsyncRule {
     final resolver = _resolver ?? _defaultResolver;
 
     try {
-      return await resolver(endpoint, field, value);
+      final result = await resolver(endpoint, field, value);
+      // Re-check the token after awaiting: a later call may have superseded
+      // this one while the resolver was in flight. Stale results must not
+      // record an error.
+      if (token != _token) return true;
+      return result;
     } catch (error) {
       Log.error('Unique rule network error', error);
       return true;
