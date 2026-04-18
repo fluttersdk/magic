@@ -5,11 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### ✨ New Features
-- **Eloquent**: `CastsAttributes<T>` interface for class-based custom casts. `Model.casts` now accepts either the legacy string types (`datetime`, `json`, `bool`, `int`, `double`) or a `CastsAttributes` instance. Ships with two built-ins: `EnumCast<T extends Enum>` (with optional `strict` mode) and `ListCast<T>` (element-wise JSON round-trip). (#71)
-
-### 🔧 Improvements
-- **Eloquent**: `Model.casts` return type widened from `Map<String, String>` to `Map<String, dynamic>`. Existing subclasses returning `Map<String, String>` remain valid because `Map<String, String>` is a subtype of `Map<String, dynamic>` under Dart's generic covariance.
-- **Eloquent**: Built-in `json` cast now handles both `Map` and `List` JSON values. Reads decode to whichever type the stored JSON represents; writes encode either shape to a JSON string for storage.
+- **Eloquent**: `Model.fill` now accepts a `strict` flag. When `true`, any non-fillable key throws `MassAssignmentException` instead of being silently dropped. Pair with validated request payloads to catch schema drift at the boundary. (#69)
 
 ## [1.0.0-alpha.13] - 2026-04-16
 
