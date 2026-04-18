@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - **HTTP**: `MagicController.authorize(ability, [arguments])`, a Laravel-style controller helper that delegates to `Gate.allows()` and throws `AuthorizationException` on denial. Avoids hand-rolling gate checks in every action. (#72)
 - **Auth**: `Gate.allowsAny(abilities, [arguments])` and `Gate.allowsAll(abilities, [arguments])`, short-circuiting sugar for checking multiple abilities at once. (#72)
 - **Routing**: `MagicRoute.resource(name, controller, {only, except})` auto-wires up to four canonical routes (index, create, show, edit) to a controller that mixes in `ResourceController`. Controllers declare supported methods via `resourceMethods`; `only` / `except` narrow the set further. Each route gets an auto-assigned `{slug}.{method}` name and title. (#67)
+- **Validation**: `AsyncRule` contract plus `Unique(endpoint, field: ...)` rule, an async uniqueness check with per-instance debounce (coalesces rapid calls) and a pluggable `.via()` resolver. Network errors log and pass so they never block submission. `Validator.validateAsync()` runs async rules after sync rules; sync failures short-circuit per field. (#68)
 
 ## [1.0.0-alpha.13] - 2026-04-16
 

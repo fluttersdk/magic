@@ -267,6 +267,42 @@ if (controller.hasError('email'))
   WText(controller.getError('email')!, className: 'text-red-500 text-sm'),
 ```
 
+<a name="async-rules"></a>
+## Async Rules
+
+Some validations cannot decide locally: uniqueness, remote existence, captcha checks. Extend `AsyncRule` instead of `Rule` and implement `passesAsync`. Run the validator with `validateAsync()` to await async rules; sync failures short-circuit per field.
+
+```dart
+final validator = Validator.make(data, {
+  'slug': [Required(), Unique('/validate/unique', field: 'slug')],
+});
+
+try {
+  final validated = await validator.validateAsync();
+} on ValidationException catch (e) {
+  setFieldErrors(e.errors);
+}
+```
+
+### The Unique Rule
+
+`Unique(endpoint, field: ...)` issues a `GET` to the endpoint with `?{field}={value}` and treats `{"unique": true}` (or `{"available": true}`) as a pass. Network errors are logged and pass so a flaky connection never blocks the form; the server remains the source of truth on submit.
+
+```dart
+// Default HTTP resolver
+Unique('/validate/unique', field: 'slug');
+
+// Custom resolver
+Unique('/validate/unique', field: 'slug').via((endpoint, field, value) async {
+  final response = await Http.post(endpoint, data: {field: value});
+  return response.data?['unique'] == true;
+});
+```
+
+### Debounce
+
+`Unique` debounces rapid-fire calls (default 400ms). Only the last call within the window reaches the resolver; earlier calls resolve to `true` as stale. Pass `debounce: Duration.zero` to disable.
+
 <a name="custom-rules"></a>
 ## Custom Rules
 
