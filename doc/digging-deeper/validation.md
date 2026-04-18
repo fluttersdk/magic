@@ -163,6 +163,50 @@ WFormInput(
 )
 ```
 
+<a name="form-request"></a>
+## Form Requests
+
+A `FormRequest` collapses "authorize, normalize, validate" into a single class so controllers stop hand-rolling that ceremony. Subclass `FormRequest`, implement `rules()`, optionally override `authorize()` and `prepared()`, then call `.validate(rawInput)`:
+
+```dart
+class StoreMonitorRequest extends FormRequest {
+  StoreMonitorRequest(this.actor);
+
+  final User actor;
+
+  @override
+  bool authorize() => actor.can('monitor.create');
+
+  @override
+  Map<String, dynamic> prepared(Map<String, dynamic> data) => {
+    ...data,
+    'slug': slugify(data['name'] as String? ?? ''),
+  };
+
+  @override
+  Map<String, List<Rule>> rules() => {
+    'name': [Required(), Max(120)],
+    'slug': [Required()],
+  };
+}
+
+// In the controller:
+try {
+  final payload = StoreMonitorRequest(Auth.user()!).validate(form.data);
+  await Http.post('/monitors', data: payload);
+} on AuthorizationException {
+  Magic.toast.error('You do not have permission to create monitors.');
+} on ValidationException catch (e) {
+  setFieldErrors(e.errors); // ValidatesRequests mixin
+}
+```
+
+- `authorize()` runs first and throws `AuthorizationException` on `false`.
+- `prepared()` normalizes the payload before rules see it (trim, slugify, merge defaults).
+- `validate()` returns the prepared payload filtered to the keys declared in `rules()` — same contract as `Validator.validate`.
+
+Pairs cleanly with `Model.fill(payload, strict: true)` so mass-assignment catches schema drift at the boundary.
+
 <a name="server-side-validation"></a>
 ## Server-Side Validation
 
