@@ -39,7 +39,7 @@ The optional `controller` param enables two side-effects:
 | `form.get('field')` | `String` | Get trimmed text from a text controller |
 | `form.set('field', 'text')` | `void` | Set text value in a text controller |
 | `form.data` | `Map<String, dynamic>` | Export all values (text fields are auto-trimmed) |
-| `form.validate()` | `bool` | Run client-side validation (clears server errors first). **Auto-flashes `form.data` + errors to `Session` on failure** so downstream views can repopulate via `old('field')` / `error('field')` |
+| `form.validate()` | `bool` | Run client-side validation (clears server errors first). **Auto-flashes `form.data` to `Session` on failure** so downstream views can repopulate via `old('field')`. Per-field validation errors are not auto-flashed — call `Session.flashErrors(...)` manually if you need `error('field')` after navigation |
 | `form.validated()` | `Map<String, dynamic>` | Returns `data` if valid, otherwise empty `{}` |
 | `form.process<T>(action)` | `Future<T>` | Execute async action with automatic processing state management |
 | `form.isProcessing` | `bool` | Whether `process()` is currently executing |

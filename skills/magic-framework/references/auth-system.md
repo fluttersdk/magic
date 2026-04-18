@@ -387,7 +387,7 @@ void authorize(String ability, [Object? arguments]);
 
 class PostController extends MagicController {
   Future<void> destroy(Post post) async {
-    authorize('delete-post', post);  // throws AuthorizationException('delete-post') if Gate denies
+    authorize('delete-post', post);  // throws AuthorizationException('This action is unauthorized: delete-post') if Gate denies
     await post.delete();
   }
 }
@@ -397,7 +397,7 @@ Catch globally (in middleware or a top-level handler) or locally:
 
 ```dart
 try {
-  controller.destroy(post);
+  await controller.destroy(post);
 } on AuthorizationException catch (e) {
   Magic.error(trans('errors.forbidden'), e.message);
 }

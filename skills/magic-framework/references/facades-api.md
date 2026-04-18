@@ -395,7 +395,7 @@ if (await Launch.canLaunch('tel:+1234567890')) {
 
 ## Session
 
-Laravel-style flash store. Data written via `flash()` / `flashErrors()` lives in a **next** bucket and is promoted to **current** on the next navigation (`tick()` is called automatically by the router). Each value survives exactly one hop.
+Laravel-style flash store. Data written via `flash()` / `flashErrors()` lives in a **next** bucket and is promoted to **current** when the app calls `Session.tick()`. The router does NOT tick automatically — wire a routerDelegate listener gated on `MagicRouter.instance.currentLocation` changes during bootstrap (see example below). Each value survives exactly one hop.
 
 | Signature | Return Type | Notes |
 |-----------|-------------|-------|
@@ -407,7 +407,7 @@ Laravel-style flash store. Data written via `flash()` / `flashErrors()` lives in
 | `Session.errors(String field)` | `List<String>` | All flashed errors for field. |
 | `Session.hasError(String field)` | `bool` | True if the field has at least one flashed error. |
 | `Session.hasFlash` | `bool` | **Getter.** Any flash data readable this frame. |
-| `Session.tick()` | `void` | Promote `_next` → `_current`. Router calls this on every navigation; call manually in tests. |
+| `Session.tick()` | `void` | Promote `_next` → `_current`. Not called automatically — wire it once at bootstrap via a routerDelegate listener gated on actual location changes; call manually in tests. |
 | `Session.reset()` | `void` | Clear both buckets (testing). |
 | `Session.store` | `SessionStore` | Underlying store (for direct inspection). |
 | `Session.setStore(SessionStore store)` | `void` | Swap the backing store (testing). |
@@ -422,6 +422,16 @@ String? error(String field);
 ```dart
 import 'package:magic/magic.dart';
 
+// Bootstrap (call once — Magic does not tick Session automatically):
+var lastLocation = MagicRouter.instance.currentLocation;
+MagicRouter.instance.router.routerDelegate.addListener(() {
+  final current = MagicRouter.instance.currentLocation;
+  if (current != lastLocation) {
+    Session.tick();
+    lastLocation = current;
+  }
+});
+
 // Controller flashes on validation failure:
 Session.flash({'email': form.get('email')});
 Session.flashErrors({'email': ['The email is already taken.']});
@@ -433,7 +443,7 @@ Text(error('email') ?? '');
 if (Session.hasError('email')) showErrorIcon();
 ```
 
-`MagicFormData.validate()` auto-flashes `form.data` and current validation errors on failure, so typical "submit → validate fails → navigate back → repopulate" flows need no manual `flash()` calls.
+`MagicFormData.validate()` auto-flashes `form.data` on failure (but not per-field errors — call `Session.flashErrors(...)` manually when you need `error('field')` to resolve after navigating back).
 
 ---
 

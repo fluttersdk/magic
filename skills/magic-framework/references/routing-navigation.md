@@ -91,7 +91,7 @@ MagicRoute.group(
 
 ## Resource Routes (ResourceController)
 
-`MagicRoute.resource(name, controller, {only, except})` auto-wires up to four canonical GET routes to a controller that mixes in `ResourceController`. Each generated `RouteDefinition` gets an auto-assigned `{slug}.{method}` name and title (slug derived from `name`, so nested paths like `/admin/users` become `admin-users.index`).
+`MagicRoute.resource(name, controller, {only, except})` auto-wires up to four canonical GET routes to a controller that mixes in `ResourceController`. Each generated `RouteDefinition` gets an auto-assigned `{slug}.{method}` name and title (slug is the normalized `name`, so a nested path like `/admin/users` produces `admin/users.index`).
 
 ```dart
 static List<RouteDefinition> MagicRoute.resource(

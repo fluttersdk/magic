@@ -327,21 +327,34 @@ Unique('/users', field: 'email').via((endpoint, field, value) async => !_taken.c
 
 ### Session Flash / old() / error()
 
-Laravel-style one-hop flash bucket. `MagicFormData.validate()` auto-flashes on failure; views read via `old()` / `error()` top-level helpers (or the `Session` facade).
+Laravel-style one-hop flash bucket. `MagicFormData.validate()` auto-flashes `form.data` on failure (input only — per-field errors are NOT auto-flashed); views read prior input via `old()`, and `error()` / `Session.hasError()` work only when errors were flashed separately (manually or from a server response).
 
 ```dart
-// On validation failure (automatic): form.validate() flashes form.data + errors.
-// Next navigation reads flashed values:
+// On validation failure (automatic): form.validate() flashes form.data.
+// Next navigation reads flashed input:
 TextField(controller: TextEditingController(text: old('email')));
+
+// error() only resolves when errors were flashed explicitly:
+Session.flashErrors({'email': ['Already taken']});
 Text(error('email') ?? '');
-if (Session.hasError('email')) ... ;
 
 // Manual flash from controller:
 Session.flash({'email': 'foo@bar.com'});
 Session.flashErrors({'email': ['Already taken']});
-MagicRoute.back();  // next frame sees flashed data
+MagicRoute.back();  // next frame sees flashed data + errors
+```
 
-Session.tick();  // promote _next → _current; called automatically on navigation
+`Session.tick()` promotes `_next` → `_current`. The framework does NOT tick automatically — wire it once at bootstrap:
+
+```dart
+var lastLocation = MagicRouter.instance.currentLocation;
+MagicRouter.instance.router.routerDelegate.addListener(() {
+  final current = MagicRouter.instance.currentLocation;
+  if (current != lastLocation) {
+    Session.tick();
+    lastLocation = current;
+  }
+});
 ```
 
 `Session.old()` returns `null` if key was flashed with `null`; returns the `fallback` only when the key was never flashed.
@@ -422,7 +435,7 @@ class ProjectController extends MagicController with MagicStateMixin<List<Projec
 | Four separate `Route.page()` for CRUD | `MagicRoute.resource(name, ctrl)` | Auto-wires canonical routes + titles |
 | `sync` rule calling API in `passes()` | Implement `AsyncRule.passesAsync()` | Sync rules must not block, async runs after sync passes |
 | `Session.old(field) ?? fallback` | `Session.old(field, fallback)` | Explicit null flash returns null; fallback only on absent key |
-| Manual `Session.flash(form.data)` on validation fail | Just call `form.validate()` | Auto-flashes form data + errors on failure |
+| Manual `Session.flash(form.data)` on validation fail | `form.validate()` auto-flashes `form.data`; call `Session.flashErrors(...)` yourself if you need `error('field')` after nav | Framework only auto-flashes inputs, not errors |
 
 ## 7. Pre-Completion Checklist
 
@@ -499,7 +512,7 @@ Official plugins extending Magic Framework. Each has its own package, service pr
 | File | Content | Load When |
 |------|---------|-----------|
 | `references/bootstrap-lifecycle.md` | Magic.init 7-step sequence, IoC API, ServiceProvider register/boot, Env/Config, Kernel, MagicApplication | Setting up app bootstrap, creating providers, or configuring environment |
-| `references/facades-api.md` | All 17 facades with method signatures and return types | Looking up any facade method signature or return type |
+| `references/facades-api.md` | All 18 facades with method signatures and return types | Looking up any facade method signature or return type |
 | `references/eloquent-orm.md` | Model definition, attributes, built-in + class-based casts (`CastsAttributes`, `EnumCast`, `ListCast`), `fill(strict:)` / `MassAssignmentException`, relations, `InteractsWithPersistence`, QueryBuilder, migrations, Blueprint | Working with models, casts, mass assignment, database queries, or migrations |
 | `references/controllers-views.md` | MagicController, MagicStateMixin, RxStatus, MagicView, MagicStatefulView, MagicStatefulViewState, MagicResponsiveView, MagicBuilder, MagicCan/MagicCannot | Building controllers or views, reactive state, authorization widgets |
 | `references/forms-validation.md` | MagicFormData (auto-flash on validate fail), MagicForm, rules(), FormValidator, ValidatesRequests, built-in rules (Required, Email, Min, Max, Confirmed, Same, Accepted), AsyncRule + Unique, FormRequest (authorize/prepared/rules/validate), ValidationException, AuthorizationException, process(), processingListenable | Building forms, sync or async validation, FormRequest objects, handling server-side errors |

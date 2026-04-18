@@ -299,7 +299,19 @@ Laravel-style flash data for form repopulation and transient messages. Two inter
 - `_next` — receives `flash()` / `flashErrors()` writes during the current frame.
 - `_current` — read by `old()`, `error()`, `hasError()`, `hasFlash`.
 
-`Session.tick()` promotes `_next` → `_current` and is called automatically by the router on every navigation. Each value therefore survives exactly one navigation hop.
+`Session.tick()` promotes `_next` → `_current`. The framework does **not** tick automatically — wire a routerDelegate listener gated on real `MagicRouter.instance.currentLocation` changes during bootstrap (GoRouter fires `routerDelegate` notifications for non-navigation rebuilds too, which would prematurely burn the flash). Each value then survives exactly one navigation hop.
+
+```dart
+// Call once during app bootstrap (e.g. in a ServiceProvider.boot()):
+var lastLocation = MagicRouter.instance.currentLocation;
+MagicRouter.instance.router.routerDelegate.addListener(() {
+  final current = MagicRouter.instance.currentLocation;
+  if (current != lastLocation) {
+    Session.tick();
+    lastLocation = current;
+  }
+});
+```
 
 ### API
 
@@ -313,7 +325,7 @@ Laravel-style flash data for form repopulation and transient messages. Two inter
 | `Session.errors(String field)` | `List<String>` | All current-bucket errors for field |
 | `Session.hasError(String field)` | `bool` | True if field has at least one current-bucket error |
 | `Session.hasFlash` | `bool` | **Getter.** Any readable flash data this frame |
-| `Session.tick()` | `void` | Promote next → current (router hook) |
+| `Session.tick()` | `void` | Promote next → current. Not auto-wired — attach at bootstrap (snippet above) |
 | `Session.reset()` | `void` | Clear both buckets (testing) |
 | `Session.setStore(SessionStore store)` | `void` | Swap backing store (testing) |
 
@@ -326,7 +338,7 @@ String? error(String field);
 
 ### Auto-flash on validation failure
 
-`MagicFormData.validate()` calls `Session.flash(form.data)` + `Session.flashErrors(...)` automatically when client-side validation fails. Typical flow:
+`MagicFormData.validate()` calls `Session.flash(form.data)` automatically when client-side validation fails. Per-field validation errors are **not** auto-flashed — call `Session.flashErrors(...)` manually (e.g. from a server response) if you need `error('field')` to resolve after navigation. Typical flow:
 
 ```dart
 // Submit view:
