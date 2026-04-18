@@ -125,9 +125,9 @@ enum MonitorStatus { active, paused, failed }
 class Monitor extends Model {
   @override
   Map<String, dynamic> get casts => {
-    'status': EnumCast(MonitorStatus.values),      // enum round-trip
-    'tags': ListCast(EnumCast(MonitorTag.values)), // list of enums
-    'created_at': 'datetime',                       // built-ins still work
+    'status': EnumCast(MonitorStatus.values),         // enum round-trip
+    'statuses': ListCast(EnumCast(MonitorStatus.values)), // list of enums
+    'created_at': 'datetime',                         // built-ins still work
   };
 
   MonitorStatus? get status => getAttribute('status') as MonitorStatus?;

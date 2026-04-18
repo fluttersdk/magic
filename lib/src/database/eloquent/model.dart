@@ -98,12 +98,12 @@ abstract class Model {
   ///
   /// Built-in cast types:
   /// - `datetime` → Carbon
-  /// - `json` → Map<String, dynamic>
+  /// - `json` → Map or List (whatever the stored JSON decodes to)
   /// - `bool` → bool
   /// - `int` → int
   /// - `double` → double
   ///
-  /// Class-based casts ship with Magic: [EnumCast], [ListCast]. Implement
+  /// Class-based casts ship with Magic: `EnumCast`, `ListCast`. Implement
   /// [CastsAttributes] to build your own.
   Map<String, dynamic> get casts => {};
 
@@ -170,8 +170,8 @@ abstract class Model {
         return value;
 
       case 'json':
-        if (value is Map) return value;
-        if (value is String) return jsonDecode(value) as Map<String, dynamic>;
+        if (value is Map || value is List) return value;
+        if (value is String) return jsonDecode(value);
         return value;
 
       case 'bool':
@@ -213,7 +213,7 @@ abstract class Model {
       _attributes[key] = Carbon.fromDateTime(
         value,
       ).format('yyyy-MM-ddTHH:mm:ss');
-    } else if (castType == 'json' && value is Map) {
+    } else if (castType == 'json' && (value is Map || value is List)) {
       _attributes[key] = jsonEncode(value);
     } else {
       _attributes[key] = value;

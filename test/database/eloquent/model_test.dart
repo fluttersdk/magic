@@ -125,6 +125,24 @@ void main() {
       expect(settings!['theme'], 'dark');
       expect(settings['notifications'], true);
     });
+
+    test('casts json decodes List storage to List', () {
+      final user = TestUser();
+      user.setAttribute('settings', '["a","b","c"]');
+
+      final decoded = user.getAttribute('settings');
+      expect(decoded, isA<List>());
+      expect(decoded, equals(['a', 'b', 'c']));
+    });
+
+    test('casts json encodes List values for storage', () {
+      final user = TestUser();
+      user.setAttribute('settings', ['x', 'y']);
+
+      final stored = user.attributes['settings'];
+      expect(stored, isA<String>());
+      expect(stored, '["x","y"]');
+    });
   });
 
   group('Model Dirty Checking', () {

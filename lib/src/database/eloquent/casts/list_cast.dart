@@ -7,13 +7,16 @@ import 'casts_attributes.dart';
 ///
 /// Storage form is a JSON-encoded string (so it survives SQLite TEXT columns
 /// and API round-trips). Reads accept either a `List` or a JSON string; writes
-/// always emit JSON.
+/// emit JSON when a `List` is provided and otherwise pass through raw storage
+/// forms unchanged.
 ///
 /// ```dart
+/// enum MonitorStatus { up, down, paused }
+///
 /// class Monitor extends Model {
 ///   @override
 ///   Map<String, dynamic> get casts => {
-///     'tags': ListCast(EnumCast(MonitorTag.values)),
+///     'statuses': ListCast(EnumCast(MonitorStatus.values)),
 ///   };
 /// }
 /// ```
