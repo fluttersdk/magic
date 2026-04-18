@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 ### ✨ New Features
 - **Eloquent**: `Model.fill` now accepts a `strict` flag. When `true`, any non-fillable key throws `MassAssignmentException` instead of being silently dropped. Pair with validated request payloads to catch schema drift at the boundary. (#69)
 - **Validation**: `FormRequest` — Laravel-style request object that collapses authorize → prepare → validate into a single class. Throws `AuthorizationException` on denied access and `ValidationException` with a field-keyed error map on rule failure. Pairs with `Model.fill(validated, strict: true)`. (#66)
+- **HTTP**: `MagicController.authorize(ability, [arguments])`, a Laravel-style controller helper that delegates to `Gate.allows()` and throws `AuthorizationException` on denial. Avoids hand-rolling gate checks in every action. (#72)
+- **Auth**: `Gate.allowsAny(abilities, [arguments])` and `Gate.allowsAll(abilities, [arguments])`, short-circuiting sugar for checking multiple abilities at once. (#72)
 
 ## [1.0.0-alpha.13] - 2026-04-16
 

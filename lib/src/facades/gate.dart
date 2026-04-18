@@ -101,6 +101,16 @@ class Gate {
     return _manager.check(ability, arguments);
   }
 
+  /// Returns `true` when any of [abilities] passes.
+  static bool allowsAny(List<String> abilities, [dynamic arguments]) {
+    return _manager.allowsAny(abilities, arguments);
+  }
+
+  /// Returns `true` only when every ability in [abilities] passes.
+  static bool allowsAll(List<String> abilities, [dynamic arguments]) {
+    return _manager.allowsAll(abilities, arguments);
+  }
+
   /// Check if an ability has been defined.
   static bool has(String ability) {
     return _manager.has(ability);
