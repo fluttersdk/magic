@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../routing/magic_router.dart';
+import '../routing/resource_controller.dart';
 import '../routing/route_definition.dart';
 import '../routing/title_manager.dart';
 
@@ -183,6 +184,82 @@ class MagicRoute {
     final layout = LayoutDefinition(id: id, builder: builder, children: routes);
 
     MagicRouter.instance.addLayout(layout);
+  }
+
+  /// Register Laravel-style resource routes for a controller.
+  ///
+  /// Wires up to four canonical routes, scoped under `/{name}`:
+  ///
+  /// | Path                 | Method        |
+  /// | -------------------- | ------------- |
+  /// | `/{name}`            | `index()`     |
+  /// | `/{name}/create`     | `create()`    |
+  /// | `/{name}/:id`        | `show(id)`    |
+  /// | `/{name}/:id/edit`   | `edit(id)`    |
+  ///
+  /// Only methods declared in the controller's [ResourceController.resourceMethods]
+  /// set are registered. Use [only] or [except] to further filter the set.
+  ///
+  /// ```dart
+  /// MagicRoute.resource('monitors', MonitorController.instance);
+  /// MagicRoute.resource(
+  ///   'status-pages',
+  ///   StatusPagesController.instance,
+  ///   only: ['index', 'show'],
+  /// );
+  /// MagicRoute.resource(
+  ///   'metrics-library',
+  ///   MetricsLibraryController.instance,
+  ///   except: ['create', 'edit'],
+  /// );
+  /// ```
+  ///
+  /// Each route is auto-titled using the `{name}.{method}` translation key
+  /// pattern (e.g. `monitors.index`, `monitors.show`). Override with
+  /// `.title()` on the returned definitions if needed.
+  ///
+  /// Returns the list of registered [RouteDefinition]s in registration order.
+  static List<RouteDefinition> resource(
+    String name,
+    ResourceController controller, {
+    List<String>? only,
+    List<String>? except,
+  }) {
+    const allMethods = ['index', 'create', 'show', 'edit'];
+
+    final supported = controller.resourceMethods;
+    final onlySet = only?.toSet();
+    final exceptSet = except?.toSet() ?? const <String>{};
+
+    final selected = allMethods.where((method) {
+      if (!supported.contains(method)) return false;
+      if (onlySet != null && !onlySet.contains(method)) return false;
+      if (exceptSet.contains(method)) return false;
+      return true;
+    }).toList();
+
+    final slug = name.startsWith('/') ? name.substring(1) : name;
+    final registered = <RouteDefinition>[];
+
+    for (final method in selected) {
+      final RouteDefinition route;
+      switch (method) {
+        case 'index':
+          route = page('/$slug', controller.index);
+        case 'create':
+          route = page('/$slug/create', controller.create);
+        case 'show':
+          route = page('/$slug/:id', (String id) => controller.show(id));
+        case 'edit':
+          route = page('/$slug/:id/edit', (String id) => controller.edit(id));
+        default:
+          continue;
+      }
+      route.title('$slug.$method').name('$slug.$method');
+      registered.add(route);
+    }
+
+    return registered;
   }
 
   /// Combine parent and child prefixes.

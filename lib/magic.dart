@@ -42,6 +42,7 @@ export 'src/helpers/date_helpers.dart';
 // Routing
 export 'src/routing/magic_router.dart';
 export 'src/routing/magic_router_outlet.dart';
+export 'src/routing/resource_controller.dart';
 export 'src/routing/route_definition.dart';
 export 'src/routing/title_manager.dart';
 
