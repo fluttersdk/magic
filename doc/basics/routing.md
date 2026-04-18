@@ -5,6 +5,7 @@
 - [Route Parameters](#route-parameters)
 - [Query Parameters](#query-parameters)
 - [Named Routes](#named-routes)
+- [Resource Routes](#resource-routes)
 - [Route Groups](#route-groups)
     - [Middleware](#middleware)
     - [Prefixes](#prefixes)
@@ -148,6 +149,70 @@ MagicRoute.toNamed('user.show', params: {'id': '42'});
 // With query parameters
 MagicRoute.toNamed('search', query: {'q': 'flutter'});
 ```
+
+<a name="resource-routes"></a>
+## Resource Routes
+
+`MagicRoute.resource()` wires the four canonical GET routes for a resource in a single line. The target controller must mix in `ResourceController` and implement the view-building methods it supports.
+
+| Path                 | Method       |
+| -------------------- | ------------ |
+| `/{name}`            | `index()`    |
+| `/{name}/create`     | `create()`   |
+| `/{name}/:id`        | `show(id)`   |
+| `/{name}/:id/edit`   | `edit(id)`   |
+
+```dart
+class MonitorController extends MagicController with ResourceController {
+  @override
+  Widget index() => const MonitorsIndexView();
+
+  @override
+  Widget create() => const MonitorCreateView();
+
+  @override
+  Widget show(String id) => MonitorShowView(id: id);
+
+  @override
+  Widget edit(String id) => MonitorEditView(id: id);
+}
+
+// Register all four routes at once
+MagicRoute.resource('monitors', MonitorController.instance);
+
+// Only a subset
+MagicRoute.resource(
+  'status-pages',
+  StatusPagesController.instance,
+  only: ['index', 'show'],
+);
+
+// All except a few
+MagicRoute.resource(
+  'metrics-library',
+  MetricsLibraryController.instance,
+  except: ['create', 'edit'],
+);
+```
+
+Controllers that only expose a subset can override `resourceMethods`:
+
+```dart
+class DocsController extends MagicController with ResourceController {
+  @override
+  Set<String> get resourceMethods => const {'index', 'show'};
+
+  @override
+  Widget index() => const DocsIndexView();
+
+  @override
+  Widget show(String id) => DocsShowView(slug: id);
+}
+```
+
+Each registered route receives the name and title key `{slug}.{method}` (for example `monitors.index`, `monitors.show`). Override with the usual fluent API when needed.
+
+Mutating actions (`store`, `update`, `destroy`) stay as regular controller methods invoked via `Http.post` / `put` / `delete`. They are not routes.
 
 <a name="route-groups"></a>
 ## Route Groups
