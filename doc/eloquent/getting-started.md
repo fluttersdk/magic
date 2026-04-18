@@ -141,6 +141,12 @@ user.fill({
 });
 ```
 
+Pass `strict: true` to turn silent drops into a `MassAssignmentException`. Useful when filling from validated request payloads, where an unknown key signals a client/schema mismatch you want to surface loudly:
+
+```dart
+user.fill(validated, strict: true); // throws if validated contains a non-fillable key
+```
+
 <a name="attribute-casting"></a>
 ## Attribute Casting
 

@@ -126,6 +126,7 @@ export 'src/database/eloquent/concerns/interacts_with_persistence.dart';
 export 'src/database/eloquent/casts/casts_attributes.dart';
 export 'src/database/eloquent/casts/enum_cast.dart';
 export 'src/database/eloquent/casts/list_cast.dart';
+export 'src/database/eloquent/exceptions/mass_assignment_exception.dart';
 
 // Authentication
 export 'src/auth/authenticatable.dart';

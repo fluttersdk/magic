@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../support/carbon.dart';
 import 'casts/casts_attributes.dart';
+import 'exceptions/mass_assignment_exception.dart';
 
 /// The base Eloquent Model.
 ///
@@ -358,10 +359,17 @@ abstract class Model {
   ///
   /// Only fills attributes that are in the [fillable] list, unless [fillable]
   /// is empty and [guarded] doesn't include `'*'`.
-  void fill(Map<String, dynamic> attributes) {
+  ///
+  /// When [strict] is `true`, any attribute that fails the fillable guard
+  /// throws [MassAssignmentException] instead of being silently dropped. Use
+  /// strict mode when pairing with validated request data to catch schema
+  /// drift early.
+  void fill(Map<String, dynamic> attributes, {bool strict = false}) {
     for (final entry in attributes.entries) {
       if (_isFillable(entry.key)) {
         setAttribute(entry.key, entry.value);
+      } else if (strict) {
+        throw MassAssignmentException(entry.key, runtimeType);
       }
     }
   }
