@@ -193,6 +193,10 @@ export 'src/storage/magic_file_extensions.dart';
 export 'src/facades/storage.dart';
 export 'src/facades/pick.dart';
 
+// Session
+export 'src/session/session_store.dart';
+export 'src/facades/session.dart';
+
 // Authorization (Gate)
 export 'src/auth/gate_manager.dart';
 export 'src/facades/gate.dart';

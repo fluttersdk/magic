@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../concerns/validates_requests.dart';
+import '../facades/session.dart';
 import '../http/magic_controller.dart';
 
 /// Centralized form data management for Magic framework.
@@ -116,13 +117,19 @@ class MagicFormData {
 
   /// Validate the form.
   ///
-  /// Returns `true` if form is valid.
+  /// Returns `true` if form is valid. On failure, the current input is
+  /// flashed via [Session] so downstream views can repopulate via
+  /// `old('field')` after a back navigation.
   bool validate() {
     // Clear server errors before validation
     if (controller != null && controller is ValidatesRequests) {
       (controller as ValidatesRequests).clearErrors();
     }
-    return formKey.currentState?.validate() ?? false;
+    final ok = formKey.currentState?.validate() ?? false;
+    if (!ok) {
+      Session.flash(data);
+    }
+    return ok;
   }
 
   /// Validate the form and return the data if valid.
