@@ -226,10 +226,32 @@ class MagicRoute {
     List<String>? except,
   }) {
     const allMethods = ['index', 'create', 'show', 'edit'];
+    const allMethodsSet = {'index', 'create', 'show', 'edit'};
 
     final supported = controller.resourceMethods;
     final onlySet = only?.toSet();
     final exceptSet = except?.toSet() ?? const <String>{};
+
+    // Reject unknown method names early so typos surface as errors,
+    // not silently dropped routes.
+    final unknownOnly = onlySet?.difference(allMethodsSet) ?? const <String>{};
+    if (unknownOnly.isNotEmpty) {
+      throw ArgumentError.value(
+        only,
+        'only',
+        'Unknown resource method(s): ${unknownOnly.join(', ')}. '
+            'Supported: ${allMethods.join(', ')}.',
+      );
+    }
+    final unknownExcept = exceptSet.difference(allMethodsSet);
+    if (unknownExcept.isNotEmpty) {
+      throw ArgumentError.value(
+        except,
+        'except',
+        'Unknown resource method(s): ${unknownExcept.join(', ')}. '
+            'Supported: ${allMethods.join(', ')}.',
+      );
+    }
 
     final selected = allMethods.where((method) {
       if (!supported.contains(method)) return false;
@@ -238,7 +260,11 @@ class MagicRoute {
       return true;
     }).toList();
 
-    final slug = name.startsWith('/') ? name.substring(1) : name;
+    // Normalize: collapse repeated slashes, trim leading/trailing.
+    final slug = name
+        .replaceAll(RegExp(r'/+'), '/')
+        .replaceFirst(RegExp(r'^/'), '')
+        .replaceFirst(RegExp(r'/$'), '');
     final registered = <RouteDefinition>[];
 
     for (final method in selected) {

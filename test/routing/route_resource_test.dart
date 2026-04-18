@@ -102,6 +102,39 @@ void main() {
       expect(routes.first.path, '/teams');
     });
 
+    test('normalizes trailing slash and repeated slashes', () {
+      final routes = MagicRoute.resource('/teams/', _FullController());
+
+      expect(routes.map((r) => r.path).toList(), [
+        '/teams',
+        '/teams/create',
+        '/teams/:id',
+        '/teams/:id/edit',
+      ]);
+
+      final nested = MagicRoute.resource('//admin//users//', _FullController());
+      expect(nested.first.path, '/admin/users');
+    });
+
+    test('throws on unknown method in only', () {
+      expect(
+        () => MagicRoute.resource(
+          'teams',
+          _FullController(),
+          only: ['index', 'destroy'],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('throws on unknown method in except', () {
+      expect(
+        () =>
+            MagicRoute.resource('teams', _FullController(), except: ['store']),
+        throwsArgumentError,
+      );
+    });
+
     test('combines only and except', () {
       final routes = MagicRoute.resource(
         'posts',
