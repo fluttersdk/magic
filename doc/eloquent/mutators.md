@@ -115,6 +115,47 @@ class Task extends Model {
 | `datetime` | `Carbon` | TEXT (ISO 8601) |
 | `json` | `Map` or `List` | TEXT (JSON) |
 
+### Custom Casts (`CastsAttributes`)
+
+For domain types like enums or value objects, implement `CastsAttributes<T>` and register the instance in `casts`:
+
+```dart
+enum MonitorStatus { active, paused, failed }
+
+class Monitor extends Model {
+  @override
+  Map<String, dynamic> get casts => {
+    'status': EnumCast(MonitorStatus.values),      // enum round-trip
+    'tags': ListCast(EnumCast(MonitorTag.values)), // list of enums
+    'created_at': 'datetime',                       // built-ins still work
+  };
+
+  MonitorStatus? get status => getAttribute('status') as MonitorStatus?;
+  set status(MonitorStatus? value) => setAttribute('status', value);
+}
+```
+
+Two casts ship with Magic:
+
+- **`EnumCast<T extends Enum>(values, {strict = false})`** — resolves a raw name to its enum value. Set `strict: true` to throw `ArgumentError` on unknown names instead of returning `null`.
+- **`ListCast<T>(inner)`** — applies `inner` to every list element. Stored as a JSON-encoded string.
+
+Roll your own by implementing `CastsAttributes<T>`:
+
+```dart
+class MoneyCast implements CastsAttributes<Money> {
+  const MoneyCast();
+
+  @override
+  Money? get(Model model, String key, Object? raw) =>
+      raw == null ? null : Money.fromCents(raw as int);
+
+  @override
+  Object? set(Model model, String key, Object? value) =>
+      value is Money ? value.cents : value;
+}
+```
+
 <a name="date-casting"></a>
 ## Date Casting
 

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### ✨ New Features
+- **Eloquent**: `CastsAttributes<T>` interface for class-based custom casts. `Model.casts` now accepts either the legacy string types (`datetime`, `json`, `bool`, `int`, `double`) or a `CastsAttributes` instance. Ships with two built-ins: `EnumCast<T extends Enum>` (with optional `strict` mode) and `ListCast<T>` (element-wise JSON round-trip). (#71)
+
+### 🔧 Improvements
+- **Eloquent**: `Model.casts` return type widened from `Map<String, String>` to `Map<String, dynamic>`. Existing subclasses returning `Map<String, String>` remain valid via covariant override.
+
 ## [1.0.0-alpha.13] - 2026-04-16
 
 ### ✨ New Features

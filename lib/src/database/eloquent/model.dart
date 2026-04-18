@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../support/carbon.dart';
+import 'casts/casts_attributes.dart';
 
 /// The base Eloquent Model.
 ///
@@ -92,13 +93,19 @@ abstract class Model {
 
   /// The attributes that should be cast.
   ///
-  /// Supported cast types:
+  /// Values can be either a string naming a built-in cast or an instance of
+  /// [CastsAttributes] for custom behaviour (enums, value objects, lists).
+  ///
+  /// Built-in cast types:
   /// - `datetime` → Carbon
   /// - `json` → Map<String, dynamic>
   /// - `bool` → bool
   /// - `int` → int
   /// - `double` → double
-  Map<String, String> get casts => {};
+  ///
+  /// Class-based casts ship with Magic: [EnumCast], [ListCast]. Implement
+  /// [CastsAttributes] to build your own.
+  Map<String, dynamic> get casts => {};
 
   /// The model relationships for automatic casting.
   ///
@@ -151,6 +158,10 @@ abstract class Model {
 
     if (value == null) return null;
 
+    if (castType is CastsAttributes) {
+      return castType.get(this, key, value);
+    }
+
     switch (castType) {
       case 'datetime':
         if (value is Carbon) return value;
@@ -189,6 +200,11 @@ abstract class Model {
   /// - [Map] values for json casts are encoded to strings
   void setAttribute(String key, dynamic value) {
     final castType = casts[key];
+
+    if (castType is CastsAttributes) {
+      _attributes[key] = castType.set(this, key, value);
+      return;
+    }
 
     // Convert types for storage
     if (value is Carbon) {
