@@ -153,6 +153,7 @@ export 'src/localization/localization_interceptor.dart';
 
 // Validation
 export 'src/validation/contracts/rule.dart';
+export 'src/validation/contracts/async_rule.dart';
 export 'src/validation/rules/required.dart';
 export 'src/validation/rules/email.dart';
 export 'src/validation/rules/min.dart';
@@ -160,6 +161,7 @@ export 'src/validation/rules/max.dart';
 export 'src/validation/rules/confirmed.dart';
 export 'src/validation/rules/same.dart';
 export 'src/validation/rules/accepted.dart';
+export 'src/validation/rules/unique.dart';
 export 'src/validation/exceptions/validation_exception.dart';
 export 'src/validation/exceptions/authorization_exception.dart';
 export 'src/validation/validator.dart';

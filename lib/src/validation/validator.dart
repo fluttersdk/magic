@@ -1,4 +1,5 @@
 import '../facades/lang.dart';
+import 'contracts/async_rule.dart';
 import 'contracts/rule.dart';
 import 'exceptions/validation_exception.dart';
 
@@ -112,7 +113,50 @@ class Validator {
       throw ValidationException(_errors);
     }
 
-    // Return only the validated fields (Laravel behavior)
+    return _collectValidated();
+  }
+
+  /// Run validation including any [AsyncRule]s and throw if it fails.
+  ///
+  /// Synchronous rules run first (short-circuit per field on first failure).
+  /// Async rules then run only for fields that passed synchronous rules and
+  /// do not yet have an error. Returns the validated data on success.
+  ///
+  /// ```dart
+  /// try {
+  ///   final validated = await validator.validateAsync();
+  /// } on ValidationException catch (e) {
+  ///   print(e.errors);
+  /// }
+  /// ```
+  Future<Map<String, dynamic>> validateAsync() async {
+    if (!_hasRun) {
+      _runValidation();
+    }
+
+    for (final entry in _rules.entries) {
+      final attribute = entry.key;
+      if (_errors.containsKey(attribute)) continue;
+
+      final value = _data[attribute];
+      for (final rule in entry.value) {
+        if (rule is! AsyncRule) continue;
+        final passed = await rule.passesAsync(attribute, value, _data);
+        if (!passed) {
+          _errors[attribute] = _resolveMessage(rule, attribute);
+          break;
+        }
+      }
+    }
+
+    if (_errors.isNotEmpty) {
+      throw ValidationException(_errors);
+    }
+
+    return _collectValidated();
+  }
+
+  Map<String, dynamic> _collectValidated() {
     final validated = <String, dynamic>{};
     for (final key in _rules.keys) {
       if (_data.containsKey(key)) {
