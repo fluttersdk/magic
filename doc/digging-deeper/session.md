@@ -72,10 +72,17 @@ After a back navigation and a `Session.tick()`, `old('email')` returns the last-
 <a name="advancing-the-flash-bucket"></a>
 ## Advancing the Flash Bucket
 
-Flash data survives exactly one navigation. Advance the bucket on every route change by wiring `Session.tick` to the router delegate once:
+Flash data survives exactly one navigation. Advance the bucket only when the router location actually changes. Do **not** wire `Session.tick` directly to the router delegate listener: the delegate can notify for more than real navigation (redirect re-evaluation, notifier rebuilds) and would expire flash data prematurely.
 
 ```dart
-MagicRouter.instance.routerConfig.routerDelegate.addListener(Session.tick);
+var lastLocation = MagicRouter.instance.currentLocation;
+
+MagicRouter.instance.routerConfig.routerDelegate.addListener(() {
+  final currentLocation = MagicRouter.instance.currentLocation;
+  if (currentLocation == lastLocation) return;
+  lastLocation = currentLocation;
+  Session.tick();
+});
 ```
 
 Place this in a `ServiceProvider.boot()` after `Magic.init()` completes.

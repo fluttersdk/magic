@@ -28,9 +28,14 @@ class SessionStore {
   }
 
   /// Read a flashed input value.
+  ///
+  /// Returns [fallback] only when the key was never flashed. An explicitly
+  /// flashed `null` returns `null` so callers can distinguish "unset" from
+  /// "set to null".
   String? old(String field, [String? fallback]) {
+    if (!_current.containsKey(field)) return fallback;
     final value = _current[field];
-    if (value == null) return fallback;
+    if (value == null) return null;
     return value.toString();
   }
 
@@ -52,7 +57,13 @@ class SessionStore {
   bool get hasFlash => _current.isNotEmpty || _currentErrors.isNotEmpty;
 
   /// Whether a field has a flashed error.
-  bool hasError(String field) => _currentErrors.containsKey(field);
+  ///
+  /// Returns `true` only when at least one error message is present, keeping
+  /// behavior aligned with [error] (which returns `null` for empty lists).
+  bool hasError(String field) {
+    final list = _currentErrors[field];
+    return list != null && list.isNotEmpty;
+  }
 
   /// Advance the flash bucket: promote `_next` to `_current`, clear `_next`.
   /// Call on every navigation to make flashed data survive exactly one hop.

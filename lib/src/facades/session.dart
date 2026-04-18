@@ -21,8 +21,19 @@ import '../session/session_store.dart';
 /// ```
 ///
 /// Flash data survives exactly one navigation. Call [Session.tick] on every
-/// route change to advance the bucket. Wire this via your preferred router
-/// listener (e.g. `MagicRouter.instance.routerConfig.routerDelegate.addListener(Session.tick)`).
+/// real route change. The router delegate listener can fire for non-navigation
+/// events (redirect re-evaluation, notifier rebuilds), so gate the tick on an
+/// actual location change:
+///
+/// ```dart
+/// var lastLocation = MagicRouter.instance.currentLocation;
+/// MagicRouter.instance.routerConfig.routerDelegate.addListener(() {
+///   final currentLocation = MagicRouter.instance.currentLocation;
+///   if (currentLocation == lastLocation) return;
+///   lastLocation = currentLocation;
+///   Session.tick();
+/// });
+/// ```
 class Session {
   Session._();
 

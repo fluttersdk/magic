@@ -29,6 +29,20 @@ void main() {
       expect(Session.old('missing', 'fallback'), equals('fallback'));
     });
 
+    test('old() distinguishes unset from explicit null', () {
+      Session.flash({'name': null});
+      Session.tick();
+      expect(Session.old('name', 'fallback'), isNull);
+      expect(Session.old('missing', 'fallback'), equals('fallback'));
+    });
+
+    test('hasError is false when flashed error list is empty', () {
+      Session.flashErrors({'email': const <String>[]});
+      Session.tick();
+      expect(Session.hasError('email'), isFalse);
+      expect(Session.error('email'), isNull);
+    });
+
     test('oldRaw preserves original type', () {
       Session.flash({'accept': true, 'age': 42});
       Session.tick();
