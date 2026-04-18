@@ -162,6 +162,7 @@ export 'src/validation/rules/confirmed.dart';
 export 'src/validation/rules/same.dart';
 export 'src/validation/rules/accepted.dart';
 export 'src/validation/rules/unique.dart';
+export 'src/validation/rules/in_rule.dart';
 export 'src/validation/exceptions/validation_exception.dart';
 export 'src/validation/exceptions/authorization_exception.dart';
 export 'src/validation/validator.dart';
