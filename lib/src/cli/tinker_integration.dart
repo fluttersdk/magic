@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:magic_tinker/magic_tinker.dart';
+import 'package:fluttersdk_artisan/artisan.dart' show Tinker, TinkerCaster;
 
 import '../database/eloquent/model.dart';
 

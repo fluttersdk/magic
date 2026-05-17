@@ -50,7 +50,6 @@ dependencies:
   fluttersdk_artisan: ^1.0.0-alpha.1
   fluttersdk_dusk: ^1.0.0-alpha.1
   fluttersdk_telescope: ^1.0.0-alpha.1
-  magic_tinker: ^1.0.0-alpha.1
   flutter_test:
     sdk: flutter
 
@@ -64,8 +63,6 @@ dependency_overrides:
     path: ../fluttersdk_dusk
   fluttersdk_telescope:
     path: ../fluttersdk_telescope
-  magic_tinker:
-    path: ../magic_tinker
 
 flutter:
   assets:
