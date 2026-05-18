@@ -261,8 +261,12 @@ class MagicModelWatcher implements TelescopeWatcher {
   @override
   String get name => 'magic_model';
 
+  bool _installed = false;
+
   @override
   void install() {
+    if (_installed) return;
+    _installed = true;
     EventDispatcher.instance.register(ModelCreated, <MagicListener Function()>[
       () => _ModelLifecycleListener('created'),
     ]);
@@ -484,10 +488,22 @@ class _GateAccessCheckedListener extends MagicListener<GateAccessChecked> {
       GateRecord(
         ability: event.ability,
         result: event.allowed,
-        arguments: <Object?>[event.arguments],
+        arguments: <Object?>[_coerceArg(event.arguments)],
         userId: userId?.toString(),
         time: DateTime.now(),
       ),
     );
+  }
+
+  /// Coerces a single dynamic `GateAccessChecked.arguments` value to a JSON
+  /// shape so `GateRecord.toJson()` can stay a dumb DTO. Magic Models are
+  /// converted via `toMap()`; anything else passes through if already
+  /// JSON-encodable, otherwise falls back to `toString()`.
+  static Object? _coerceArg(dynamic value) {
+    if (value == null) return null;
+    if (value is String || value is num || value is bool) return value;
+    if (value is List || value is Map) return value;
+    if (value is Model) return value.toMap();
+    return value.toString();
   }
 }
