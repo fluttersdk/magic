@@ -82,6 +82,33 @@ class _FixtureStubDriver implements StubDriver {
       replace(load(name), replacements);
 }
 
+/// Recording [ArtisanCommand] stub used to verify that auto-refresh invokes
+/// the registered `plugins:refresh` command during install.
+///
+/// Records call count and the last [ArtisanContext] it received so tests can
+/// assert both that it was invoked and that it received the correct context.
+class _RecordingRefreshCommand extends ArtisanCommand {
+  int callCount = 0;
+  ArtisanContext? lastCtx;
+
+  @override
+  String get signature => 'plugins:refresh';
+
+  @override
+  String get description => 'Stub plugins:refresh for testing.';
+
+  @override
+  CommandBoot get boot => CommandBoot.none;
+
+  @override
+  Future<int> handle(ArtisanContext ctx) async {
+    callCount++;
+    lastCtx = ctx;
+    ctx.output.success('plugins:refresh invoked (stub)');
+    return 0;
+  }
+}
+
 /// Test subclass of [MagicInstallCommand] that pins the three seam points so
 /// no host filesystem access or `Isolate.resolvePackageUri` round-trip occurs.
 class _TestableMagicInstallCommand extends MagicInstallCommand {
@@ -156,7 +183,7 @@ String _loadStub(String name) {
   return File(stubPath).readAsStringSync();
 }
 
-/// Builds the full stub fixtures map by loading all 19 install stubs from disk.
+/// Builds the full stub fixtures map by loading all 20 install stubs from disk.
 ///
 /// Each stub is registered under TWO keys so the [_FixtureStubDriver] can
 /// handle both call sites:
@@ -174,6 +201,7 @@ Map<String, String> _buildStubFixtures() {
     'install/auth_config',
     'install/broadcasting_config',
     'install/cache_config',
+    'install/consumer_artisan',
     'install/database_config',
     'install/env',
     'install/env_example',
@@ -250,6 +278,9 @@ _buildHarness({
   _RecordingPromptDriver? prompt,
   String projectRoot = '/proj',
   Map<String, dynamic> optionOverrides = const <String, dynamic>{},
+  // When supplied, the ArtisanContext is constructed with this registry so
+  // ctx.registry?.find('plugins:refresh') resolves during handle().
+  ArtisanRegistry? registry,
 }) {
   final fs = InMemoryFs();
   // Seed package_config.json so ManifestInstaller._resolvePluginStubsDir
@@ -284,10 +315,13 @@ _buildHarness({
 
   // Build the ArtisanContext with the same output buffer so ctx.output.error()
   // calls inside handle() land in the same buffer as installContext output.
+  // When a registry is provided, it is wired in so ctx.registry?.find('plugins:refresh')
+  // resolves during handle().
   final options = <String, dynamic>{..._baseOptions, ...optionOverrides};
   final ctx = ArtisanContext.bare(
     MapInput(options, signature: cmd.parsedSignature),
     output,
+    registry: registry,
   );
 
   return (cmd: cmd, ctx: ctx, fs: fs, prompt: recording);
@@ -737,6 +771,147 @@ void main() {
         expect(content, contains('"plugin": "magic"'));
         expect(content, contains('"installedAt"'));
         expect(content, contains('"ops"'));
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Group 7: auto-refresh — registry present → plugins:refresh.handle invoked
+  // ---------------------------------------------------------------------------
+
+  group('MagicInstallCommand, auto-refresh with registry', () {
+    test(
+      'invokes the registered plugins:refresh command when registry is present',
+      () async {
+        final refreshStub = _RecordingRefreshCommand();
+        final registry = ArtisanRegistry()
+          ..register(refreshStub, providerName: 'test');
+
+        final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
+          registry: registry,
+        );
+
+        final exit = await cmd.handle(ctx);
+
+        expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+        expect(
+          refreshStub.callCount,
+          1,
+          reason: 'plugins:refresh must be invoked exactly once on success',
+        );
+      },
+    );
+
+    test(
+      'auto-refresh is skipped when the install result is a dry-run',
+      () async {
+        final refreshStub = _RecordingRefreshCommand();
+        final registry = ArtisanRegistry()
+          ..register(refreshStub, providerName: 'test');
+
+        final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
+          registry: registry,
+          optionOverrides: <String, dynamic>{'dry-run': true},
+        );
+
+        final exit = await cmd.handle(ctx);
+
+        // Dry-run exits 0 but must not trigger auto-refresh.
+        expect(exit, 0);
+        expect(
+          refreshStub.callCount,
+          0,
+          reason:
+              'auto-refresh must not run on dry-run — no files were written',
+        );
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Group 8: auto-refresh hint fallback — registry null → info hint logged
+  // ---------------------------------------------------------------------------
+
+  group('MagicInstallCommand, auto-refresh hint fallback', () {
+    test(
+      'logs hint when registry is null (bare ctx without ArtisanApplication)',
+      () async {
+        // Default harness has no registry → ctx.registry is null.
+        final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness();
+
+        final exit = await cmd.handle(ctx);
+
+        expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+        final out = (ctx.output as BufferedOutput).content;
+        expect(
+          out,
+          contains('dart run magic:artisan plugins:refresh'),
+          reason: 'hint must name the manual refresh command',
+        );
+      },
+    );
+
+    test(
+      'logs hint when registry exists but plugins:refresh is not registered',
+      () async {
+        // Registry present but plugins:refresh is absent → hint path.
+        final registry = ArtisanRegistry();
+        final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
+          registry: registry,
+        );
+
+        final exit = await cmd.handle(ctx);
+
+        expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+        final out = (ctx.output as BufferedOutput).content;
+        expect(
+          out,
+          contains('dart run magic:artisan plugins:refresh'),
+          reason:
+              'hint must appear when plugins:refresh is absent from registry',
+        );
+      },
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Group 9: consumer wrapper bootstrap — bin/artisan.dart published via manifest
+  // ---------------------------------------------------------------------------
+
+  group('MagicInstallCommand, consumer wrapper bootstrap', () {
+    test(
+      'install publishes bin/artisan.dart with the consumer wrapper content',
+      () async {
+        final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
+
+        final exit = await cmd.handle(ctx);
+
+        expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+        // 1. The file must exist at the manifest-declared destination.
+        expect(
+          fs.exists('/proj/bin/artisan.dart'),
+          isTrue,
+          reason: 'bin/artisan.dart must be created during install',
+        );
+        final content = fs.readAsString('/proj/bin/artisan.dart');
+        // 2. Must import the artisan runner package.
+        expect(
+          content,
+          contains("import 'package:fluttersdk_artisan/artisan.dart';"),
+          reason: 'consumer wrapper must import fluttersdk_artisan',
+        );
+        // 3. Must reference the Magic artisan provider via show clause.
+        expect(
+          content,
+          contains('MagicArtisanProvider'),
+          reason: 'consumer wrapper must reference MagicArtisanProvider',
+        );
+        // 4. Must delegate execution via runArtisan.
+        expect(
+          content,
+          contains('runArtisan('),
+          reason: 'consumer wrapper must call runArtisan()',
+        );
       },
     );
   });

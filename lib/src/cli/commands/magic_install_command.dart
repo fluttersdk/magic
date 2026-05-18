@@ -253,6 +253,20 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       ctx.output.info(manifest.postInstall.message!);
     }
 
+    // 9. Auto-refresh: regenerate lib/app/_plugins.g.dart so MagicArtisanProvider
+    //    plus any installed plugin providers are picked up by the consumer wrapper.
+    //    Only runs on a real commit (Success); dry-run/conflict/error skip refresh.
+    if (result is Success) {
+      final refresh = ctx.registry?.find('plugins:refresh');
+      if (refresh != null) {
+        await refresh.handle(ctx);
+      } else {
+        ctx.output.info(
+          'Run `dart run magic:artisan plugins:refresh` to register installed plugin commands.',
+        );
+      }
+    }
+
     return _renderResult(ctx, result);
   }
 

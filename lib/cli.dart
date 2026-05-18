@@ -25,3 +25,4 @@ library;
 
 export 'src/cli/magic_artisan_provider.dart';
 export 'src/cli/install_stubs.dart';
+export 'src/cli/helpers/magic_main_dart_editor.dart';
