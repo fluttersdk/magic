@@ -84,41 +84,49 @@ class InstallStubs {
   }
 
   /// Generates `lib/config/auth.dart` matching the Uptizm production pattern.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String authConfigContent() {
     return StubLoader.load('install/auth_config');
   }
 
   /// Generates `lib/config/database.dart` with SQLite as the default driver.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String databaseConfigContent() {
     return StubLoader.load('install/database_config');
   }
 
   /// Generates `lib/config/network.dart` with a single API driver.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String networkConfigContent() {
     return StubLoader.load('install/network_config');
   }
 
   /// Generates `lib/config/view.dart` with Wind UI dialog/confirm classes.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String viewConfigContent() {
     return StubLoader.load('install/view_config');
   }
 
   /// Generates `lib/config/cache.dart` with `FileStore()` driver and default TTL.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String cacheConfigContent() {
     return StubLoader.load('install/cache_config');
   }
 
   /// Generates `lib/config/logging.dart` with stack -> console channel setup.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String loggingConfigContent() {
     return StubLoader.load('install/logging_config');
   }
 
   /// Generates `lib/config/broadcasting.dart` with Reverb and null connections.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String broadcastingConfigContent() {
     return StubLoader.load('install/broadcasting_config');
   }
 
   /// Generates `lib/config/routing.dart` with URL strategy config.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String routingConfigContent() {
     return StubLoader.load('install/routing_config');
   }
@@ -128,11 +136,13 @@ class InstallStubs {
   // ---------------------------------------------------------------------------
 
   /// Generates `lib/app/providers/route_service_provider.dart`.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String routeServiceProviderContent() {
     return StubLoader.load('install/route_service_provider');
   }
 
   /// Generates `lib/app/providers/app_service_provider.dart`.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String appServiceProviderContent() {
     return StubLoader.load('install/app_service_provider');
   }
@@ -141,7 +151,8 @@ class InstallStubs {
   // Kernel
   // ---------------------------------------------------------------------------
 
-  /// Generates `lib/app/kernel.dart` — the HTTP middleware registry.
+  /// Generates `lib/app/kernel.dart`, the HTTP middleware registry.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String kernelDartContent() {
     return StubLoader.load('install/kernel');
   }
@@ -152,7 +163,8 @@ class InstallStubs {
 
   /// Generates `lib/routes/app.dart` with a single welcome route.
   ///
-  /// [appName] — used only for documentation context; not embedded in code.
+  /// [appName] used only for documentation context; not embedded in code.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String routesAppContent({required String appName}) {
     // Note: The original template doesn't actually use appName in the body,
     // so this is just loading the static stub.
@@ -165,7 +177,9 @@ class InstallStubs {
 
   /// Generates `lib/resources/views/welcome_view.dart`.
   ///
-  /// [appName] — the human-readable application name shown in the hero section.
+  /// [appName] is the human-readable application name shown in the hero
+  /// section.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String welcomeViewContent({required String appName}) {
     return StubLoader.replace(StubLoader.load('install/welcome_view'), {
       'appName': appName,
@@ -178,9 +192,10 @@ class InstallStubs {
 
   /// Generates a `.env` template file with sensible defaults.
   ///
-  /// [appName] — written as the default value for `APP_NAME`.
-  /// [withoutBroadcasting] — when `true`, omits the `BROADCAST_CONNECTION`
+  /// [appName] is written as the default value for `APP_NAME`.
+  /// [withoutBroadcasting] when `true`, omits the `BROADCAST_CONNECTION`
   ///   and `REVERB_*` environment variables.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String envContent({
     required String appName,
     bool withoutBroadcasting = false,
@@ -202,6 +217,7 @@ class InstallStubs {
   }
 
   /// Generates a `.env.example` template file with empty values.
+  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String envExampleContent({bool withoutBroadcasting = false}) {
     var content = StubLoader.load('install/env_example');
 
