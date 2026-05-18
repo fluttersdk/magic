@@ -29,16 +29,16 @@
 plugin_name: magic
 
 publish:
-  install/app_config.stub: lib/config/app.dart
-  install/view_config.stub: lib/config/view.dart
-  install/routing_config.stub: lib/config/routing.dart
-  install/route_service_provider.stub: lib/app/providers/route_service_provider.dart
-  install/app_service_provider.stub: lib/app/providers/app_service_provider.dart
-  install/kernel.stub: lib/app/kernel.dart
-  install/routes_app.stub: lib/routes/app.dart
-  install/welcome_view.stub: lib/resources/views/welcome_view.dart
-  install/env.stub: .env
-  install/env_example.stub: .env.example
+  install/app_config: lib/config/app.dart
+  install/view_config: lib/config/view.dart
+  install/routing_config: lib/config/routing.dart
+  install/route_service_provider: lib/app/providers/route_service_provider.dart
+  install/app_service_provider: lib/app/providers/app_service_provider.dart
+  install/kernel: lib/app/kernel.dart
+  install/routes_app: lib/routes/app.dart
+  install/welcome_view: lib/resources/views/welcome_view.dart
+  install/env: .env
+  install/env_example: .env.example
 
 prompts:
   - key: withoutAuth
@@ -83,7 +83,7 @@ magic:
   # the providers list assembled by the fluent override into lib/config/app.dart
   # is the real source of truth. LaunchServiceProvider is named here because
   # the schema requires a single string for symmetry with sibling plugins.
-  provider: LaunchServiceProvider
+  provider: null   # magic's providers embedded in app.dart fluent override write; manifest injection redundant
 
 post_install:
   message: |

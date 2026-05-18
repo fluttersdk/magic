@@ -4,6 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (BREAKING for magic_cli legacy users; non-breaking via legacy fallback)
+
+- **`magic:install` rewrite to PluginInstaller DSL + install.yaml manifest**.
+  The command extends `ArtisanInstallCommand` (from fluttersdk_artisan
+  ^1.0.0-alpha.1+) and delegates the install.yaml-expressible 60% to
+  `ManifestInstaller`. The conditional 40% (per-flag config emission, dynamic
+  `lib/main.dart` configFactories list, dynamic `lib/config/app.dart` provider
+  list, app name extraction from pubspec.yaml) lives in a fluent override
+  hook on `ManifestInstaller.prepare()`. Existing `--without-*` flags map
+  1:1 to install.yaml `prompts:` (bool type, default false).
+
+  Backward compat: `dart run :artisan magic:install` continues to work via
+  legacy fallback; the new canonical workflow is
+  `dart run :artisan plugin:install magic` (auto-detects install.yaml,
+  routes through ManifestInstaller in one step).
+
+- **First install on a fresh `flutter create` app requires `--force`**.
+  The default Flutter counter app's `lib/main.dart` triggers the
+  ConflictDetector's `unmanaged-file` flag because there's no prior
+  `.artisan/installed/magic.json` record to compare against. Pass `--force`
+  to bypass the conflict on the first install; subsequent installs work
+  without `--force` because the record file establishes the hash baseline.
+
+- **sqlite3.wasm download deferred to V1.x**. Magic's web SQLite driver
+  requires `web/sqlite3.wasm`; this auto-download is NOT yet wired into
+  the manifest install. Users targeting Flutter web with the SQLite driver
+  must manually download `sqlite3.wasm` from the sqlite3.dart releases
+  (matching version in `pubspec.lock`).
+
+- **Test coverage**: new `MagicInstallCommand` exercised by 27 tests using
+  InstallContext.test + InMemoryFs + FakePromptDriver + FakeStubDriver
+  injection; one test per `--without-X` flag plus first-install `--force`
+  + app name extraction edge cases. Coverage: 76.5% (defensive error paths
+  not covered; accepted per Risks Accepted in the migration plan).
+
 ### ✨ New Features
 - **Eloquent**: `Model.fill` now accepts a `strict` flag. When `true`, any non-fillable key throws `MassAssignmentException` instead of being silently dropped. Pair with validated request payloads to catch schema drift at the boundary. (#69)
 - **Validation**: `FormRequest` — Laravel-style request object that collapses authorize → prepare → validate into a single class. Throws `AuthorizationException` on denied access and `ValidationException` with a field-keyed error map on rule failure. Pairs with `Model.fill(validated, strict: true)`. (#66)

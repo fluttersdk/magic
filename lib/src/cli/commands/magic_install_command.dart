@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';

@@ -65,35 +65,105 @@ final user = await User.find(1);
 
 ## Quick Start
 
-### 1. Add Magic to Your Project
+Magic ships with a full Artisan-style CLI driven by the `fluttersdk_artisan` package. The canonical install is a one-shot `plugin:install magic` command that scaffolds all config files, service providers, environment files, and bootstraps `lib/main.dart`.
+
+### 1. Create a Flutter project
 
 ```bash
-# Create a new Flutter project (or use an existing one)
-flutter create my_app
-cd my_app
-
-# Add Magic as a dependency
-flutter pub add magic
+flutter create my_app && cd my_app
 ```
 
-### 2. Scaffold with Magic CLI
-
-Magic CLI is bundled with the package — no global install needed:
+### 2. Add Magic and the Artisan runner
 
 ```bash
-# Initialize Magic with all features
-dart run magic:magic install
-
-# Or exclude specific features
-dart run magic:magic install --without-database --without-auth
+flutter pub add magic fluttersdk_artisan
 ```
 
-The CLI sets up everything: directory structure, config files, service providers, environment files, and bootstraps `main.dart`.
+If `fluttersdk_artisan` is not yet on pub.dev (alpha stage), add a `dependency_overrides` entry pointing at the local path instead:
 
-> [!TIP]
-> For convenience, you can also activate the CLI globally: `dart pub global activate magic_cli`, then use `magic install` directly.
+```yaml
+# pubspec.yaml
+dependency_overrides:
+  fluttersdk_artisan:
+    path: ../fluttersdk_artisan
+```
 
-### 3. Build
+### 3. Create `bin/artisan.dart`
+
+Magic commands are registered through the Artisan registry. Create a minimal wrapper:
+
+```dart
+import 'dart:io';
+import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:magic/magic.dart' show MagicArtisanProvider;
+
+Future<void> main(List<String> args) async {
+  final registry = ArtisanRegistry();
+  registry.registerAll(<ArtisanCommand>[
+    StartCommand(),
+    StopCommand(),
+    ListCommand(registry),
+    HelpCommand(registry),
+    PluginInstallCommand(),
+    PluginUninstallCommand(),
+  ], providerName: 'fluttersdk_artisan');
+  registry.registerProvider(MagicArtisanProvider());
+  exit(await ArtisanApplication(registry: registry).dispatch(args));
+}
+```
+
+### 4. Run the one-shot install
+
+```bash
+dart run :artisan plugin:install magic --force --non-interactive
+```
+
+The `--force` flag is required only on the first install of a fresh `flutter create` project because the default Flutter counter app's `lib/main.dart` triggers the ConflictDetector's `unmanaged-file` flag (no prior `.artisan/installed/magic.json` record exists yet). Subsequent installs do not need `--force`.
+
+The command scaffolds: `lib/config/` (9 config files), `lib/app/providers/` (route + app service providers), `lib/app/kernel.dart`, `lib/routes/app.dart`, `lib/resources/views/welcome_view.dart`, `lib/main.dart` (with `Magic.init()` bootstrap), `.env`, and `.env.example`.
+
+> **Note on sqlite3.wasm (web target):** Magic's SQLite driver requires `web/sqlite3.wasm` on Flutter web. V1 does not auto-download this file. If you target Flutter web with the SQLite driver, manually download `sqlite3.wasm` from the sqlite3.dart releases (match the version in `pubspec.lock`) and place it in `web/`.
+
+### 5. Generate the app key
+
+```bash
+dart run :artisan key:generate
+```
+
+### 6. Install dependencies and run
+
+```bash
+flutter pub get && flutter run
+```
+
+### Excluding features
+
+Each feature area maps to a `--without-X` CLI flag that can be passed to `plugin:install` to skip its config file and service provider registration:
+
+| Flag | install.yaml prompt | Skips |
+|:-----|:--------------------|:------|
+| `--without-auth` | `withoutAuth` | `lib/config/auth.dart`, `VaultServiceProvider`, `AuthServiceProvider` |
+| `--without-database` | `withoutDatabase` | `lib/config/database.dart`, `DatabaseServiceProvider` |
+| `--without-network` | `withoutNetwork` | `lib/config/network.dart`, `NetworkServiceProvider` |
+| `--without-cache` | `withoutCache` | `lib/config/cache.dart`, `CacheServiceProvider` |
+| `--without-events` | `withoutEvents` | `app/events/` + `app/listeners/` directories |
+| `--without-localization` | `withoutLocalization` | `LocalizationServiceProvider`, `assets/lang/` |
+| `--without-logging` | `withoutLogging` | `lib/config/logging.dart`, logging config factory |
+| `--without-broadcasting` | `withoutBroadcasting` | `lib/config/broadcasting.dart`, `BroadcastServiceProvider` |
+
+When `--non-interactive` is absent, the installer prompts for each option interactively so you can answer yes or no per feature without knowing the flags upfront.
+
+Example: install without database and broadcasting:
+
+```bash
+dart run :artisan plugin:install magic --force --without-database --without-broadcasting
+```
+
+### Legacy install path (backward compatible)
+
+The previous `dart run :artisan magic:install` command still works and routes through the same rewritten `MagicInstallCommand` internals. It is kept as a backward-compat alias; `plugin:install magic` is the recommended entrypoint from this version onward.
+
+### Build your first controller
 
 ```dart
 class UserController extends MagicController with MagicStateMixin<List<User>> {
