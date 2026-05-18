@@ -4,10 +4,33 @@ import 'dart:isolate';
 
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:more/diff.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+import '../helpers/main_dart_scaffold_detector.dart';
+import '../helpers/main_dart_smart_merger.dart';
 import '../install_stubs.dart';
+
+/// Strategy chosen by [MagicInstallCommand._resolveMainDartStrategy] for
+/// how to handle a pre-existing `lib/main.dart` during install.
+///
+/// - [overwrite]: replace the file with the Magic template unconditionally.
+/// - [preserve]: inject Magic bootstrap into the existing file without removing it.
+/// - [cancel]: abort the install; the operator must re-run with a flag.
+enum MainDartStrategy { overwrite, preserve, cancel }
+
+/// Result tuple returned by [MagicInstallCommand._resolveMainDartStrategy].
+///
+/// Carries the chosen [strategy] plus the [scaffoldDetected] flag so [handle]
+/// can decide whether to silently force past [ConflictDetector] for an
+/// auto-detected `flutter create` counter app (the 90%-case fresh-install
+/// flow). The flag is `false` for every other branch (no file, --force,
+/// --preserve, customized file).
+typedef MainDartStrategyResult = ({
+  MainDartStrategy strategy,
+  bool scaffoldDetected,
+});
 
 /// `magic:install`, installs the Magic Framework via the bundled install.yaml
 /// manifest layered with a fluent override for the conditional 40% the v1
@@ -86,6 +109,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   String get signature =>
       'magic:install '
       '$baseFlags'
+      '{--preserve : Inject Magic into existing lib/main.dart without overwriting; rejects sync main()} '
       '{--without-auth : Skip auth setup} '
       '{--without-database : Skip database setup} '
       '{--without-network : Skip network setup} '
@@ -101,6 +125,201 @@ class MagicInstallCommand extends ArtisanInstallCommand {
 
   @override
   String pluginName(ArtisanContext ctx) => 'magic';
+
+  /// Returns `true` when the operator passed `--preserve`.
+  ///
+  /// Preserve mode injects Magic bootstrap into an existing `lib/main.dart`
+  /// without overwriting it. The caller is responsible for acting on this flag;
+  /// [handle] reads it to select the appropriate main.dart write strategy.
+  ///
+  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @return The boolean value of the `--preserve` flag.
+  bool isPreserve(ArtisanContext ctx) => ctx.input.option('preserve') == true;
+
+  /// Formats a unified diff of [existing] vs [magicTemplate] for console display.
+  ///
+  /// Uses [UnifiedDiffer] with 3 lines of context. The source and target labels
+  /// are the canonical `lib/main.dart` paths for operator readability.
+  ///
+  /// Returns an empty string when the two inputs are identical (no hunks).
+  ///
+  /// @param existing       The on-disk content of `lib/main.dart`.
+  /// @param magicTemplate  The Magic-generated content that would overwrite it.
+  /// @return A unified-diff string, or empty string when files are identical.
+  @visibleForTesting
+  String formatMainDartDiff(String existing, String magicTemplate) =>
+      _formatMainDartDiff(existing, magicTemplate);
+
+  /// Internal unified-diff formatter.
+  ///
+  /// @param existing       The on-disk content of `lib/main.dart`.
+  /// @param magicTemplate  The Magic-generated content that would overwrite it.
+  /// @return A unified-diff string, or empty string when files are identical.
+  String _formatMainDartDiff(String existing, String magicTemplate) {
+    return UnifiedDiffer(context: 3)
+        .compareStrings(
+          existing,
+          magicTemplate,
+          sourceLabel: 'lib/main.dart (existing)',
+          targetLabel: 'lib/main.dart (Magic template)',
+        )
+        .join('\n');
+  }
+
+  /// Public delegate for [_resolveMainDartStrategy] exposed for unit tests.
+  ///
+  /// Tests call this directly on a [_TestableMagicInstallCommand] instance
+  /// rather than running the full install pipeline. The `@visibleForTesting`
+  /// annotation keeps the public surface minimal; production code in [handle]
+  /// calls the private impl which carries the depth counter.
+  ///
+  /// @param ctx             The active [ArtisanContext].
+  /// @param installContext  The active [InstallContext] (fs + prompt + flags).
+  /// @param appName         Application name for the Magic template (default '').
+  /// @param configImports   Config import lines for the Magic template (default []).
+  /// @param configFactories Config factory lines for the Magic template (default []).
+  /// @return The resolved [MainDartStrategyResult].
+  @visibleForTesting
+  Future<MainDartStrategyResult> resolveMainDartStrategy(
+    ArtisanContext ctx,
+    InstallContext installContext, {
+    String appName = '',
+    List<String> configImports = const <String>[],
+    List<String> configFactories = const <String>[],
+  }) => _resolveMainDartStrategy(
+    ctx,
+    installContext,
+    appName: appName,
+    configImports: configImports,
+    configFactories: configFactories,
+  );
+
+  /// Resolves the strategy for writing `lib/main.dart` during install.
+  ///
+  /// Algorithm:
+  ///   1. Compute the target path inside [installContext.projectRoot].
+  ///   2. Fresh install (file absent): return [MainDartStrategy.overwrite].
+  ///   3. --force: return [MainDartStrategy.overwrite].
+  ///   4. --preserve: return [MainDartStrategy.preserve].
+  ///   5. Read existing content; scaffold detected: return overwrite + info log.
+  ///   6. --non-interactive + customized: emit error, return cancel.
+  ///   7. Interactive: [Prompt.choice] on 4 options with recursion for 'diff'.
+  ///      Cap at [_diffDepthCap] to prevent infinite loops.
+  ///
+  /// @param ctx             The active [ArtisanContext].
+  /// @param installContext  The active [InstallContext].
+  /// @param appName         Application name for the Magic template diff preview.
+  /// @param configImports   Config import lines for the Magic template diff preview.
+  /// @param configFactories Config factory lines for the Magic template diff preview.
+  /// @param depth           Recursion depth counter (default 0); callers omit.
+  /// @return A [MainDartStrategyResult] pairing the chosen strategy with the
+  ///         scaffold-detected flag (true only when the heuristic matched on
+  ///         an existing file).
+  Future<MainDartStrategyResult> _resolveMainDartStrategy(
+    ArtisanContext ctx,
+    InstallContext installContext, {
+    String appName = '',
+    List<String> configImports = const <String>[],
+    List<String> configFactories = const <String>[],
+    int depth = 0,
+  }) async {
+    // 1. Target path inside the consumer project.
+    final targetPath = p.join(installContext.projectRoot, 'lib', 'main.dart');
+
+    // 2. Fresh install: no conflict, no prompt needed.
+    if (!installContext.fs.exists(targetPath)) {
+      return (strategy: MainDartStrategy.overwrite, scaffoldDetected: false);
+    }
+
+    // 3. --force wins over everything except missing file. The scaffold
+    //    detector is not consulted because --force is the user's explicit
+    //    override, not an auto-detection.
+    if (isForce(ctx)) {
+      return (strategy: MainDartStrategy.overwrite, scaffoldDetected: false);
+    }
+
+    // 4. --preserve: caller asked explicitly for smart-merge mode.
+    if (isPreserve(ctx)) {
+      return (strategy: MainDartStrategy.preserve, scaffoldDetected: false);
+    }
+
+    // 5. Read existing content; if it looks like the flutter create scaffold,
+    //    overwrite silently so the common fresh-project flow has zero friction.
+    //    scaffoldDetected=true signals to [handle] that the eventual commit()
+    //    call must pass force=true to bypass ConflictDetector without --force.
+    final existing = installContext.fs.readAsString(targetPath);
+    if (MainDartScaffoldDetector.isFlutterCreateScaffold(existing)) {
+      ctx.output.info(
+        'Default Flutter counter app detected; overwriting silently.',
+      );
+      return (strategy: MainDartStrategy.overwrite, scaffoldDetected: true);
+    }
+
+    // 6. Non-interactive mode with a customized file: cannot safely guess.
+    if (isNonInteractive(ctx)) {
+      ctx.output.error(
+        'Existing lib/main.dart is not the default Flutter scaffold and '
+        '--non-interactive is set. Use --force to overwrite or --preserve '
+        'to smart-merge.',
+      );
+      return (strategy: MainDartStrategy.cancel, scaffoldDetected: false);
+    }
+
+    // 7. Interactive: let the operator choose. Recursion cap prevents infinite
+    //    diff loops; on cap, overwrite is the safest default.
+    if (depth >= _diffDepthCap) {
+      return (strategy: MainDartStrategy.overwrite, scaffoldDetected: false);
+    }
+
+    final answer = installContext.prompt.choice(
+      'Conflict on lib/main.dart detected. Choose:',
+      options: <String>[
+        'Overwrite — Replace with Magic template',
+        'Preserve — Inject Magic into existing main.dart',
+        'Diff — Show diff, re-prompt',
+        'Cancel — Abort install',
+      ],
+      defaultValue: 'Overwrite — Replace with Magic template',
+    );
+
+    final firstWord = answer.toLowerCase().split(' ').first;
+    switch (firstWord) {
+      case 'overwrite':
+        return (strategy: MainDartStrategy.overwrite, scaffoldDetected: false);
+      case 'preserve':
+        return (strategy: MainDartStrategy.preserve, scaffoldDetected: false);
+      case 'diff':
+        // Build the Magic template for this install run, then display the
+        // unified diff so the operator sees exactly what would change before
+        // committing to a strategy.
+        final magicTemplate = InstallStubs.mainDartContent(
+          appName: appName,
+          configImports: configImports,
+          configFactories: configFactories,
+        );
+        final diff = _formatMainDartDiff(existing, magicTemplate);
+        ctx.output.writeln(diff);
+        return _resolveMainDartStrategy(
+          ctx,
+          installContext,
+          appName: appName,
+          configImports: configImports,
+          configFactories: configFactories,
+          depth: depth + 1,
+        );
+      case 'cancel':
+        return (strategy: MainDartStrategy.cancel, scaffoldDetected: false);
+      default:
+        return (strategy: MainDartStrategy.overwrite, scaffoldDetected: false);
+    }
+  }
+
+  /// Maximum recursive re-prompt depth for the 'diff' branch.
+  ///
+  /// When the operator selects 'Diff' this many consecutive times the method
+  /// returns [MainDartStrategy.overwrite] as the safest default rather than
+  /// looping indefinitely.
+  static const int _diffDepthCap = 5;
 
   /// Ordered list of the 8 `--without-X` CLI flag names.
   ///
@@ -187,6 +406,13 @@ class MagicInstallCommand extends ArtisanInstallCommand {
 
   @override
   Future<int> handle(ArtisanContext ctx) async {
+    // 0. Mutual exclusion: --force and --preserve cannot be used together.
+    //    Exit 2 signals incorrect CLI usage (same convention as getopt/argparse).
+    if (isForce(ctx) && isPreserve(ctx)) {
+      ctx.output.error('Cannot specify both --force and --preserve. Pick one.');
+      return 2;
+    }
+
     // 1. Resolve + parse the manifest. A null result means the asset bundle
     //    is missing or the package was loaded from an unexpected location.
     final manifestPath = await resolveManifestPath();
@@ -223,7 +449,30 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     //    runs (placeholders are resolved during prepare()).
     overrides['appName'] = appName;
 
-    // 5. Construct the manifest installer + stage the always-on 10 publishes.
+    // 5. Resolve the lib/main.dart write strategy BEFORE constructing the
+    //    manifest installer so the cancel branch can short-circuit without
+    //    any disk side effects. The diff-preview branch needs the dynamic
+    //    configImports/configFactories lists so the operator sees the exact
+    //    template that would be written.
+    final configImports = _buildConfigImports(flags);
+    final configFactories = _buildConfigFactories(flags);
+    final strategyResult = await _resolveMainDartStrategy(
+      ctx,
+      installContext,
+      appName: appName,
+      configImports: configImports,
+      configFactories: configFactories,
+    );
+
+    // 5a. Cancel short-circuit: no manifest installer construction, no
+    //     commit(), no install record. Exit 0 because cancel is a clean
+    //     operator-driven abort, not an error.
+    if (strategyResult.strategy == MainDartStrategy.cancel) {
+      ctx.output.info('Install canceled by user. No changes were written.');
+      return 0;
+    }
+
+    // 6. Construct the manifest installer + stage the always-on 10 publishes.
     final installer = ManifestInstaller(
       installContext,
       manifest,
@@ -233,19 +482,47 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       nonInteractive: isNonInteractive(ctx),
     );
 
-    // 6. Layer the conditional 40% on top: 6 conditional config publishes +
+    // 7. Layer the conditional 40% on top: 6 conditional config publishes +
     //    dynamic lib/config/app.dart overwrite + dynamic lib/main.dart write.
-    _applyFluentOverride(
-      stagedInstaller,
-      installContext: installContext,
-      flags: flags,
-      appName: appName,
-    );
+    //    The strategy threads into the override so the preserve branch can
+    //    call MainDartSmartMerger.mergeMagicInto on the existing on-disk source.
+    //    A _PreserveAbortedException signals a sync-main rejection: surface exit
+    //    1 immediately without committing anything to disk.
+    try {
+      _applyFluentOverride(
+        stagedInstaller,
+        installContext: installContext,
+        flags: flags,
+        appName: appName,
+        mainDartStrategy: strategyResult.strategy,
+      );
+    } on _PreserveAbortedException catch (e) {
+      ctx.output.error(e.message);
+      return 1;
+    }
 
-    // 7. Commit the now-conditional op list.
+    // 8. Commit the now-conditional op list.
+    //
+    //    Force threading: when scaffold was detected the operator never asked
+    //    for --force explicitly, but we still need to bypass ConflictDetector
+    //    on the existing counter-app main.dart. Preserve mode also forces
+    //    past the detector because the user explicitly opted in (manifest's
+    //    other publishes have nothing to conflict with on a fresh install
+    //    anyway; the force flag matters only for lib/main.dart and any other
+    //    file the user happens to have lying around).
+    //
+    //    PluginInstaller.commit takes a SINGLE global force flag rather than
+    //    per-op force, so the threading is OR-ed here at the call site.
+    //    Interactive "Overwrite" also requires force=true to bypass the
+    //    ConflictDetector for the existing file; force=true on a fresh install
+    //    (no existing file) is harmless since there is nothing to conflict with.
+    final forceCommit =
+        isForce(ctx) ||
+        strategyResult.strategy == MainDartStrategy.overwrite ||
+        strategyResult.strategy == MainDartStrategy.preserve;
     final result = await stagedInstaller.commit(
       dryRun: isDryRun(ctx),
-      force: isForce(ctx),
+      force: forceCommit,
     );
 
     // 8. Echo post_install.message on Success.
@@ -373,6 +650,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     required InstallContext installContext,
     required Map<String, bool> flags,
     required String appName,
+    required MainDartStrategy mainDartStrategy,
   }) {
     final projectRoot = installContext.projectRoot;
     final magicStubsDir = resolveMagicStubsDir(installContext);
@@ -437,14 +715,58 @@ class MagicInstallCommand extends ArtisanInstallCommand {
 
     // Dynamic lib/main.dart: not in publish: at all; the configFactories
     // list cannot be expressed as a static template.
-    installer.writeFile(
-      targetPath: p.join(projectRoot, 'lib/main.dart'),
-      content: InstallStubs.mainDartContent(
-        appName: appName,
-        configImports: _buildConfigImports(flags),
-        configFactories: _buildConfigFactories(flags),
-      ),
-    );
+    //
+    // Strategy-driven branch:
+    //
+    // - overwrite: write the Magic template AS-IS (the historical behavior).
+    // - preserve:  read the existing source, call MainDartSmartMerger.mergeMagicInto
+    //              to surgically inject Magic, then writeFile the result.
+    //              A FormatException (sync main) causes _PreserveAbortedException
+    //              to bubble up; handle() catches it and returns exit 1.
+    // - cancel:    must never reach here because [handle] returns early at
+    //              step 5a before constructing the manifest installer. If
+    //              the guard ever fires, that is a logic error worth a hard
+    //              StateError rather than silently writing the wrong content.
+    switch (mainDartStrategy) {
+      case MainDartStrategy.overwrite:
+        installer.writeFile(
+          targetPath: p.join(projectRoot, 'lib/main.dart'),
+          content: InstallStubs.mainDartContent(
+            appName: appName,
+            configImports: _buildConfigImports(flags),
+            configFactories: _buildConfigFactories(flags),
+          ),
+        );
+      case MainDartStrategy.preserve:
+        // 1. Read the existing source from disk — the user explicitly chose
+        //    preserve, so this file is guaranteed to exist at this point.
+        final mainPath = p.join(projectRoot, 'lib/main.dart');
+        final existing = installContext.fs.readAsString(mainPath);
+        // 2. Surgically merge Magic bootstrap into the existing source.
+        //    FormatException means the existing main() is synchronous; surface
+        //    a clean, actionable message and abort via sentinel exception so
+        //    handle() can return exit 1 without touching the disk.
+        try {
+          final merged = MainDartSmartMerger.mergeMagicInto(
+            existing,
+            appName: appName,
+            configImports: _buildConfigImports(flags),
+            configFactories: _buildConfigFactories(flags),
+          );
+          // 3. Queue the merged source as the canonical write for lib/main.dart.
+          //    force=true is already threaded into commit() by handle() for
+          //    the preserve case, so ConflictDetector will not block this write.
+          installer.writeFile(targetPath: mainPath, content: merged);
+        } on FormatException catch (e) {
+          throw _PreserveAbortedException(e.message);
+        }
+      case MainDartStrategy.cancel:
+        throw StateError(
+          'MagicInstallCommand._applyFluentOverride reached with '
+          'MainDartStrategy.cancel; handle() must early-return before this '
+          'method runs. This is a logic error in the install pipeline.',
+        );
+    }
   }
 
   /// Assembles the provider list rendered into `lib/config/app.dart`.
@@ -567,4 +889,18 @@ class _ConditionalConfig {
   final String target;
 
   const _ConditionalConfig({required this.stubName, required this.target});
+}
+
+/// Sentinel thrown by [MagicInstallCommand._applyFluentOverride] when
+/// [MainDartSmartMerger.mergeMagicInto] rejects a sync `main()`.
+///
+/// Carries the [message] from the underlying [FormatException] so
+/// [MagicInstallCommand.handle] can emit a clean, actionable error to the
+/// operator and return exit 1 without exposing a raw exception stack trace.
+class _PreserveAbortedException implements Exception {
+  /// @param message  Actionable message from [MainDartSmartMerger.mergeMagicInto].
+  const _PreserveAbortedException(this.message);
+
+  /// Human-readable error text from the underlying [FormatException].
+  final String message;
 }
