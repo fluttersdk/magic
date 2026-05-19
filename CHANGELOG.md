@@ -37,6 +37,18 @@ All notable changes to this project will be documented in this file.
 
 ### ✨ New Features
 
+- **Dusk enricher expansion** (7 new enrichers + 1 extension):
+  - `magicControllerFlagsEnricher` - captures FutureOr status, loading/success/error flags from `MagicStateMixin`
+  - `magicRouteParamsEnricher` - emits route parameters (path params + query string)
+  - `magicFormErrorsEnricher` (extension) - now quotes per-field error messages to preserve whitespace
+  - `magicEchoConnectionEnricher` - reports broadcast connection state (connecting/connected/disconnected/reconnecting)
+  - `magicGateResultsAllEnricher` - emits last N gate check results (ability: allowed/denied) from MRU cache
+  - `magicRecentHttpEnricher` - emits last 5 HTTP requests (method, URL, status, elapsed time)
+  - `magicRecentLogsEnricher` - emits last 5 log entries (level, message, timestamp)
+  - `magicRecentExceptionsEnricher` - emits last 5 exceptions (type, message, stack trace truncated to 500 chars)
+
+  All new enrichers guard `kDebugMode` and handle missing dependencies gracefully (telescope-not-installed returns null buffer). Registered by `MagicDuskIntegration.install()`. Combined with existing 7 enrichers (`magicControllerState`, `magicFormErrors`, `magicGateResult`, `magicMiddleware`, `magicAuthUser`, `magicFormField`, `magicRoute`), magic-side surface now totals 14 enrichers. Ships in coordinated bump with fluttersdk_dusk 1.0.0-alpha.3+.
+
 - **Dusk integration**: 5 new snapshot enrichers (`magicControllerState`,
   `magicFormErrors`, `magicGateResult`, `magicMiddleware`, `magicAuthUser`)
   registered by `MagicDuskIntegration.install()` for richer LLM-agent E2E
