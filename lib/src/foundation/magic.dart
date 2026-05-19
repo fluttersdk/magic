@@ -266,6 +266,16 @@ class Magic {
     return put<T>(builder());
   }
 
+  /// All controllers currently registered via [put] (or [findOrPut]).
+  ///
+  /// Exposed as a read-only iterable for dev-tooling integrations
+  /// (e.g. the dusk snapshot enricher walks this to surface a
+  /// `MagicStateMixin` controller's `rxStatus` per snapshot).
+  /// Returns the live values — order matches Map iteration order over
+  /// the underlying `Map<Type, dynamic>`.
+  static Iterable<Object> get controllers =>
+      _controllers.values.whereType<Object>();
+
   // ---------------------------------------------------------------------------
   // View Registry
   // ---------------------------------------------------------------------------

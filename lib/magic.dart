@@ -201,6 +201,7 @@ export 'src/facades/session.dart';
 
 // Authorization (Gate)
 export 'src/auth/gate_manager.dart';
+export 'src/auth/gate_result.dart';
 export 'src/facades/gate.dart';
 export 'src/policies/policy.dart';
 export 'src/providers/gate_service_provider.dart';

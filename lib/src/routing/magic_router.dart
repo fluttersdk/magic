@@ -565,6 +565,24 @@ class MagicRouter {
   /// ```
   String? get currentLocation => _currentState?.uri.toString();
 
+  /// Get the [RouteDefinition] resolved for the current location.
+  ///
+  /// Returns `null` when no route has resolved yet (the router has not
+  /// been built, or the initial route has not finished its first build
+  /// pass). Updates reactively as navigation advances — every successful
+  /// `_buildGoRoute` page builder records the active definition before
+  /// rendering the page.
+  ///
+  /// Consumers (e.g. the dusk middleware enricher) use this to walk the
+  /// active route's `middlewares` list without depending on the private
+  /// router state.
+  ///
+  /// ```dart
+  /// final route = MagicRouter.instance.currentRoute;
+  /// final names = route?.middlewares ?? const [];
+  /// ```
+  RouteDefinition? get currentRoute => _currentRoute;
+
   /// Get the current route path (without query string).
   ///
   /// Returns `null` if no route state is available yet.
