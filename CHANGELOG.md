@@ -27,17 +27,41 @@ All notable changes to this project will be documented in this file.
   to bypass the conflict on the first install; subsequent installs work
   without `--force` because the record file establishes the hash baseline.
 
-- **sqlite3.wasm download deferred to V1.x**. Magic's web SQLite driver
-  requires `web/sqlite3.wasm`; this auto-download is NOT yet wired into
-  the manifest install. Users targeting Flutter web with the SQLite driver
-  must manually download `sqlite3.wasm` from the sqlite3.dart releases
-  (matching version in `pubspec.lock`).
+- **`sqlite3.wasm` auto-download wired into `magic:install`**. When the
+  database feature is enabled (no `--without-database` flag) and the run
+  is not a dry-run, `MagicInstallCommand` now fetches the matching
+  `sqlite3.wasm` from `simolus3/sqlite3.dart` (pinned to 3.3.1) and
+  writes it to `web/sqlite3.wasm` after the install commits. Closes the
+  white-screen / `WebAssembly TypeError` failure mode that hit fresh
+  Flutter web targets on first run.
+
+### ✨ New Features
+
+- **Dusk integration**: 5 new snapshot enrichers (`magicControllerState`,
+  `magicFormErrors`, `magicGateResult`, `magicMiddleware`, `magicAuthUser`)
+  for richer LLM-agent E2E context. Ships in coordinated bump with
+  fluttersdk_dusk 1.0.0-alpha.2.
+
+- **Cache events**: `CacheHit`, `CacheMiss`, `CachePut`, `CacheForget`,
+  `CacheFlush` event classes added under `lib/src/cache/events/cache_events.dart`
+  and exported from `package:magic/magic.dart`. `CacheManager.get` /
+  `put` / `forget` / `flush` now dispatch the matching event through
+  `EventDispatcher.instance` after the underlying store operation
+  completes. Enables `fluttersdk_telescope`'s `MagicCacheWatcher` (and
+  any user-defined listener) to observe the full cache lifecycle.
 
 - **Test coverage**: new `MagicInstallCommand` exercised by 27 tests using
   InstallContext.test + InMemoryFs + FakePromptDriver + FakeStubDriver
   injection; one test per `--without-X` flag plus first-install `--force`
   + app name extraction edge cases. Coverage: 76.5% (defensive error paths
   not covered; accepted per Risks Accepted in the migration plan).
+
+### 🔧 Improvements
+
+- **Routing**: `MagicRouter.currentRoute` public getter for the currently-resolved
+  RouteDefinition.
+- **Auth**: `GateManager.lastResult(ability)` accessor backed by an MRU cache
+  (64 entries) of the most recent gate-check outcome per ability.
 
 ### ✨ New Features
 - **Eloquent**: `Model.fill` now accepts a `strict` flag. When `true`, any non-fillable key throws `MassAssignmentException` instead of being silently dropped. Pair with validated request payloads to catch schema drift at the boundary. (#69)
