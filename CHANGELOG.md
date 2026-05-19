@@ -39,8 +39,17 @@ All notable changes to this project will be documented in this file.
 
 - **Dusk integration**: 5 new snapshot enrichers (`magicControllerState`,
   `magicFormErrors`, `magicGateResult`, `magicMiddleware`, `magicAuthUser`)
-  for richer LLM-agent E2E context. Ships in coordinated bump with
-  fluttersdk_dusk 1.0.0-alpha.2.
+  registered by `MagicDuskIntegration.install()` for richer LLM-agent E2E
+  context. Combined with the 2 alpha-1 enrichers (`magicFormField`,
+  `magicRoute`) this brings the magic-side surface to 7 enrichers; with
+  Wind's 6-field `WindClassNameEnricher` the total enricher surface is 8.
+  Ships in coordinated bump with fluttersdk_dusk 1.0.0-alpha.2 (see
+  `references/fluttersdk_dusk/CHANGELOG.md` for the matching dusk-side
+  contract additions: 7 new handlers, 10 new MCP descriptors, 8 new CLI
+  commands, actionability gate, `dusk_find` Locator pattern, Chrome
+  reaper, `dusk:doctor`). Requires fluttersdk_dusk ^1.0.0-alpha.2 — the
+  `DuskSnapshotEnricher` typedef is frozen across both repos for the
+  alpha-2 cycle.
 
 - **Cache events**: `CacheHit`, `CacheMiss`, `CachePut`, `CacheForget`,
   `CacheFlush` event classes added under `lib/src/cache/events/cache_events.dart`
