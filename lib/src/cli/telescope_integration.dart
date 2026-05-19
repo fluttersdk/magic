@@ -1,8 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:fluttersdk_dusk/dusk.dart'
+    show pendingHttpCountReader, recentLogsReader, recentExceptionsReader;
 import 'package:fluttersdk_telescope/telescope.dart';
 
 import '../auth/events/auth_events.dart';
 import '../auth/events/gate_events.dart';
+import '../cache/events/cache_events.dart';
 import '../database/eloquent/model.dart';
 import '../database/events/db_events.dart';
 import '../database/events/model_events.dart';
@@ -61,6 +64,41 @@ class MagicTelescopeIntegration {
     TelescopePlugin.registerWatcher(MagicCacheWatcher());
     TelescopePlugin.registerWatcher(MagicEventWatcher());
     TelescopePlugin.registerWatcher(MagicGateWatcher());
+    TelescopePlugin.registerWatcher(MagicQueryWatcher());
+
+    // Bridge dusk's `wait_for_network_idle` poll loop to the telescope
+    // in-flight count. Dusk keeps a function-pointer indirection so it
+    // does not need a hard dep on telescope; we point that pointer at
+    // the real source as part of the install side-effect.
+    pendingHttpCountReader = () => TelescopeStore.pendingHttpCount;
+
+    // Bridge dusk's `console` + `exceptions` tools to telescope's recent
+    // ring-buffer accessors. Project telescope record shapes into the
+    // dusk handler envelope (logger/type/stackHead key remap).
+    recentLogsReader = ({int limit = 50, String? minLevel}) =>
+        TelescopeStore.recentLogs(limit: limit, minLevel: minLevel)
+            .map(
+              (r) => <String, dynamic>{
+                'level': r.level,
+                'message': r.message,
+                'time': r.time.toIso8601String(),
+                'logger': r.loggerName,
+                if (r.error != null) 'error': r.error,
+              },
+            )
+            .toList();
+    recentExceptionsReader = ({int limit = 20}) =>
+        TelescopeStore.recentExceptions(limit: limit)
+            .map(
+              (r) => <String, dynamic>{
+                'type': r.exceptionType,
+                'message': r.message,
+                'time': r.time.toIso8601String(),
+                if (r.stackTrace != null)
+                  'stackHead': r.stackTrace!.split('\n').take(3).join('\n'),
+              },
+            )
+            .toList();
   }
 
   /// Whether [install] has been called at least once.
@@ -122,6 +160,15 @@ class MagicHttpFacadeAdapter implements TelescopeHttpAdapter {
     _interceptor?._disarmed = true;
     _interceptor = null;
   }
+
+  /// Number of HTTP requests currently in flight on Magic's network driver,
+  /// surfaced via the interceptor's FIFO `_pending` list.
+  ///
+  /// Pre-install (or post-uninstall) `_interceptor` is null and the getter
+  /// short-circuits to 0 ; the null-guard keeps `TelescopeStore.pendingHttpCount`
+  /// safe to call from a poll loop before [install] runs.
+  @override
+  int get pendingCount => _interceptor?._pending.length ?? 0;
 }
 
 /// Internal interceptor ; translates Magic network lifecycle into
@@ -329,18 +376,73 @@ class _ModelLifecycleListener extends MagicListener<ModelEvent> {
 /// Until then, [install] is a no-op and [TelescopeStore.recentCaches]
 /// will be empty for magic cache traffic.
 class MagicCacheWatcher implements TelescopeWatcher {
+  bool _installed = false;
+
   @override
   String get name => 'magic_cache';
 
   @override
   void install() {
-    // V1.x: subscribe to CacheHit/CacheMiss/CacheWritten/CacheForgotten
-    // once those events ship in magic's cache layer.
+    if (_installed) return;
+    _installed = true;
+
+    // Subscribe to the 5 cache events emitted by [CacheManager.get/put/
+    // forget/flush]; each listener records a [MagicCacheRecord] with the
+    // canonical operation tag.
+    EventDispatcher.instance.register(CacheHit, <MagicListener Function()>[
+      () => _CacheListener('hit'),
+    ]);
+    EventDispatcher.instance.register(CacheMiss, <MagicListener Function()>[
+      () => _CacheListener('miss'),
+    ]);
+    EventDispatcher.instance.register(CachePut, <MagicListener Function()>[
+      () => _CacheListener('put'),
+    ]);
+    EventDispatcher.instance.register(CacheForget, <MagicListener Function()>[
+      () => _CacheListener('forget'),
+    ]);
+    EventDispatcher.instance.register(CacheFlush, <MagicListener Function()>[
+      () => _CacheListener('flush'),
+    ]);
   }
 
   @override
   void uninstall() {
-    // No-op until install() wires real subscriptions.
+    // EventDispatcher.clear() is global; do NOT call it here. Tests that
+    // need a clean dispatcher call EventDispatcher.instance.clear() in their
+    // setUp, matching the MagicModelWatcher pattern at line 280.
+  }
+}
+
+/// Translates the 5 cache events into [MagicCacheRecord] entries. Bound to a
+/// single op tag at construction; the watcher registers one listener per
+/// event type.
+class _CacheListener extends MagicListener<MagicEvent> {
+  _CacheListener(this.op);
+
+  /// Cache op tag: `hit | miss | put | forget | flush`.
+  final String op;
+
+  @override
+  Future<void> handle(MagicEvent event) async {
+    // Extract the key + TTL when the event carries them; flush has no key.
+    String key;
+    Duration? ttl;
+    if (event is CacheHit) {
+      key = event.key;
+    } else if (event is CacheMiss) {
+      key = event.key;
+    } else if (event is CachePut) {
+      key = event.key;
+      ttl = event.ttl;
+    } else if (event is CacheForget) {
+      key = event.key;
+    } else {
+      key = '*';
+    }
+    TelescopeStore.recordMagicCache(
+      MagicCacheRecord(operation: op, key: key, time: DateTime.now(), ttl: ttl),
+    );
   }
 }
 
@@ -505,5 +607,54 @@ class _GateAccessCheckedListener extends MagicListener<GateAccessChecked> {
     if (value is List || value is Map) return value;
     if (value is Model) return value.toMap();
     return value.toString();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Query watcher ; subscribes to magic's QueryExecuted event for DB tracing.
+// ---------------------------------------------------------------------------
+
+/// [TelescopeWatcher] for magic's `QueryExecuted` event (dispatched by
+/// QueryBuilder after every SQL run). Captures sql + bindings + timeMs +
+/// connection into a [QueryRecord]; surfaces via
+/// `telescope:queries` CLI / `telescope_queries` MCP tool.
+class MagicQueryWatcher implements TelescopeWatcher {
+  bool _installed = false;
+
+  @override
+  String get name => 'magic_query';
+
+  @override
+  void install() {
+    if (_installed) return;
+    _installed = true;
+    EventDispatcher.instance.register(QueryExecuted, <MagicListener Function()>[
+      () => _QueryExecutedListener(),
+    ]);
+  }
+
+  @override
+  void uninstall() {
+    // EventDispatcher.clear() is global; do NOT call it here. Tests that
+    // need a clean dispatcher call EventDispatcher.instance.clear() in their
+    // setUp, matching the MagicModelWatcher pattern at line 280.
+  }
+}
+
+/// Translates [QueryExecuted] into a [QueryRecord] and pushes it to
+/// the store. Bindings are pass-through (List<dynamic> structurally fits
+/// QueryRecord's List<Object?> shape; jsonEncode handles primitives).
+class _QueryExecutedListener extends MagicListener<QueryExecuted> {
+  @override
+  Future<void> handle(QueryExecuted event) async {
+    TelescopeStore.recordQuery(
+      QueryRecord(
+        sql: event.sql,
+        bindings: List<Object?>.from(event.bindings),
+        timeMs: event.timeMs,
+        connectionName: event.connectionName,
+        time: DateTime.now(),
+      ),
+    );
   }
 }
