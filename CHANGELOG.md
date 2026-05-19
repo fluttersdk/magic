@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added (dusk-magic-wind enrichment Wave 3 / Wave 4 wiring)
+
+- **`MagicHttpFacadeAdapter.pendingCount` override** (Step 3.4 cross-package).
+  Proxies to the file-private `_TelescopeNetworkInterceptor._pending.length`
+  (null-guarded pre-install, returns 0). Reads the live in-flight FIFO so
+  `TelescopeStore.pendingHttpCount` can sum across registered adapters.
+  Powers dusk's `ext.dusk.wait_for_network_idle` end-to-end.
+- **Magic-side reader wiring for dusk's telescope-backed tools**
+  (Steps 3.4 + 3.5). `MagicTelescopeIntegration.install()` now also
+  assigns three function-pointer readers exported from
+  `package:fluttersdk_dusk/dusk.dart`:
+  - `pendingHttpCountReader = () => TelescopeStore.pendingHttpCount`
+  - `recentLogsReader = TelescopeStore.recentLogs(...) → dusk envelope`
+    (renames `loggerName` → `logger`, ISO-formats timestamps)
+  - `recentExceptionsReader = TelescopeStore.recentExceptions(...) → dusk envelope`
+    (renames `exceptionType` → `type`, truncates stackTrace to first
+    3 lines as `stackHead`)
+  The indirection lives on the dusk side; dusk has no hard dep on
+  telescope. Magic is the only crossover point. Dusk hosts that do not
+  ship `fluttersdk_telescope` get the default empty-list readers
+  (missing-telescope graceful path).
+- **New `test/cli/telescope_integration_test.dart`** (6 cases): pre-install
+  null-guard, post-install zero, in-flight count, FIFO decrement,
+  post-uninstall null-guard, end-to-end via `TelescopeStore.pendingHttpCount`.
+
 ### Changed (BREAKING for magic_cli legacy users; non-breaking via legacy fallback)
 
 - **`magic:install` rewrite to PluginInstaller DSL + install.yaml manifest**.

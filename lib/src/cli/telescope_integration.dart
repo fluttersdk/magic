@@ -105,7 +105,13 @@ class MagicTelescopeIntegration {
   @visibleForTesting
   static bool get isInstalled => _installed;
 
-  /// Test-only reset. Drops the idempotency guard.
+  /// Test-only reset. Drops the idempotency guard AND restores the three
+  /// cross-package function pointers (`pendingHttpCountReader`,
+  /// `recentLogsReader`, `recentExceptionsReader`) to their dusk-side
+  /// missing-telescope defaults so downstream tests that assert
+  /// "graceful-empty" behavior do not see leaked bindings from a prior
+  /// [install] call. The contract on each pointer is set-once-per-isolate
+  /// during install + reset-on-resetForTesting.
   ///
   /// Does NOT unregister the adapters/watchers ; TelescopePlugin keeps
   /// them in its internal lists; tests should call
@@ -114,6 +120,9 @@ class MagicTelescopeIntegration {
   @visibleForTesting
   static void resetForTesting() {
     _installed = false;
+    pendingHttpCountReader = () => 0;
+    recentLogsReader = ({int limit = 50, String? minLevel}) => const [];
+    recentExceptionsReader = ({int limit = 20}) => const [];
   }
 
   static bool _installed = false;
