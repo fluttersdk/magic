@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (artisan-install-command-magic plan)
+
+- **`magic:install` now delegates canonical Flutter scaffold to artisan's `install` command in-process.** After `stagedInstaller.commit()` returns Success, `delegateArtisanInstall` invokes `InstallCommand.scaffoldInto` (from the artisan public barrel) to write `bin/dispatcher.dart` + barrels + pubspec dep + bin/fsa. Gated inside the existing `if (result is Success)` block so dry-run / Conflict / Error results skip the delegation and atomic-commit semantics are preserved. Magic-specific extras (conditional configs, dynamic `lib/config/app.dart`, `lib/main.dart` smart-merge, sqlite3.wasm) remain magic-side.
+
+### Removed (artisan-install-command-magic plan)
+
+- **`install.yaml` 11th publish entry (`install/consumer_artisan: bin/artisan.dart`) dropped.** Artisan's `install` command now writes the canonical dispatcher to `bin/dispatcher.dart`; magic no longer ships a separate consumer wrapper. Magic-managed consumers reach the same canonical state via the delegation flow.
+
 ### Added (dusk-magic-wind enrichment Wave 3 / Wave 4 wiring)
 
 - **`MagicHttpFacadeAdapter.pendingCount` override** (Step 3.4 cross-package).

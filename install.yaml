@@ -39,7 +39,6 @@ publish:
   install/welcome_view: lib/resources/views/welcome_view.dart
   install/env: .env
   install/env_example: .env.example
-  install/consumer_artisan: bin/artisan.dart
 
 prompts:
   - key: withoutAuth

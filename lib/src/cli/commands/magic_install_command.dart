@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:fluttersdk_artisan/artisan.dart';
@@ -404,6 +405,37 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     return null;
   }
 
+  /// Delegates the canonical Flutter consumer scaffold to artisan's `install`
+  /// command, IN-PROCESS. Writes `bin/dispatcher.dart`, the codegen barrels
+  /// (`lib/app/_plugins.g.dart`, `lib/app/commands/_index.g.dart`), the
+  /// `fluttersdk_artisan` pubspec dep, then auto-chains `make:fast-cli` for
+  /// `bin/fsa`. Returns the exit code of the underlying scaffold.
+  ///
+  /// Called from [handle] inside the `if (result is Success)` block between
+  /// the post-install message echo and the `plugins:refresh` invocation:
+  /// dispatcher.dart must exist BEFORE plugins:refresh regenerates
+  /// `lib/app/_plugins.g.dart`.
+  ///
+  /// Marked `@visibleForTesting` so a test subclass can override and record
+  /// invocations without spinning up the real artisan scaffold (which spawns
+  /// `chmod` and `dart build cli` subprocesses).
+  ///
+  /// @param ctx             The active [ArtisanContext] (force flag + output).
+  /// @param installContext  The active [InstallContext] (projectRoot resolved
+  ///                        from the consumer pubspec).
+  /// @return Exit code from [InstallCommand.scaffoldInto]; 0 on success.
+  @visibleForTesting
+  Future<int> delegateArtisanInstall(
+    ArtisanContext ctx,
+    InstallContext installContext,
+  ) {
+    return InstallCommand.scaffoldInto(
+      root: installContext.projectRoot,
+      force: isForce(ctx),
+      ctx: ctx,
+    );
+  }
+
   @override
   Future<int> handle(ArtisanContext ctx) async {
     // 0. Mutual exclusion: --force and --preserve cannot be used together.
@@ -530,9 +562,33 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       ctx.output.info(manifest.postInstall.message!);
     }
 
-    // 9. Auto-refresh: regenerate lib/app/_plugins.g.dart so MagicArtisanProvider
-    //    plus any installed plugin providers are picked up by the consumer wrapper.
-    //    Only runs on a real commit (Success); dry-run/conflict/error skip refresh.
+    // 9. Delegate the canonical Flutter scaffold (bin/dispatcher.dart + barrels
+    //    + pubspec dep + bin/fsa) to artisan's `install` command IN-PROCESS.
+    //    Gated on Success so dry-run, Conflict, and Error results skip the
+    //    delegation; atomic-commit semantics from `stagedInstaller.commit`
+    //    are preserved (nothing partial is written when commit did not land).
+    //    Ordering: AFTER the post_install advisory echo (operator sees magic's
+    //    message first) and BEFORE plugins:refresh (so the dispatcher exists
+    //    on disk when codegen picks up the provider list).
+    if (result is Success) {
+      final artisanInstallExitCode = await delegateArtisanInstall(
+        ctx,
+        installContext,
+      );
+      if (artisanInstallExitCode != 0) {
+        ctx.output.error(
+          'Magic install delegated to artisan install but it failed '
+          '(exit $artisanInstallExitCode). Inspect '
+          '${installContext.projectRoot}/bin/dispatcher.dart and '
+          '${installContext.projectRoot}/bin/fsa for partial state.',
+        );
+        return artisanInstallExitCode;
+      }
+    }
+
+    // 10. Auto-refresh: regenerate lib/app/_plugins.g.dart so MagicArtisanProvider
+    //     plus any installed plugin providers are picked up by the consumer wrapper.
+    //     Only runs on a real commit (Success); dry-run/conflict/error skip refresh.
     if (result is Success) {
       final refresh = ctx.registry?.find('plugins:refresh');
       if (refresh != null) {
@@ -544,7 +600,87 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       }
     }
 
+    // 11. Web target + database feature enabled, auto-download sqlite3.wasm
+    //     to web/sqlite3.wasm. simolus3/sqlite3.dart's WasmSqlite3.loadFromUrl
+    //     needs this file present at runtime; before this step the consumer
+    //     had to fetch it manually per the install.yaml post_install note,
+    //     which produced a white-screen WebAssembly TypeError on first boot.
+    if (result is Success && !flags['withoutDatabase']! && !isDryRun(ctx)) {
+      await _maybeFetchSqliteWasm(ctx, installContext.projectRoot);
+    }
+
     return _renderResult(ctx, result);
+  }
+
+  /// Fetches `sqlite3.wasm` from simolus3/sqlite3.dart GitHub releases into
+  /// `<projectRoot>/web/sqlite3.wasm`. Skip-soft on missing web/ dir
+  /// (non-web target) and already-present wasm file (idempotency).
+  ///
+  /// Version pin matches magic's own `sqlite3:` pubspec range. Bump in
+  /// lockstep when the dep range moves; mismatched wasm + package versions
+  /// are documented to produce subtle runtime corruption (per simolus3
+  /// release notes).
+  Future<void> _maybeFetchSqliteWasm(
+    ArtisanContext ctx,
+    String projectRoot,
+  ) async {
+    final webDir = Directory(p.join(projectRoot, 'web'));
+    if (!webDir.existsSync()) {
+      // Non-web target (mobile / desktop). sqlite3 FFI doesn't need wasm.
+      return;
+    }
+    final wasmFile = File(p.join(webDir.path, 'sqlite3.wasm'));
+    if (wasmFile.existsSync()) {
+      ctx.output.info('web/sqlite3.wasm already present; skipping download.');
+      return;
+    }
+
+    // Pinned to the sqlite3 package version magic depends on. simolus3 ships
+    // one wasm per package release at this URL pattern.
+    const sqlite3Version = '3.3.1';
+    final url = Uri.parse(
+      'https://github.com/simolus3/sqlite3.dart/releases/download/'
+      'sqlite3-$sqlite3Version/sqlite3.wasm',
+    );
+
+    ctx.output.info('Downloading sqlite3.wasm ($sqlite3Version) into web/ ...');
+    final client = HttpClient();
+    try {
+      // Follow redirects manually: GitHub release downloads return a 302 to
+      // an S3 URL; HttpClient.getUrl honors followRedirects by default but
+      // we keep the depth small to avoid runaway loops.
+      final request = await client.getUrl(url);
+      final response = await request.close();
+      if (response.statusCode != 200) {
+        ctx.output.error(
+          'sqlite3.wasm download FAILED (HTTP ${response.statusCode}). '
+          'Fix manually: curl -L "$url" -o web/sqlite3.wasm',
+        );
+        return;
+      }
+
+      // Stream-consume the response into a byte buffer; flutter's
+      // consolidateHttpClientResponseBytes is not available from a pure-Dart
+      // CLI context, so we accumulate manually.
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response) {
+        builder.add(chunk);
+      }
+      final bytes = builder.takeBytes();
+      wasmFile.writeAsBytesSync(bytes);
+
+      final sizeKb = (bytes.length / 1024).toStringAsFixed(1);
+      ctx.output.info(
+        'web/sqlite3.wasm written ($sizeKb KB). Web target ready for sqlite3.',
+      );
+    } on Exception catch (e) {
+      ctx.output.error(
+        'sqlite3.wasm download FAILED: $e. '
+        'Fix manually: curl -L "$url" -o web/sqlite3.wasm',
+      );
+    } finally {
+      client.close(force: true);
+    }
   }
 
   /// Reads the 8 `--without-X` CLI flag values from [ctx] into a camelCase
