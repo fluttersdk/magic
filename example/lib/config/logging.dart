@@ -10,7 +10,10 @@ Map<String, dynamic> get loggingConfig => {
         'driver': 'stack',
         'channels': ['console'],
       },
-      'console': {'driver': 'console', 'level': 'debug'},
+      'console': {
+        'driver': 'console',
+        'level': 'debug',
+      },
     },
   },
 };
