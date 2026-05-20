@@ -23,18 +23,35 @@ class InstallStubs {
   /// Produces a full main.dart with `WidgetsFlutterBinding.ensureInitialized()`,
   /// `Magic.init()` with dynamic config factories, and `MagicApplication`.
   ///
+  /// Stub loading is routed through the per-install [StubDriver] supplied by
+  /// the caller (the active [InstallContext]'s `stubs` field) and an explicit
+  /// [searchPaths] list pointing at magic's bundled `assets/stubs/`. The
+  /// static [StubLoader] defaults resolve to fluttersdk_artisan's own
+  /// `assets/stubs/`, where magic-only stubs do not exist; routing through
+  /// the driver preserves multi-publisher correctness and lets in-memory test
+  /// drivers serve fixture content without touching the host filesystem.
+  ///
+  /// [stubs] — the active [StubDriver] (production: [RealStubDriver];
+  ///   tests: an in-memory fixture driver). Required so resolution honours
+  ///   the magic-side stub bundle rather than the substrate's default.
+  /// [searchPaths] — directories to search before the driver's defaults.
+  ///   In production the caller resolves magic's stub directory via the
+  ///   consumer's `package_config.json` and passes it here; pass `null`
+  ///   when the test driver ignores [searchPaths].
   /// [appName] — the human-readable application name (e.g. `My App`).
   /// [configImports] — list of import statements (one per config file).
   /// [configFactories] — list of factory lambda strings (e.g. `() => appConfig`).
   static String mainDartContent({
+    required StubDriver stubs,
     required String appName,
     required List<String> configImports,
     required List<String> configFactories,
+    List<String>? searchPaths,
   }) {
     final imports = configImports.join('\n');
     final factories = configFactories.map((f) => '      $f,').join('\n');
 
-    return StubLoader.replace(StubLoader.load('install/main'), {
+    return stubs.replace(stubs.load('install/main', searchPaths: searchPaths), {
       'configImports': imports,
       'configFactories': factories,
       'appName': appName,
@@ -47,6 +64,21 @@ class InstallStubs {
 
   /// Generates `lib/config/app.dart` with a dynamic providers list.
   ///
+  /// Stub loading is routed through the per-install [StubDriver] supplied by
+  /// the caller (the active [InstallContext]'s `stubs` field) and an explicit
+  /// [searchPaths] list pointing at magic's bundled `assets/stubs/`. The
+  /// static [StubLoader] defaults resolve to fluttersdk_artisan's own
+  /// `assets/stubs/`, where magic-only stubs do not exist; routing through
+  /// the driver preserves multi-publisher correctness and lets in-memory test
+  /// drivers serve fixture content without touching the host filesystem.
+  ///
+  /// [stubs] — the active [StubDriver] (production: [RealStubDriver];
+  ///   tests: an in-memory fixture driver). Required so resolution honours
+  ///   the magic-side stub bundle rather than the substrate's default.
+  /// [searchPaths] — directories to search before the driver's defaults.
+  ///   In production the caller resolves magic's stub directory via the
+  ///   consumer's `package_config.json` and passes it here; pass `null`
+  ///   when the test driver ignores [searchPaths].
   /// [providerImports] — additional provider import statements beyond the
   ///   always-present `RouteServiceProvider` and `AppServiceProvider`.
   /// [providerEntries] — infrastructure `(app) => Provider(app),` strings.
@@ -54,9 +86,11 @@ class InstallStubs {
   /// [authProviderEntries] — auth-related providers that must boot AFTER
   ///   AppServiceProvider (which registers `setUserFactory`).
   static String appConfigContent({
+    required StubDriver stubs,
     required List<String> providerImports,
     required List<String> providerEntries,
     List<String> authProviderEntries = const [],
+    List<String>? searchPaths,
   }) {
     final allImports = [
       "import 'package:magic/magic.dart';",
@@ -77,10 +111,10 @@ class InstallStubs {
       ...authProviderEntries.map((e) => '      $e'),
     ].join('\n');
 
-    return StubLoader.replace(StubLoader.load('install/app_config'), {
-      'allImports': allImports,
-      'allProviders': allProviders,
-    });
+    return stubs.replace(
+      stubs.load('install/app_config', searchPaths: searchPaths),
+      {'allImports': allImports, 'allProviders': allProviders},
+    );
   }
 
   /// Generates `lib/config/auth.dart` matching the Uptizm production pattern.

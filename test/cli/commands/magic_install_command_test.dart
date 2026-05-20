@@ -2371,12 +2371,6 @@ class _MyHomePageState extends State<MyHomePage> {
     test(
       'handle invokes the artisan delegation exactly once on commit Success, '
       'BEFORE the registered plugins:refresh command runs',
-      skip:
-          'Pre-existing baseline: InstallStubs.appConfigContent calls '
-          'StubLoader.load directly, which resolves to fluttersdk_artisan stubs '
-          'instead of magic stubs; _applyFluentOverride throws before commit() '
-          'runs in any in-memory harness. Re-enable once that resolution path '
-          'is routed through installContext.stubs (out of scope for Step 16).',
       () async {
         // Recording plugins:refresh stub captures the global call order so
         // the test can assert: artisan delegation < plugins:refresh.
@@ -2426,9 +2420,6 @@ class _MyHomePageState extends State<MyHomePage> {
     test(
       'handle skips artisan delegation when commit returns DryRun '
       '(--dry-run preserves atomic semantics: nothing on disk, no delegation)',
-      skip:
-          'Pre-existing baseline: same _applyFluentOverride stub-resolution '
-          'failure as the test above. Re-enable when baseline is fixed.',
       () async {
         final refreshStub = _RecordingRefreshCommand();
         final registry = ArtisanRegistry()
@@ -2460,82 +2451,75 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
 
-    test(
-      'handle returns the artisan delegation exit code AND skips '
-      'plugins:refresh when delegation fails',
-      skip:
-          'Pre-existing baseline: same _applyFluentOverride stub-resolution '
-          'failure. The non-zero-exit branch is still covered by code review + '
-          'the direct seam test above. Re-enable when baseline is fixed.',
-      () async {
-        // Pinned exit code 7 simulates a failed `dart build cli` or
-        // failed pubspec injection during the cross-package delegation.
-        final fixtures = _buildStubFixtures();
-        final stubs = _FixtureStubDriver(fixtures);
-        final fs = InMemoryFs();
-        const projectRoot = '/proj';
-        fs.writeAsString(
-          '$projectRoot/.dart_tool/package_config.json',
-          _fakePackageConfigJson,
-        );
-        final output = BufferedOutput();
-        final installContext = InstallContext.test(
-          fs: fs,
-          prompt: _RecordingPromptDriver(),
-          stubs: stubs,
-          projectRoot: projectRoot,
-          output: output,
-          clock: () => DateTime.utc(2025, 1, 1),
-        );
+    test('handle returns the artisan delegation exit code AND skips '
+        'plugins:refresh when delegation fails', () async {
+      // Pinned exit code 7 simulates a failed `dart build cli` or
+      // failed pubspec injection during the cross-package delegation.
+      final fixtures = _buildStubFixtures();
+      final stubs = _FixtureStubDriver(fixtures);
+      final fs = InMemoryFs();
+      const projectRoot = '/proj';
+      fs.writeAsString(
+        '$projectRoot/.dart_tool/package_config.json',
+        _fakePackageConfigJson,
+      );
+      final output = BufferedOutput();
+      final installContext = InstallContext.test(
+        fs: fs,
+        prompt: _RecordingPromptDriver(),
+        stubs: stubs,
+        projectRoot: projectRoot,
+        output: output,
+        clock: () => DateTime.utc(2025, 1, 1),
+      );
 
-        final refreshStub = _RecordingRefreshCommand();
-        final registry = ArtisanRegistry()
-          ..register(refreshStub, providerName: 'test');
+      final refreshStub = _RecordingRefreshCommand();
+      final registry = ArtisanRegistry()
+        ..register(refreshStub, providerName: 'test');
 
-        final cmd = _TestableMagicInstallCommand(
-          fakeManifestPath: _manifestPath,
-          fakeContext: installContext,
-          fakeStubsDir: _fakeStubsDir,
-          artisanDelegateExitCode: 7,
-        );
-        final ctx = ArtisanContext.bare(
-          MapInput(_baseOptions, signature: cmd.parsedSignature),
-          output,
-          registry: registry,
-        );
+      final cmd = _TestableMagicInstallCommand(
+        fakeManifestPath: _manifestPath,
+        fakeContext: installContext,
+        fakeStubsDir: _fakeStubsDir,
+        artisanDelegateExitCode: 7,
+      );
+      final ctx = ArtisanContext.bare(
+        MapInput(_baseOptions, signature: cmd.parsedSignature),
+        output,
+        registry: registry,
+      );
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        expect(
-          exit,
-          7,
-          reason:
-              'handle must propagate the artisan delegation exit code so the '
-              'operator sees the actionable failure surface',
-        );
-        expect(
-          cmd.artisanDelegateCallCount,
-          1,
-          reason:
-              'delegation must have been attempted once before the '
-              'failure path triggered',
-        );
-        expect(
-          refreshStub.callCount,
-          0,
-          reason:
-              'plugins:refresh must NOT run when the artisan delegation '
-              'fails (the dispatcher might be in a partial state; codegen '
-              'over partial state would amplify the inconsistency)',
-        );
-        expect(
-          output.content,
-          contains('artisan install but it failed'),
-          reason:
-              'operator must see an actionable error message naming the '
-              'partial-state paths to inspect (bin/dispatcher.dart + bin/fsa)',
-        );
-      },
-    );
+      expect(
+        exit,
+        7,
+        reason:
+            'handle must propagate the artisan delegation exit code so the '
+            'operator sees the actionable failure surface',
+      );
+      expect(
+        cmd.artisanDelegateCallCount,
+        1,
+        reason:
+            'delegation must have been attempted once before the '
+            'failure path triggered',
+      );
+      expect(
+        refreshStub.callCount,
+        0,
+        reason:
+            'plugins:refresh must NOT run when the artisan delegation '
+            'fails (the dispatcher might be in a partial state; codegen '
+            'over partial state would amplify the inconsistency)',
+      );
+      expect(
+        output.content,
+        contains('artisan install but it failed'),
+        reason:
+            'operator must see an actionable error message naming the '
+            'partial-state paths to inspect (bin/dispatcher.dart + bin/fsa)',
+      );
+    });
   });
 }

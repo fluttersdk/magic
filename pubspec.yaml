@@ -65,6 +65,9 @@ dependency_overrides:
     path: ../fluttersdk_dusk
   fluttersdk_telescope:
     path: ../fluttersdk_telescope
+  # xml ^7 is needed by fluttersdk_artisan; file_picker pulls dbus which pins
+  # xml ^6. Override to the artisan-side version so the path: dep resolves.
+  xml: ^7.0.0
 
 executables:
   artisan:

@@ -292,8 +292,16 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       case 'diff':
         // Build the Magic template for this install run, then display the
         // unified diff so the operator sees exactly what would change before
-        // committing to a strategy.
+        // committing to a strategy. Route stub loading through the per-install
+        // StubDriver + magic's stub directory so the diff preview resolves
+        // the same template the eventual commit will write.
+        final magicStubsDir = resolveMagicStubsDir(installContext);
+        final searchPaths = magicStubsDir == null
+            ? null
+            : <String>[magicStubsDir];
         final magicTemplate = InstallStubs.mainDartContent(
+          stubs: installContext.stubs,
+          searchPaths: searchPaths,
           appName: appName,
           configImports: configImports,
           configFactories: configFactories,
@@ -837,10 +845,15 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     });
 
     // Dynamic lib/config/app.dart: overwrites the manifest-published version
-    // with the runtime-assembled providers list.
+    // with the runtime-assembled providers list. Stub loading is routed
+    // through installContext.stubs + the magic-rooted searchPaths so the
+    // 'install/app_config' template resolves against magic's bundle, not
+    // fluttersdk_artisan's substrate stubs.
     installer.writeFile(
       targetPath: p.join(projectRoot, 'lib/config/app.dart'),
       content: InstallStubs.appConfigContent(
+        stubs: installContext.stubs,
+        searchPaths: searchPaths,
         providerImports: const <String>[],
         providerEntries: _buildProviderEntries(flags),
         authProviderEntries: flags['withoutAuth']!
@@ -868,6 +881,8 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         installer.writeFile(
           targetPath: p.join(projectRoot, 'lib/main.dart'),
           content: InstallStubs.mainDartContent(
+            stubs: installContext.stubs,
+            searchPaths: searchPaths,
             appName: appName,
             configImports: _buildConfigImports(flags),
             configFactories: _buildConfigFactories(flags),
