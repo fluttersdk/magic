@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluttersdk_dusk/dusk.dart';
 import 'package:fluttersdk_telescope/telescope.dart';
+import 'package:magic/dusk_integration.dart';
 import 'package:magic/magic.dart';
 
 /// Tests for the 5 new enrichers added in Plan Step 17, sub-change (c)
