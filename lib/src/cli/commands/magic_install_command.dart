@@ -431,13 +431,13 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// @param ctx             The active [ArtisanContext] (force flag + output).
   /// @param installContext  The active [InstallContext] (projectRoot resolved
   ///                        from the consumer pubspec).
-  /// @return Exit code from [InstallCommand.scaffoldInto]; 0 on success.
+  /// @return Exit code from [InstallArtisanCommand.scaffoldInto]; 0 on success.
   @visibleForTesting
   Future<int> delegateArtisanInstall(
     ArtisanContext ctx,
     InstallContext installContext,
   ) {
-    return InstallCommand.scaffoldInto(
+    return InstallArtisanCommand.scaffoldInto(
       root: installContext.projectRoot,
       force: isForce(ctx),
       ctx: ctx,
