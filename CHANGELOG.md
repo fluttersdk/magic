@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### BREAKING
+
+- Dependency migration: `fluttersdk_dusk` and `fluttersdk_telescope` moved from `dependencies:` to `dev_dependencies:`. Vanilla magic consumers no longer pull these dev-tooling packages transitively. Consumers wanting the Magic-side integrations must add the packages to their own pubspec and switch their import path (see migration below).
+- Barrel removal: `MagicDuskIntegration`, `MagicTelescopeIntegration`, the 14 enrichers, the 5 watchers, and `MagicHttpFacadeAdapter` are no longer exported from the main `package:magic/magic.dart` barrel. The class and function names are unchanged; only the import path moves.
+- New opt-in sub-barrels at `lib/dusk_integration.dart` and `lib/telescope_integration.dart`. Consumer migration:
+
+  Replace:
+  ```dart
+  import 'package:magic/magic.dart';
+  // ... MagicDuskIntegration.install();
+  ```
+  With:
+  ```dart
+  import 'package:magic/magic.dart';
+  import 'package:magic/dusk_integration.dart';
+  import 'package:magic/telescope_integration.dart';
+  // ... MagicDuskIntegration.install();
+  // ... MagicTelescopeIntegration.install();
+  ```
+
+  The `package:magic/magic.dart` import stays for other Magic types (MagicRouter, MagicApplication, etc.).
+
 ### Changed (artisan-install-command-magic plan)
 
 - **`magic:install` now delegates canonical Flutter scaffold to artisan's `install` command in-process.** After `stagedInstaller.commit()` returns Success, `delegateArtisanInstall` invokes `InstallCommand.scaffoldInto` (from the artisan public barrel) to write `bin/dispatcher.dart` + barrels + pubspec dep + bin/fsa. Gated inside the existing `if (result is Success)` block so dry-run / Conflict / Error results skip the delegation and atomic-commit semantics are preserved. Magic-specific extras (conditional configs, dynamic `lib/config/app.dart`, `lib/main.dart` smart-merge, sqlite3.wasm) remain magic-side.
