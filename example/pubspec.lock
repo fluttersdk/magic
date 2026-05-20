@@ -326,12 +326,12 @@ packages:
     source: sdk
     version: "0.0.0"
   fluttersdk_artisan:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "../../fluttersdk_artisan"
       relative: true
     source: path
-    version: "0.0.1"
+    version: "0.0.3"
   fluttersdk_dusk:
     dependency: "direct overridden"
     description:
@@ -345,7 +345,7 @@ packages:
       path: "../../fluttersdk_telescope"
       relative: true
     source: path
-    version: "1.0.0-alpha.2"
+    version: "0.0.1"
   fluttersdk_wind:
     dependency: transitive
     description:

@@ -50,12 +50,14 @@ dependencies:
   yaml: ^3.1.3
   yaml_edit: ^2.2.3
   fluttersdk_artisan: ^1.0.0-alpha.1
-  fluttersdk_dusk: ^1.0.0-alpha.1
-  fluttersdk_telescope: ^1.0.0-alpha.1
   flutter_test:
     sdk: flutter
 
 dev_dependencies:
+  # fluttersdk_dusk + fluttersdk_telescope are dev-only:
+  # imported by lib/src/cli/{dusk,telescope}_integration.dart (opt-in sub-barrels)
+  fluttersdk_dusk: ^1.0.0-alpha.1
+  fluttersdk_telescope: ^1.0.0-alpha.1
   flutter_lints: ^6.0.0
 
 dependency_overrides:

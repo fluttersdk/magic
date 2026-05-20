@@ -215,10 +215,10 @@ export 'src/launch/launch_service.dart';
 export 'src/launch/launch_service_provider.dart';
 export 'src/facades/launch.dart';
 
-// CLI integrations (fluttersdk dev-tooling ecosystem)
+// CLI integrations (fluttersdk dev-tooling ecosystem). Magic-aware artisan
+// provider + tinker REPL only; dusk/telescope integrations live in their own
+// sub-barrels (lib/dusk_integration.dart + lib/telescope_integration.dart).
 export 'src/cli/magic_artisan_provider.dart';
-export 'src/cli/dusk_integration.dart';
-export 'src/cli/telescope_integration.dart';
 export 'src/cli/tinker_integration.dart';
 
 // Broadcasting
