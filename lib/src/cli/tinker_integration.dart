@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:fluttersdk_artisan/artisan.dart' show Tinker, TinkerCaster;
+import 'package:fluttersdk_artisan/artisan.dart' show Tinker;
 
 import '../database/eloquent/model.dart';
 

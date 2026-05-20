@@ -1,5 +1,7 @@
+import '../events/event_dispatcher.dart';
 import '../facades/config.dart';
 import 'cache_store.dart';
+import 'events/cache_events.dart';
 
 /// The Cache Manager.
 ///
@@ -52,12 +54,22 @@ class CacheManager implements CacheStore {
 
   @override
   dynamic get(String key, {dynamic defaultValue}) {
-    return driver().get(key, defaultValue: defaultValue);
+    final value = driver().get(key, defaultValue: defaultValue);
+    // Hit when the resolved value differs from the caller-supplied default;
+    // miss otherwise. Drivers that return defaultValue on missing keys
+    // collapse the absence path into the equality check here.
+    if (value == defaultValue) {
+      EventDispatcher.instance.dispatch(CacheMiss(key));
+    } else {
+      EventDispatcher.instance.dispatch(CacheHit(key, value));
+    }
+    return value;
   }
 
   @override
-  Future<void> put(String key, dynamic value, {Duration? ttl}) {
-    return driver().put(key, value, ttl: ttl);
+  Future<void> put(String key, dynamic value, {Duration? ttl}) async {
+    await driver().put(key, value, ttl: ttl);
+    EventDispatcher.instance.dispatch(CachePut(key, value, ttl: ttl));
   }
 
   @override
@@ -66,12 +78,14 @@ class CacheManager implements CacheStore {
   }
 
   @override
-  Future<void> forget(String key) {
-    return driver().forget(key);
+  Future<void> forget(String key) async {
+    await driver().forget(key);
+    EventDispatcher.instance.dispatch(CacheForget(key));
   }
 
   @override
-  Future<void> flush() {
-    return driver().flush();
+  Future<void> flush() async {
+    await driver().flush();
+    EventDispatcher.instance.dispatch(CacheFlush());
   }
 }
