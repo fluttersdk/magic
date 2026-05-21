@@ -6,11 +6,18 @@
 /// dependencies; magic ships fluttersdk_telescope as a dev-dependency only,
 /// so transitive resolution does not happen through magic itself.
 ///
-/// Host integration (debug-only in lib/main.dart):
+/// Host integration (debug-only in lib/main.dart). MagicTelescopeIntegration
+/// MUST run AFTER `Magic.init()` because MagicHttpFacadeAdapter resolves
+/// the NetworkDriver via the IoC container. TelescopePlugin itself
+/// installs BEFORE `Magic.init()` so ExceptionWatcher catches Magic
+/// boot errors:
 ///
 /// ```dart
 /// if (kDebugMode) {
 ///   TelescopePlugin.install();
+/// }
+/// await Magic.init(configFactories: [...]);
+/// if (kDebugMode) {
 ///   MagicTelescopeIntegration.install();
 /// }
 /// ```

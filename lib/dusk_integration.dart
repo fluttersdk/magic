@@ -6,11 +6,18 @@
 /// dependencies; magic ships fluttersdk_dusk as a dev-dependency only,
 /// so transitive resolution does not happen through magic itself.
 ///
-/// Host integration (debug-only in lib/main.dart):
+/// Host integration (debug-only in lib/main.dart). MagicDuskIntegration
+/// MUST run AFTER `Magic.init()` because its enrichers query
+/// `Magic.find<X>()` for form / nav / controller state. DuskPlugin
+/// itself installs BEFORE `Magic.init()` so the snapshot pipeline is
+/// live during Magic boot:
 ///
 /// ```dart
 /// if (kDebugMode) {
 ///   DuskPlugin.install();
+/// }
+/// await Magic.init(configFactories: [...]);
+/// if (kDebugMode) {
 ///   MagicDuskIntegration.install();
 /// }
 /// ```
