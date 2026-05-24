@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Contributing checklist (before merging into `[Unreleased]`)
+
+- [ ] CHANGELOG entry added under the appropriate bucket (BREAKING / Added / Changed / Removed / Fixed / Improvements)
+- [ ] `doc/` updated when the change touches public-facing behavior
+- [ ] `README.md` updated when the change touches the overview or quick-start
+- [ ] `skills/magic-framework/` updated when the change touches APIs the skill documents
+- [ ] `example/` updated when the change touches the canonical consumer scaffold
+- [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
+
+### Fixed (consumer-blocking bugs surfaced by `/tmp` fresh-app E2E test plan)
+
+- **`make:*` commands now work on consumers that pull magic from pub.dev / path: dependency.** `MakeControllerCommand`, `MakeModelCommand`, and the other 12 `make:*` commands used to call `StubLoader.load('controller')` directly, which searches `$ARTISAN_STUBS_DIR` → `$MAGIC_CLI_STUBS_DIR` → `fluttersdk_artisan-<version>/assets/stubs/`. Magic's own stubs live at `<magic>/assets/stubs/`; neither env var was set in typical environments, and the fluttersdk_artisan pub-cache fallback contained only artisan substrate stubs. The 14 generators now load raw stub content via the new `MagicStubLoader` helper (which resolves `<magic>/assets/stubs/<name>.stub` from the consumer's `.dart_tool/package_config.json` magic entry) and pass the content through `getStub()` for `ArtisanGeneratorCommand.buildClass` to consume as a literal template. Adds `lib/src/cli/helpers/magic_stub_loader.dart`; touches `lib/src/cli/commands/make_*.dart` × 14.
+- **`magic:install` is now self-registering** — adds magic to `.artisan/plugins.json` before `plugins:refresh` runs, so `MagicArtisanProvider` appears in `lib/app/_plugins.g.dart` automatically. Consumers no longer need a separate `dart run magic:artisan plugin:install magic` step before invoking `make:controller` etc. Touches `lib/src/cli/commands/magic_install_command.dart` (adds `_selfRegisterPlugin`).
+- **`plugin:install magic` re-invocations no longer corrupt `lib/config/app.dart`.** The static `install/app_config` publish entry rendered the raw `{{ allImports }}` / `{{ allProviders }}` placeholders when invoked outside `MagicInstallCommand.handle` (where the fluent override would overwrite with the dynamic providers list). Removed `install/app_config: lib/config/app.dart` from `install.yaml` `publish:`; the fluent override is now the sole writer. Touches `install.yaml`.
+- **`assets/lang/en.json` is now scaffolded on install.** Adds `install/lang_en: assets/lang/en.json` to `install.yaml` `publish:` with a minimal stub covering `common.welcome`, `common.loading`, …, and a `validation.*` block matching the built-in rule names. Consumers using `Lang.trans('common.welcome')` now resolve out of the box; previously the lang dir was empty until the operator ran `make:lang`. Touches `install.yaml`, adds `assets/stubs/install/lang_en.stub`.
+
+### Improvements (UX)
+
+- **`magic:install` post-install message documents the optional Dusk + Telescope setup chain.** Removed the obsolete sqlite3.wasm warning (the install command auto-fetches sqlite3.wasm 3.3.1 since the artisan-install-command-magic plan). Added a 6-command setup recipe (`plugin:install fluttersdk_dusk` + `plugin:install fluttersdk_telescope` + `dusk:install` + `telescope:install` + the `fluttersdk_dusk`/`fluttersdk_telescope` pubspec declares) so operators discover the debug-tooling path without consulting the docs. Touches `install.yaml` (`post_install.message`).
+
+### Deferred
+
+- `magic:install --with-debug-tooling` single-command flag that chains the 6-step Dusk + Telescope setup recipe (currently the post_install message documents the recipe; the flag would auto-execute it). Tracking issue: TBD.
+- `MainDartSmartMerger` should consolidate the 4 `if (kDebugMode) { ... }` blocks that `dusk:install` + `telescope:install` emit into 2 blocks (pre-`Magic.init()` host plugins + post-`Magic.init()` Magic adapters). Currently each install command writes its own block, producing four single-statement blocks. Tracking issue: TBD.
+
 ### BREAKING
 
 - Dependency migration: `fluttersdk_dusk` and `fluttersdk_telescope` moved from `dependencies:` to `dev_dependencies:`. Vanilla magic consumers no longer pull these dev-tooling packages transitively. Consumers wanting the Magic-side integrations must add the packages to their own pubspec and switch their import path (see migration below).
