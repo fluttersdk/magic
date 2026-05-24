@@ -29,7 +29,14 @@
 plugin_name: magic
 
 publish:
-  install/app_config: lib/config/app.dart
+  # NOTE: install/app_config (lib/config/app.dart) is INTENTIONALLY OMITTED
+  # from manifest publish. It is written exclusively by MagicInstallCommand's
+  # fluent override at handle()-time with a dynamic providers list assembled
+  # from `--without-X` flag answers. Listing it here would cause
+  # `plugin:install magic` re-invocations to overwrite the rendered providers
+  # list with the un-rendered `{{ allImports }}` / `{{ allProviders }}`
+  # placeholders, since plugin:install runs the manifest installer but NOT
+  # the fluent override.
   install/view_config: lib/config/view.dart
   install/routing_config: lib/config/routing.dart
   install/route_service_provider: lib/app/providers/route_service_provider.dart
@@ -39,6 +46,7 @@ publish:
   install/welcome_view: lib/resources/views/welcome_view.dart
   install/env: .env
   install/env_example: .env.example
+  install/lang_en: assets/lang/en.json
 
 prompts:
   - key: withoutAuth
@@ -87,21 +95,47 @@ magic:
 
 post_install:
   message: |
-    Magic installed via plugin:install. Bootstrap workflow:
+    Magic installed. Bootstrap workflow:
 
     1. Review lib/config/app.dart providers list. Disabled features (passed
        via --without-X) emit empty entries; remove the matching lines from
        app.dart.
     2. Review lib/main.dart configFactories list. Same caveat as #1.
-    3. (Optional, web target) Manually download sqlite3.wasm into web/ if
-       you plan to use Magic's SQLite driver on Flutter web. V1 does not
-       auto-handle this; see README for the download URL.
-    4. First install on a fresh `flutter create` app requires --force because
+    3. First install on a fresh `flutter create` app requires --force because
        the default Flutter counter app's lib/main.dart triggers the
        ConflictDetector unmanaged-file flag. The --force bypass is one-time
        per install.
 
     Magic.init() is wired in lib/main.dart. Run `flutter pub get && flutter run`
     to verify the bootstrap.
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ➕ OPTIONAL: Debug tooling (Dusk + Telescope)
+
+    Recommended for development. Dusk is the LLM-agent E2E driver (snap,
+    tap, find, screenshot); Telescope is the runtime inspector (HTTP, log,
+    exception, model, gate watchers). Both gate on kDebugMode so production
+    builds tree-shake them entirely.
+
+    To enable, add to pubspec.yaml dependencies (depend_on_referenced_packages
+    lint requires explicit declares even though magic transitively provides
+    them):
+
+       fluttersdk_dusk: ^0.0.2
+       fluttersdk_telescope: ^0.0.2
+
+    Then:
+
+       flutter pub get
+       dart run magic:artisan plugin:install fluttersdk_dusk
+       dart run magic:artisan plugin:install fluttersdk_telescope
+       dart run magic:artisan dusk:install
+       dart run magic:artisan telescope:install
+
+    The last two commands wire the kDebugMode setup blocks into
+    lib/main.dart. MCP tools surface for Claude Code / Cursor via:
+
+       dart run magic:artisan mcp:install
+       # then restart Claude Code; /mcp lists 40+ dusk_/telescope_ tools.
 
 bootstrap_command: magic:install
