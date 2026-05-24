@@ -594,6 +594,18 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       }
     }
 
+    // 10a. Self-register magic in .artisan/plugins.json so the subsequent
+    //      plugins:refresh picks up MagicArtisanProvider in lib/app/_plugins.g.dart.
+    //      Without this step the consumer would need a separate
+    //      `dart run magic:artisan plugin:install magic` invocation before
+    //      `make:controller` etc. work — magic:install delegates the canonical
+    //      consumer scaffold but does not register itself as a plugin.
+    //      Idempotent: re-running magic:install on a project that already
+    //      lists magic skips the registry write.
+    if (result is Success) {
+      _selfRegisterPlugin(ctx, installContext);
+    }
+
     // 10. Auto-refresh: regenerate lib/app/_plugins.g.dart so MagicArtisanProvider
     //     plus any installed plugin providers are picked up by the consumer wrapper.
     //     Only runs on a real commit (Success); dry-run/conflict/error skip refresh.
@@ -1028,6 +1040,51 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         ctx.output.error('Install failed: $msg (rolledBack: $ok)');
         return 2;
     }
+  }
+
+  /// Self-registers `magic` in the consumer's `.artisan/plugins.json` so the
+  /// downstream `plugins:refresh` invocation picks up [MagicArtisanProvider]
+  /// when regenerating `lib/app/_plugins.g.dart`.
+  ///
+  /// Without this step the consumer must run `dart run magic:artisan
+  /// plugin:install magic` separately before `make:controller` etc. work.
+  /// Idempotent: skips the registry write when an entry named `magic`
+  /// already exists.
+  void _selfRegisterPlugin(ArtisanContext ctx, InstallContext installContext) {
+    final registryPath = p.join(
+      installContext.projectRoot,
+      '.artisan',
+      'plugins.json',
+    );
+
+    Map<String, dynamic> registry;
+    if (installContext.fs.exists(registryPath)) {
+      registry =
+          jsonDecode(installContext.fs.readAsString(registryPath))
+              as Map<String, dynamic>;
+    } else {
+      registry = <String, dynamic>{'version': 1, 'plugins': <dynamic>[]};
+    }
+
+    final plugins =
+        (registry['plugins'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ??
+        <Map<String, dynamic>>[];
+
+    final alreadyRegistered = plugins.any((entry) => entry['name'] == 'magic');
+    if (alreadyRegistered) return;
+
+    plugins.add(<String, dynamic>{
+      'name': 'magic',
+      'providerImport': 'package:magic/cli.dart',
+      'providerClass': 'MagicArtisanProvider',
+      'registeredAt': DateTime.now().toUtc().toIso8601String(),
+    });
+    registry['plugins'] = plugins;
+
+    installContext.fs.writeAsString(
+      registryPath,
+      const JsonEncoder.withIndent('  ').convert(registry),
+    );
   }
 }
 
