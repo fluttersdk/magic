@@ -8,4 +8,3 @@ import 'package:fluttersdk_artisan/artisan.dart';
 List<ArtisanServiceProvider> autoDiscoveredProviders() {
   return <ArtisanServiceProvider>[];
 }
-

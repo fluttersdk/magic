@@ -27,7 +27,5 @@ void main() async {
     ],
   );
 
-  runApp(
-    MagicApplication(title: 'Example'),
-  );
+  runApp(MagicApplication(title: 'Example'));
 }
