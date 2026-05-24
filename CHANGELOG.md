@@ -100,12 +100,17 @@ All notable changes to this project will be documented in this file.
   `dart run :artisan plugin:install magic` (auto-detects install.yaml,
   routes through ManifestInstaller in one step).
 
-- **First install on a fresh `flutter create` app requires `--force`**.
-  The default Flutter counter app's `lib/main.dart` triggers the
-  ConflictDetector's `unmanaged-file` flag because there's no prior
-  `.artisan/installed/magic.json` record to compare against. Pass `--force`
-  to bypass the conflict on the first install; subsequent installs work
-  without `--force` because the record file establishes the hash baseline.
+- **REVERTED**: First install on a fresh `flutter create` app NO LONGER requires `--force`.
+  `MagicInstallCommand._resolveMainDartStrategy` calls
+  `MainDartScaffoldDetector.isFlutterCreateScaffold` BEFORE the
+  ConflictDetector path; when the existing `lib/main.dart` matches the
+  flutter create scaffold heuristic, `scaffoldDetected=true` flows into
+  `PluginInstaller.commit(force: true)` and bypasses the unmanaged-file
+  check silently. Operators now run `dart run magic:artisan magic:install`
+  on a fresh `flutter create` app without any flag; customized `lib/main.dart`
+  still requires `--force` or `--preserve` explicitly. (CHANGELOG entry from
+  an earlier alpha was stale; the scaffold detector landed before alpha-15
+  but the entry was not removed.)
 
 - **`sqlite3.wasm` auto-download wired into `magic:install`**. When the
   database feature is enabled (no `--without-database` flag) and the run

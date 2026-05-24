@@ -101,10 +101,6 @@ post_install:
        via --without-X) emit empty entries; remove the matching lines from
        app.dart.
     2. Review lib/main.dart configFactories list. Same caveat as #1.
-    3. First install on a fresh `flutter create` app requires --force because
-       the default Flutter counter app's lib/main.dart triggers the
-       ConflictDetector unmanaged-file flag. The --force bypass is one-time
-       per install.
 
     Magic.init() is wired in lib/main.dart. Run `flutter pub get && flutter run`
     to verify the bootstrap.
