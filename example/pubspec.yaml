@@ -36,18 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.9
   magic:
     path: ..
-    version: 1.0.0-alpha.15
-  fluttersdk_artisan:
-    path: ../../fluttersdk_artisan
-
-dependency_overrides:
-  fluttersdk_artisan:
-    path: ../../fluttersdk_artisan
-  fluttersdk_dusk:
-    path: ../../fluttersdk_dusk
-  fluttersdk_telescope:
-    path: ../../fluttersdk_telescope
-  xml: ^7.0.0
+  fluttersdk_artisan: ^0.0.5
 
 dev_dependencies:
   flutter_test:
