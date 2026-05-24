@@ -5,6 +5,7 @@
 /// See: https://magic.fluttersdk.com/docs/basics/routing#url-strategy
 Map<String, dynamic> get routingConfig => {
   'routing': {
-    'url_strategy': null, // 'path' for clean URLs on web, null for default hash strategy
+    'url_strategy':
+        null, // 'path' for clean URLs on web, null for default hash strategy
   },
 };

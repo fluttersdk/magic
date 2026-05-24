@@ -20,9 +20,7 @@ Map<String, dynamic> get broadcastingConfig => {
         'activity_timeout': 120,
         'dedup_buffer_size': 100,
       },
-      'null': {
-        'driver': 'null',
-      },
+      'null': {'driver': 'null'},
     },
   },
 };
