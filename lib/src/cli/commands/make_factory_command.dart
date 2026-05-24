@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Factory Command.
 ///
 /// Scaffolds a new model factory inside `lib/database/factories/`.
@@ -37,7 +39,7 @@ class MakeFactoryCommand extends ArtisanGeneratorCommand {
 
   /// Always returns the factory stub.
   @override
-  String getStub() => 'factory';
+  String getStub() => MagicStubLoader.load('factory');
 
   /// Normalises [name] so it always carries the `Factory` suffix.
   ///

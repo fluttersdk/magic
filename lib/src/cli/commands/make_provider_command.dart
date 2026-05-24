@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Provider Command.
 ///
 /// Scaffolds a new Magic service provider class using the `provider` stub
@@ -30,7 +32,7 @@ class MakeProviderCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/providers';
 
   @override
-  String getStub() => 'provider';
+  String getStub() => MagicStubLoader.load('provider');
 
   /// Normalises [name] so the last path segment always carries the
   /// `ServiceProvider` suffix. Used by both [getPath] and [buildClass] to keep

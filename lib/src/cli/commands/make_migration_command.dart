@@ -1,4 +1,6 @@
 import 'package:fluttersdk_artisan/artisan.dart';
+
+import '../helpers/magic_stub_loader.dart';
 import 'package:path/path.dart' as path;
 
 /// The Make Migration Command.
@@ -70,7 +72,9 @@ class MakeMigrationCommand extends ArtisanGeneratorCommand {
 
   /// Selects the create stub when `--create` is supplied, plain stub otherwise.
   @override
-  String getStub() => _createOption != null ? 'migration.create' : 'migration';
+  String getStub() => MagicStubLoader.load(
+    _createOption != null ? 'migration.create' : 'migration',
+  );
 
   /// Migration filenames carry a timestamp prefix: `m_YYYYMMDDHHMMSS_{name}.dart`.
   /// This overrides [ArtisanGeneratorCommand.getPath] to inject that prefix.

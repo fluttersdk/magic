@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Event Command.
 ///
 /// Scaffolds a new MagicEvent subclass using the `event` stub template.
@@ -29,7 +31,7 @@ class MakeEventCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/events';
 
   @override
-  String getStub() => 'event';
+  String getStub() => MagicStubLoader.load('event');
 
   /// Returns placeholder replacements for the event stub.
   ///

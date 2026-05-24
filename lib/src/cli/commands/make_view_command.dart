@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// The `make:view` generator command.
 ///
 /// Scaffolds a new MagicView class using the view stub templates.
@@ -55,7 +57,8 @@ class MakeViewCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  String getStub() => _statefulFlag ? 'view.stateful' : 'view';
+  String getStub() =>
+      MagicStubLoader.load(_statefulFlag ? 'view.stateful' : 'view');
 
   /// Provides extra placeholder replacements for the view stub.
   ///

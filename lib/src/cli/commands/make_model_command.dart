@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 import 'make_controller_command.dart';
 import 'make_factory_command.dart';
 import 'make_migration_command.dart';
@@ -86,7 +88,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  String getStub() => 'model';
+  String getStub() => MagicStubLoader.load('model');
 
   @override
   Map<String, String> getReplacements(String name) {

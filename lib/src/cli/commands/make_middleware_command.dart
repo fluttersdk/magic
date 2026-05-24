@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Middleware Command.
 ///
 /// Scaffolds a new Magic middleware class using the `middleware` stub template.
@@ -28,7 +30,7 @@ class MakeMiddlewareCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/middleware';
 
   @override
-  String getStub() => 'middleware';
+  String getStub() => MagicStubLoader.load('middleware');
 
   /// Returns placeholder replacements for the middleware stub.
   ///

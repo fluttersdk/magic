@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Listener Command.
 ///
 /// Scaffolds a new MagicListener subclass using the `listener` stub template.
@@ -34,7 +36,7 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/listeners';
 
   @override
-  String getStub() => 'listener';
+  String getStub() => MagicStubLoader.load('listener');
 
   /// Registers the `--event` option in addition to the inherited `--force` flag.
   @override

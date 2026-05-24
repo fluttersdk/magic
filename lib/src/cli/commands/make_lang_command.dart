@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Lang Command.
 ///
 /// Scaffolds a new JSON translation file using the `lang` stub template.
@@ -30,7 +32,7 @@ class MakeLangCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'assets/lang';
 
   @override
-  String getStub() => 'lang';
+  String getStub() => MagicStubLoader.load('lang');
 
   /// Overrides to produce a `.json` path instead of the default `.dart`.
   ///

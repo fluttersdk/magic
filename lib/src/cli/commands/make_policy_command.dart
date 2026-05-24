@@ -1,4 +1,6 @@
 import 'package:fluttersdk_artisan/artisan.dart';
+
+import '../helpers/magic_stub_loader.dart';
 import 'package:path/path.dart' as path;
 
 /// The `make:policy` generator command.
@@ -42,7 +44,7 @@ class MakePolicyCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/policies';
 
   @override
-  String getStub() => 'policy';
+  String getStub() => MagicStubLoader.load('policy');
 
   @override
   String getProjectRoot() => _testRoot ?? super.getProjectRoot();

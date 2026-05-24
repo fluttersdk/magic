@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// The `make:controller` generator command.
 ///
 /// Scaffolds a new MagicController class using the controller stub templates.
@@ -61,7 +63,9 @@ class MakeControllerCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  String getStub() => _resourceFlag ? 'controller.resource' : 'controller';
+  String getStub() => MagicStubLoader.load(
+    _resourceFlag ? 'controller.resource' : 'controller',
+  );
 
   /// Provides extra placeholder replacements for the controller stub.
   ///

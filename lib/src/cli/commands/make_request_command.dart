@@ -1,4 +1,6 @@
 import 'package:fluttersdk_artisan/artisan.dart';
+
+import '../helpers/magic_stub_loader.dart';
 import 'package:path/path.dart' as path;
 
 /// The `make:request` generator command.
@@ -36,7 +38,7 @@ class MakeRequestCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/validation/requests';
 
   @override
-  String getStub() => 'request';
+  String getStub() => MagicStubLoader.load('request');
 
   @override
   String getProjectRoot() => _testRoot ?? super.getProjectRoot();

@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Seeder Command.
 ///
 /// Scaffolds a new database seeder inside `lib/database/seeders/`.
@@ -37,7 +39,7 @@ class MakeSeederCommand extends ArtisanGeneratorCommand {
 
   /// Always returns the seeder stub.
   @override
-  String getStub() => 'seeder';
+  String getStub() => MagicStubLoader.load('seeder');
 
   /// Normalises [name] so it always carries the `Seeder` suffix.
   ///

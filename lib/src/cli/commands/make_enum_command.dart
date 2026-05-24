@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/magic_stub_loader.dart';
+
 /// Make Enum Command.
 ///
 /// Scaffolds a new string-backed enum class using the `enum` stub template.
@@ -29,7 +31,7 @@ class MakeEnumCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/enums';
 
   @override
-  String getStub() => 'enum';
+  String getStub() => MagicStubLoader.load('enum');
 
   /// Returns placeholder replacements for the enum stub.
   ///
