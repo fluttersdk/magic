@@ -49,7 +49,7 @@ dependencies:
   web_socket_channel: ^3.0.0
   yaml: ^3.1.3
   yaml_edit: ^2.2.3
-  fluttersdk_artisan: ^0.0.5
+  fluttersdk_artisan: ^0.0.7
   # fluttersdk_dusk + fluttersdk_telescope ship as runtime deps because
   # lib/src/cli/{dusk,telescope}_integration.dart imports them (opt-in
   # sub-barrels at lib/dusk_integration.dart / lib/telescope_integration.dart).

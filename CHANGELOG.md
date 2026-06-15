@@ -24,6 +24,10 @@ All notable changes to this project will be documented in this file.
 
 - **`magic:install` post-install message documents the optional Dusk + Telescope setup chain.** Removed the obsolete sqlite3.wasm warning (the install command auto-fetches sqlite3.wasm 3.3.1 since the artisan-install-command-magic plan). Added a 6-command setup recipe (`plugin:install fluttersdk_dusk` + `plugin:install fluttersdk_telescope` + `dusk:install` + `telescope:install` + the `fluttersdk_dusk`/`fluttersdk_telescope` pubspec declares) so operators discover the debug-tooling path without consulting the docs. Touches `install.yaml` (`post_install.message`).
 
+### Changed
+
+- **Documentation: CLAUDE.local.md updated to reflect artisan-based CLI.** The stale `magic_cli` companion-project sync protocol (cross-repo stub sync, provider coupling) has been retired. Magic now owns its CLI and generators under `lib/src/cli/` on the `fluttersdk_artisan` substrate. Updated `CLAUDE.local.md` to document the current architecture (command locations, install manifest, stub loading) and deprecation of the legacy magic_cli sync procedure.
+
 ### Deferred
 
 - `magic:install --with-debug-tooling` single-command flag that chains the 6-step Dusk + Telescope setup recipe (currently the post_install message documents the recipe; the flag would auto-execute it). Tracking issue: TBD.
