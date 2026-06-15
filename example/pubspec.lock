@@ -313,10 +313,18 @@ packages:
     dependency: transitive
     description:
       name: fluttersdk_wind
-      sha256: fa8862de3f23d83ae789a2ad89881f320ecb3c0991a0f1ca7fca7ed8bfc5abc6
+      sha256: f6d5668ec5bb9918646ee5c219fedb73b6f05b934949d83b46e8b49d0212c591
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.0-alpha.4"
+    version: "1.0.0"
+  fluttersdk_wind_diagnostics_contracts:
+    dependency: transitive
+    description:
+      name: fluttersdk_wind_diagnostics_contracts
+      sha256: "5d6b324dc334da9ab0b4b4703a551af5b080c4f659f57209a5516cf94e04f1f1"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   glob:
     dependency: transitive
     description:
@@ -445,14 +453,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.2"
-  keyboard_actions:
-    dependency: transitive
-    description:
-      name: keyboard_actions
-      sha256: "5155a158c0d22c3a2f4a2192040445fe84977620cf0eeb29f6148a1dcb5835fa"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.2.1"
   leak_tracker:
     dependency: transitive
     description:
@@ -507,7 +507,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.0.0-alpha.13"
+    version: "1.0.0-alpha.14"
   magic_cli:
     dependency: transitive
     description:
@@ -536,10 +536,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
+      sha256: "1741988757a65eb6b36abe716829688cf01910bbf91c34354ff7ec1c3de2b349"
       url: "https://pub.dev"
     source: hosted
-    version: "1.17.0"
+    version: "1.18.0"
   mime:
     dependency: transitive
     description:
@@ -813,10 +813,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "8161c84903fd860b26bfdefb7963b3f0b68fee7adea0f59ef805ecca346f0c7a"
+      sha256: "949a932224383300f01be9221c39180316445ecb8e7547f70a41a35bf421fb9e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.10"
+    version: "0.7.11"
   timezone:
     dependency: transitive
     description:

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.14] - 2026-06-15
+
 ### ✨ New Features
 - **Eloquent**: `Model.fill` now accepts a `strict` flag. When `true`, any non-fillable key throws `MassAssignmentException` instead of being silently dropped. Pair with validated request payloads to catch schema drift at the boundary. (#69)
 - **Validation**: `FormRequest` — Laravel-style request object that collapses authorize → prepare → validate into a single class. Throws `AuthorizationException` on denied access and `ValidationException` with a field-keyed error map on rule failure. Pairs with `Model.fill(validated, strict: true)`. (#66)
@@ -14,6 +16,9 @@ All notable changes to this project will be documented in this file.
 - **Session**: Add `Session` facade with Laravel-style flash data — `Session.flash(data)`, `Session.flashErrors(errors)`, `Session.old(field, [fallback])`, `Session.error(field)`, `Session.errors(field)`, `Session.hasError(field)`, `Session.hasFlash`, `Session.tick()`. Two-bucket store promotes flashed data exactly one navigation hop so forms can repopulate after a failed submit. Top-level helpers `old()` and `error()` mirror Laravel's Blade API
 - **UI**: `MagicFormData.validate()` automatically flashes form data on validation failure — downstream views can repopulate via `old('field')` without manual wiring
 - **Validation**: `In<T>` rule accepts a primitive whitelist (strings, ints, etc.) and `InList<T extends Enum>` validates enum-backed fields, accepting either the enum instance or a wire string. `InList` supports `caseInsensitive:` and an optional `wire:` mapper for snake_case or custom representations. Both emit the shared `validation.in` message with a comma-joined `:values` parameter. (#81)
+
+### 🔧 Maintenance
+- **Dependencies**: Bump `fluttersdk_wind` constraint to `^1.0.0` for the wind 1.0.0 stable release.
 
 ## [1.0.0-alpha.13] - 2026-04-16
 
