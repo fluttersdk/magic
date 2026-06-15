@@ -115,8 +115,10 @@ Future<void> main(List<String> args) async {
 ### 4. Run the one-shot install
 
 ```bash
-dart run :artisan plugin:install magic --force --non-interactive
+dart run :artisan magic:install --force --non-interactive
 ```
+
+Use `magic:install` (not `plugin:install magic`) for the one-shot bootstrap: it runs the full hybrid installer (`main.dart` Magic.init() bootstrap + all config files + the dispatcher/fastcli scaffold). `plugin:install magic` only applies the static manifest layer (provider registration + config publish) and does NOT rewrite `main.dart`, so a fresh project installed that way will not boot into Magic. See [Install paths](#install-paths) below.
 
 The `--force` flag is required only on the first install of a fresh `flutter create` project because the default Flutter counter app's `lib/main.dart` triggers the ConflictDetector's `unmanaged-file` flag (no prior `.artisan/installed/magic.json` record exists yet). Subsequent installs do not need `--force`.
 
@@ -156,12 +158,17 @@ When `--non-interactive` is absent, the installer prompts for each option intera
 Example: install without database and broadcasting:
 
 ```bash
-dart run :artisan plugin:install magic --force --without-database --without-broadcasting
+dart run :artisan magic:install --force --without-database --without-broadcasting
 ```
 
-### Legacy install path (backward compatible)
+The `--without-X` flags are honored by `magic:install` (the hybrid command); they are not part of the static `plugin:install` manifest flow.
 
-The previous `dart run :artisan magic:install` command still works and routes through the same rewritten `MagicInstallCommand` internals. It is kept as a backward-compat alias; `plugin:install magic` is the recommended entrypoint from this version onward.
+### Install paths
+
+Two entrypoints exist; they are NOT equivalent:
+
+- **`dart run :artisan magic:install`** (recommended, full bootstrap): runs `MagicInstallCommand`, the hybrid installer. It publishes every config file, rewrites `lib/main.dart` with the `Magic.init()` bootstrap + `configFactories`, scaffolds the dispatcher + fastcli, and honors the `--without-X` flags. This is what a fresh project needs to boot into Magic.
+- **`dart run :artisan plugin:install magic`** (static layer only): routes through artisan's manifest installer. It registers the provider and publishes the static config templates, but does NOT run the dynamic `main.dart` bootstrap. Use it only to (re)apply the manifest layer on a project that is already Magic-bootstrapped.
 
 ### Build your first controller
 
