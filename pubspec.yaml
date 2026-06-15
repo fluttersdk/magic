@@ -1,12 +1,9 @@
 name: magic
 description: "A Laravel-inspired Flutter framework with Eloquent ORM, routing, and MVC architecture."
-version: 1.0.0-alpha.14
+version: 1.0.0-alpha.15
 homepage: https://magic.fluttersdk.com
 repository: https://github.com/fluttersdk/magic
 issue_tracker: https://github.com/fluttersdk/magic/issues
-
-executables:
-  magic: magic
 
 topics:
   - framework
@@ -27,6 +24,8 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   fluttersdk_wind: ^1.0.0
+  meta: ^1.16.0
+  more: ^4.7.0
   dio: ^5.9.0
   flutter_dotenv: ^6.0.0
   go_router: ^17.1.0
@@ -48,9 +47,24 @@ dependencies:
   image_picker: ^1.1.2
   faker: ^2.2.0
   web_socket_channel: ^3.0.0
-  magic_cli: ^0.0.1-alpha.6
+  yaml: ^3.1.3
+  yaml_edit: ^2.2.3
+  fluttersdk_artisan: ^0.0.5
+  # fluttersdk_dusk + fluttersdk_telescope ship as runtime deps because
+  # lib/src/cli/{dusk,telescope}_integration.dart imports them (opt-in
+  # sub-barrels at lib/dusk_integration.dart / lib/telescope_integration.dart).
+  # pub.dev validation requires every lib/ import to be in `dependencies`.
+  fluttersdk_dusk: ^0.0.2
+  fluttersdk_telescope: ^0.0.2
   flutter_test:
     sdk: flutter
 
 dev_dependencies:
   flutter_lints: ^6.0.0
+
+executables:
+  artisan:
+
+flutter:
+  assets:
+    - assets/stubs/

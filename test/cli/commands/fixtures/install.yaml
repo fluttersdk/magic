@@ -1,0 +1,109 @@
+# magic install manifest (PluginInstaller DSL schema v1).
+#
+# Hybrid layout:
+#
+#   - The `publish:` section below lists only the ALWAYS-RENDERED targets
+#     (the 3 base config files, 5 starter files, and 2 .env files). The 6
+#     CONDITIONAL config files (auth / database / network / cache / logging /
+#     broadcasting) are emitted by MagicInstallCommand's fluent override via
+#     `installer.publishConfig(...)` calls, gated on each `--without-X` prompt
+#     answer. This keeps install.yaml as a clean static spec, the v1 schema
+#     has no `if:` conditional section keys.
+#
+#   - The `appName` placeholder is empty here; MagicInstallCommand reads the
+#     consumer's pubspec.yaml.name field, transforms snake_case to Title Case,
+#     and threads the value into the placeholder map BEFORE the manifest
+#     installer renders any stub. Workaround for the v1 schema lacking a
+#     `{{ pubspec.NAME }}` placeholder source.
+#
+#   - lib/config/app.dart appears in publish: (static fallback) AND is
+#     OVERWRITTEN by the fluent override with dynamic content (provider list
+#     assembled from --without-X flags). The override's writeFile runs after
+#     manifest publish in commit order, so the dynamic content wins.
+#
+#   - lib/main.dart is NOT in publish:; only the fluent override emits it
+#     (the configFactories list cannot be expressed as a static template).
+#
+# See doc/install_yaml_schema.md (in fluttersdk_artisan) for the full schema.
+
+plugin_name: magic
+
+publish:
+  install/app_config.stub: lib/config/app.dart
+  install/view_config.stub: lib/config/view.dart
+  install/routing_config.stub: lib/config/routing.dart
+  install/route_service_provider.stub: lib/app/providers/route_service_provider.dart
+  install/app_service_provider.stub: lib/app/providers/app_service_provider.dart
+  install/kernel.stub: lib/app/kernel.dart
+  install/routes_app.stub: lib/routes/app.dart
+  install/welcome_view.stub: lib/resources/views/welcome_view.dart
+  install/env.stub: .env
+  install/env_example.stub: .env.example
+  install/consumer_artisan.stub: bin/artisan.dart
+
+prompts:
+  - key: withoutAuth
+    type: bool
+    default: false
+    question: "Skip auth setup?"
+  - key: withoutDatabase
+    type: bool
+    default: false
+    question: "Skip database setup?"
+  - key: withoutNetwork
+    type: bool
+    default: false
+    question: "Skip network setup?"
+  - key: withoutCache
+    type: bool
+    default: false
+    question: "Skip cache setup?"
+  - key: withoutEvents
+    type: bool
+    default: false
+    question: "Skip events setup?"
+  - key: withoutLocalization
+    type: bool
+    default: false
+    question: "Skip localization setup?"
+  - key: withoutLogging
+    type: bool
+    default: false
+    question: "Skip logging setup?"
+  - key: withoutBroadcasting
+    type: bool
+    default: false
+    question: "Skip broadcasting setup?"
+
+placeholders:
+  # Pre-populated by MagicInstallCommand's fluent override before render time.
+  appName: ""
+
+magic:
+  # Provider injection is handled entirely by MagicInstallCommand's fluent
+  # override (_applyFluentOverride). The `magic:` section is left empty so the
+  # ManifestInstaller does not trigger InjectImport / InjectAfterPattern ops
+  # that would call ConfigEditor against the real filesystem (bypassing
+  # InMemoryFs). Tests run in-memory via _TestableMagicInstallCommand.
+  provider: ~
+
+post_install:
+  message: |
+    Magic installed via plugin:install. Bootstrap workflow:
+
+    1. Review lib/config/app.dart providers list. Disabled features (passed
+       via --without-X) emit empty entries; remove the matching lines from
+       app.dart.
+    2. Review lib/main.dart configFactories list. Same caveat as #1.
+    3. (Optional, web target) Manually download sqlite3.wasm into web/ if
+       you plan to use Magic's SQLite driver on Flutter web. V1 does not
+       auto-handle this; see README for the download URL.
+    4. First install on a fresh `flutter create` app requires --force because
+       the default Flutter counter app's lib/main.dart triggers the
+       ConflictDetector unmanaged-file flag. The --force bypass is one-time
+       per install.
+
+    Magic.init() is wired in lib/main.dart. Run `flutter pub get && flutter run`
+    to verify the bootstrap.
+
+bootstrap_command: magic:install

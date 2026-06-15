@@ -17,6 +17,7 @@ Map<String, dynamic> get appConfig => {
       (app) => LocalizationServiceProvider(app),
       (app) => NetworkServiceProvider(app),
       (app) => VaultServiceProvider(app),
+      (app) => BroadcastServiceProvider(app),
       (app) => AppServiceProvider(app),
       (app) => AuthServiceProvider(app),
     ],

@@ -63,6 +63,7 @@ export 'src/cache/cache_store.dart';
 export 'src/cache/cache_manager.dart';
 export 'src/cache/cache_service_provider.dart';
 export 'src/cache/drivers/file_store.dart';
+export 'src/cache/events/cache_events.dart';
 export 'src/facades/crypt.dart';
 export 'src/facades/cache.dart';
 
@@ -201,6 +202,7 @@ export 'src/facades/session.dart';
 
 // Authorization (Gate)
 export 'src/auth/gate_manager.dart';
+export 'src/auth/gate_result.dart';
 export 'src/facades/gate.dart';
 export 'src/policies/policy.dart';
 export 'src/providers/gate_service_provider.dart';
@@ -212,6 +214,12 @@ export 'src/launch/launch_adapter.dart';
 export 'src/launch/launch_service.dart';
 export 'src/launch/launch_service_provider.dart';
 export 'src/facades/launch.dart';
+
+// CLI integrations (fluttersdk dev-tooling ecosystem). Magic-aware artisan
+// provider + tinker REPL only; dusk/telescope integrations live in their own
+// sub-barrels (lib/dusk_integration.dart + lib/telescope_integration.dart).
+export 'src/cli/magic_artisan_provider.dart';
+export 'src/cli/tinker_integration.dart';
 
 // Broadcasting
 export 'config/broadcasting.dart';

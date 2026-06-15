@@ -4,7 +4,170 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.0.0-alpha.14] - 2026-06-15
+### Contributing checklist (before merging into `[Unreleased]`)
+
+- [ ] CHANGELOG entry added under the appropriate bucket (BREAKING / Added / Changed / Removed / Fixed / Improvements)
+- [ ] `doc/` updated when the change touches public-facing behavior
+- [ ] `README.md` updated when the change touches the overview or quick-start
+- [ ] `skills/magic-framework/` updated when the change touches APIs the skill documents
+- [ ] `example/` updated when the change touches the canonical consumer scaffold
+- [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
+
+### Fixed (consumer-blocking bugs surfaced by `/tmp` fresh-app E2E test plan)
+
+- **`make:*` commands now work on consumers that pull magic from pub.dev / path: dependency.** `MakeControllerCommand`, `MakeModelCommand`, and the other 12 `make:*` commands used to call `StubLoader.load('controller')` directly, which searches `$ARTISAN_STUBS_DIR` → `$MAGIC_CLI_STUBS_DIR` → `fluttersdk_artisan-<version>/assets/stubs/`. Magic's own stubs live at `<magic>/assets/stubs/`; neither env var was set in typical environments, and the fluttersdk_artisan pub-cache fallback contained only artisan substrate stubs. The 14 generators now load raw stub content via the new `MagicStubLoader` helper (which resolves `<magic>/assets/stubs/<name>.stub` from the consumer's `.dart_tool/package_config.json` magic entry) and pass the content through `getStub()` for `ArtisanGeneratorCommand.buildClass` to consume as a literal template. Adds `lib/src/cli/helpers/magic_stub_loader.dart`; touches `lib/src/cli/commands/make_*.dart` × 14.
+- **`magic:install` is now self-registering** — adds magic to `.artisan/plugins.json` before `plugins:refresh` runs, so `MagicArtisanProvider` appears in `lib/app/_plugins.g.dart` automatically. Consumers no longer need a separate `dart run magic:artisan plugin:install magic` step before invoking `make:controller` etc. Touches `lib/src/cli/commands/magic_install_command.dart` (adds `_selfRegisterPlugin`).
+- **`plugin:install magic` re-invocations no longer corrupt `lib/config/app.dart`.** The static `install/app_config` publish entry rendered the raw `{{ allImports }}` / `{{ allProviders }}` placeholders when invoked outside `MagicInstallCommand.handle` (where the fluent override would overwrite with the dynamic providers list). Removed `install/app_config: lib/config/app.dart` from `install.yaml` `publish:`; the fluent override is now the sole writer. Touches `install.yaml`.
+- **`assets/lang/en.json` is now scaffolded on install.** Adds `install/lang_en: assets/lang/en.json` to `install.yaml` `publish:` with a minimal stub covering `common.welcome`, `common.loading`, …, and a `validation.*` block matching the built-in rule names. Consumers using `Lang.trans('common.welcome')` now resolve out of the box; previously the lang dir was empty until the operator ran `make:lang`. Touches `install.yaml`, adds `assets/stubs/install/lang_en.stub`.
+
+### Improvements (UX)
+
+- **`magic:install` post-install message documents the optional Dusk + Telescope setup chain.** Removed the obsolete sqlite3.wasm warning (the install command auto-fetches sqlite3.wasm 3.3.1 since the artisan-install-command-magic plan). Added a 6-command setup recipe (`plugin:install fluttersdk_dusk` + `plugin:install fluttersdk_telescope` + `dusk:install` + `telescope:install` + the `fluttersdk_dusk`/`fluttersdk_telescope` pubspec declares) so operators discover the debug-tooling path without consulting the docs. Touches `install.yaml` (`post_install.message`).
+
+### Deferred
+
+- `magic:install --with-debug-tooling` single-command flag that chains the 6-step Dusk + Telescope setup recipe (currently the post_install message documents the recipe; the flag would auto-execute it). Tracking issue: TBD.
+- `MainDartSmartMerger` should consolidate the 4 `if (kDebugMode) { ... }` blocks that `dusk:install` + `telescope:install` emit into 2 blocks (pre-`Magic.init()` host plugins + post-`Magic.init()` Magic adapters). Currently each install command writes its own block, producing four single-statement blocks. Tracking issue: TBD.
+
+### BREAKING
+
+- Dependency migration: `fluttersdk_dusk` and `fluttersdk_telescope` moved from `dependencies:` to `dev_dependencies:`. Vanilla magic consumers no longer pull these dev-tooling packages transitively. Consumers wanting the Magic-side integrations must add the packages to their own pubspec and switch their import path (see migration below).
+- Barrel removal: `MagicDuskIntegration`, `MagicTelescopeIntegration`, the 14 enrichers, the 5 watchers, and `MagicHttpFacadeAdapter` are no longer exported from the main `package:magic/magic.dart` barrel. The class and function names are unchanged; only the import path moves.
+- New opt-in sub-barrels at `lib/dusk_integration.dart` and `lib/telescope_integration.dart`. Consumer migration:
+
+  Replace:
+  ```dart
+  import 'package:magic/magic.dart';
+  // ... MagicDuskIntegration.install();
+  ```
+  With:
+  ```dart
+  import 'package:magic/magic.dart';
+  import 'package:magic/dusk_integration.dart';
+  import 'package:magic/telescope_integration.dart';
+  // ... MagicDuskIntegration.install();
+  // ... MagicTelescopeIntegration.install();
+  ```
+
+  The `package:magic/magic.dart` import stays for other Magic types (MagicRouter, MagicApplication, etc.).
+
+### Changed (artisan-install-command-magic plan)
+
+- **`magic:install` now delegates canonical Flutter scaffold to artisan's `install` command in-process.** After `stagedInstaller.commit()` returns Success, `delegateArtisanInstall` invokes `InstallCommand.scaffoldInto` (from the artisan public barrel) to write `bin/dispatcher.dart` + barrels + pubspec dep + bin/fsa. Gated inside the existing `if (result is Success)` block so dry-run / Conflict / Error results skip the delegation and atomic-commit semantics are preserved. Magic-specific extras (conditional configs, dynamic `lib/config/app.dart`, `lib/main.dart` smart-merge, sqlite3.wasm) remain magic-side.
+
+### Removed (artisan-install-command-magic plan)
+
+- **`install.yaml` 11th publish entry (`install/consumer_artisan: bin/artisan.dart`) dropped.** Artisan's `install` command now writes the canonical dispatcher to `bin/dispatcher.dart`; magic no longer ships a separate consumer wrapper. Magic-managed consumers reach the same canonical state via the delegation flow.
+
+### Added (dusk-magic-wind enrichment Wave 3 / Wave 4 wiring)
+
+- **`MagicHttpFacadeAdapter.pendingCount` override** (Step 3.4 cross-package).
+  Proxies to the file-private `_TelescopeNetworkInterceptor._pending.length`
+  (null-guarded pre-install, returns 0). Reads the live in-flight FIFO so
+  `TelescopeStore.pendingHttpCount` can sum across registered adapters.
+  Powers dusk's `ext.dusk.wait_for_network_idle` end-to-end.
+- **Magic-side reader wiring for dusk's telescope-backed tools**
+  (Steps 3.4 + 3.5). `MagicTelescopeIntegration.install()` now also
+  assigns three function-pointer readers exported from
+  `package:fluttersdk_dusk/dusk.dart`:
+  - `pendingHttpCountReader = () => TelescopeStore.pendingHttpCount`
+  - `recentLogsReader = TelescopeStore.recentLogs(...) → dusk envelope`
+    (renames `loggerName` → `logger`, ISO-formats timestamps)
+  - `recentExceptionsReader = TelescopeStore.recentExceptions(...) → dusk envelope`
+    (renames `exceptionType` → `type`, truncates stackTrace to first
+    3 lines as `stackHead`)
+  The indirection lives on the dusk side; dusk has no hard dep on
+  telescope. Magic is the only crossover point. Dusk hosts that do not
+  ship `fluttersdk_telescope` get the default empty-list readers
+  (missing-telescope graceful path).
+- **New `test/cli/telescope_integration_test.dart`** (6 cases): pre-install
+  null-guard, post-install zero, in-flight count, FIFO decrement,
+  post-uninstall null-guard, end-to-end via `TelescopeStore.pendingHttpCount`.
+
+### Changed (BREAKING for magic_cli legacy users; non-breaking via legacy fallback)
+
+- **`magic:install` rewrite to PluginInstaller DSL + install.yaml manifest**.
+  The command extends `ArtisanInstallCommand` (from fluttersdk_artisan
+  ^1.0.0-alpha.1+) and delegates the install.yaml-expressible 60% to
+  `ManifestInstaller`. The conditional 40% (per-flag config emission, dynamic
+  `lib/main.dart` configFactories list, dynamic `lib/config/app.dart` provider
+  list, app name extraction from pubspec.yaml) lives in a fluent override
+  hook on `ManifestInstaller.prepare()`. Existing `--without-*` flags map
+  1:1 to install.yaml `prompts:` (bool type, default false).
+
+  Backward compat: `dart run :artisan magic:install` continues to work via
+  legacy fallback; the new canonical workflow is
+  `dart run :artisan plugin:install magic` (auto-detects install.yaml,
+  routes through ManifestInstaller in one step).
+
+- **REVERTED**: First install on a fresh `flutter create` app NO LONGER requires `--force`.
+  `MagicInstallCommand._resolveMainDartStrategy` calls
+  `MainDartScaffoldDetector.isFlutterCreateScaffold` BEFORE the
+  ConflictDetector path; when the existing `lib/main.dart` matches the
+  flutter create scaffold heuristic, `scaffoldDetected=true` flows into
+  `PluginInstaller.commit(force: true)` and bypasses the unmanaged-file
+  check silently. Operators now run `dart run magic:artisan magic:install`
+  on a fresh `flutter create` app without any flag; customized `lib/main.dart`
+  still requires `--force` or `--preserve` explicitly. (CHANGELOG entry from
+  an earlier alpha was stale; the scaffold detector landed before alpha-15
+  but the entry was not removed.)
+
+- **`sqlite3.wasm` auto-download wired into `magic:install`**. When the
+  database feature is enabled (no `--without-database` flag) and the run
+  is not a dry-run, `MagicInstallCommand` now fetches the matching
+  `sqlite3.wasm` from `simolus3/sqlite3.dart` (pinned to 3.3.1) and
+  writes it to `web/sqlite3.wasm` after the install commits. Closes the
+  white-screen / `WebAssembly TypeError` failure mode that hit fresh
+  Flutter web targets on first run.
+
+### ✨ New Features
+
+- **Dusk enricher expansion** (7 new enrichers + 1 extension):
+  - `magicControllerFlagsEnricher` - captures FutureOr status, loading/success/error flags from `MagicStateMixin`
+  - `magicRouteParamsEnricher` - emits route parameters (path params + query string)
+  - `magicFormErrorsEnricher` (extension) - now quotes per-field error messages to preserve whitespace
+  - `magicEchoConnectionEnricher` - reports broadcast connection state (connecting/connected/disconnected/reconnecting)
+  - `magicGateResultsAllEnricher` - emits last N gate check results (ability: allowed/denied) from MRU cache
+  - `magicRecentHttpEnricher` - emits last 5 HTTP requests (method, URL, status, elapsed time)
+  - `magicRecentLogsEnricher` - emits last 5 log entries (level, message, timestamp)
+  - `magicRecentExceptionsEnricher` - emits last 5 exceptions (type, message, stack trace truncated to 500 chars)
+
+  All new enrichers guard `kDebugMode` and handle missing dependencies gracefully (telescope-not-installed returns null buffer). Registered by `MagicDuskIntegration.install()`. Combined with existing 7 enrichers (`magicControllerState`, `magicFormErrors`, `magicGateResult`, `magicMiddleware`, `magicAuthUser`, `magicFormField`, `magicRoute`), magic-side surface now totals 14 enrichers. Ships in coordinated bump with fluttersdk_dusk 1.0.0-alpha.3+.
+
+- **Dusk integration**: 5 new snapshot enrichers (`magicControllerState`,
+  `magicFormErrors`, `magicGateResult`, `magicMiddleware`, `magicAuthUser`)
+  registered by `MagicDuskIntegration.install()` for richer LLM-agent E2E
+  context. Combined with the 2 alpha-1 enrichers (`magicFormField`,
+  `magicRoute`) this brings the magic-side surface to 7 enrichers; with
+  Wind's 6-field `WindClassNameEnricher` the total enricher surface is 8.
+  Ships in coordinated bump with fluttersdk_dusk 1.0.0-alpha.2 (see
+  `references/fluttersdk_dusk/CHANGELOG.md` for the matching dusk-side
+  contract additions: 7 new handlers, 10 new MCP descriptors, 8 new CLI
+  commands, actionability gate, `dusk_find` Locator pattern, Chrome
+  reaper, `dusk:doctor`). Requires fluttersdk_dusk ^1.0.0-alpha.2 — the
+  `DuskSnapshotEnricher` typedef is frozen across both repos for the
+  alpha-2 cycle.
+
+- **Cache events**: `CacheHit`, `CacheMiss`, `CachePut`, `CacheForget`,
+  `CacheFlush` event classes added under `lib/src/cache/events/cache_events.dart`
+  and exported from `package:magic/magic.dart`. `CacheManager.get` /
+  `put` / `forget` / `flush` now dispatch the matching event through
+  `EventDispatcher.instance` after the underlying store operation
+  completes. Enables `fluttersdk_telescope`'s `MagicCacheWatcher` (and
+  any user-defined listener) to observe the full cache lifecycle.
+
+- **Test coverage**: new `MagicInstallCommand` exercised by 27 tests using
+  InstallContext.test + InMemoryFs + FakePromptDriver + FakeStubDriver
+  injection; one test per `--without-X` flag plus first-install `--force`
+  + app name extraction edge cases. Coverage: 76.5% (defensive error paths
+  not covered; accepted per Risks Accepted in the migration plan).
+
+### 🔧 Improvements
+
+- **Routing**: `MagicRouter.currentRoute` public getter for the currently-resolved
+  RouteDefinition.
+- **Auth**: `GateManager.lastResult(ability)` accessor backed by an MRU cache
+  (64 entries) of the most recent gate-check outcome per ability.
 
 ### ✨ New Features
 - **Eloquent**: `Model.fill` now accepts a `strict` flag. When `true`, any non-fillable key throws `MassAssignmentException` instead of being silently dropped. Pair with validated request payloads to catch schema drift at the boundary. (#69)
@@ -16,9 +179,6 @@ All notable changes to this project will be documented in this file.
 - **Session**: Add `Session` facade with Laravel-style flash data — `Session.flash(data)`, `Session.flashErrors(errors)`, `Session.old(field, [fallback])`, `Session.error(field)`, `Session.errors(field)`, `Session.hasError(field)`, `Session.hasFlash`, `Session.tick()`. Two-bucket store promotes flashed data exactly one navigation hop so forms can repopulate after a failed submit. Top-level helpers `old()` and `error()` mirror Laravel's Blade API
 - **UI**: `MagicFormData.validate()` automatically flashes form data on validation failure — downstream views can repopulate via `old('field')` without manual wiring
 - **Validation**: `In<T>` rule accepts a primitive whitelist (strings, ints, etc.) and `InList<T extends Enum>` validates enum-backed fields, accepting either the enum instance or a wire string. `InList` supports `caseInsensitive:` and an optional `wire:` mapper for snake_case or custom representations. Both emit the shared `validation.in` message with a comma-joined `:values` parameter. (#81)
-
-### 🔧 Maintenance
-- **Dependencies**: Bump `fluttersdk_wind` constraint to `^1.0.0` for the wind 1.0.0 stable release.
 
 ## [1.0.0-alpha.13] - 2026-04-16
 
