@@ -95,7 +95,7 @@ Magic commands are registered through the Artisan registry. Create a minimal wra
 ```dart
 import 'dart:io';
 import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:magic/magic.dart' show MagicArtisanProvider;
+import 'package:magic/cli.dart' show MagicArtisanProvider;
 
 Future<void> main(List<String> args) async {
   final registry = ArtisanRegistry();

@@ -930,6 +930,16 @@ class MagicInstallCommand extends ArtisanInstallCommand {
           'method runs. This is a logic error in the install pipeline.',
         );
     }
+
+    // Replace the default `flutter create` counter widget test (it references
+    // the now-removed MyApp, so it breaks `flutter test` + `dart analyze`) with
+    // a Magic-compatible smoke test. Conflict detection + --force govern the
+    // overwrite exactly like the other scaffold writes, so a consumer's custom
+    // test is preserved unless they pass --force.
+    installer.writeFile(
+      targetPath: p.join(projectRoot, 'test/widget_test.dart'),
+      content: InstallStubs.widgetTestContent(),
+    );
   }
 
   /// Assembles the provider list rendered into `lib/config/app.dart`.
