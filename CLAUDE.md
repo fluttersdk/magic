@@ -24,10 +24,8 @@ Laravel-inspired Flutter framework with Facades, Eloquent ORM, Service Providers
 Magic ships opt-in sub-barrels alongside the main `lib/magic.dart`:
 - `lib/cli.dart`: Flutter-free CLI/artisan provider exports (no Flutter dependency)
 - `lib/testing.dart`: test fakes (Http, Auth, Echo, etc.)
-- `lib/dusk_integration.dart`: Magic adapter for fluttersdk_dusk (MagicDuskIntegration); consumer must add `fluttersdk_dusk` to its own pubspec as a dev-dependency
-- `lib/telescope_integration.dart`: Magic adapter for fluttersdk_telescope (MagicTelescopeIntegration); consumer must add `fluttersdk_telescope` to its own pubspec as a dev-dependency
 
-These two adapter sub-barrels are NOT exported from `lib/magic.dart`. `fluttersdk_dusk` and `fluttersdk_telescope` are magic dev-dependencies only; they are not transitive prod deps for consumers.
+The Magic adapters for the dev-tooling ecosystem (`MagicDuskIntegration`, `MagicTelescopeIntegration`) now live in the sibling `magic_devtools` package. Consumers add `magic_devtools` as a dev_dependency and import `package:magic_devtools/dusk.dart` / `package:magic_devtools/telescope.dart`. Magic core no longer depends on `fluttersdk_dusk` or `fluttersdk_telescope` at all.
 
 ```
 lib/

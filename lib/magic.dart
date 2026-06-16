@@ -216,8 +216,10 @@ export 'src/launch/launch_service_provider.dart';
 export 'src/facades/launch.dart';
 
 // CLI integrations (fluttersdk dev-tooling ecosystem). Magic-aware artisan
-// provider + tinker REPL only; dusk/telescope integrations live in their own
-// sub-barrels (lib/dusk_integration.dart + lib/telescope_integration.dart).
+// provider + tinker REPL only. The dusk/telescope adapters live in the sibling
+// `magic_devtools` package; add it as a dev_dependency and import
+// `package:magic_devtools/dusk.dart` / `package:magic_devtools/telescope.dart`.
+// Magic core no longer depends on the dusk or telescope packages directly.
 export 'src/cli/magic_artisan_provider.dart';
 export 'src/cli/tinker_integration.dart';
 

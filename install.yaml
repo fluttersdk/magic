@@ -113,12 +113,12 @@ post_install:
     exception, model, gate watchers). Both gate on kDebugMode so production
     builds tree-shake them entirely.
 
-    To enable, add to pubspec.yaml dependencies (depend_on_referenced_packages
-    lint requires explicit declares even though magic transitively provides
-    them):
+    The Magic adapters live in the sibling `magic_devtools` package. To
+    enable, add it (plus the tooling packages) to dev_dependencies:
 
-       fluttersdk_dusk: ^0.0.2
-       fluttersdk_telescope: ^0.0.2
+       magic_devtools: ^0.0.1
+       fluttersdk_dusk: ^0.0.7
+       fluttersdk_telescope: ^0.0.4
 
     Then:
 
@@ -128,8 +128,15 @@ post_install:
        dart run magic:artisan dusk:install
        dart run magic:artisan telescope:install
 
-    The last two commands wire the kDebugMode setup blocks into
-    lib/main.dart. MCP tools surface for Claude Code / Cursor via:
+    Wire the adapters in lib/main.dart (debug-only, after Magic.init()):
+
+       import 'package:magic_devtools/dusk.dart';
+       import 'package:magic_devtools/telescope.dart';
+       // ... if (kDebugMode) { MagicDuskIntegration.install(); }
+       // ...               { MagicTelescopeIntegration.install(); }
+
+    The dusk:install / telescope:install commands wire the kDebugMode setup
+    blocks into lib/main.dart. MCP tools surface for Claude Code / Cursor via:
 
        dart run magic:artisan mcp:install
        # then restart Claude Code; /mcp lists 40+ dusk_/telescope_ tools.
