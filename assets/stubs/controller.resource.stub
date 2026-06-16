@@ -57,6 +57,23 @@ class {{ className }}Controller extends MagicController
   // Business Logic
   // ---------------------------------------------------------------------------
 
+  // Submit-button loading is form-scoped, NOT page-scoped. Drive it through
+  // the form's processingListenable + MagicBuilder so only the button rebuilds;
+  // a full-view setLoading() would tear down and remount sibling inputs, which
+  // also breaks dusk locators. The recommended view pattern:
+  //
+  //   MagicBuilder<bool>(
+  //     listenable: form.processingListenable,
+  //     builder: (isProcessing) => WButton(
+  //       isLoading: isProcessing,
+  //       onTap: isProcessing ? null : () => form.process(() => controller.store(form.data)),
+  //       child: WText(trans('common.save')),
+  //     ),
+  //   )
+  //
+  // Reserve setLoading()/setSuccess()/setError() below for PAGE-level state
+  // (the index/show data fetch), not for the submit button.
+
   /// Load all items from the API.
   Future<void> load() async {
     setLoading();
