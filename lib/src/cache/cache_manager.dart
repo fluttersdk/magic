@@ -54,14 +54,14 @@ class CacheManager implements CacheStore {
 
   @override
   dynamic get(String key, {dynamic defaultValue}) {
+    // Presence decides hit/miss, not value-vs-default equality: a stored value
+    // that happens to equal defaultValue (or a stored null) is still a hit.
+    final present = driver().has(key);
     final value = driver().get(key, defaultValue: defaultValue);
-    // Hit when the resolved value differs from the caller-supplied default;
-    // miss otherwise. Drivers that return defaultValue on missing keys
-    // collapse the absence path into the equality check here.
-    if (value == defaultValue) {
-      EventDispatcher.instance.dispatch(CacheMiss(key));
-    } else {
+    if (present) {
       EventDispatcher.instance.dispatch(CacheHit(key, value));
+    } else {
+      EventDispatcher.instance.dispatch(CacheMiss(key));
     }
     return value;
   }
