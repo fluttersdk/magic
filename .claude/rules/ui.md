@@ -20,3 +20,4 @@ path: "lib/src/ui/**/*.dart"
 - `MagicFeedback` — toast/snackbar feedback integration
 - `MagicTitle(title: 'Page', child: widget)` — declarative title override widget. Sets `TitleManager.setOverride()` on mount, clears on dispose. Updates on `didUpdateWidget` when title changes. Use for data-dependent titles that resolve after route mount
 - Wind UI integration: views use `WDiv`, `WText`, `WButton` etc. for styling via `className` props
+- E2E drivability: stable keys, semantic labels, and `processingListenable` + `MagicBuilder` are required for primary user flows — see `testability.md`

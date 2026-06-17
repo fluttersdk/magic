@@ -13,6 +13,26 @@ All notable changes to this project will be documented in this file.
 - [ ] `example/` updated when the change touches the canonical consumer scaffold
 - [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
 
+### Stabilization (magic-stabilize-dusk-telescope plan)
+
+- **BREAKING: the Dusk + Telescope Magic adapters moved out of magic core into the new sibling `magic_devtools` package.** `MagicDuskIntegration` (14 enrichers), `MagicTelescopeIntegration` (5 watchers + `MagicHttpFacadeAdapter`) and their tests now live in `magic_devtools`; magic core no longer depends on `fluttersdk_dusk` or `fluttersdk_telescope` at all. The class and function names are unchanged; only the import path moves and ownership shifts to a dedicated dev-tooling package. Consumer migration (pre-1.0 clean break, no shim):
+
+  ```dart
+  // before (interim sub-barrel, never released):
+  import 'package:magic/dusk_integration.dart';
+  import 'package:magic/telescope_integration.dart';
+
+  // after — add magic_devtools as a dev_dependency, then:
+  import 'package:magic_devtools/dusk.dart';
+  import 'package:magic_devtools/telescope.dart';
+  // MagicDuskIntegration.install(); / MagicTelescopeIntegration.install();
+  ```
+
+  Deletes `lib/src/cli/{dusk,telescope}_integration.dart`, the `lib/{dusk,telescope}_integration.dart` sub-barrels, and `test/cli/{dusk,telescope}_integration_test.dart` from magic; drops the two `fluttersdk_dusk` / `fluttersdk_telescope` dependency lines from `pubspec.yaml`.
+- **Granular scaffold + documentation is the default (M1).** The E2E-drivability defaults (`processingListenable` + `MagicBuilder`, stable `ValueKey`, `semanticLabel` on ambiguous interactive widgets) are documented in `.claude/rules/testability.md` and reflected in generated view stubs. Opt-in, no runtime behavior break for existing consumers.
+- **Testability rules formalized (M2).** `.claude/rules/testability.md` defines view drivability as the third gate of "done" alongside passing tests and correct appearance, with the three widget-identity rules dusk depends on.
+- **`fluttersdk_artisan` constraint bumped `^0.0.7` -> `^0.0.8`.** Drop-in: magic uses no artisan symbol changed between the two versions.
+
 ### Fixed (consumer-blocking bugs surfaced by `/tmp` fresh-app E2E test plan)
 
 - **`make:*` commands now work on consumers that pull magic from pub.dev / path: dependency.** `MakeControllerCommand`, `MakeModelCommand`, and the other 12 `make:*` commands used to call `StubLoader.load('controller')` directly, which searches `$ARTISAN_STUBS_DIR` → `$MAGIC_CLI_STUBS_DIR` → `fluttersdk_artisan-<version>/assets/stubs/`. Magic's own stubs live at `<magic>/assets/stubs/`; neither env var was set in typical environments, and the fluttersdk_artisan pub-cache fallback contained only artisan substrate stubs. The 14 generators now load raw stub content via the new `MagicStubLoader` helper (which resolves `<magic>/assets/stubs/<name>.stub` from the consumer's `.dart_tool/package_config.json` magic entry) and pass the content through `getStub()` for `ArtisanGeneratorCommand.buildClass` to consume as a literal template. Adds `lib/src/cli/helpers/magic_stub_loader.dart`; touches `lib/src/cli/commands/make_*.dart` × 14.
@@ -29,7 +49,7 @@ All notable changes to this project will be documented in this file.
 
 ### Improvements (UX)
 
-- **`magic:install` post-install message documents the optional Dusk + Telescope setup chain.** Removed the obsolete sqlite3.wasm warning (the install command auto-fetches sqlite3.wasm 3.3.1 since the artisan-install-command-magic plan). Added a 6-command setup recipe (`plugin:install fluttersdk_dusk` + `plugin:install fluttersdk_telescope` + `dusk:install` + `telescope:install` + the `fluttersdk_dusk`/`fluttersdk_telescope` pubspec declares) so operators discover the debug-tooling path without consulting the docs. Touches `install.yaml` (`post_install.message`).
+- **`magic:install` post-install message documents the optional Dusk + Telescope setup chain.** Removed the obsolete sqlite3.wasm warning (the install command auto-fetches sqlite3.wasm 3.3.1 since the artisan-install-command-magic plan). Added a setup recipe pointing operators at the `magic_devtools` dev_dependency (plus `fluttersdk_dusk` / `fluttersdk_telescope`) and the `package:magic_devtools/{dusk,telescope}.dart` adapter imports, so the debug-tooling path is discoverable without consulting the docs. Touches `install.yaml` (`post_install.message`).
 
 ### Changed
 
@@ -39,28 +59,6 @@ All notable changes to this project will be documented in this file.
 
 - `magic:install --with-debug-tooling` single-command flag that chains the 6-step Dusk + Telescope setup recipe (currently the post_install message documents the recipe; the flag would auto-execute it). Tracking issue: TBD.
 - `MainDartSmartMerger` should consolidate the 4 `if (kDebugMode) { ... }` blocks that `dusk:install` + `telescope:install` emit into 2 blocks (pre-`Magic.init()` host plugins + post-`Magic.init()` Magic adapters). Currently each install command writes its own block, producing four single-statement blocks. Tracking issue: TBD.
-
-### BREAKING
-
-- Dependency migration: `fluttersdk_dusk` and `fluttersdk_telescope` moved from `dependencies:` to `dev_dependencies:`. Vanilla magic consumers no longer pull these dev-tooling packages transitively. Consumers wanting the Magic-side integrations must add the packages to their own pubspec and switch their import path (see migration below).
-- Barrel removal: `MagicDuskIntegration`, `MagicTelescopeIntegration`, the 14 enrichers, the 5 watchers, and `MagicHttpFacadeAdapter` are no longer exported from the main `package:magic/magic.dart` barrel. The class and function names are unchanged; only the import path moves.
-- New opt-in sub-barrels at `lib/dusk_integration.dart` and `lib/telescope_integration.dart`. Consumer migration:
-
-  Replace:
-  ```dart
-  import 'package:magic/magic.dart';
-  // ... MagicDuskIntegration.install();
-  ```
-  With:
-  ```dart
-  import 'package:magic/magic.dart';
-  import 'package:magic/dusk_integration.dart';
-  import 'package:magic/telescope_integration.dart';
-  // ... MagicDuskIntegration.install();
-  // ... MagicTelescopeIntegration.install();
-  ```
-
-  The `package:magic/magic.dart` import stays for other Magic types (MagicRouter, MagicApplication, etc.).
 
 ### Changed (artisan-install-command-magic plan)
 

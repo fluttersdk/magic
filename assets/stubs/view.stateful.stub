@@ -27,6 +27,28 @@ class _{{ className }}ViewState extends State<{{ className }}View> {
 
   @override
   Widget build(BuildContext context) {
+    // Form submit buttons should load through the form's processingListenable
+    // so only the button rebuilds, not the whole view. This keeps inputs and
+    // dusk locators stable across a submit. Recommended pattern:
+    //
+    //   MagicForm(
+    //     formData: form,
+    //     child: Column(
+    //       children: [
+    //         WFormInput(form: form, name: 'name'),
+    //         MagicBuilder<bool>(
+    //           listenable: form.processingListenable,
+    //           builder: (isProcessing) => WButton(
+    //             isLoading: isProcessing,
+    //             onTap: isProcessing ? null : () => form.process(_submit),
+    //             child: WText(trans('common.save')),
+    //           ),
+    //         ),
+    //       ],
+    //     ),
+    //   )
+    //
+    // Prefer this over driving the button through a full-view setState/setLoading.
     return WDiv(
       className: 'flex flex-col p-6',
       children: [
