@@ -20,6 +20,13 @@ All notable changes to this project will be documented in this file.
 - **`plugin:install magic` re-invocations no longer corrupt `lib/config/app.dart`.** The static `install/app_config` publish entry rendered the raw `{{ allImports }}` / `{{ allProviders }}` placeholders when invoked outside `MagicInstallCommand.handle` (where the fluent override would overwrite with the dynamic providers list). Removed `install/app_config: lib/config/app.dart` from `install.yaml` `publish:`; the fluent override is now the sole writer. Touches `install.yaml`.
 - **`assets/lang/en.json` is now scaffolded on install.** Adds `install/lang_en: assets/lang/en.json` to `install.yaml` `publish:` with a minimal stub covering `common.welcome`, `common.loading`, …, and a `validation.*` block matching the built-in rule names. Consumers using `Lang.trans('common.welcome')` now resolve out of the box; previously the lang dir was empty until the operator ran `make:lang`. Touches `install.yaml`, adds `assets/stubs/install/lang_en.stub`.
 
+### Fixed (PR #87 code review)
+
+- **Cache hit/miss detection no longer misclassifies.** `CacheManager.get()` decided hit-vs-miss with `value == defaultValue`, which dispatched a `CacheMiss` when the stored value happened to equal the caller's `defaultValue`, or when a stored `null` was read with a `null` default. It now uses `driver().has(key)` for presence. Touches `lib/src/cache/cache_manager.dart`; adds two regression cases to `test/cache/cache_manager_event_dispatch_test.dart`.
+- **`KeyGenerateCommand` reuses a single `Random.secure()`** instead of constructing one per byte. Touches `lib/src/cli/commands/key_generate_command.dart`.
+- **Removed the unused `yaml_edit` dependency** from `pubspec.yaml` (no `lib/`, `test/`, or `bin/` references), trimming transitive deps and publish surface.
+- **Example app shows a real title.** `example/.env` `APP_NAME` is now `"Magic Example"` (was `""`) and `welcome_view.dart` falls back to a non-empty `app.name`, so the example no longer renders a blank title. Touches `example/.env`, `example/lib/resources/views/welcome_view.dart`.
+
 ### Improvements (UX)
 
 - **`magic:install` post-install message documents the optional Dusk + Telescope setup chain.** Removed the obsolete sqlite3.wasm warning (the install command auto-fetches sqlite3.wasm 3.3.1 since the artisan-install-command-magic plan). Added a 6-command setup recipe (`plugin:install fluttersdk_dusk` + `plugin:install fluttersdk_telescope` + `dusk:install` + `telescope:install` + the `fluttersdk_dusk`/`fluttersdk_telescope` pubspec declares) so operators discover the debug-tooling path without consulting the docs. Touches `install.yaml` (`post_install.message`).

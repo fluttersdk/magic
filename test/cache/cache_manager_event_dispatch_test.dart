@@ -128,6 +128,33 @@ void main() {
       },
     );
 
+    test(
+      'get dispatches CacheHit when the stored value equals defaultValue',
+      () async {
+        await manager.put('k', 'v');
+        hitListener.received.clear();
+
+        final value = manager.get('k', defaultValue: 'v');
+        expect(value, equals('v'));
+
+        // Presence, not value-vs-default equality, decides hit/miss.
+        expect(hitListener.received, hasLength(1));
+        expect(hitListener.received.single.key, equals('k'));
+        expect(missListener.received, isEmpty);
+      },
+    );
+
+    test('get dispatches CacheHit when the stored value is null', () async {
+      await manager.put('k', null);
+      hitListener.received.clear();
+
+      final value = manager.get('k');
+      expect(value, isNull);
+
+      expect(hitListener.received, hasLength(1));
+      expect(missListener.received, isEmpty);
+    });
+
     test('forget dispatches CacheForget after key removal', () async {
       await manager.put('k', 'v');
       await manager.forget('k');

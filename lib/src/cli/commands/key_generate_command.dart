@@ -79,7 +79,8 @@ class KeyGenerateCommand extends ArtisanCommand {
 
   /// Generate a secure random 32-byte key base64 encoded.
   String _generateKey() {
-    final bytes = List.generate(32, (_) => Random.secure().nextInt(256));
+    final rng = Random.secure();
+    final bytes = List.generate(32, (_) => rng.nextInt(256));
     return base64.encode(bytes);
   }
 }

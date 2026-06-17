@@ -11,7 +11,7 @@ class WelcomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appName = Config.get('app.name', '') ?? '';
+    final appName = Config.get('app.name', 'Magic Example') ?? 'Magic Example';
 
     return Scaffold(
       backgroundColor: wColor(
