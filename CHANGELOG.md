@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 - [ ] `example/` updated when the change touches the canonical consumer scaffold
 - [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
 
+## [0.0.3] - 2026-06-17
+
 ### Stabilization (magic-stabilize-dusk-telescope plan)
 
 - **BREAKING: the Dusk + Telescope Magic adapters moved out of magic core into the new sibling `magic_devtools` package.** `MagicDuskIntegration` (14 enrichers), `MagicTelescopeIntegration` (5 watchers + `MagicHttpFacadeAdapter`) and their tests now live in `magic_devtools`; magic core no longer depends on `fluttersdk_dusk` or `fluttersdk_telescope` at all. The class and function names are unchanged; only the import path moves and ownership shifts to a dedicated dev-tooling package. Consumer migration (pre-1.0 clean break, no shim):
