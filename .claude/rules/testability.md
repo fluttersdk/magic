@@ -4,7 +4,7 @@ path: "lib/src/ui/**/*.dart"
 
 # Building Views That Are Stable and E2E-Drivable
 
-Views are part of the definition of done only when their primary user flows can be driven end to end by a dusk agent or a CI test. The three rules below keep widget identity and semantic labels stable enough for label-based resolution.
+Views are part of the definition of done only when their primary user flows can be driven end to end by a dusk agent or a CI test. The rules below keep widget identity and semantic labels stable enough for label-based resolution (rules 1-3) and make dusk drivability part of the definition of done (rule 4).
 
 ## 1. Drive button loading state with `processingListenable` + `MagicBuilder`
 
@@ -18,7 +18,10 @@ MagicBuilder<bool>(
   builder: (isProcessing) => WButton(
     semanticLabel: 'Save profile',
     isLoading: isProcessing,
-    onTap: () => form.process(_submit),
+    // Disable while processing: form.process() throws StateError if
+    // called again mid-flight (magic_form_data.dart:285), and it blocks
+    // duplicate submits / double-taps.
+    onTap: isProcessing ? null : () => form.process(_submit),
     child: WText(trans('common.save')),
   ),
 )
