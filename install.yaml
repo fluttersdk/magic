@@ -1,0 +1,137 @@
+# magic install manifest (PluginInstaller DSL schema v1).
+#
+# Hybrid layout:
+#
+#   - The `publish:` section below lists only the ALWAYS-RENDERED targets
+#     (the 3 base config files, 5 starter files, and 2 .env files). The 6
+#     CONDITIONAL config files (auth / database / network / cache / logging /
+#     broadcasting) are emitted by MagicInstallCommand's fluent override via
+#     `installer.publishConfig(...)` calls, gated on each `--without-X` prompt
+#     answer. This keeps install.yaml as a clean static spec, the v1 schema
+#     has no `if:` conditional section keys.
+#
+#   - The `appName` placeholder is empty here; MagicInstallCommand reads the
+#     consumer's pubspec.yaml.name field, transforms snake_case to Title Case,
+#     and threads the value into the placeholder map BEFORE the manifest
+#     installer renders any stub. Workaround for the v1 schema lacking a
+#     `{{ pubspec.NAME }}` placeholder source.
+#
+#   - lib/config/app.dart appears in publish: (static fallback) AND is
+#     OVERWRITTEN by the fluent override with dynamic content (provider list
+#     assembled from --without-X flags). The override's writeFile runs after
+#     manifest publish in commit order, so the dynamic content wins.
+#
+#   - lib/main.dart is NOT in publish:; only the fluent override emits it
+#     (the configFactories list cannot be expressed as a static template).
+#
+# See doc/install_yaml_schema.md (in fluttersdk_artisan) for the full schema.
+
+plugin_name: magic
+
+publish:
+  # NOTE: install/app_config (lib/config/app.dart) is INTENTIONALLY OMITTED
+  # from manifest publish. It is written exclusively by MagicInstallCommand's
+  # fluent override at handle()-time with a dynamic providers list assembled
+  # from `--without-X` flag answers. Listing it here would cause
+  # `plugin:install magic` re-invocations to overwrite the rendered providers
+  # list with the un-rendered `{{ allImports }}` / `{{ allProviders }}`
+  # placeholders, since plugin:install runs the manifest installer but NOT
+  # the fluent override.
+  install/view_config: lib/config/view.dart
+  install/routing_config: lib/config/routing.dart
+  install/route_service_provider: lib/app/providers/route_service_provider.dart
+  install/app_service_provider: lib/app/providers/app_service_provider.dart
+  install/kernel: lib/app/kernel.dart
+  install/routes_app: lib/routes/app.dart
+  install/welcome_view: lib/resources/views/welcome_view.dart
+  install/env: .env
+  install/env_example: .env.example
+  install/lang_en: assets/lang/en.json
+
+prompts:
+  - key: withoutAuth
+    type: bool
+    default: false
+    question: "Skip auth setup?"
+  - key: withoutDatabase
+    type: bool
+    default: false
+    question: "Skip database setup?"
+  - key: withoutNetwork
+    type: bool
+    default: false
+    question: "Skip network setup?"
+  - key: withoutCache
+    type: bool
+    default: false
+    question: "Skip cache setup?"
+  - key: withoutEvents
+    type: bool
+    default: false
+    question: "Skip events setup?"
+  - key: withoutLocalization
+    type: bool
+    default: false
+    question: "Skip localization setup?"
+  - key: withoutLogging
+    type: bool
+    default: false
+    question: "Skip logging setup?"
+  - key: withoutBroadcasting
+    type: bool
+    default: false
+    question: "Skip broadcasting setup?"
+
+placeholders:
+  # Pre-populated by MagicInstallCommand's fluent override before render time.
+  appName: ""
+
+magic:
+  # Symbolic only. Magic does not have a single canonical ServiceProvider;
+  # the providers list assembled by the fluent override into lib/config/app.dart
+  # is the real source of truth. LaunchServiceProvider is named here because
+  # the schema requires a single string for symmetry with sibling plugins.
+  provider: null   # magic's providers embedded in app.dart fluent override write; manifest injection redundant
+
+post_install:
+  message: |
+    Magic installed. Bootstrap workflow:
+
+    1. Review lib/config/app.dart providers list. Disabled features (passed
+       via --without-X) emit empty entries; remove the matching lines from
+       app.dart.
+    2. Review lib/main.dart configFactories list. Same caveat as #1.
+
+    Magic.init() is wired in lib/main.dart. Run `flutter pub get && flutter run`
+    to verify the bootstrap.
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ➕ OPTIONAL: Debug tooling (Dusk + Telescope)
+
+    Recommended for development. Dusk is the LLM-agent E2E driver (snap,
+    tap, find, screenshot); Telescope is the runtime inspector (HTTP, log,
+    exception, model, gate watchers). Both gate on kDebugMode so production
+    builds tree-shake them entirely.
+
+    To enable, add to pubspec.yaml dependencies (depend_on_referenced_packages
+    lint requires explicit declares even though magic transitively provides
+    them):
+
+       fluttersdk_dusk: ^0.0.2
+       fluttersdk_telescope: ^0.0.2
+
+    Then:
+
+       flutter pub get
+       dart run magic:artisan plugin:install fluttersdk_dusk
+       dart run magic:artisan plugin:install fluttersdk_telescope
+       dart run magic:artisan dusk:install
+       dart run magic:artisan telescope:install
+
+    The last two commands wire the kDebugMode setup blocks into
+    lib/main.dart. MCP tools surface for Claude Code / Cursor via:
+
+       dart run magic:artisan mcp:install
+       # then restart Claude Code; /mcp lists 40+ dusk_/telescope_ tools.
+
+bootstrap_command: magic:install

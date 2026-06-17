@@ -11,7 +11,7 @@ class WelcomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appName = Config.get('app.name', 'Example') ?? 'Example';
+    final appName = Config.get('app.name', 'Magic Example') ?? 'Magic Example';
 
     return Scaffold(
       backgroundColor: wColor(
@@ -75,8 +75,7 @@ class WelcomeView extends StatelessWidget {
                       title: 'Documentation',
                       description:
                           'Read the Magic Framework docs to get started.',
-                      url:
-                          'https://magic.fluttersdk.com/getting-started/installation',
+                      url: 'https://magic.fluttersdk.com',
                     ),
                     _buildLinkCard(
                       icon: Icons.code,

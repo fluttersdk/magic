@@ -1,7 +1,10 @@
+import 'dart:collection';
+
 import '../facades/auth.dart';
 import '../facades/event.dart';
 import '../database/eloquent/model.dart';
 import 'events/gate_events.dart';
+import 'gate_result.dart';
 
 /// Ability callback type.
 ///
@@ -55,6 +58,21 @@ class GateManager {
 
   /// Registered "before" callbacks for super admin bypass.
   final List<BeforeCallback> _beforeCallbacks = [];
+
+  /// Most-recent ability check outcomes, bounded by [_maxCacheSize].
+  ///
+  /// [LinkedHashMap] preserves insertion order; [_recordResult] removes
+  /// then re-inserts the entry to keep the most-recently-written key at
+  /// the back, and evicts the first key (the least-recently-written) on
+  /// overflow. This gives the dusk integration a cheap "what was the
+  /// latest decision for ability X" lookup without retaining argument
+  /// references.
+  final LinkedHashMap<String, GateResult> _resultCache =
+      LinkedHashMap<String, GateResult>();
+
+  /// Maximum number of cached gate results. Once exceeded, the
+  /// least-recently-written entry is evicted.
+  static const int _maxCacheSize = 64;
 
   /// Define an ability with a callback.
   ///
@@ -126,6 +144,7 @@ class GateManager {
     // Guests cannot do anything by default
     if (!Auth.check()) {
       _dispatchAccessEvents(ability, arguments, user, false);
+      _recordResult(ability, arguments, false);
       return false;
     }
 
@@ -133,6 +152,7 @@ class GateManager {
     user = Auth.user<Model>();
     if (user == null) {
       _dispatchAccessEvents(ability, arguments, user, false);
+      _recordResult(ability, arguments, false);
       return false;
     }
 
@@ -142,6 +162,7 @@ class GateManager {
       if (result != null) {
         allowed = result;
         _dispatchAccessEvents(ability, arguments, user, allowed);
+        _recordResult(ability, arguments, allowed);
         return allowed;
       }
     }
@@ -151,6 +172,7 @@ class GateManager {
     if (callback == null) {
       // Ability not defined - deny by default
       _dispatchAccessEvents(ability, arguments, user, false);
+      _recordResult(ability, arguments, false);
       return false;
     }
 
@@ -163,7 +185,63 @@ class GateManager {
     }
 
     _dispatchAccessEvents(ability, arguments, user, allowed);
+    _recordResult(ability, arguments, allowed);
     return allowed;
+  }
+
+  /// Record the outcome of an ability check in the bounded MRU cache.
+  ///
+  /// 1. Remove any prior entry for `ability` so the re-insert moves the
+  ///    key to the back (MRU touch).
+  /// 2. Insert the fresh [GateResult].
+  /// 3. If the cache exceeds [_maxCacheSize], evict the least-recently
+  ///    written key (the first key in the linked iteration order).
+  ///
+  /// Stores `arguments.runtimeType` instead of the argument itself to
+  /// avoid retaining caller-owned references in long-running debug
+  /// sessions.
+  void _recordResult(String ability, dynamic arguments, bool allowed) {
+    final result = GateResult(
+      ability: ability,
+      allowed: allowed,
+      argumentType: arguments?.runtimeType,
+      checkedAt: DateTime.now(),
+    );
+
+    // 1. Touch: remove then re-insert to move to the MRU end.
+    _resultCache.remove(ability);
+
+    // 2. Write the fresh outcome.
+    _resultCache[ability] = result;
+
+    // 3. Evict the oldest write when over capacity.
+    if (_resultCache.length > _maxCacheSize) {
+      _resultCache.remove(_resultCache.keys.first);
+    }
+  }
+
+  /// Return the most recent [GateResult] for [ability], or `null` when
+  /// the ability has never been checked (or its entry was evicted).
+  ///
+  /// ```dart
+  /// final result = Gate.manager.lastResult('monitors.update');
+  /// if (result != null && result.allowed) {
+  ///   // Most recent check passed.
+  /// }
+  /// ```
+  GateResult? lastResult(String ability) => _resultCache[ability];
+
+  /// Return the most recently recorded [GateResult] across all
+  /// abilities, or `null` when no check has run yet.
+  ///
+  /// Consumed by dev-tooling integrations (the dusk snapshot enricher)
+  /// that want the "latest gate decision" without knowing the ability
+  /// name in advance. Backed by [LinkedHashMap] insertion order — the
+  /// `_recordResult` touch+insert pattern guarantees the last write is
+  /// always the last linked entry.
+  GateResult? get mostRecentResult {
+    if (_resultCache.isEmpty) return null;
+    return _resultCache[_resultCache.keys.last];
   }
 
   /// Dispatch access events.
@@ -251,11 +329,13 @@ class GateManager {
   /// Get all defined abilities.
   List<String> get abilities => _abilities.keys.toList();
 
-  /// Clear all defined abilities and before callbacks.
+  /// Clear all defined abilities, before callbacks, and the lastResult
+  /// cache.
   ///
   /// Useful for testing.
   void flush() {
     _abilities.clear();
     _beforeCallbacks.clear();
+    _resultCache.clear();
   }
 }
