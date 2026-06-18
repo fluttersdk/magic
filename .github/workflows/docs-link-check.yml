@@ -22,10 +22,13 @@ jobs:
       - uses: actions/checkout@v6
 
       # Deterministic TOC<->anchor check for magic's explicit `<a name="...">`
-      # convention. Independent of lychee's fragment resolver: every TOC link
-      # `(#slug)` must have a matching `<a name="slug">`. Scoped to doc/ only,
-      # because top-level files (README, CHANGELOG) use GitHub heading-slug
-      # anchors and PR-number parentheticals, not the explicit-anchor style.
+      # convention, both directions: every TOC link `(#slug)` needs a matching
+      # `<a name="slug">`, and every anchor needs a TOC entry, so navigation
+      # cannot drift either way. Fenced code blocks are stripped first so an
+      # illustrative anchor inside a doc example (the authoring guide) does not
+      # count. Scoped to doc/ only, because top-level files (README, CHANGELOG)
+      # use GitHub heading-slug anchors and PR-number parentheticals, not the
+      # explicit-anchor style.
       - name: Check TOC anchors
         run: |
           python3 - <<'PY'
@@ -34,13 +37,21 @@ jobs:
           bad = 0
           for f in files:
               text = open(f, encoding="utf-8").read()
-              toc = set(re.findall(r'\(#([a-z0-9-]+)\)', text))
-              anchors = set(re.findall(r'<a name="([a-z0-9-]+)"', text))
+              # Strip fenced blocks and inline code so anchors/links shown as
+              # examples (the authoring guide) are not counted as real ones.
+              prose = re.sub(r'```.*?```', '', text, flags=re.S)
+              prose = re.sub(r'`[^`\n]*`', '', prose)
+              toc = set(re.findall(r'\(#([a-z0-9-]+)\)', prose))
+              anchors = set(re.findall(r'<a name="([a-z0-9-]+)"', prose))
               missing = toc - anchors
+              orphan = anchors - toc
               if missing:
                   print(f"::error file={f}::TOC links without an anchor: {sorted(missing)}")
                   bad += 1
-          print(f"checked {len(files)} doc pages; {bad} with missing anchors")
+              if orphan:
+                  print(f"::error file={f}::anchors without a TOC entry: {sorted(orphan)}")
+                  bad += 1
+          print(f"checked {len(files)} doc pages; {bad} issues")
           sys.exit(1 if bad else 0)
           PY
 
