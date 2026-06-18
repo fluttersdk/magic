@@ -89,6 +89,50 @@ class MockGuard implements Guard {
 // ---------------------------------------------------------------------------
 
 void main() {
+  group('AuthServiceProvider restore-warning gating', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    tearDown(() {
+      Log.unfake();
+      Vault.unfake();
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    test(
+      'stays quiet when there is no userFactory and no stored session',
+      () async {
+        final log = Log.fake();
+        Vault.fake(); // empty vault → guard.hasToken() is false
+
+        await (AuthServiceProvider(MagicApp.instance)..register()).boot();
+
+        final warnedAboutFactory = log.entries.any(
+          (e) => e.level == 'warning' && e.message.contains('userFactory'),
+        );
+        expect(warnedAboutFactory, isFalse);
+      },
+    );
+
+    test(
+      'warns when a stored session exists but no userFactory is registered',
+      () async {
+        final log = Log.fake();
+        Vault.fake({'auth_token': 'stored-token'}); // a session to restore
+
+        await (AuthServiceProvider(MagicApp.instance)..register()).boot();
+
+        final warnedAboutFactory = log.entries.any(
+          (e) => e.level == 'warning' && e.message.contains('userFactory'),
+        );
+        expect(warnedAboutFactory, isTrue);
+      },
+    );
+  });
+
   group('Authenticatable Mixin', () {
     test('authIdentifier returns primary key value', () {
       final user = MockUser()

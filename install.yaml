@@ -113,11 +113,12 @@ post_install:
     exception, model, gate watchers). Both gate on kDebugMode so production
     builds tree-shake them entirely.
 
-    The Magic adapters live in the sibling `magic_devtools` package. To
-    enable, add it (plus the tooling packages) to dev_dependencies:
+    The Magic adapters live in the sibling `magic_devtools` package. They are
+    wired into lib/main.dart under kDebugMode (release builds tree-shake them),
+    so add them to dependencies, not dev_dependencies (lib/ imports them):
 
        magic_devtools: ^0.0.1
-       fluttersdk_dusk: ^0.0.7
+       fluttersdk_dusk: ^0.0.8
        fluttersdk_telescope: ^0.0.4
 
     Then:

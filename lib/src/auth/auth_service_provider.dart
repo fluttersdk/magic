@@ -35,15 +35,23 @@ class AuthServiceProvider extends ServiceProvider {
 
     if (!autoRefresh) return;
 
-    // Guard: userFactory must be registered before restore.
-    // AppServiceProvider.boot() calls Auth.manager.setUserFactory()
-    // and MUST be listed before AuthServiceProvider in app.providers.
+    // A userFactory is required to rebuild the user from a stored session.
+    // Only warn when there is actually a session to restore: a fresh app (or
+    // a user who never logged in) has no stored token, so restore is a no-op
+    // and a warning would just be boot noise on every launch.
     if (!Auth.manager.hasUserFactory) {
-      Log.warning(
-        'Auth: Cannot restore session — userFactory not registered. '
-        'Ensure AppServiceProvider is listed BEFORE AuthServiceProvider '
-        'in your app.providers config.',
-      );
+      if (await Auth.hasToken()) {
+        Log.warning(
+          'Auth: a stored session exists but cannot be restored — no '
+          'userFactory registered. Register it in AppServiceProvider.boot() '
+          'via Auth.manager.setUserFactory(...), and list AppServiceProvider '
+          'before AuthServiceProvider in app.providers.',
+        );
+      } else {
+        Log.debug(
+          'Auth: no userFactory and no stored session; skipping restore.',
+        );
+      }
       return;
     }
 

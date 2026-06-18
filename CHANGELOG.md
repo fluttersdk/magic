@@ -13,6 +13,14 @@ All notable changes to this project will be documented in this file.
 - [ ] `example/` updated when the change touches the canonical consumer scaffold
 - [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
 
+### Fixed
+
+- **Auth no longer warns on every boot of a fresh app.** `AuthServiceProvider.boot()` logged a `userFactory not registered` warning (blaming provider order) whenever no userFactory was set, even for apps with no stored session to restore. It now only warns when a stored session actually exists (`Auth.hasToken()`) but cannot be rebuilt; a fresh app or a logged-out user stays quiet (debug-level). Touches `lib/src/auth/auth_service_provider.dart`; adds two cases to `test/auth/auth_test.dart`.
+
+### Changed
+
+- **Debug-tooling install guidance corrected to regular `dependencies`.** The `magic:install` post-install message recommended adding `magic_devtools` / `fluttersdk_dusk` / `fluttersdk_telescope` to `dev_dependencies`, but the install commands wire them into `lib/main.dart` (under `kDebugMode`), which trips the `depend_on_referenced_packages` lint. They are now documented as regular `dependencies` (tree-shaken from release via `kDebugMode`), matching dusk/telescope's own install docs. Also bumps the message's stale `fluttersdk_dusk ^0.0.7` to `^0.0.8`. Touches `install.yaml`.
+
 ## [0.0.3] - 2026-06-17
 
 ### Stabilization (magic-stabilize-dusk-telescope plan)
