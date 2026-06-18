@@ -1,0 +1,18 @@
+# .lycheeignore
+#
+# URL patterns that lychee should skip when checking links in doc/ and *.md.
+# Add patterns here for hosts that are auth-walled, rate-limited, or known to
+# return transient errors for unauthenticated HEAD/GET requests.
+#
+# One pattern per line. Supports glob-style wildcards.
+# Full docs: https://lychee.cli.rs/usage/ignoring/
+
+# GitHub login/auth walls (linked repos are public but auth redirects happen)
+https://github.com/login*
+
+# pub.dev search and analytics pages (rate-limited for CI IPs)
+https://pub.dev/packages*
+
+# Localhost and loopback references in code samples
+http://localhost*
+http://127.0.0.1*
