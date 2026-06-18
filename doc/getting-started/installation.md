@@ -133,7 +133,7 @@ You can exclude features you don't need:
 dart run <app>:artisan magic:install --without-database --without-auth --without-cache
 ```
 
-Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/doc/packages/magic-cli.md#install) for details.
+Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/packages/magic-cli#install) for details.
 
 <a name="bootstrapping-your-application"></a>
 ## Bootstrapping Your Application
