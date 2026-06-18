@@ -40,10 +40,19 @@ class AuthServiceProvider extends ServiceProvider {
     // a user who never logged in) has no stored token, so restore is a no-op
     // and a warning would just be boot noise on every launch.
     if (!Auth.manager.hasUserFactory) {
-      if (await Auth.hasToken()) {
+      // Deciding warning verbosity must never crash boot: if Auth is not fully
+      // configured (Vault unavailable, guard config missing), Auth.hasToken()
+      // can throw. Treat any failure as "no stored session" and stay quiet.
+      var hasStoredSession = false;
+      try {
+        hasStoredSession = await Auth.hasToken();
+      } catch (_) {
+        hasStoredSession = false;
+      }
+      if (hasStoredSession) {
         Log.warning(
-          'Auth: a stored session exists but cannot be restored — no '
-          'userFactory registered. Register it in AppServiceProvider.boot() '
+          'Auth: a stored session exists but cannot be restored (no '
+          'userFactory registered). Register it in AppServiceProvider.boot() '
           'via Auth.manager.setUserFactory(...), and list AppServiceProvider '
           'before AuthServiceProvider in app.providers.',
         );

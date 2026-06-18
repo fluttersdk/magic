@@ -131,6 +131,20 @@ void main() {
         expect(warnedAboutFactory, isTrue);
       },
     );
+
+    test(
+      'boot does not crash when the stored-session check itself throws',
+      () async {
+        Log.fake();
+        // No Vault registered and no userFactory: Auth.hasToken() throws.
+        // Boot must treat that failure as "no session" and complete quietly,
+        // not crash the whole bootstrap over a warning-verbosity decision.
+        await expectLater(
+          (AuthServiceProvider(MagicApp.instance)..register()).boot(),
+          completes,
+        );
+      },
+    );
   });
 
   group('Authenticatable Mixin', () {

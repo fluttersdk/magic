@@ -15,7 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- **Auth no longer warns on every boot of a fresh app.** `AuthServiceProvider.boot()` logged a `userFactory not registered` warning (blaming provider order) whenever no userFactory was set, even for apps with no stored session to restore. It now only warns when a stored session actually exists (`Auth.hasToken()`) but cannot be rebuilt; a fresh app or a logged-out user stays quiet (debug-level). Touches `lib/src/auth/auth_service_provider.dart`; adds two cases to `test/auth/auth_test.dart`.
+- **Auth no longer warns on every boot of a fresh app.** `AuthServiceProvider.boot()` logged a `userFactory not registered` warning (blaming provider order) whenever no userFactory was set, even for apps with no stored session to restore. It now only warns when a stored session actually exists (`Auth.hasToken()`) but cannot be rebuilt; a fresh app or a logged-out user stays quiet (debug-level). The stored-session check is guarded so a misconfigured Auth (for example, no Vault registered) cannot crash boot from this warning-verbosity path. Touches `lib/src/auth/auth_service_provider.dart`; adds three cases to `test/auth/auth_test.dart`.
 
 ### Changed
 
