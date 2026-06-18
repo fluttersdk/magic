@@ -11,8 +11,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Per-PR gate: anchors plus internal relative links only, fully offline.
-  # No network, so transient external failures can never block a doc merge.
+  # Per-PR gate: anchors plus internal links, fully offline. No network, so
+  # transient external failures can never block a doc merge. --root-dir doc
+  # resolves the docs' site-absolute links (/section/page, the form the docs
+  # site routes) against the doc/ tree; --fallback-extensions md appends the
+  # .md the site-routed links omit.
   internal:
     name: Internal Links & Anchors
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
@@ -61,6 +64,8 @@ jobs:
           args: >-
             --offline
             --no-progress
+            --root-dir doc
+            --fallback-extensions md
             'doc/**/*.md'
             '*.md'
           fail: true
@@ -81,6 +86,8 @@ jobs:
           args: >-
             --no-progress
             --include-fragments
+            --root-dir doc
+            --fallback-extensions md
             'doc/**/*.md'
             '*.md'
           fail: true
