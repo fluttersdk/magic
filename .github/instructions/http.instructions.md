@@ -1,9 +1,6 @@
 ---
-name: 'Http Conventions'
-description: 'HTTP domain -- controllers, middleware, state management'
-applyTo: 'lib/src/http/**/*.dart'
+applyTo: lib/src/http/**/*.dart
 ---
-
 # HTTP Domain (Controllers & Middleware)
 
 - `MagicController extends ChangeNotifier` — lifecycle: `onInit()` → use → `onClose()` → `dispose()`

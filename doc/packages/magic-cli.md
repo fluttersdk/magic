@@ -1,5 +1,7 @@
 # Magic CLI
 
+The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic package, providing `magic:install`, `key:generate`, and 14 `make:*` scaffold commands run through your app's artisan entrypoint.
+
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Project Setup](#project-setup)
@@ -29,26 +31,13 @@ Magic CLI is the Artisan-like command-line tool for Magic. If you've used Larave
 <a name="installation"></a>
 ## Installation
 
-Magic CLI ships as a Dart package dependency. Add it to your `pubspec.yaml` and run commands via `dart run`:
+The Magic CLI ships as an `fluttersdk_artisan` plugin bundled with the `magic` package. There is no separate install step. Run commands through your app's artisan dispatcher:
 
 ```bash
-dart run magic:magic <command> [arguments] [options]
+dart run <app>:artisan <command> [arguments] [options]
 ```
 
-> [!TIP]
-> For a shorter command, activate Magic CLI globally:
->
-> ```bash
-> dart pub global activate magic_cli
-> ```
->
-> Ensure `~/.pub-cache/bin` is in your system PATH, then use `magic <command>` directly.
-
-Verify installation:
-
-```bash
-dart run magic:magic --version
-```
+Replace `<app>` with your Flutter app package name (the `name` field in your `pubspec.yaml`).
 
 <a name="project-setup"></a>
 ## Project Setup
@@ -59,7 +48,7 @@ dart run magic:magic --version
 Initializes Magic in an existing Flutter project with the recommended directory structure and configuration.
 
 ```bash
-dart run magic:magic install
+dart run <app>:artisan magic:install
 ```
 
 This command:
@@ -76,8 +65,8 @@ This command:
 You can exclude features you don't need with `--without-*` flags:
 
 ```bash
-dart run magic:magic install --without-database
-dart run magic:magic install --without-auth --without-events
+dart run <app>:artisan magic:install --without-database
+dart run <app>:artisan magic:install --without-auth --without-events
 ```
 
 | Flag | What it skips |
@@ -97,7 +86,7 @@ dart run magic:magic install --without-auth --without-events
 Generates a random 32-byte encryption key for your application:
 
 ```bash
-dart run magic:magic key:generate
+dart run <app>:artisan key:generate
 ```
 
 Updates your `.env` file with:
@@ -125,11 +114,11 @@ Commands that auto-append a suffix (Controller, View, Factory, Seeder, Policy, S
 Creates an Eloquent-style model with optional related files:
 
 ```bash
-dart run magic:magic make:model User
-dart run magic:magic make:model Post --migration --controller --factory
-dart run magic:magic make:model Comment -mcf
-dart run magic:magic make:model Product -mcfsp
-dart run magic:magic make:model Order --all
+dart run <app>:artisan make:model User
+dart run <app>:artisan make:model Post --migration --controller --factory
+dart run <app>:artisan make:model Comment -mcf
+dart run <app>:artisan make:model Product -mcfsp
+dart run <app>:artisan make:model Order --all
 ```
 
 #### Options
@@ -154,11 +143,11 @@ dart run magic:magic make:model Order --all
 Creates a controller class:
 
 ```bash
-dart run magic:magic make:controller User
-dart run magic:magic make:controller UserController
-dart run magic:magic make:controller Admin/Dashboard
-dart run magic:magic make:controller Post --resource
-dart run magic:magic make:controller Post --resource --model=Post
+dart run <app>:artisan make:controller User
+dart run <app>:artisan make:controller UserController
+dart run <app>:artisan make:controller Admin/Dashboard
+dart run <app>:artisan make:controller Post --resource
+dart run <app>:artisan make:controller Post --resource --model=Post
 ```
 
 #### Options
@@ -176,10 +165,10 @@ dart run magic:magic make:controller Post --resource --model=Post
 Creates a view class:
 
 ```bash
-dart run magic:magic make:view Login
-dart run magic:magic make:view LoginView
-dart run magic:magic make:view Auth/Register
-dart run magic:magic make:view Dashboard --stateful
+dart run <app>:artisan make:view Login
+dart run <app>:artisan make:view LoginView
+dart run <app>:artisan make:view Auth/Register
+dart run <app>:artisan make:view Dashboard --stateful
 ```
 
 #### Options
@@ -196,9 +185,9 @@ dart run magic:magic make:view Dashboard --stateful
 Creates a timestamped database migration file:
 
 ```bash
-dart run magic:magic make:migration create_users_table
-dart run magic:magic make:migration create_users_table --create=users
-dart run magic:magic make:migration add_email_to_users --table=users
+dart run <app>:artisan make:migration create_users_table
+dart run <app>:artisan make:migration create_users_table --create=users
+dart run <app>:artisan make:migration add_email_to_users --table=users
 ```
 
 #### Options
@@ -216,8 +205,8 @@ dart run magic:magic make:migration add_email_to_users --table=users
 Creates a database seeder:
 
 ```bash
-dart run magic:magic make:seeder User
-dart run magic:magic make:seeder UserSeeder
+dart run <app>:artisan make:seeder User
+dart run <app>:artisan make:seeder UserSeeder
 ```
 
 **Output:** `lib/database/seeders/<name>_seeder.dart`
@@ -228,8 +217,8 @@ dart run magic:magic make:seeder UserSeeder
 Creates a model factory for generating fake data:
 
 ```bash
-dart run magic:magic make:factory User
-dart run magic:magic make:factory UserFactory
+dart run <app>:artisan make:factory User
+dart run <app>:artisan make:factory UserFactory
 ```
 
 **Output:** `lib/database/factories/<name>_factory.dart`
@@ -240,10 +229,10 @@ dart run magic:magic make:factory UserFactory
 Creates an authorization policy:
 
 ```bash
-dart run magic:magic make:policy Post
-dart run magic:magic make:policy PostPolicy
-dart run magic:magic make:policy Post --model=Post
-dart run magic:magic make:policy Admin/Dashboard
+dart run <app>:artisan make:policy Post
+dart run <app>:artisan make:policy PostPolicy
+dart run <app>:artisan make:policy Post --model=Post
+dart run <app>:artisan make:policy Admin/Dashboard
 ```
 
 #### Options
@@ -260,8 +249,8 @@ dart run magic:magic make:policy Admin/Dashboard
 Creates a service provider class with `register()` and `boot()` stubs:
 
 ```bash
-dart run magic:magic make:provider Payment
-dart run magic:magic make:provider PaymentServiceProvider
+dart run <app>:artisan make:provider Payment
+dart run <app>:artisan make:provider PaymentServiceProvider
 ```
 
 The `ServiceProvider` suffix is appended automatically when omitted.
@@ -274,8 +263,8 @@ The `ServiceProvider` suffix is appended automatically when omitted.
 Creates a middleware class:
 
 ```bash
-dart run magic:magic make:middleware EnsureAuthenticated
-dart run magic:magic make:middleware Admin/RoleCheck
+dart run <app>:artisan make:middleware EnsureAuthenticated
+dart run <app>:artisan make:middleware Admin/RoleCheck
 ```
 
 **Output:** `lib/app/middleware/<name>.dart`
@@ -286,8 +275,8 @@ dart run magic:magic make:middleware Admin/RoleCheck
 Creates a string-backed enum with `fromValue()` factory and `selectOptions` getter:
 
 ```bash
-dart run magic:magic make:enum MonitorType
-dart run magic:magic make:enum Status/OrderStatus
+dart run <app>:artisan make:enum MonitorType
+dart run <app>:artisan make:enum Status/OrderStatus
 ```
 
 **Output:** `lib/app/enums/<name>.dart`
@@ -298,8 +287,8 @@ dart run magic:magic make:enum Status/OrderStatus
 Creates a dispatchable event class that extends `MagicEvent`:
 
 ```bash
-dart run magic:magic make:event UserLoggedIn
-dart run magic:magic make:event Auth/TokenRefreshed
+dart run <app>:artisan make:event UserLoggedIn
+dart run <app>:artisan make:event Auth/TokenRefreshed
 ```
 
 **Output:** `lib/app/events/<name>.dart`
@@ -310,9 +299,9 @@ dart run magic:magic make:event Auth/TokenRefreshed
 Creates an event listener class that extends `MagicListener<TEvent>`:
 
 ```bash
-dart run magic:magic make:listener AuthRestore
-dart run magic:magic make:listener AuthRestore --event=UserLoggedInEvent
-dart run magic:magic make:listener Auth/RestoreSession
+dart run <app>:artisan make:listener AuthRestore
+dart run <app>:artisan make:listener AuthRestore --event=UserLoggedInEvent
+dart run <app>:artisan make:listener Auth/RestoreSession
 ```
 
 #### Options
@@ -329,8 +318,8 @@ dart run magic:magic make:listener Auth/RestoreSession
 Creates a form request class with a typed `rules()` method for request validation:
 
 ```bash
-dart run magic:magic make:request StoreMonitor
-dart run magic:magic make:request StoreMonitorRequest
+dart run <app>:artisan make:request StoreMonitor
+dart run <app>:artisan make:request StoreMonitorRequest
 ```
 
 The `Request` suffix is appended automatically when omitted.
@@ -343,9 +332,9 @@ The `Request` suffix is appended automatically when omitted.
 Creates a language JSON file:
 
 ```bash
-dart run magic:magic make:lang tr
-dart run magic:magic make:lang es
-dart run magic:magic make:lang de
+dart run <app>:artisan make:lang tr
+dart run <app>:artisan make:lang es
+dart run <app>:artisan make:lang de
 ```
 
 **Output:** `assets/lang/<locale>.json`

@@ -1,7 +1,6 @@
 ---
-paths: "lib/src/ui/**/*.dart"
+applyTo: lib/src/ui/**/*.dart
 ---
-
 # Building Views That Are Stable and E2E-Drivable
 
 Views are part of the definition of done only when their primary user flows can be driven end to end by a dusk agent or a CI test. The rules below keep widget identity and semantic labels stable enough for label-based resolution (rules 1-3) and make dusk drivability part of the definition of done (rule 4).

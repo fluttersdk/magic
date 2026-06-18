@@ -1,5 +1,7 @@
 # File Picker
 
+The `Pick` facade provides a unified interface for accessing the device camera, media gallery, and file system, returning a consistent `MagicFile` object regardless of platform.
+
 - [Introduction](#introduction)
 - [Picking Images](#picking-images)
 - [Picking Videos](#picking-videos)
@@ -8,6 +10,7 @@
     - [Properties](#properties)
     - [Methods](#methods)
 - [Complete Examples](#complete-examples)
+- [Upgrading to file_picker v11](#upgrading-to-file-picker-v11)
 
 <a name="introduction"></a>
 ## Introduction
@@ -252,3 +255,42 @@ Future<void> uploadGallery() async {
   Magic.success('Done', '${images.length} images uploaded');
 }
 ```
+
+<a name="upgrading-to-file-picker-v11"></a>
+## Upgrading to file_picker v11
+
+Magic uses `file_picker ^11.0.2`. If you are migrating a project that pinned an older version, this section describes the breaking changes.
+
+### Static API (breaking change)
+
+`file_picker` v11 removed the `FilePicker.platform` instance accessor. All methods are now called directly on the `FilePicker` class as static methods.
+
+**Before (v10 and earlier):**
+
+```dart
+// Old pattern, no longer compiles in v11
+final result = await FilePicker.platform.pickFiles();
+final path = await FilePicker.platform.getDirectoryPath();
+```
+
+**After (v11):**
+
+```dart
+// New static API
+final result = await FilePicker.pickFiles();
+final path = await FilePicker.getDirectoryPath();
+```
+
+The `Pick` facade wraps `file_picker` entirely behind its own static methods, so if you use `Pick.file()`, `Pick.files()`, `Pick.directory()`, and `Pick.saveFile()` exclusively, this change is transparent and requires no action on your part.
+
+If your code calls `FilePicker.platform` directly (bypassing the `Pick` facade), you must remove `.platform` from every call site.
+
+### Android path traversal security fix (CWE-22)
+
+`file_picker` v11.0.2 patches a path traversal vulnerability (CWE-22) on Android. The vulnerability allowed a malicious file name returned by a document provider to traverse outside the intended directory. Upgrading ensures returned file paths are sanitized before they reach your application code.
+
+No API changes are required on your side to benefit from this fix.
+
+### WASM web support
+
+`file_picker` v11 adds support for Flutter Web compiled to WebAssembly (WASM). If you target `flutter build web --wasm`, file picking now works in that build mode without additional configuration.

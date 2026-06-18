@@ -1,5 +1,7 @@
 # Request Lifecycle
 
+Understanding the Magic request lifecycle helps you know exactly where your service providers, middleware, and controllers run relative to each bootstrap step.
+
 - [Introduction](#introduction)
 - [Lifecycle Overview](#lifecycle-overview)
 - [Application Bootstrap](#application-bootstrap)
@@ -23,10 +25,19 @@ Understanding the Magic request lifecycle will help you build better application
 │                       │                                 │
 │                  Magic.init()                           │
 │                       │                                 │
-│      ┌────────────────┼────────────────┐                │
-│      ▼                ▼                ▼                │
-│  Load .env     Register Configs   Boot Providers        │
-│                                                         │
+│                  Env.load()                             │
+│                       │                                 │
+│               configFactories evaluated                 │
+│                       │                                 │
+│             URL strategy applied (web)                  │
+│                       │                                 │
+│      ┌────────────────┴────────────────┐                │
+│      ▼                                 ▼                │
+│  providers register() (sync)    (all providers)        │
+│                       │                                 │
+│      providers boot() (async, all registered)          │
+│                       │                                 │
+│              router pre-build                           │
 │                       │                                 │
 │                 runApp(MagicApplication)                │
 │                       │                                 │
@@ -80,10 +91,12 @@ void main() async {
 
 ### Magic.init() Steps
 
-1. **Load Environment** - Reads `.env` file into memory
-2. **Merge Configurations** - Combines all config factories
-3. **Register Service Providers** - Calls `register()` on each provider
-4. **Boot Service Providers** - Calls `boot()` on each provider
+1. **Load Environment** - Reads `.env` file into memory via `Env.load()`
+2. **Evaluate Config Factories** - Runs all `configFactories` now that `Env` is populated
+3. **Apply URL Strategy** - Configures path vs hash URL strategy for web (before any widget tree exists)
+4. **Register Service Providers** - Calls `register()` on each provider synchronously
+5. **Boot Service Providers** - Calls `boot()` on each provider asynchronously
+6. **Pre-build Router** - Resolves `MagicRouter.instance.routerConfig` so GoRouter is ready before `runApp`
 
 <a name="service-providers"></a>
 ## Service Providers

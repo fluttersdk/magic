@@ -1,9 +1,6 @@
 ---
-name: 'Routing Conventions'
-description: 'Routing domain -- MagicRouter, route groups, layouts, navigation'
-applyTo: 'lib/src/routing/**/*.dart'
+applyTo: lib/src/routing/**/*.dart
 ---
-
 # Routing Domain
 
 - `MagicRouter` wraps GoRouter — singleton accessed via `MagicRouter.instance`
@@ -19,3 +16,12 @@ applyTo: 'lib/src/routing/**/*.dart'
 - `LayoutDefinition` — shell route wrapper for persistent navigation (sidebar, bottom nav)
 - `RouteServiceProvider` registers routes in boot phase — recommended place for all route definitions
 - Custom transitions: `Route.get('/path', () => Page()).transition(TransitionType.fade)`
+- Observer support: `MagicRouter.instance.addObserver(observer)` — must register before `routerConfig` is accessed. Passed to GoRouter `observers` param. Read-only via `observers` getter
+- Page titles: `RouteDefinition.title('Projects')` — static per-route title. Fluent chain with `.name()`, `.middleware()`, `.transition()`
+- `TitleManager` singleton — priority stack: override (MagicTitle/setTitle) → routeTitle (RouteDefinition) → appTitle (MagicApplication.title)
+- Title suffix: `MagicApplication(titleSuffix: 'MySite')` → effective title becomes `"$pageTitle - MySite"`
+- `MagicRoute.setTitle('...')` — imperative title override from anywhere (controller, callback)
+- `MagicRoute.currentTitle` — getter returning effective title without suffix
+- Route listener uses `GoRouter.routerDelegate.addListener` (NOT NavigatorObserver) — fires on all navigation types including `go()`
+- `TitleManager.configure(onTitleChanged: callback)` — injectable callback for testing. Defaults to `SystemChrome.setApplicationSwitcherDescription`
+- `TitleManager.reset()` — clears singleton. Called by `MagicRouter.reset()` automatically

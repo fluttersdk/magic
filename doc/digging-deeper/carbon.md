@@ -1,5 +1,7 @@
 # Carbon (Date/Time)
 
+Carbon is Magic's date and time utility, inspired by PHP's Carbon library, offering a fluent API for creating, formatting, manipulating, and comparing date values with human-readable output.
+
 - [Introduction](#introduction)
 - [Creating Carbon Instances](#creating-carbon-instances)
 - [Formatting](#formatting)

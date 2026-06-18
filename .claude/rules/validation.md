@@ -1,5 +1,5 @@
 ---
-path: "lib/src/validation/**/*.dart"
+paths: "lib/src/validation/**/*.dart"
 ---
 
 # Validation Domain

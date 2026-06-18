@@ -1,5 +1,7 @@
 # Testing: Getting Started
 
+Magic is built with testing in mind: it integrates with Dart's `test` package and provides helpers for resetting the IoC container, faking facades, and asserting controller and model behavior.
+
 - [Introduction](#introduction)
 - [Setting Up Tests](#setting-up-tests)
 - [Writing Tests](#writing-tests)

@@ -1,0 +1,93 @@
+name: Docs Link Check
+
+on:
+  pull_request:
+    paths:
+      - 'doc/**'
+      - '*.md'
+  schedule:
+    # Every Monday at 08:00 UTC: external-URL rot pass (does not gate PRs).
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  # Per-PR gate: anchors plus internal links, fully offline. No network, so
+  # transient external failures can never block a doc merge. --root-dir doc
+  # resolves the docs' site-absolute links (/section/page, the form the docs
+  # site routes) against the doc/ tree; --fallback-extensions md appends the
+  # .md the site-routed links omit.
+  internal:
+    name: Internal Links & Anchors
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Deterministic TOC<->anchor check for magic's explicit `<a name="...">`
+      # convention, both directions: every TOC link `(#slug)` needs a matching
+      # `<a name="slug">`, and every anchor needs a TOC entry, so navigation
+      # cannot drift either way. Fenced code blocks are stripped first so an
+      # illustrative anchor inside a doc example (the authoring guide) does not
+      # count. Scoped to doc/ only, because top-level files (README, CHANGELOG)
+      # use GitHub heading-slug anchors and PR-number parentheticals, not the
+      # explicit-anchor style.
+      - name: Check TOC anchors
+        run: |
+          python3 - <<'PY'
+          import re, glob, sys
+          files = sorted(glob.glob("doc/**/*.md", recursive=True))
+          bad = 0
+          for f in files:
+              text = open(f, encoding="utf-8").read()
+              # Strip fenced blocks and inline code so anchors/links shown as
+              # examples (the authoring guide) are not counted as real ones.
+              prose = re.sub(r'```.*?```', '', text, flags=re.S)
+              prose = re.sub(r'`[^`\n]*`', '', prose)
+              toc = set(re.findall(r'\(#([a-z0-9-]+)\)', prose))
+              anchors = set(re.findall(r'<a name="([a-z0-9-]+)"', prose))
+              missing = toc - anchors
+              orphan = anchors - toc
+              if missing:
+                  print(f"::error file={f}::TOC links without an anchor: {sorted(missing)}")
+                  bad += 1
+              if orphan:
+                  print(f"::error file={f}::anchors without a TOC entry: {sorted(orphan)}")
+                  bad += 1
+          print(f"checked {len(files)} doc pages; {bad} issues")
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Check internal links (offline)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --offline
+            --no-progress
+            --root-dir doc
+            --fallback-extensions md
+            'doc/**/*.md'
+            '*.md'
+          fail: true
+
+  # Weekly (and manual) external-URL pass. Runs on a schedule so external rot
+  # or rate limits surface without blocking per-PR doc merges.
+  external:
+    name: External Links
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check all links including external
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --include-fragments
+            --root-dir doc
+            --fallback-extensions md
+            'doc/**/*.md'
+            '*.md'
+          fail: true

@@ -1,5 +1,7 @@
 # Installation
 
+Magic is a Laravel-inspired Flutter framework: add the package, call `Magic.init()`, and your app gains an IoC container, 18 facades, Eloquent ORM, routing, auth, and more.
+
 - [Meet Magic](#meet-magic)
 - [Why Magic?](#why-magic)
 - [Requirements](#requirements)
@@ -108,11 +110,13 @@ This pulls in Magic and all its dependencies, including **Wind UI** and the **Ma
 
 ### 2. Scaffold Your Application
 
-Magic CLI is bundled with the package — no global install needed. Run it via `dart run`:
+The Magic CLI ships as an `fluttersdk_artisan` plugin bundled with the `magic` package. Run it through your app's artisan dispatcher:
 
 ```bash
-dart run magic:magic install
+dart run <app>:artisan magic:install
 ```
+
+Replace `<app>` with your Flutter app package name (the `name` field in your `pubspec.yaml`).
 
 This command creates everything you need:
 - `lib/config/` — Configuration files (app, auth, broadcasting, cache, database, network, logging, routing, view)
@@ -126,18 +130,15 @@ This command creates everything you need:
 You can exclude features you don't need:
 
 ```bash
-dart run magic:magic install --without-database --without-auth --without-cache
+dart run <app>:artisan magic:install --without-database --without-auth --without-cache
 ```
 
-Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/doc/packages/magic-cli.md#install) for details.
-
-> [!TIP]
-> For convenience, you can also activate the CLI globally: `dart pub global activate magic_cli`. This lets you use the shorter `magic install` syntax instead of `dart run magic:magic install`.
+Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/packages/magic-cli#install) for details.
 
 <a name="bootstrapping-your-application"></a>
 ## Bootstrapping Your Application
 
-If you used `dart run magic:magic install`, your application is already bootstrapped. The install command generates a ready-to-run `main.dart` and all configuration files. Here's what was created:
+If you used `dart run <app>:artisan magic:install`, your application is already bootstrapped. The install command generates a ready-to-run `main.dart` and all configuration files. Here's what was created:
 
 ### Generated Entry Point
 

@@ -1,5 +1,7 @@
 # Events
 
+Magic's event system provides a simple observer implementation, letting you decouple side effects from application actions by dispatching named events and registering typed listeners.
+
 - [Introduction](#introduction)
 - [Generating Events & Listeners](#generating-events--listeners)
 - [Configuration](#configuration)
@@ -28,13 +30,13 @@ await Event.dispatch(OrderShipped(order));
 Use the Magic CLI to scaffold event and listener classes:
 
 ```bash
-dart run magic:magic make:event OrderShipped
+dart run <app>:artisan make:event OrderShipped
 ```
 
 This creates `lib/app/events/order_shipped.dart` with a `MagicEvent` stub.
 
 ```bash
-dart run magic:magic make:listener SendEmail --event=OrderShipped
+dart run <app>:artisan make:listener SendEmail --event=OrderShipped
 ```
 
 This creates `lib/app/listeners/send_email.dart` with a `MagicListener<OrderShipped>` stub, pre-wired to the specified event.

@@ -1,5 +1,7 @@
 # Forms
 
+Magic provides a complete form handling system: `MagicFormData` for centralized form state, Wind form widgets for UI, `FormRequest` classes for structured validation and authorization, and the `ValidatesRequests` mixin for controller-side error management.
+
 - [Introduction](#introduction)
 - [MagicFormData](#magicformdata)
     - [Creating Form Data](#creating-form-data)
@@ -11,6 +13,8 @@
     - [WFormCheckbox](#wformcheckbox)
     - [WFormSelect](#wformselect)
 - [Form Validation](#form-validation)
+- [Custom FormRequest Classes](#custom-form-request-classes)
+    - [Validating Requests in Controllers](#validating-requests-in-controllers)
 - [Submitting Forms](#submitting-forms)
 - [Form Processing](#form-processing)
 - [Error Management](#error-management)
@@ -23,7 +27,7 @@
 Magic provides a powerful form handling system that combines the simplicity of Laravel's request handling with Flutter's form widgets. Forms are managed through `MagicFormData`, which centralizes form state, validation, and data extraction.
 
 > [!TIP]
-> You can generate a validated form request stub using the Magic CLI: `dart run magic:magic make:request` (e.g., `dart run magic:magic make:request StoreOrder`). The generated file at `lib/app/requests/store_order_request.dart` provides a structured place for your validation rules.
+> You can generate a validated form request stub using the Magic CLI: `dart run <app>:artisan make:request` (e.g., `dart run <app>:artisan make:request StoreOrder`). The generated file at `lib/app/requests/store_order_request.dart` provides a structured place for your validation rules.
 
 <a name="magicformdata"></a>
 ## MagicFormData
@@ -239,6 +243,129 @@ class AuthController extends MagicController with ValidatesRequests {
   }
 }
 ```
+
+<a name="custom-form-request-classes"></a>
+## Custom FormRequest Classes
+
+`FormRequest` collapses the authorize-prepare-validate ceremony into a single, reusable class. Subclass it, declare `rules()`, and optionally override `authorize()` for access checks and `prepared()` for input normalization.
+
+```dart
+import 'package:magic/magic.dart';
+
+class StoreOrderRequest extends FormRequest {
+  @override
+  bool authorize() => Gate.allows('order.create');
+
+  @override
+  Map<String, dynamic> prepared(Map<String, dynamic> data) => {
+    ...data,
+    'status': 'pending',
+  };
+
+  @override
+  Map<String, List<Rule>> rules() => {
+    'product_id': [Required()],
+    'quantity': [Required(), Min(1)],
+    'note': [Max(500)],
+  };
+}
+```
+
+Pass the raw form data to `validate()` in the controller. It runs `authorize` first, then `prepared`, then the rules, and returns the cleaned data filtered to the keys declared in `rules()`:
+
+```dart
+class OrderController extends MagicController with MagicStateMixin<Order>, ValidatesRequests {
+  Future<void> store(Map<String, dynamic> data) async {
+    setLoading();
+    clearErrors();
+
+    try {
+      final payload = StoreOrderRequest().validate(data);
+      final response = await Http.post('/orders', data: payload);
+
+      if (!response.successful) {
+        handleApiError(response);
+        return;
+      }
+
+      setSuccess(Order.fromMap(response.data));
+      MagicRoute.to('/orders');
+    } on AuthorizationException {
+      setError('You are not authorized to create orders.');
+    } on ValidationException catch (e) {
+      validationErrors = Map.from(e.errors);
+      notifyListeners();
+      setEmpty();
+    }
+  }
+}
+```
+
+**Failure modes:**
+- `authorize()` returns `false`: throws `AuthorizationException`
+- A rule in `rules()` fails: throws `ValidationException` with a field-keyed error map
+
+<a name="validating-requests-in-controllers"></a>
+### Validating Requests in Controllers
+
+The `ValidatesRequests` mixin adds Laravel-style validation directly to a controller. Import it from the public barrel `package:magic/magic.dart`; its implementation lives under `lib/src/concerns/` (not `lib/src/http/`), but app code never imports from `lib/src/` directly.
+
+> [!IMPORTANT]
+> Import `ValidatesRequests` from `package:magic/magic.dart`. The mixin lives in `lib/src/concerns/validates_requests.dart`. Do not import from `lib/src/http/`; the mixin is not there.
+
+Apply the mixin with the `with` keyword on any `MagicController` subclass:
+
+```dart
+import 'package:magic/magic.dart';
+
+class ProfileController extends MagicController with ValidatesRequests {
+  Future<void> update(Map<String, dynamic> data) async {
+    clearErrors(); // Clear previous field errors before re-submitting
+
+    try {
+      final validated = validate(data, {
+        'name': [Required(), Min(2), Max(100)],
+        'email': [Required(), Email()],
+      });
+
+      final response = await Http.put('/profile', data: validated);
+
+      if (!response.successful) {
+        handleApiError(response); // Populates validationErrors from 422 response
+        return;
+      }
+
+      // Success path
+    } on ValidationException {
+      // validationErrors is already populated; notifyListeners() was called
+      // The MagicForm widget switches to AutovalidateMode.always automatically
+    }
+  }
+}
+```
+
+**How errors surface in `MagicFormData`:**
+
+When the controller bound to a `MagicFormData` instance implements `ValidatesRequests`, field errors flow to the form automatically:
+
+- `handleApiError(response)` calls `setErrorsFromResponse(response)`, which parses the Laravel `{"errors": {"field": ["msg"]}}` format and populates `validationErrors`.
+- `MagicForm` detects `hasRelevantErrors` on the form data and switches `AutovalidateMode` to `always`, so server-side errors display inline next to each field.
+- `MagicFormData` attaches listeners to each field controller so `clearFieldError(field)` fires as soon as the user types, removing stale errors one field at a time.
+
+**Available mixin members:**
+
+| Member | Description |
+|--------|-------------|
+| `validate(data, rules)` | Run rules; returns validated data or throws `ValidationException` |
+| `setErrorsFromResponse(response)` | Populate field errors from a 422 `MagicResponse` |
+| `handleApiError(response, {fallback})` | Combined handler: sets field errors for 422, generic error otherwise |
+| `clearErrors()` | Remove all validation errors and notify listeners |
+| `clearFieldError(field)` | Remove a single field's error and notify listeners |
+| `hasError(field)` | Returns `true` if the field has an error |
+| `getError(field)` | Returns the error message for a field, or `null` |
+| `firstError` | The first error message in `validationErrors`, or `null` |
+| `hasErrors` | `true` if any validation errors are present |
+| `validationErrors` | The raw `Map<String, String>` of current errors |
 
 <a name="submitting-forms"></a>
 ## Submitting Forms

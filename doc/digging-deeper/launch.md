@@ -1,5 +1,7 @@
 # Launch
 
+The `Launch` facade provides a context-free static API for opening URLs, composing emails, initiating phone calls, and sending SMS messages, returning false on failure rather than throwing.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [URL Launching](#url-launching)

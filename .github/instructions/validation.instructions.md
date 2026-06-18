@@ -1,9 +1,6 @@
 ---
-name: 'Validation Conventions'
-description: 'Validation domain -- rules, validator, form integration'
-applyTo: 'lib/src/validation/**/*.dart'
+applyTo: lib/src/validation/**/*.dart
 ---
-
 # Validation Domain
 
 - `Validator.make(Map<String, dynamic> data, Map<String, List<Rule>> rules)` — factory constructor, returns Validator

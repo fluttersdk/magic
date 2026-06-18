@@ -1,7 +1,6 @@
 ---
-paths: "lib/src/broadcasting/**/*.dart"
+applyTo: lib/src/broadcasting/**/*.dart
 ---
-
 # Broadcasting Domain
 
 - `Echo` facade proxies to `BroadcastManager` bound at `'broadcasting'` in the IoC container

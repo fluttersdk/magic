@@ -1,5 +1,7 @@
 # File Storage
 
+The `Storage` facade provides a unified API for reading, writing, and deleting files across multiple named disks, with built-in support for remote downloads and URL generation.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Storing Files](#storing-files)
@@ -8,6 +10,7 @@
 - [Deleting Files](#deleting-files)
 - [Multiple Disks](#multiple-disks)
 - [MagicFile Reference](#magicfile-reference)
+- [Testing](#testing)
 
 <a name="introduction"></a>
 ## Introduction
@@ -226,3 +229,32 @@ final file = MagicFile(
   bytes: pdfBytes,
 );
 ```
+
+<a name="testing"></a>
+## Testing
+
+### Replacing the manager
+
+Inject a custom `StorageManager` subclass with `Storage.setManager()` to control disk behavior in tests:
+
+```dart
+class FakeStorageManager extends StorageManager {
+  // Override disk() to return a test double
+}
+
+setUp(() {
+  Storage.setManager(FakeStorageManager());
+});
+```
+
+### Resetting state between tests
+
+Call `Storage.flush()` to clear the cached manager and all cached disk instances. This ensures no state leaks between tests:
+
+```dart
+tearDown(() {
+  Storage.flush();
+});
+```
+
+`flush()` sets the internal manager to `null` and calls `flush()` on it first (clearing any cached disk instances), so the next call to any `Storage` method initialises a fresh manager from config.

@@ -1,9 +1,6 @@
 ---
-name: 'Tests Conventions'
-description: 'Testing domain -- setUp, mocking, test structure, assertions'
-applyTo: 'test/**/*.dart'
+applyTo: test/**/*.dart
 ---
-
 # Testing Domain
 
 - `setUp()`: always `MagicApp.reset()` + `Magic.flush()` — clears IoC container and facade caches between tests

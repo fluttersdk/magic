@@ -1,5 +1,7 @@
 # Eloquent: Serialization
 
+Eloquent models can be serialized to maps and JSON strings with a single call, with support for hiding sensitive attributes and appending computed values to every serialized output.
+
 - [Introduction](#introduction)
 - [Serializing to Arrays](#serializing-to-arrays)
 - [Serializing to JSON](#serializing-to-json)

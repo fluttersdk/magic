@@ -1,5 +1,7 @@
 # Logging
 
+The `Log` facade provides a Laravel-style logging API with configurable channels, minimum log levels, and a stack channel for fanning output to multiple drivers simultaneously.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
     - [Available Channels](#available-channels)
@@ -11,6 +13,7 @@
 - [Creating Custom Channels](#creating-custom-channels)
     - [Implementing a Custom Driver](#implementing-a-custom-driver)
     - [Registering the Custom Driver](#registering-the-custom-driver)
+- [Testing](#testing)
 
 <a name="introduction"></a>
 ## Introduction
@@ -257,6 +260,39 @@ Log.channel('sentry').error('Something went wrong', {
   'user_id': user.id,
 });
 ```
+
+<a name="testing"></a>
+## Testing
+
+Replace the real `LogManager` with `FakeLogManager` during tests using `Log.fake()`. The fake captures all log calls in memory and provides assertion helpers.
+
+```dart
+import 'package:magic/testing.dart';
+
+test('logs a payment error', () {
+  final fake = Log.fake();
+
+  Log.error('Payment failed', {'amount': 50.00});
+
+  fake.assertLoggedError('Payment failed');
+  fake.assertLoggedCount(1);
+
+  Log.unfake();
+});
+```
+
+The `FakeLogManager` exposes:
+
+| Method | Description |
+|--------|-------------|
+| `assertLogged(level, message)` | Assert at least one entry matches the given level and message |
+| `assertLoggedError(message)` | Shorthand for `assertLogged('error', message)` |
+| `assertNothingLogged([level])` | Assert the log is empty, or empty at a specific level |
+| `assertLoggedCount(n)` | Assert exactly `n` entries were recorded |
+| `reset()` | Clear all captured entries |
+| `entries` | Read-only list of all captured `FakeLogEntry` records |
+
+Call `Log.unfake()` at the end of the test (or in `tearDown`) to restore the real binding.
 
 ---
 

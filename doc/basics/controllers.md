@@ -1,5 +1,7 @@
 # Controllers
 
+Controllers extend `MagicController` (a `ChangeNotifier`) to hold reactive state, run validation, and dispatch navigation, keeping business logic out of the widget tree.
+
 - [Introduction](#introduction)
 - [Writing Controllers](#writing-controllers)
     - [Basic Controllers](#basic-controllers)
@@ -7,6 +9,7 @@
 - [Controller State Management](#controller-state-management)
     - [The MagicStateMixin](#the-magicstatemixin)
     - [Rendering State](#rendering-state)
+    - [Fetch Helpers](#fetch-helpers)
 - [Validation Handling](#validation-handling)
 - [Controller Lifecycle](#controller-lifecycle)
 - [Generating Controllers](#generating-controllers)
@@ -25,7 +28,7 @@ Instead of defining all of your request handling logic as closures in your route
 To generate a new controller, use the `make:controller` Magic CLI command:
 
 ```bash
-dart run magic:magic make:controller User
+dart run <app>:artisan make:controller User
 ```
 
 A basic controller extends `MagicController` and contains action methods that return widgets:
@@ -306,16 +309,16 @@ The Magic CLI can generate controllers with various options:
 
 ```bash
 # Basic controller
-dart run magic:magic make:controller User
+dart run <app>:artisan make:controller User
 
 # Resource controller with CRUD actions and views
-dart run magic:magic make:controller Product --resource
+dart run <app>:artisan make:controller Product --resource
 
 # Nested in subfolder
-dart run magic:magic make:controller Admin/Dashboard
+dart run <app>:artisan make:controller Admin/Dashboard
 
 # Resource controller with model binding
-dart run magic:magic make:controller Post --resource --model=Post
+dart run <app>:artisan make:controller Post --resource --model=Post
 ```
 
 ### Command Options
@@ -346,7 +349,7 @@ When using `--resource`, the command generates a full resource controller with:
 Example:
 
 ```bash
-dart run magic:magic make:controller Task --resource
+dart run <app>:artisan make:controller Task --resource
 ```
 
 This generates a TaskController with all CRUD actions and four corresponding views.

@@ -1,5 +1,7 @@
 # Security: Encryption
 
+The `Crypt` facade encrypts and decrypts text using AES-256-CBC, emitting a compact `base64(iv):base64(ciphertext)` payload so calling code never handles the underlying cipher details.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Using The Encrypter](#using-the-encrypter)
@@ -10,7 +12,7 @@
 <a name="introduction"></a>
 ## Introduction
 
-Magic's encrypter provides a simple, convenient interface for encrypting and decrypting text. All encrypted values are signed using a message authentication code (MAC) so that their underlying value can not be modified or tampered with once encrypted.
+Magic's encrypter provides a simple, convenient interface for encrypting and decrypting text. Each value is encrypted with a fresh random IV and emitted as `base64(iv):base64(ciphertext)`. The payload is not authenticated (there is no MAC or AEAD tag), so it provides confidentiality, not tamper detection: do not treat a successful decrypt as proof of integrity, and do not assume parity with Laravel's `Crypt`, whose payload format differs.
 
 Magic uses the AES-256-CBC cipher for all encryption operations.
 
@@ -40,7 +42,7 @@ To decrypt a value:
 try {
   final value = Crypt.decrypt(secret);
 } on MagicDecryptException {
-  // The value was invalid or tampered with
+  // The value was invalid or corrupted (decryption failed)
 }
 ```
 

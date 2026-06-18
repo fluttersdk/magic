@@ -1,5 +1,7 @@
 # Routing
 
+Magic's routing wraps `go_router` with a Laravel-style fluent API: define routes with `MagicRoute.page()`, group them with middleware and layouts, and navigate without `BuildContext`.
+
 - [Introduction](#introduction)
 - [Basic Routing](#basic-routing)
 - [Route Parameters](#route-parameters)
@@ -10,10 +12,14 @@
     - [Middleware](#middleware)
     - [Prefixes](#prefixes)
     - [Layouts (Shell Routes)](#layouts-shell-routes)
+- [Standalone Layouts](#standalone-layouts)
 - [Context-Free Navigation](#context-free-navigation)
 - [Route Middleware](#route-middleware)
 - [URL Strategy](#url-strategy)
+    - [URL Strategy (Path vs Hash)](#url-strategy-path-vs-hash)
 - [Navigator Observers](#navigator-observers)
+- [Page Titles](#page-titles)
+- [Router Config](#router-config)
 
 <a name="introduction"></a>
 ## Introduction
@@ -313,6 +319,37 @@ class AppLayout extends StatelessWidget {
 > [!TIP]
 > Use layouts for any UI that should persist across page navigation, such as sidebars, bottom navigation bars, or headers.
 
+<a name="standalone-layouts"></a>
+## Standalone Layouts
+
+When you need to define a persistent layout outside of a `group()` call, use `MagicRoute.layout()`. This is useful when you want to build layouts programmatically or pass a list of already-registered route definitions:
+
+```dart
+final dashboardRoutes = [
+  MagicRoute.page('/dashboard', () => DashboardView()).name('dashboard'),
+  MagicRoute.page('/monitors', () => MonitorsView()).name('monitors'),
+  MagicRoute.page('/settings', () => SettingsView()).name('settings'),
+];
+
+MagicRoute.layout(
+  builder: (child) => AppLayout(child: child),
+  routes: dashboardRoutes,
+);
+```
+
+Pass an optional `id` to identify the layout when multiple layouts exist at the same level:
+
+```dart
+MagicRoute.layout(
+  id: 'admin-shell',
+  builder: (child) => AdminLayout(child: child),
+  routes: adminRoutes,
+);
+```
+
+> [!TIP]
+> For most cases, the `layout:` parameter on `MagicRoute.group()` is more convenient. Use `MagicRoute.layout()` when you need to reference a list of routes that are built separately.
+
 <a name="context-free-navigation"></a>
 ## Context-Free Navigation
 
@@ -383,22 +420,37 @@ See the [Middleware documentation](/basics/middleware) for details on creating c
 
 Flutter web defaults to hash-based URLs (`/#/path`). Magic can enable clean path-based URLs (`/path`) via config — no code changes needed elsewhere.
 
+<a name="url-strategy-path-vs-hash"></a>
+### URL Strategy (Path vs Hash)
+
+Set `url_strategy` in your `config/routing.dart`:
+
 ```dart
 'routing': {
   'url_strategy': 'path', // 'path' | 'hash' | null (default: null — hash strategy)
 },
 ```
 
+| Value | URL shape | Notes |
+| ------- | ---------- | ----- |
+| `null` (default) | `https://example.com/#/dashboard` | No web server config required |
+| `'path'` | `https://example.com/dashboard` | Web server must rewrite all paths to `index.html` |
+| `'hash'` | `https://example.com/#/dashboard` | Explicit hash; identical to `null` |
+
+Magic applies `usePathUrlStrategy()` during bootstrap (before `runApp`) when the value is `'path'`.
+
 > [!NOTE]
 > This setting has no effect on iOS, Android, or desktop — it is web-only.
 
-When using path-based URLs, your web server must serve `index.html` for all routes. Example nginx config:
+**Web server rewrite requirement:** when using path-based URLs, every path must serve your Flutter app's `index.html`. Without this, a direct visit to `https://example.com/dashboard` returns a 404 from the server. Example nginx configuration:
 
 ```nginx
 location / {
     try_files $uri $uri/ /index.html;
 }
 ```
+
+**SQLite on web:** Magic's SQLite layer requires `web/sqlite3.wasm` to be present in your Flutter web build. This is independent of the URL strategy but equally web-specific. If you use the database on web, ensure `sqlite3.wasm` is copied into your `web/` directory and served correctly. See the [Database documentation](/database/getting-started) for setup details.
 
 <a name="navigator-observers"></a>
 ## Navigator Observers
@@ -434,6 +486,7 @@ Observers are passed directly to GoRouter and receive all navigation events (`di
 > [!NOTE]
 > Observers must be registered before `routerConfig` is accessed. Adding observers after the router is built throws a `StateError`.
 
+<a name="page-titles"></a>
 ## Page Titles
 
 Magic provides automatic page title management via `SystemChrome.setApplicationSwitcherDescription` — updates the browser tab title on web and the app switcher description on mobile.
@@ -510,3 +563,20 @@ Highest to lowest:
 3. `MagicApplication.title` — app-level fallback
 
 When a higher-priority source is cleared (e.g., `MagicTitle` disposes), the next level takes over automatically.
+
+<a name="router-config"></a>
+## Router Config
+
+`MagicRoute.config` exposes the underlying `GoRouter` instance as a `RouterConfig<Object>`, suitable for passing directly to `MaterialApp.router`:
+
+```dart
+@override
+Widget build(BuildContext context) {
+  return MaterialApp.router(
+    routerConfig: MagicRoute.config,
+    title: 'My App',
+  );
+}
+```
+
+`MagicRoute.config` is only accessible after `Magic.init()` completes (it is the `GoRouter` produced by the router pre-build step in the bootstrap lifecycle). Accessing it before initialization throws a `StateError`.

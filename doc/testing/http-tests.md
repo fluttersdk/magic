@@ -1,5 +1,7 @@
 # HTTP Tests
 
+`Http.fake()` lets you stub HTTP responses by URL or callback so controller and service tests run without a live server, with assertions to verify which requests were actually made.
+
 - [Introduction](#introduction)
 - [Faking Responses](#faking-responses)
     - [URL Pattern Stubs](#url-pattern-stubs)

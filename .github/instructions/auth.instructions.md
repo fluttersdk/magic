@@ -1,9 +1,6 @@
 ---
-name: 'Auth Conventions'
-description: 'Authentication domain -- guards, session restore, auth events'
-applyTo: 'lib/src/auth/**/*.dart'
+applyTo: lib/src/auth/**/*.dart
 ---
-
 # Auth Domain
 
 - `AuthManager` is singleton — accessed via `Auth` facade, never instantiate directly

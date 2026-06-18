@@ -1,5 +1,5 @@
 ---
-path: "lib/src/routing/**/*.dart"
+paths: "lib/src/routing/**/*.dart"
 ---
 
 # Routing Domain

@@ -1,10 +1,14 @@
 # Validation
 
+Magic provides a client-side validation system that integrates with Flutter forms, resolves error messages through the Lang facade, and extends to async rules for uniqueness or remote existence checks.
+
 - [Introduction](#introduction)
 - [Quick Start](#quick-start)
 - [Defining Validation Rules](#defining-validation-rules)
 - [Available Rules](#available-rules)
+- [Form Requests](#form-request)
 - [Server-Side Validation](#server-side-validation)
+- [Async Validation](#async-rules)
 - [Custom Rules](#custom-rules)
 - [Error Styling](#error-styling)
 - [Localization](#localization)
@@ -300,9 +304,40 @@ if (controller.hasError('email'))
 ```
 
 <a name="async-rules"></a>
-## Async Rules
+## Async Validation
 
-Some validations cannot decide locally: uniqueness, remote existence, captcha checks. Extend `AsyncRule` instead of `Rule` and implement `passesAsync`. Run the validator with `validateAsync()` to await async rules; sync failures short-circuit per field.
+Some validations cannot decide locally: uniqueness, remote existence, captcha checks. Extend `AsyncRule` instead of `Rule` and implement `passesAsync`. Run the validator with `validateAsync()` to await async rules; sync failures short-circuit per field so no network call is made for a field that already has a sync error.
+
+### The AsyncRule Contract
+
+`AsyncRule` is an abstract class that extends `Rule`. Implement `passesAsync` for the async check. The synchronous `passes` method always returns `true` so the rule is invisible to `Validator.validate()` (sync-only flows); the real outcome comes from `validateAsync()`.
+
+```dart
+class Exists extends AsyncRule {
+  Exists(this.endpoint);
+
+  final String endpoint;
+
+  @override
+  Future<bool> passesAsync(
+    String attribute,
+    dynamic value,
+    Map<String, dynamic> data,
+  ) async {
+    if (value == null) return true;
+    final response = await Http.get(
+      endpoint,
+      query: {attribute: value.toString()},
+    );
+    return response.successful;
+  }
+
+  @override
+  String message() => 'validation.exists';
+}
+```
+
+Use `validateAsync()` whenever the rule set contains async rules:
 
 ```dart
 final validator = Validator.make(data, {
@@ -321,19 +356,27 @@ try {
 `Unique(endpoint, field: ...)` issues a `GET` to the endpoint with `?{field}={value}` and treats `{"unique": true}` (or `{"available": true}`) as a pass. Network errors are logged and pass so a flaky connection never blocks the form; the server remains the source of truth on submit.
 
 ```dart
-// Default HTTP resolver
+// Default HTTP resolver (GET with query param)
 Unique('/validate/unique', field: 'slug');
 
-// Custom resolver
+// Custom resolver (e.g. POST to a different shape)
 Unique('/validate/unique', field: 'slug').via((endpoint, field, value) async {
   final response = await Http.post(endpoint, data: {field: value});
-  return response['unique'] == true;
+  return response.data['unique'] == true;
 });
 ```
 
 ### Debounce
 
-`Unique` debounces rapid-fire calls (default 400ms). Only the last call within the window reaches the resolver; earlier calls resolve to `true` as stale. Pass `debounce: Duration.zero` to disable.
+`Unique` debounces rapid-fire calls with a default window of 400 ms. Only the last call within the window reaches the resolver; earlier calls resolve to `true` as stale and never record errors. Pass `debounce: Duration.zero` to disable debouncing entirely.
+
+```dart
+// Custom debounce window
+Unique('/validate/unique', field: 'email', debounce: Duration(milliseconds: 600));
+
+// No debounce
+Unique('/validate/unique', field: 'email', debounce: Duration.zero);
+```
 
 <a name="custom-rules"></a>
 ## Custom Rules

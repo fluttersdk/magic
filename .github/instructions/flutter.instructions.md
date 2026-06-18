@@ -1,9 +1,6 @@
 ---
-name: 'Flutter Conventions'
-description: 'Flutter/Dart stack -- imports, naming, platform splits, IoC'
-applyTo: 'lib/**/*.dart'
+applyTo: lib/**/*.dart
 ---
-
 # Flutter / Dart Stack
 
 - Dart >=3.11.0, Flutter >=3.41.0 — use modern patterns (records, switch expressions, strict null safety)

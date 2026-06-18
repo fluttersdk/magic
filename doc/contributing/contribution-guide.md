@@ -1,5 +1,7 @@
 # Contribution Guide
 
+This guide covers everything you need to contribute to the Magic framework: local setup, coding style, testing requirements, and the pull-request process.
+
 - [Introduction](#introduction)
 - [Development Setup](#development-setup)
 - [Project Structure](#project-structure)

@@ -1,9 +1,6 @@
 ---
-name: 'Database Conventions'
-description: 'Database domain -- Eloquent ORM, QueryBuilder, migrations, seeders'
-applyTo: 'lib/src/database/**/*.dart'
+applyTo: lib/src/database/**/*.dart
 ---
-
 # Database Domain (Eloquent ORM)
 
 - `Model` is abstract — subclass with `table`, `resource` overrides. Add `HasTimestamps`, `InteractsWithPersistence` mixins as needed

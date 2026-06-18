@@ -1,5 +1,7 @@
 # Database Testing
 
+Magic's database testing utilities run every test against an in-memory SQLite instance, giving you fast and isolated model and query tests without touching the device file system.
+
 - [Introduction](#introduction)
 - [Using In-Memory Database](#using-in-memory-database)
 - [Running Migrations](#running-migrations)

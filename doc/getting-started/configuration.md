@@ -1,10 +1,16 @@
 # Configuration
 
+Magic's configuration system lets you load, read, write, and inspect application settings at runtime using the `Config` facade with dot-notation keys.
+
 - [Introduction](#introduction)
 - [Environment Configuration](#environment-configuration)
     - [Environment Variable Types](#environment-variable-types)
     - [Determining the Current Environment](#determining-the-current-environment)
 - [Accessing Configuration Values](#accessing-configuration-values)
+- [Retrieving All Values](#retrieving-all-values)
+- [Array Configuration](#array-configuration)
+- [Removing Configuration](#removing-configuration)
+- [Repository Access](#repository-access)
 - [Configuration Files](#configuration-files)
 - [Theme Persistence](#theme-persistence)
 - [Configuration Caching](#configuration-caching)
@@ -149,6 +155,75 @@ Config.merge({
   }
 });
 ```
+
+<a name="retrieving-all-values"></a>
+## Retrieving All Values
+
+Use `Config.all()` to retrieve the entire configuration as a `Map<String, dynamic>`. This is useful for debugging or passing the full config snapshot to another service:
+
+```dart
+final everything = Config.all();
+print(everything['app']['name']); // 'My App'
+```
+
+<a name="array-configuration"></a>
+## Array Configuration
+
+When a configuration value holds a list, you can prepend or append items at runtime without reading and rewriting the whole list.
+
+### Prepending a Value
+
+`Config.prepend()` inserts a value at the beginning of an array key:
+
+```dart
+// services.middleware is currently ['AuthMiddleware', 'LogMiddleware']
+Config.prepend('services.middleware', 'TraceMiddleware');
+// now: ['TraceMiddleware', 'AuthMiddleware', 'LogMiddleware']
+```
+
+### Pushing a Value
+
+`Config.push()` appends a value to the end of an array key:
+
+```dart
+Config.push('app.providers', (app) => AnalyticsServiceProvider(app));
+```
+
+<a name="removing-configuration"></a>
+## Removing Configuration
+
+### Forgetting a Key
+
+`Config.forget()` removes a single configuration key (and its nested values) at runtime:
+
+```dart
+Config.forget('services.stripe');
+// Config.has('services.stripe') is now false
+```
+
+### Flushing All Configuration
+
+`Config.flush()` clears the entire in-memory configuration store. Use with care: any subsequent `Config.get()` call will return `null` (or the provided default) until configuration is reloaded:
+
+```dart
+Config.flush();
+```
+
+> [!WARNING]
+> `Config.flush()` is destructive. It is intended for test isolation and controlled restarts, not routine use in production code.
+
+<a name="repository-access"></a>
+## Repository Access
+
+For advanced use cases you can obtain the underlying `ConfigRepository` instance directly via the `repository` getter. This is useful when passing the repository to a service that needs direct access without going through the facade:
+
+```dart
+final repo = Config.repository;
+final value = repo.get<String>('app.name');
+```
+
+> [!NOTE]
+> Prefer the `Config` facade methods for everyday access. Direct repository use is an escape hatch for integration scenarios.
 
 <a name="configuration-files"></a>
 ## Configuration Files
