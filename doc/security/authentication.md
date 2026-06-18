@@ -1,5 +1,7 @@
 # Authentication
 
+Magic provides a frontend-focused authentication system with secure token storage, user caching, automatic token refresh, and support for multiple configurable guards.
+
 - [Introduction](#introduction)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
@@ -11,6 +13,7 @@
 - [Auto Token Refresh](#auto-token-refresh)
 - [Protecting Routes](#protecting-routes)
 - [Login & Logout](#login--logout)
+- [Testing](#testing)
 
 <a name="introduction"></a>
 ## Introduction
@@ -132,6 +135,13 @@ await Auth.refreshToken()
 // Token management
 await Auth.hasToken()     // bool
 await Auth.getToken()     // String?
+
+// Resolve a guard by name (default guard when name is omitted)
+Auth.guard()              // Guard
+Auth.guard('api')         // Guard (named)
+
+// Notifier that bumps on every auth state change
+Auth.stateNotifier        // ValueNotifier<int>
 ```
 
 <a name="guards"></a>
@@ -244,7 +254,7 @@ class FirebaseGuard extends BaseGuard {
 <a name="reactive-auth-state"></a>
 ## Reactive Auth State
 
-Every guard exposes a `ValueNotifier<int> stateNotifier` that increments on every auth state change — `setUser()`, `logout()`, and session restore. Use it to reactively rebuild UI without manual state management.
+Every guard exposes a `ValueNotifier<int> stateNotifier` that increments on every auth state change (`setUser()`, `logout()`, and session restore). Use it to reactively rebuild UI without manual state management.
 
 ```dart
 // Using ListenableBuilder (Flutter built-in)
@@ -259,7 +269,7 @@ ListenableBuilder(
 )
 ```
 
-With `MagicBuilder` the pattern is identical — pass `stateNotifier` as the listenable:
+With `MagicBuilder` the pattern is identical; pass `stateNotifier` as the listenable:
 
 ```dart
 MagicBuilder(
@@ -390,4 +400,53 @@ void main() async {
 
 This instantly restores the cached user for a fast startup, then syncs with the API in the background.
 
-If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully — no error is thrown. Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
+If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully (no error is thrown). Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
+
+<a name="testing"></a>
+## Testing
+
+Replace the real auth manager with a `FakeAuthManager` using `Auth.fake()`. The fake routes all guard operations through an in-memory guard so tests run without platform channels or a real backend.
+
+```dart
+import 'package:magic/testing.dart';
+
+void main() {
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+  });
+
+  tearDown(() => Auth.unfake());
+
+  test('login sets authenticated state', () async {
+    final fake = Auth.fake();
+
+    await Auth.login({'token': 'abc'}, myUser);
+
+    fake.assertLoggedIn();
+    fake.assertLoginCount(1);
+    expect(Auth.check(), isTrue);
+    expect(Auth.user<User>(), same(myUser));
+  });
+
+  test('logout clears auth state', () async {
+    final fake = Auth.fake(user: myUser);
+
+    await Auth.logout();
+
+    fake.assertLoggedOut();
+  });
+}
+```
+
+### FakeAuthManager Assertions
+
+| Method | Description |
+|--------|-------------|
+| `fake.assertLoggedIn()` | Fails if no user is currently set. |
+| `fake.assertLoggedOut()` | Fails if a user is currently set. |
+| `fake.assertLoginAttempted()` | Fails if `Auth.login()` was never called. |
+| `fake.assertLoginCount(n)` | Fails if `Auth.login()` was not called exactly `n` times. |
+| `fake.reset()` | Clears user, token, and login-attempt history. |
+
+Call `Auth.unfake()` in `tearDown()` to restore normal auth resolution after each test.

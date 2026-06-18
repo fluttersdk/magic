@@ -1,5 +1,7 @@
 # Broadcasting
 
+Magic provides a Laravel Echo-equivalent broadcasting system for real-time WebSocket communication in Flutter apps.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
     - [Connection Options](#connection-options)
@@ -21,9 +23,11 @@
     - [Assertion Helpers](#assertion-helpers)
 - [Connection](#connection)
     - [Connection Lifecycle](#connection-lifecycle)
-    - [Reconnection and Heartbeat](#reconnection-and-heartbeat)
-    - [Connection Health Monitoring](#connection-health-monitoring)
+    - [Reconnection Backoff and Jitter](#reconnection-backoff-and-jitter)
+    - [Activity Monitor and Heartbeat](#activity-monitor-and-heartbeat)
+    - [Connection Timeout](#connection-timeout)
     - [Deduplication](#deduplication)
+- [Testing Broadcasting](#testing-broadcasting)
 
 <a name="introduction"></a>
 ## Introduction
@@ -490,36 +494,74 @@ Echo.onReconnect.listen((_) {
 
 If a private/presence channel auth fails during reconnect, the error is logged via `Log.error()` and routed through the interceptor `onError()` chain. Other channels continue resubscribing — one failure does not block the rest.
 
-<a name="reconnection-and-heartbeat"></a>
-### Reconnection and Heartbeat
+<a name="reconnection-backoff-and-jitter"></a>
+### Reconnection Backoff and Jitter
 
-`ReverbBroadcastDriver` implements automatic reconnection with **exponential backoff**:
+`ReverbBroadcastDriver` reconnects automatically with **exponential backoff and random jitter**. The formula is:
 
-- Formula: `min(500ms × 2^attempt, max_reconnect_delay) × (1 + jitter)` where jitter is a random value between 0 and 0.3 (30%)
-- The random jitter prevents **thundering herd** — when a server restarts, clients spread their reconnection attempts over time instead of hitting the server at the exact same moment
-- Default `max_reconnect_delay` is 30,000 ms (30 seconds)
-- Set `reconnect: false` in config to disable auto-reconnect
+```
+base  = min(500ms x 2^attempt, max_reconnect_delay)
+delay = base + random(0 .. base x 0.3)
+```
 
-Pusher protocol error codes determine the reconnect strategy:
+- The base delay starts at 500 ms and doubles each attempt, capped at `max_reconnect_delay` (default 30,000 ms).
+- Up to 30% random jitter is added on top of the base delay. This prevents a **thundering herd**: when a server restarts all clients do not hit it at the exact same moment.
+- Set `reconnect: false` in config to disable auto-reconnect entirely.
+
+You can lower the cap to keep reconnects aggressive under controlled network conditions:
+
+```dart
+'connections': {
+  'reverb': {
+    'driver': 'reverb',
+    // ... other options
+    'reconnect': true,
+    'max_reconnect_delay': 10000, // cap at 10 seconds instead of the default 30s
+  },
+},
+```
+
+Pusher protocol error codes determine which strategy is applied on a given disconnect:
 
 | Code Range | Action |
 |:-----------|:-------|
-| 4000–4099 | Fatal — do not reconnect |
-| 4100–4199 | Reconnect immediately without backoff |
-| 4200–4299 | Reconnect with exponential backoff |
+| 4000-4099 | Fatal: do not reconnect |
+| 4100-4199 | Reconnect immediately without backoff |
+| 4200-4299 | Reconnect with exponential backoff |
 
-The driver handles `pusher:ping` frames automatically, responding with `pusher:pong` to satisfy the server keepalive requirement.
+<a name="activity-monitor-and-heartbeat"></a>
+### Activity Monitor and Heartbeat
 
-<a name="connection-health-monitoring"></a>
-### Connection Health Monitoring
+`ReverbBroadcastDriver` implements client-side activity monitoring per the Pusher protocol to detect **silent connection loss** (server crashes, network partitions, or deployments that close the connection without sending a WebSocket close frame).
 
-The `ReverbBroadcastDriver` implements client-side activity monitoring per the Pusher protocol specification. This detects silent connection loss — such as server crashes, network partitions, or deployments that don't send a WebSocket close frame — and automatically triggers reconnection.
+How it works:
 
-- After connecting, the driver starts an inactivity timer using the server-provided `activity_timeout` value (sent in the `pusher:connection_established` handshake)
-- If no message is received within `activity_timeout` seconds, the driver sends a `pusher:ping` to the server
-- If no `pusher:pong` response arrives within the configured `pongTimeout` window (30 seconds by default), the connection is declared dead and the driver closes the socket, triggering the standard reconnection flow with exponential backoff
-- The inactivity timer resets on **any** inbound message, not just pong responses
-- All timers are cancelled on `disconnect()` and during reconnection cycles to prevent stale timer interference
+1. After the `pusher:connection_established` handshake, the driver reads the `activity_timeout` from the server payload (falling back to the `activity_timeout` config key, default 120 seconds).
+2. An inactivity timer is started. If **no message** arrives within `activity_timeout` seconds, the driver sends a `pusher:ping` frame to the server.
+3. If no `pusher:pong` response arrives within **30 seconds** (the fixed `pongTimeout`), the connection is declared dead: the socket is closed and the standard reconnection flow with exponential backoff begins.
+4. The timer resets on **any** inbound message, not only pong responses.
+5. All timers are cancelled on `disconnect()` and at the start of each reconnection cycle to prevent stale-timer interference.
+
+The driver also responds to server-initiated `pusher:ping` frames automatically (sends `pusher:pong`), satisfying the server-side keepalive requirement.
+
+<a name="connection-timeout"></a>
+### Connection Timeout
+
+The `connection_timeout` config key (default: **15 seconds**) controls how long `ReverbBroadcastDriver` waits for the `pusher:connection_established` handshake after the WebSocket upgrades. If the server does not complete the handshake within that window:
+
+- The socket is closed.
+- A reconnect is scheduled (subject to backoff and the `reconnect` config flag).
+- A `TimeoutException` is thrown from `Echo.connect()` so callers can surface an error state.
+
+```dart
+'connections': {
+  'reverb': {
+    'driver': 'reverb',
+    // ... other options
+    'connection_timeout': 15, // seconds; increase on high-latency links
+  },
+},
+```
 
 <a name="deduplication"></a>
 ### Deduplication
@@ -527,3 +569,30 @@ The `ReverbBroadcastDriver` implements client-side activity monitoring per the P
 The Reverb driver maintains a ring buffer of recently seen event fingerprints (channel + event name + raw data). Duplicate messages — which can arrive during reconnection — are silently dropped.
 
 Configure the buffer size with `dedup_buffer_size` (default: `100`). A larger buffer consumes more memory but reduces false duplicate detection during high-throughput scenarios.
+
+<a name="testing-broadcasting"></a>
+## Testing Broadcasting
+
+`Echo.fake()` replaces the real `BroadcastManager` with an in-memory `FakeBroadcastManager`. No WebSocket connection is opened; all channel operations are recorded for assertion.
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+import 'package:magic/testing.dart';
+
+void main() {
+  MagicTest.init();
+
+  test('subscribes to the orders channel on init', () async {
+    final fake = Echo.fake();
+
+    final controller = OrderController();
+    await controller.onInit();
+
+    fake.assertSubscribed('orders');
+    fake.assertConnected();
+  });
+}
+```
+
+The full assertion API (`assertSubscribed`, `assertNotSubscribed`, `assertConnected`, `assertDisconnected`, `assertInterceptorAdded`, `reset`, and low-level `fake.driver` access) is covered in the Testing section above and in `doc/testing/facades.md`.

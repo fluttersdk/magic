@@ -1,5 +1,7 @@
 # Service Container
 
+The Magic service container is a string-keyed IoC container for registering factory closures and resolving singletons across your application without relying on reflection.
+
 - [Introduction](#introduction)
 - [Binding Services](#binding-services)
     - [Simple Bindings](#simple-bindings)

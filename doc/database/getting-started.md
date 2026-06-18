@@ -1,5 +1,7 @@
 # Database: Getting Started
 
+Magic provides a simple, fluent abstraction over SQLite for running raw queries, using the query builder, and managing transactions.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Running Raw Queries](#running-raw-queries)
@@ -8,6 +10,7 @@
     - [Update & Delete](#update--delete)
 - [Query Builder](#query-builder)
 - [Transactions](#transactions)
+    - [Manual Transaction Control](#manual-transaction-control)
 - [Web Platform Setup](#web-platform-setup)
 
 <a name="introduction"></a>
@@ -186,7 +189,10 @@ await DB.transaction(() async {
 
 If any operation throws an exception, the entire transaction is rolled back.
 
+<a name="manual-transaction-control"></a>
 ### Manual Transaction Control
+
+For cases where you need finer control over transaction boundaries, call `DB.beginTransaction()`, `DB.commit()`, and `DB.rollback()` directly. This is useful when you need to interleave non-database work between statements or handle multiple error branches differently.
 
 ```dart
 DB.beginTransaction();

@@ -1,5 +1,7 @@
 # Middleware
 
+Middleware lets you inspect and filter navigation requests before they reach a route, making it the right place for authentication guards, permission checks, and pre-navigation side effects.
+
 - [Introduction](#introduction)
 - [Generating Middleware](#generating-middleware)
 - [Defining Middleware](#defining-middleware)
@@ -22,7 +24,7 @@ Of course, additional middleware can be written to perform a variety of tasks be
 Use the Magic CLI to generate a new middleware class:
 
 ```bash
-dart run magic:magic make:middleware Auth
+dart run <app>:artisan make:middleware Auth
 ```
 
 This creates `lib/app/middleware/auth.dart` with a `MagicMiddleware` stub ready to implement.

@@ -1,5 +1,7 @@
 # Migrations
 
+Migrations are version-controlled schema definitions that let you create, modify, and inspect your SQLite tables using the `Schema` facade.
+
 - [Introduction](#introduction)
 - [Generating Migrations](#generating-migrations)
 - [Migration Structure](#migration-structure)
@@ -22,9 +24,9 @@ Migrations are like version control for your database, allowing your team to def
 Use the `make:migration` command to generate a migration:
 
 ```bash
-dart run magic:magic make:migration create_users_table
-dart run magic:magic make:migration CreateUsersTable    # PascalCase also works
-dart run magic:magic make:migration add_avatar_to_users
+dart run <app>:artisan make:migration create_users_table
+dart run <app>:artisan make:migration CreateUsersTable    # PascalCase also works
+dart run <app>:artisan make:migration add_avatar_to_users
 ```
 
 This creates a file in `lib/database/migrations/` with:
@@ -189,36 +191,38 @@ void up() {
 <a name="dropping-tables"></a>
 ## Dropping Tables
 
+Use `Schema.dropIfExists()` to drop a table only when it exists (safe for `down()` methods), or `Schema.drop()` to drop unconditionally (throws if the table is absent). Use `Schema.rename()` to rename a table in place.
+
 ```dart
-// Drop if exists (safe)
+// Drop if exists (safe for down() methods)
 Schema.dropIfExists('temporary_data');
 
-// Drop (throws if not exists)
+// Drop unconditionally (throws if the table does not exist)
 Schema.drop('old_table');
 
-// Rename table
+// Rename a table
 Schema.rename('posts', 'articles');
 ```
 
 <a name="checking-schema"></a>
 ## Checking Schema
 
+The `Schema` facade provides three introspection helpers. `Schema.hasTable()` returns `true` when the named table exists. `Schema.hasColumn()` returns `true` when a specific column is present on the table. `Schema.getColumns()` returns the full list of column names for a table.
+
 ```dart
-// Check if table exists
+// Check if a table exists
 if (await Schema.hasTable('users')) {
-  // Table exists
+  // Safe to query users
 }
 
-// Check if column exists
+// Check if a specific column exists
 if (await Schema.hasColumn('users', 'avatar_url')) {
-  // Column exists
+  // Column exists, safe to read it
 }
 
-// Get all column names
+// Get all column names for a table
 final columns = await Schema.getColumns('users');
-for (final col in columns) {
-  print(col); // 'id', 'name', etc.
-}
+// ['id', 'name', 'email', 'created_at', 'updated_at']
 ```
 
 > [!TIP]

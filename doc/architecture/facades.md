@@ -1,5 +1,7 @@
 # Facades
 
+Facades provide a clean, static interface to the services bound in Magic's IoC container, giving you expressive one-liners without sacrificing testability or container transparency.
+
 - [Introduction](#introduction)
 - [When To Use Facades](#when-to-use-facades)
 - [Available Facades](#available-facades)
@@ -61,11 +63,23 @@ Magic provides the following facades:
 |--------|-------------|
 | `Http` | HTTP client for API requests |
 
+### Broadcasting & Communication
+
+| Facade | Description |
+|--------|-------------|
+| `Echo` | WebSocket channels, real-time event subscriptions |
+
 ### Routing
 
 | Facade | Description |
 |--------|-------------|
 | `MagicRoute` | Navigation and route definitions |
+
+### Session Management
+
+| Facade | Description |
+|--------|-------------|
+| `Session` | Form flash data for validation errors and old input |
 
 ### Data & Storage
 

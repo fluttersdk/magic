@@ -1,5 +1,7 @@
 # Eloquent: Getting Started
 
+Eloquent is Magic's active-record ORM: define models as Dart classes, run queries with a fluent builder, and persist to SQLite or a remote REST backend using the same model interface.
+
 - [Introduction](#introduction)
 - [Generating Models](#generating-models)
 - [Defining Models](#defining-models)
@@ -25,7 +27,7 @@ Unlike traditional ORMs, Magic's Eloquent supports **Hybrid Persistence**. Your 
 To generate a new model, use the `make:model` Magic CLI command:
 
 ```bash
-dart run magic:magic make:model Post
+dart run <app>:artisan make:model Post
 ```
 
 ### Available Options
@@ -44,7 +46,7 @@ dart run magic:magic make:model Post
 The `-a` flag is the most convenient way to scaffold a complete feature:
 
 ```bash
-dart run magic:magic make:model Product --all
+dart run <app>:artisan make:model Product --all
 ```
 
 This single command creates:

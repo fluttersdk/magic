@@ -1,5 +1,7 @@
 # Session & Flash Data
 
+The `Session` facade provides flash data that survives exactly one navigation hop, letting you pass form input and validation errors across a back-navigation without temporary controller state.
+
 - [Introduction](#introduction)
 - [Flashing Input](#flashing-input)
 - [Flashing Errors](#flashing-errors)

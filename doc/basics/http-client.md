@@ -1,22 +1,26 @@
 # HTTP Client
 
+Magic provides a powerful HTTP client through the `Http` facade, built on top of Dio, with a clean API for making requests and handling responses.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Making Requests](#making-requests)
     - [GET Requests](#get-requests)
     - [POST Requests](#post-requests)
-    - [PUT, PATCH & DELETE](#put-patch--delete)
+    - [PUT & DELETE](#put--delete)
 - [RESTful Resources](#restful-resources)
 - [Handling Responses](#handling-responses)
     - [Response Properties](#response-properties)
     - [Validation Errors](#validation-errors)
 - [File Uploads](#file-uploads)
 - [Interceptors](#interceptors)
+    - [Configuring the Underlying Driver](#configuring-the-underlying-driver)
+- [Testing HTTP](#testing-http)
 
 <a name="introduction"></a>
 ## Introduction
 
-Magic provides a powerful HTTP client through the `Http` facade. Built on top of Dio, it offers a clean, expressive API for making HTTP requests and handling responses—just like you'd expect from Laravel.
+Magic provides a powerful HTTP client through the `Http` facade. Built on top of Dio, it offers a clean, expressive API for making HTTP requests and handling responses, just like you would expect from Laravel.
 
 <a name="configuration"></a>
 ## Configuration
@@ -82,7 +86,7 @@ final response = await Http.get('/users', query: {
 
 // Access the data
 if (response.successful) {
-  final users = response.body; // Parsed JSON
+  final users = response.data; // Parsed JSON
 }
 ```
 
@@ -97,24 +101,19 @@ final response = await Http.post('/users', data: {
 });
 
 if (response.successful) {
-  final user = response.body;
+  final user = response.data;
   Magic.success('Success', 'User created!');
 }
 ```
 
-<a name="put-patch--delete"></a>
-### PUT, PATCH & DELETE
+<a name="put--delete"></a>
+### PUT & DELETE
 
 ```dart
 // PUT - Full update
 await Http.put('/users/1', data: {
   'name': 'Jane Doe',
   'email': 'jane@example.com',
-});
-
-// PATCH - Partial update
-await Http.patch('/users/1', data: {
-  'name': 'Jane Smith',
 });
 
 // DELETE
@@ -169,8 +168,8 @@ response.isValidationError // true if 422
 
 // Access data
 response.statusCode       // HTTP status code
-response.body            // Parsed response body
-response['key']          // Direct access to body key
+response.data            // Parsed response body
+response['key']          // Direct access to data key
 response.dataAs<List>()  // Typed access
 ```
 
@@ -300,16 +299,50 @@ class NetworkServiceProvider extends ServiceProvider {
 }
 ```
 
-### Driver Plugin Hook
+<a name="configuring-the-underlying-driver"></a>
+### Configuring the Underlying Driver
 
-For SDK integrations that need direct Dio access (e.g., `sentry_dio` for performance tracing, certificate pinning), use `configureDriver()`:
+For SDK integrations that need direct Dio access (such as `sentry_dio` for performance tracing or certificate pinning), resolve the `DioNetworkDriver` from the IoC container and call `configureDriver()`:
 
 ```dart
 final driver = Magic.make<DioNetworkDriver>('network');
 driver.configureDriver((dio) {
-  dio.addSentry(); // Full Sentry performance tracing
+  // Attach a Sentry performance tracing interceptor
+  dio.addSentry();
+});
+```
+
+You can also use this hook to pin a certificate by supplying a custom `HttpClientAdapter`:
+
+```dart
+final driver = Magic.make<DioNetworkDriver>('network');
+driver.configureDriver((dio) {
+  dio.httpClientAdapter = PinnedHttpClientAdapter(
+    trustedCertificate: certBytes,
+  );
 });
 ```
 
 > [!NOTE]
-> `configureDriver()` is specific to `DioNetworkDriver`. Resolve using `Magic.make<DioNetworkDriver>('network')` to access it.
+> `configureDriver()` is specific to `DioNetworkDriver`. Call it after `Magic.init()` completes, typically in a service provider's `boot()` method.
+
+<a name="testing-http"></a>
+## Testing HTTP
+
+Magic provides first-class HTTP faking so tests never make real network calls. For a full guide to request assertions and stubbing strategies, see [HTTP Tests](../testing/http-tests.md).
+
+```dart
+import 'package:magic/testing.dart';
+
+// Replace the real driver with a fake that returns 200 for all requests
+Http.fake();
+
+// Stub specific URL patterns
+Http.fake({
+  '/users': Http.response({'data': []}, 200),
+  '/users/1': Http.response({'id': 1, 'name': 'Alice'}, 200),
+});
+
+// Restore the real driver when done
+Http.unfake();
+```

@@ -1,5 +1,7 @@
 # Encryption
 
+Magic's `Crypt` facade wraps AES-256-CBC encryption and decryption behind a simple API, while the `Vault` facade stores sensitive values in the platform's native secure storage.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Using The Encrypter](#using-the-encrypter)
@@ -24,7 +26,7 @@ APP_KEY=base64:your-32-character-random-key-here
 Generate a new key using the CLI:
 
 ```bash
-dart run magic:magic key:generate
+dart run <app>:artisan key:generate
 ```
 
 > [!WARNING]

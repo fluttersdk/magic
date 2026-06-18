@@ -1,5 +1,7 @@
 # Security: Encryption
 
+The `Crypt` facade encrypts and decrypts text using AES-256-CBC with a MAC-signed payload, ensuring tamper detection without exposing the underlying cipher details to calling code.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Using The Encrypter](#using-the-encrypter)

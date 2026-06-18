@@ -1,5 +1,7 @@
 # Cache
 
+Magic provides an expressive, unified API for various caching backends, with built-in event dispatching so you can react to cache reads, writes, and removals.
+
 - [Introduction](#introduction)
 - [Configuration](#configuration)
 - [Retrieving Items](#retrieving-items)
@@ -7,6 +9,8 @@
 - [The Remember Method](#the-remember-method)
 - [Removing Items](#removing-items)
 - [Custom Cache Drivers](#custom-cache-drivers)
+- [Cache Events and Listeners](#cache-events-and-listeners)
+- [Testing](#testing)
 
 <a name="introduction"></a>
 ## Introduction
@@ -217,3 +221,108 @@ Use your custom driver in config:
 
 > [!TIP]
 > Use caching for expensive API calls, complex computations, and data that doesn't change frequently.
+
+<a name="cache-events-and-listeners"></a>
+## Cache Events and Listeners
+
+Magic dispatches events on every cache operation. You can listen to these events via your `AppEventServiceProvider` to add logging, metrics, or invalidation side-effects without coupling that logic to call sites.
+
+### Event Classes
+
+All cache events extend `MagicEvent` and live in `package:magic/magic.dart`:
+
+| Event | Payload | Fired when |
+|-------|---------|-----------|
+| `CacheHit` | `key`, `value` | A `Cache.get()` returns a stored value. |
+| `CacheMiss` | `key` | A `Cache.get()` finds no stored value. |
+| `CachePut` | `key`, `value`, `ttl?` | A value is written via `Cache.put()` or `Cache.remember()`. |
+| `CacheForget` | `key` | A single key is removed via `Cache.forget()`. |
+| `CacheFlush` | _(none)_ | The entire cache is cleared via `Cache.flush()`. |
+
+### Listening to Cache Events
+
+Register listeners in your `AppEventServiceProvider`:
+
+```dart
+import 'package:magic/magic.dart';
+
+class LogCacheHit extends MagicListener<CacheHit> {
+  @override
+  Future<void> handle(CacheHit event) async {
+    Log.debug('Cache hit: ${event.key}');
+  }
+}
+
+class LogCacheMiss extends MagicListener<CacheMiss> {
+  @override
+  Future<void> handle(CacheMiss event) async {
+    Log.debug('Cache miss: ${event.key}');
+  }
+}
+```
+
+Then wire them in your event service provider:
+
+```dart
+import 'package:magic/magic.dart';
+
+class AppEventServiceProvider extends EventServiceProvider {
+  AppEventServiceProvider(super.app);
+
+  @override
+  Map<Type, List<MagicListener Function()>> get listen => {
+    CacheHit: [() => LogCacheHit()],
+    CacheMiss: [() => LogCacheMiss()],
+    CachePut: [() => RecordCacheWrite()],
+    CacheForget: [() => RecordCacheRemoval()],
+    CacheFlush: [() => RecordCacheFlush()],
+  };
+}
+```
+
+### Telescope Integration
+
+When `magic_devtools` is installed, the `MagicCacheWatcher` registers listeners for all five cache events automatically and streams them into Telescope's ring buffer, where they appear as cache entries readable by AI agents and the `telescope:tail` command. No configuration is required on your side; Telescope observes passively without a write path.
+
+See [Magic DevTools](../packages/magic-devtools.md) for installation and setup.
+
+<a name="testing"></a>
+## Testing
+
+Use `Cache.fake()` to replace the real cache manager with an in-memory `FakeCacheManager` during tests. The fake supports assertions and records every operation.
+
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+import 'package:magic/testing.dart';
+
+void main() {
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+  });
+
+  test('caches users after first fetch', () async {
+    final fake = Cache.fake();
+
+    await Cache.put('users', ['alice', 'bob']);
+
+    fake.assertHas('users');
+    fake.assertPut('users');
+  });
+
+  test('cleans up after test', () async {
+    final fake = Cache.fake();
+    fake.reset(); // clears store and recorded operations
+    Cache.unfake();
+  });
+}
+```
+
+`FakeCacheManager` exposes:
+
+- `assertHas(key)`: asserts the key currently exists in the store.
+- `assertMissing(key)`: asserts the key is absent.
+- `assertPut(key)`: asserts the key was stored at least once via `put`.
+- `recorded`: the full chronological list of cache operations for manual inspection.
+- `reset()`: clears the store and the recorded list between assertions.

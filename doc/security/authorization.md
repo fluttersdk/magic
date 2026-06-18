@@ -1,10 +1,13 @@
 # Authorization
 
+Magic's authorization system lets you define and check user abilities via the `Gate` facade, with support for policies, super-admin bypasses, and declarative UI widgets.
+
 - [Introduction](#introduction)
 - [Defining Abilities](#defining-abilities)
 - [Checking Abilities](#checking-abilities)
 - [Super Admin Bypass](#super-admin-bypass)
 - [Policies](#policies)
+- [Gate Utility Methods](#gate-utility-methods)
 - [UI Integration](#ui-integration)
     - [MagicCan Widget](#magiccan-widget)
     - [MagicCannot Widget](#magiccannot-widget)
@@ -195,6 +198,33 @@ class AppGateServiceProvider extends GateServiceProvider {
 }
 ```
 
+<a name="gate-utility-methods"></a>
+## Gate Utility Methods
+
+The Gate facade exposes several utility methods for inspecting registered abilities and resetting state.
+
+```dart
+// Check whether an ability has been defined
+if (Gate.has('update-post')) {
+  // Ability is registered
+}
+
+// Get a list of all defined ability names
+final List<String> defined = Gate.abilities;
+
+// Flush all abilities (useful in tests to start clean)
+Gate.flush();
+```
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Gate.has(ability)` | `bool` | Returns `true` if the named ability has been registered. |
+| `Gate.abilities` | `List<String>` | All currently registered ability names. |
+| `Gate.flush()` | `void` | Removes all registered abilities and before-callbacks. |
+
+> [!TIP]
+> `Gate.flush()` is intended for test teardown. Call it in `tearDown()` alongside `MagicApp.reset()` to ensure a clean gate state between tests.
+
 <a name="ui-integration"></a>
 ## UI Integration
 
@@ -302,9 +332,9 @@ Register in `config/app.dart`:
 Use Magic CLI to generate policy classes:
 
 ```bash
-dart run magic:magic make:policy Post
-dart run magic:magic make:policy PostPolicy          # Explicit naming
-dart run magic:magic make:policy Comment --model=Comment
+dart run <app>:artisan make:policy Post
+dart run <app>:artisan make:policy PostPolicy          # Explicit naming
+dart run <app>:artisan make:policy Comment --model=Comment
 ```
 
 ### Options

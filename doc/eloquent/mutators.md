@@ -1,5 +1,7 @@
 # Eloquent: Mutators
 
+Accessors, mutators, and attribute casts let you transform Eloquent model values automatically as they are read from or written to the database, without changing the calling code.
+
 - [Introduction](#introduction)
 - [Accessors](#accessors)
 - [Mutators](#mutators)

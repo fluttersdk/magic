@@ -1,5 +1,7 @@
 # Views
 
+Views extend `MagicView` or `MagicStatefulView` to give each screen a typed controller reference, async-state rendering helpers, and a clean MVC separation between UI and business logic.
+
 - [Introduction](#introduction)
 - [Creating Views](#creating-views)
     - [Stateless Views](#stateless-views)
@@ -27,7 +29,7 @@ Magic Views provide a structured way to separate your UI from your business logi
 To generate a new view, use the Magic CLI:
 
 ```bash
-dart run magic:magic make:view Dashboard
+dart run <app>:artisan make:view Dashboard
 ```
 
 <a name="stateless-views"></a>
@@ -236,13 +238,13 @@ The Magic CLI can generate different types of views:
 
 ```bash
 # Basic stateless view
-dart run magic:magic make:view Dashboard
+dart run <app>:artisan make:view Dashboard
 
 # Stateful view with form support
-dart run magic:magic make:view Auth/Login --stateful
+dart run <app>:artisan make:view Auth/Login --stateful
 
 # Nested in subfolder
-dart run magic:magic make:view Admin/Users/Index
+dart run <app>:artisan make:view Admin/Users/Index
 ```
 
 ### Command Options
