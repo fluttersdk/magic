@@ -308,7 +308,7 @@ class OrderController extends MagicController with MagicStateMixin<Order>, Valid
 <a name="validating-requests-in-controllers"></a>
 ### Validating Requests in Controllers
 
-The `ValidatesRequests` mixin adds Laravel-style validation directly to a controller. Import it from `lib/src/concerns/`, not `lib/src/http/`; this is the correct path as documented in the architecture overview.
+The `ValidatesRequests` mixin adds Laravel-style validation directly to a controller. Import it from the public barrel `package:magic/magic.dart`; its implementation lives under `lib/src/concerns/` (not `lib/src/http/`), but app code never imports from `lib/src/` directly.
 
 > [!IMPORTANT]
 > Import `ValidatesRequests` from `package:magic/magic.dart`. The mixin lives in `lib/src/concerns/validates_requests.dart`. Do not import from `lib/src/http/`; the mixin is not there.

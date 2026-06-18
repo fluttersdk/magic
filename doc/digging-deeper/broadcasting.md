@@ -586,10 +586,14 @@ void main() {
   test('subscribes to the orders channel on init', () async {
     final fake = Echo.fake();
 
-    final controller = OrderController();
-    await controller.onInit();
+    OrderController().onInit(); // onInit() is synchronous (void); do not await it
 
+    // channel() records the subscription; the fake stays disconnected until
+    // Echo.connect() is awaited.
     fake.assertSubscribed('orders');
+    fake.assertDisconnected();
+
+    await Echo.connect();
     fake.assertConnected();
   });
 }

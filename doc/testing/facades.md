@@ -393,13 +393,17 @@ static FakeBroadcastManager fake()
 ### Basic Usage
 
 ```dart
-test('controller subscribes to orders channel', () {
+test('controller subscribes to orders channel', () async {
   final fake = Echo.fake();
 
   Echo.channel('orders');
+  fake.assertSubscribed('orders'); // channel() records the subscription only
 
-  fake.assertSubscribed('orders');
-  fake.assertConnected(); // channel() triggers an implicit connect
+  // The fake stays disconnected until connect() is awaited (the real Reverb
+  // driver likewise queues subscriptions until the socket is connected).
+  fake.assertDisconnected();
+  await Echo.connect();
+  fake.assertConnected();
 });
 ```
 
