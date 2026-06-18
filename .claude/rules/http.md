@@ -1,5 +1,5 @@
 ---
-path: "lib/src/http/**/*.dart"
+paths: "lib/src/http/**/*.dart"
 ---
 
 # HTTP Domain (Controllers & Middleware)

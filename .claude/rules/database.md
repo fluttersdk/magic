@@ -1,5 +1,5 @@
 ---
-path: "lib/src/database/**/*.dart"
+paths: "lib/src/database/**/*.dart"
 ---
 
 # Database Domain (Eloquent ORM)

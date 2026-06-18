@@ -1,5 +1,5 @@
 ---
-path: "lib/src/ui/**/*.dart"
+paths: "lib/src/ui/**/*.dart"
 ---
 
 # Building Views That Are Stable and E2E-Drivable

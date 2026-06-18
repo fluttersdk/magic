@@ -1,5 +1,5 @@
 ---
-path: "lib/src/ui/**/*.dart"
+paths: "lib/src/ui/**/*.dart"
 ---
 
 # UI Domain (Views & Forms)

@@ -1,5 +1,5 @@
 ---
-path: "lib/**/*.dart"
+paths: "lib/**/*.dart"
 ---
 
 # Flutter / Dart Stack

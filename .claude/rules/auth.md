@@ -1,5 +1,5 @@
 ---
-path: "lib/src/auth/**/*.dart"
+paths: "lib/src/auth/**/*.dart"
 ---
 
 # Auth Domain
