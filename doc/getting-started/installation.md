@@ -133,7 +133,7 @@ You can exclude features you don't need:
 dart run magic:artisan magic:install --without-database --without-auth --without-cache
 ```
 
-Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/packages/magic-cli#install) for details.
+Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](../packages/magic-cli.md#install) for details.
 
 <a name="bootstrapping-your-application"></a>
 ## Bootstrapping Your Application
@@ -251,10 +251,10 @@ Magic includes **Wind UI** (`fluttersdk_wind`), a utility-first styling engine i
 
 Now that you've installed Magic, you may be wondering what to learn next. Here are some recommendations:
 
-- **[Configuration](/getting-started/configuration)** - Learn how Magic's configuration system works.
-- **[Directory Structure](/getting-started/directory-structure)** - Understand the recommended project layout.
-- **[Routing](/basics/routing)** - Define your application's navigation.
-- **[Controllers](/basics/controllers)** - Handle user interactions and business logic.
-- **[Eloquent ORM](/eloquent/getting-started)** - Work with databases the beautiful way.
+- **[Configuration](./configuration.md)** - Learn how Magic's configuration system works.
+- **[Directory Structure](./directory-structure.md)** - Understand the recommended project layout.
+- **[Routing](../basics/routing.md)** - Define your application's navigation.
+- **[Controllers](../basics/controllers.md)** - Handle user interactions and business logic.
+- **[Eloquent ORM](../eloquent/getting-started.md)** - Work with databases the beautiful way.
 
 Welcome to the Magic community. We're excited to see what you'll build!

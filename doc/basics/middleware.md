@@ -228,4 +228,4 @@ MagicRoute.page('/posts/:id/edit', (id) => EditPostView(id: id))
     .middleware(['auth', 'can:edit-post']);
 ```
 
-See the [Authorization documentation](/security/authorization) for more on defining abilities and policies.
+See the [Authorization documentation](../security/authorization.md) for more on defining abilities and policies.

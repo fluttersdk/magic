@@ -22,7 +22,7 @@ Magic uses the AES-256-CBC cipher for all encryption operations.
 Magic offers two encryption strategies:
 
 1. **Config-Based**: Uses the global `APP_KEY` from your `.env` or configuration. Useful for server-side compatibility or shared keys.
-2. **Device-Based**: Uses a unique, randomly generated key stored securely on the user's device via [Vault](/security/vault). This is recommended for storing sensitive user data locally.
+2. **Device-Based**: Uses a unique, randomly generated key stored securely on the user's device via [Vault](./vault.md). This is recommended for storing sensitive user data locally.
 
 <a name="using-the-encrypter"></a>
 ## Using The Encrypter

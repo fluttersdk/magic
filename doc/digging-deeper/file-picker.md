@@ -145,7 +145,7 @@ final Uint8List? bytes = await file.readAsBytes();
 
 #### store(path, {disk})
 
-Save to [Magic Storage](/digging-deeper/file-storage):
+Save to [Magic Storage](./file-storage.md):
 
 ```dart
 final storedPath = await file.store('avatars/profile.jpg');
