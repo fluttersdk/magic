@@ -30,13 +30,13 @@ await Event.dispatch(OrderShipped(order));
 Use the Magic CLI to scaffold event and listener classes:
 
 ```bash
-dart run <app>:artisan make:event OrderShipped
+dart run magic:artisan make:event OrderShipped
 ```
 
 This creates `lib/app/events/order_shipped.dart` with a `MagicEvent` stub.
 
 ```bash
-dart run <app>:artisan make:listener SendEmail --event=OrderShipped
+dart run magic:artisan make:listener SendEmail --event=OrderShipped
 ```
 
 This creates `lib/app/listeners/send_email.dart` with a `MagicListener<OrderShipped>` stub, pre-wired to the specified event.

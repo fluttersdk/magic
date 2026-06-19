@@ -65,7 +65,7 @@ final user = await User.find(1);
 
 ## Quick Start
 
-Magic ships with a full Artisan-style CLI driven by the `fluttersdk_artisan` package. The canonical install is a one-shot `plugin:install magic` command that scaffolds all config files, service providers, environment files, and bootstraps `lib/main.dart`.
+Magic ships an `artisan` executable (declared in its `pubspec.yaml`), so once you add `magic` as a dependency its full Artisan-style CLI is available via `dart run magic:artisan <command>` with no global activation and no per-app wrapper to write. The canonical bootstrap is the one-shot `magic:install` command, which scaffolds all config files, service providers, environment files, and the `lib/main.dart` bootstrap.
 
 ### 1. Create a Flutter project
 
@@ -88,34 +88,12 @@ dependency_overrides:
     path: ../fluttersdk_artisan
 ```
 
-### 3. Create `bin/artisan.dart`
+### 3. Run the one-shot install
 
-Magic commands are registered through the Artisan registry. Create a minimal wrapper:
-
-```dart
-import 'dart:io';
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:magic/cli.dart' show MagicArtisanProvider;
-
-Future<void> main(List<String> args) async {
-  final registry = ArtisanRegistry();
-  registry.registerAll(<ArtisanCommand>[
-    StartCommand(),
-    StopCommand(),
-    ListCommand(registry),
-    HelpCommand(registry),
-    PluginInstallCommand(),
-    PluginUninstallCommand(),
-  ], providerName: 'fluttersdk_artisan');
-  registry.registerProvider(MagicArtisanProvider());
-  exit(await ArtisanApplication(registry: registry).dispatch(args));
-}
-```
-
-### 4. Run the one-shot install
+Magic bundles its own `artisan` executable, so there is nothing to wire up by hand: run the installer directly.
 
 ```bash
-dart run :artisan magic:install --force --non-interactive
+dart run magic:artisan magic:install --force --non-interactive
 ```
 
 Use `magic:install` (not `plugin:install magic`) for the one-shot bootstrap: it runs the full hybrid installer (`main.dart` Magic.init() bootstrap + all config files + the dispatcher/fastcli scaffold). `plugin:install magic` only applies the static manifest layer (provider registration + config publish) and does NOT rewrite `main.dart`, so a fresh project installed that way will not boot into Magic. See [Install paths](#install-paths) below.
@@ -126,13 +104,13 @@ The command scaffolds: `lib/config/` (9 config files), `lib/app/providers/` (rou
 
 > **Note on sqlite3.wasm (web target):** Magic's SQLite driver requires `web/sqlite3.wasm` on Flutter web. V1 does not auto-download this file. If you target Flutter web with the SQLite driver, manually download `sqlite3.wasm` from the sqlite3.dart releases (match the version in `pubspec.lock`) and place it in `web/`.
 
-### 5. Generate the app key
+### 4. Generate the app key
 
 ```bash
-dart run :artisan key:generate
+dart run magic:artisan key:generate
 ```
 
-### 6. Install dependencies and run
+### 5. Install dependencies and run
 
 ```bash
 flutter pub get && flutter run
@@ -158,7 +136,7 @@ When `--non-interactive` is absent, the installer prompts for each option intera
 Example: install without database and broadcasting:
 
 ```bash
-dart run :artisan magic:install --force --without-database --without-broadcasting
+dart run magic:artisan magic:install --force --without-database --without-broadcasting
 ```
 
 The `--without-X` flags are honored by `magic:install` (the hybrid command); they are not part of the static `plugin:install` manifest flow.
@@ -167,8 +145,8 @@ The `--without-X` flags are honored by `magic:install` (the hybrid command); the
 
 Two entrypoints exist; they are NOT equivalent:
 
-- **`dart run :artisan magic:install`** (recommended, full bootstrap): runs `MagicInstallCommand`, the hybrid installer. It publishes every config file, rewrites `lib/main.dart` with the `Magic.init()` bootstrap + `configFactories`, scaffolds the dispatcher + fastcli, and honors the `--without-X` flags. This is what a fresh project needs to boot into Magic.
-- **`dart run :artisan plugin:install magic`** (static layer only): routes through artisan's manifest installer. It registers the provider and publishes the static config templates, but does NOT run the dynamic `main.dart` bootstrap. Use it only to (re)apply the manifest layer on a project that is already Magic-bootstrapped.
+- **`dart run magic:artisan magic:install`** (recommended, full bootstrap): runs `MagicInstallCommand`, the hybrid installer. It publishes every config file, rewrites `lib/main.dart` with the `Magic.init()` bootstrap + `configFactories`, scaffolds the dispatcher + fastcli, and honors the `--without-X` flags. This is what a fresh project needs to boot into Magic.
+- **`dart run magic:artisan plugin:install magic`** (static layer only): routes through artisan's manifest installer. It registers the provider and publishes the static config templates, but does NOT run the dynamic `main.dart` bootstrap. Use it only to (re)apply the manifest layer on a project that is already Magic-bootstrapped.
 
 ### Build your first controller
 
@@ -451,23 +429,23 @@ WDiv(
 ## CLI Commands
 
 ```bash
-dart run magic:magic make:model User -mcf        # Model + migration + controller + factory
-dart run magic:magic make:controller User         # Controller
-dart run magic:magic make:view Login              # View class
-dart run magic:magic make:migration create_users  # Migration
-dart run magic:magic make:seeder UserSeeder       # Database seeder
-dart run magic:magic make:policy Post             # Authorization policy
-dart run magic:magic make:provider Payment        # Service provider
-dart run magic:magic make:event OrderShipped      # Event class
-dart run magic:magic make:listener SendEmail      # Event listener
-dart run magic:magic make:middleware Auth          # Middleware
-dart run magic:magic make:request StoreUser       # Form request
-dart run magic:magic make:lang tr                 # Language file
-dart run magic:magic make:enum Status             # Enum class
+dart run magic:artisan make:model User -mcf        # Model + migration + controller + factory
+dart run magic:artisan make:controller User         # Controller
+dart run magic:artisan make:view Login              # View class
+dart run magic:artisan make:migration create_users  # Migration
+dart run magic:artisan make:seeder UserSeeder       # Database seeder
+dart run magic:artisan make:policy Post             # Authorization policy
+dart run magic:artisan make:provider Payment        # Service provider
+dart run magic:artisan make:event OrderShipped      # Event class
+dart run magic:artisan make:listener SendEmail      # Event listener
+dart run magic:artisan make:middleware Auth          # Middleware
+dart run magic:artisan make:request StoreUser       # Form request
+dart run magic:artisan make:lang tr                 # Language file
+dart run magic:artisan make:enum Status             # Enum class
 ```
 
 > [!TIP]
-> If you activated the CLI globally (`dart pub global activate magic_cli`), you can use the shorter `magic <command>` syntax instead.
+> Every command runs via `dart run magic:artisan <command>` once `magic` is a dependency. There is no separate `magic_cli` package to activate globally.
 
 ## Testing
 

@@ -332,9 +332,9 @@ Register in `config/app.dart`:
 Use Magic CLI to generate policy classes:
 
 ```bash
-dart run <app>:artisan make:policy Post
-dart run <app>:artisan make:policy PostPolicy          # Explicit naming
-dart run <app>:artisan make:policy Comment --model=Comment
+dart run magic:artisan make:policy Post
+dart run magic:artisan make:policy PostPolicy          # Explicit naming
+dart run magic:artisan make:policy Comment --model=Comment
 ```
 
 ### Options

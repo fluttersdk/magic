@@ -110,13 +110,13 @@ This pulls in Magic and all its dependencies, including **Wind UI** and the **Ma
 
 ### 2. Scaffold Your Application
 
-The Magic CLI ships as an `fluttersdk_artisan` plugin bundled with the `magic` package. Run it through your app's artisan dispatcher:
+The Magic CLI ships as an `artisan` executable bundled with the `magic` package (declared in its `pubspec.yaml` `executables:`). Run it from any project that depends on magic:
 
 ```bash
-dart run <app>:artisan magic:install
+dart run magic:artisan magic:install
 ```
 
-Replace `<app>` with your Flutter app package name (the `name` field in your `pubspec.yaml`).
+No global activation or package-name substitution is needed: `dart run magic:artisan` resolves magic's bundled executable directly.
 
 This command creates everything you need:
 - `lib/config/` — Configuration files (app, auth, broadcasting, cache, database, network, logging, routing, view)
@@ -130,7 +130,7 @@ This command creates everything you need:
 You can exclude features you don't need:
 
 ```bash
-dart run <app>:artisan magic:install --without-database --without-auth --without-cache
+dart run magic:artisan magic:install --without-database --without-auth --without-cache
 ```
 
 Available flags: `--without-auth`, `--without-database`, `--without-network`, `--without-cache`, `--without-events`, `--without-localization`, `--without-logging`, `--without-broadcasting`. See [Magic CLI](/packages/magic-cli#install) for details.
@@ -138,7 +138,7 @@ Available flags: `--without-auth`, `--without-database`, `--without-network`, `-
 <a name="bootstrapping-your-application"></a>
 ## Bootstrapping Your Application
 
-If you used `dart run <app>:artisan magic:install`, your application is already bootstrapped. The install command generates a ready-to-run `main.dart` and all configuration files. Here's what was created:
+If you used `dart run magic:artisan magic:install`, your application is already bootstrapped. The install command generates a ready-to-run `main.dart` and all configuration files. Here's what was created:
 
 ### Generated Entry Point
 

@@ -24,7 +24,7 @@ Of course, additional middleware can be written to perform a variety of tasks be
 Use the Magic CLI to generate a new middleware class:
 
 ```bash
-dart run <app>:artisan make:middleware Auth
+dart run magic:artisan make:middleware Auth
 ```
 
 This creates `lib/app/middleware/auth.dart` with a `MagicMiddleware` stub ready to implement.
