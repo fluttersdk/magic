@@ -413,7 +413,7 @@ MagicRoute.page('/admin', () => AdminPanel())
     .middleware(['auth', 'admin']);
 ```
 
-See the [Middleware documentation](/basics/middleware) for details on creating custom middleware.
+See the [Middleware documentation](./middleware.md) for details on creating custom middleware.
 
 <a name="url-strategy"></a>
 ## URL Strategy
@@ -450,7 +450,7 @@ location / {
 }
 ```
 
-**SQLite on web:** Magic's SQLite layer requires `web/sqlite3.wasm` to be present in your Flutter web build. This is independent of the URL strategy but equally web-specific. If you use the database on web, ensure `sqlite3.wasm` is copied into your `web/` directory and served correctly. See the [Database documentation](/database/getting-started) for setup details.
+**SQLite on web:** Magic's SQLite layer requires `web/sqlite3.wasm` to be present in your Flutter web build. This is independent of the URL strategy but equally web-specific. If you use the database on web, ensure `sqlite3.wasm` is copied into your `web/` directory and served correctly. See the [Database documentation](../database/getting-started.md) for setup details.
 
 <a name="navigator-observers"></a>
 ## Navigator Observers

@@ -12,10 +12,13 @@ on:
 
 jobs:
   # Per-PR gate: anchors plus internal links, fully offline. No network, so
-  # transient external failures can never block a doc merge. --root-dir doc
-  # resolves the docs' site-absolute links (/section/page, the form the docs
-  # site routes) against the doc/ tree; --fallback-extensions md appends the
-  # .md the site-routed links omit.
+  # transient external failures can never block a doc merge. Internal links use
+  # repo-relative .md paths (./page.md, ../section/page.md), the same convention
+  # wind's docs use; the docs site rewrites them to its own routed URLs on sync.
+  # lychee resolves these as real files natively, so no --root-dir / fallback
+  # flags are needed. --include-fragments also validates cross-page #anchors
+  # (against the docs' explicit <a name="..."> style) so a broken section link
+  # fails the PR, not just the weekly pass.
   internal:
     name: Internal Links & Anchors
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
@@ -64,8 +67,7 @@ jobs:
           args: >-
             --offline
             --no-progress
-            --root-dir doc
-            --fallback-extensions md
+            --include-fragments
             'doc/**/*.md'
             '*.md'
           fail: true
@@ -86,8 +88,6 @@ jobs:
           args: >-
             --no-progress
             --include-fragments
-            --root-dir doc
-            --fallback-extensions md
             'doc/**/*.md'
             '*.md'
           fail: true
