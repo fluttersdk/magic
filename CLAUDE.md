@@ -43,10 +43,10 @@ Standard Flutter commands (`flutter test`, `dart analyze`, `dart format .`, `flu
 | `flutter test --coverage` | Tests + `coverage/lcov.info` (CI uploads to codecov) |
 | `flutter test test/<module>` | Single module |
 | `dart pub publish --dry-run` | Pre-release validation |
-| `dart run <app>:artisan magic:install` | One-shot consumer bootstrap (hybrid installer) |
-| `dart run <app>:artisan make:model User -mcf` | Generators: 14 `make:*` + `key:generate` |
+| `dart run magic:artisan magic:install` | One-shot consumer bootstrap (hybrid installer) |
+| `dart run magic:artisan make:model User -mcf` | Generators: 14 `make:*` + `key:generate` |
 
-Magic's CLI is an `fluttersdk_artisan` plugin (`MagicArtisanProvider`); a consumer runs it through its own artisan dispatcher (`dart run <app>:artisan <cmd>`), not as a global activate. There is no standalone magic executable beyond the artisan plugin surface.
+Magic ships an `artisan` executable (`pubspec.yaml` `executables: { artisan: }`, backed by `bin/artisan.dart`), so a consumer runs any command with `dart run magic:artisan <cmd>` once `magic` is a dependency: no global activate, no app-specific package name. `MagicArtisanProvider` supplies the commands; it also plugs into a consumer app's own aggregated artisan dispatcher when one exists.
 
 ## Architecture
 
