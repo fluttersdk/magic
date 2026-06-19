@@ -97,9 +97,9 @@ typedef MainDartStrategyResult = ({
 /// ## Usage
 ///
 /// ```bash
-/// dart run :artisan magic:install
-/// dart run :artisan magic:install --without-auth --without-broadcasting
-/// dart run :artisan magic:install --force --non-interactive
+/// dart run magic:artisan magic:install
+/// dart run magic:artisan magic:install --without-auth --without-broadcasting
+/// dart run magic:artisan magic:install --force --non-interactive
 /// ```
 class MagicInstallCommand extends ArtisanInstallCommand {
   /// Public default constructor. Test fixtures subclass + override the four
