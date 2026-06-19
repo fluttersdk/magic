@@ -1,6 +1,6 @@
 # Magic CLI
 
-The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic package, providing `magic:install`, `key:generate`, and 14 `make:*` scaffold commands run through your app's artisan entrypoint.
+The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic package, providing `magic:install`, `key:generate`, and 14 `make:*` scaffold commands through magic's bundled `artisan` executable (`dart run magic:artisan`).
 
 - [Introduction](#introduction)
 - [Installation](#installation)
@@ -31,7 +31,7 @@ Magic CLI is the Artisan-like command-line tool for Magic. If you've used Larave
 <a name="installation"></a>
 ## Installation
 
-The Magic CLI ships as an `fluttersdk_artisan` plugin bundled with the `magic` package. There is no separate install step. Run commands through your app's artisan dispatcher:
+The Magic CLI ships as an `fluttersdk_artisan` plugin bundled with the `magic` package, which exposes its own `artisan` executable. There is no separate install step: run commands via that executable. (If your app sets up its own aggregated artisan dispatcher, the same commands are available there too.)
 
 ```bash
 dart run magic:artisan <command> [arguments] [options]
