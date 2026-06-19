@@ -347,14 +347,14 @@ import 'package:magic/magic.dart';
 
 class EnsureAuthenticated extends MagicMiddleware {
   @override
-  void handle(void Function() next) {
-    if (Auth.check()) {
-      next(); // Proceed to next middleware or route
-    } else {
-      // Halt pipeline (do not call next())
-      MagicRouter.instance.setIntendedUrl(MagicRouter.instance.currentLocation ?? '/');
-      MagicRoute.replace('/login');
+  String? redirectTarget(String location) {
+    // Evaluated pre-build in the router redirect; the destination view
+    // mounts exactly once. Return null to allow navigation.
+    if (!Auth.check() && location != '/login') {
+      MagicRouter.instance.setIntendedUrl(location);
+      return '/login';
     }
+    return null;
   }
 }
 ```
@@ -434,13 +434,12 @@ void main() async {
 // Middleware
 class EnsureAuthenticated extends MagicMiddleware {
   @override
-  void handle(void Function() next) {
-    if (!Auth.check()) {
-      MagicRouter.instance.setIntendedUrl(MagicRouter.instance.currentLocation ?? '/');
-      MagicRoute.replace('/login');
-    } else {
-      next();
+  String? redirectTarget(String location) {
+    if (!Auth.check() && location != '/login') {
+      MagicRouter.instance.setIntendedUrl(location);
+      return '/login';
     }
+    return null;
   }
 }
 

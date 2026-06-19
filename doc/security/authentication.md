@@ -329,12 +329,9 @@ Create a `guest` middleware to redirect authenticated users:
 ```dart
 class RedirectIfAuthenticated extends MagicMiddleware {
   @override
-  Future<void> handle(void Function() next) async {
-    if (Auth.check()) {
-      MagicRoute.to('/dashboard');
-    } else {
-      next();
-    }
+  String? redirectTarget(String location) {
+    if (Auth.check() && location != '/dashboard') return '/dashboard';
+    return null;
   }
 }
 ```

@@ -39,20 +39,24 @@ import 'package:magic/magic.dart';
 
 class EnsureAuthenticated extends MagicMiddleware {
   @override
-  Future<void> handle(void Function() next) async {
-    if (Auth.check()) {
-      next(); // Allow navigation to proceed
-    } else {
-      MagicRoute.to('/login'); // Redirect to login
-    }
+  String? redirectTarget(String location) {
+    if (!Auth.check() && location != '/login') return '/login';
+    return null; // Authenticated, or already on /login: allow.
   }
 }
 ```
 
-As you can see, if the user is not authenticated, the middleware will redirect the user to the login screen. If the user is authenticated, the request is passed further into the application by calling `next()`.
+As you can see, if the user is not authenticated, the middleware returns the login path and the user is redirected to the login screen. If the user is authenticated, it returns `null` and the request proceeds.
+
+### Redirect guards vs blocking guards
+
+Middleware has two hooks, and you pick the one that matches the intent:
+
+- **`redirectTarget(String location)`** for redirect-style guards (auth, guest, role gates). It is evaluated synchronously in the router's `redirect` callback BEFORE the route builds, so the destination view mounts exactly once. Return a path to redirect to, or `null` to allow. Always return `null` when `location` already equals the target, otherwise the redirect loops.
+- **`handle(void Function() next)`** for async, non-redirecting concerns (logging, a blocked-state screen). Call `next()` to allow, skip it to block. Both hooks default to allow, so override only the one you need.
 
 > [!IMPORTANT]
-> If you do NOT call `next()`, navigation will be blocked. Always ensure you either call `next()` or redirect the user.
+> Prefer `redirectTarget` for redirects. Redirecting with an imperative `MagicRoute.to()` from inside `handle()` runs after the route has already mounted, so it remounts the destination view and recreates its state.
 
 ### Async Operations
 
