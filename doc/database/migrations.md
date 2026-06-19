@@ -24,9 +24,9 @@ Migrations are like version control for your database, allowing your team to def
 Use the `make:migration` command to generate a migration:
 
 ```bash
-dart run <app>:artisan make:migration create_users_table
-dart run <app>:artisan make:migration CreateUsersTable    # PascalCase also works
-dart run <app>:artisan make:migration add_avatar_to_users
+dart run magic:artisan make:migration create_users_table
+dart run magic:artisan make:migration CreateUsersTable    # PascalCase also works
+dart run magic:artisan make:migration add_avatar_to_users
 ```
 
 This creates a file in `lib/database/migrations/` with:

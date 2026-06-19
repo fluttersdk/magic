@@ -349,9 +349,9 @@ final response = await Http.get('/api/profile');
 ### Create Translation File
 
 ```bash
-dart run <app>:artisan make:lang fr
-dart run <app>:artisan make:lang de
-dart run <app>:artisan make:lang tr
+dart run magic:artisan make:lang fr
+dart run magic:artisan make:lang de
+dart run magic:artisan make:lang tr
 ```
 
 This command:

@@ -27,7 +27,7 @@ Magic provides a complete form handling system: `MagicFormData` for centralized 
 Magic provides a powerful form handling system that combines the simplicity of Laravel's request handling with Flutter's form widgets. Forms are managed through `MagicFormData`, which centralizes form state, validation, and data extraction.
 
 > [!TIP]
-> You can generate a validated form request stub using the Magic CLI: `dart run <app>:artisan make:request` (e.g., `dart run <app>:artisan make:request StoreOrder`). The generated file at `lib/app/requests/store_order_request.dart` provides a structured place for your validation rules.
+> You can generate a validated form request stub using the Magic CLI: `dart run magic:artisan make:request` (e.g., `dart run magic:artisan make:request StoreOrder`). The generated file at `lib/app/requests/store_order_request.dart` provides a structured place for your validation rules.
 
 <a name="magicformdata"></a>
 ## MagicFormData

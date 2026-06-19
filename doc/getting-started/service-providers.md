@@ -26,7 +26,7 @@ If you open the `config/app.dart` file included with Magic, you will see a `prov
 Use the Magic CLI to generate a new service provider class:
 
 ```bash
-dart run <app>:artisan make:provider Payment
+dart run magic:artisan make:provider Payment
 ```
 
 This creates `lib/app/providers/payment_service_provider.dart` with a `ServiceProvider` stub containing empty `register()` and `boot()` methods.

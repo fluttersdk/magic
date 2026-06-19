@@ -26,7 +26,7 @@ APP_KEY=base64:your-32-character-random-key-here
 Generate a new key using the CLI:
 
 ```bash
-dart run <app>:artisan key:generate
+dart run magic:artisan key:generate
 ```
 
 > [!WARNING]

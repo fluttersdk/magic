@@ -29,7 +29,7 @@ Magic Views provide a structured way to separate your UI from your business logi
 To generate a new view, use the Magic CLI:
 
 ```bash
-dart run <app>:artisan make:view Dashboard
+dart run magic:artisan make:view Dashboard
 ```
 
 <a name="stateless-views"></a>
@@ -238,13 +238,13 @@ The Magic CLI can generate different types of views:
 
 ```bash
 # Basic stateless view
-dart run <app>:artisan make:view Dashboard
+dart run magic:artisan make:view Dashboard
 
 # Stateful view with form support
-dart run <app>:artisan make:view Auth/Login --stateful
+dart run magic:artisan make:view Auth/Login --stateful
 
 # Nested in subfolder
-dart run <app>:artisan make:view Admin/Users/Index
+dart run magic:artisan make:view Admin/Users/Index
 ```
 
 ### Command Options
