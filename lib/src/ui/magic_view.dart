@@ -125,6 +125,14 @@ abstract class MagicStatefulViewState<
     _controller.addListener(_onControllerChanged);
     // Auto-clear validation errors when new view initializes (Laravel-like)
     _clearValidationErrors();
+    // Run the controller's onInit lifecycle hook the first time it backs a
+    // view (data bootstrap, table creation, initial load live here). Guarded by
+    // `initialized` so a SimpleMagicController that already ran onInit in its
+    // constructor is not initialized twice, and a singleton controller reused
+    // across re-mounts runs onInit exactly once per lifetime.
+    if (!_controller.initialized) {
+      _controller.onInit();
+    }
     onInit();
   }
 
