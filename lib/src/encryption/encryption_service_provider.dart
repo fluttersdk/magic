@@ -12,11 +12,14 @@ class EncryptionServiceProvider extends ServiceProvider {
 
   /// Bootstrap the encryption services.
   ///
-  /// This method checks for the presence of a valid 32-character `app.key`
-  /// in the configuration. If the key is missing or invalid, it registers
-  /// a factory that throws a clear exception when the [Crypt] facade is accessed.
+  /// This method checks for the presence of an `app.key` in the configuration.
+  /// If the key is missing, it registers a factory that throws a clear exception
+  /// when the [Crypt] facade is accessed.
   ///
-  /// If the key is valid, it binds the [MagicEncrypter] as a singleton.
+  /// Otherwise it binds a lazy [MagicEncrypter] built via
+  /// [MagicEncrypter.fromAppKey], which accepts both a `base64:`-prefixed key
+  /// (as produced by `magic key:generate`) and a raw 32-character key, and
+  /// throws a clear error on access if the resolved key is not 32 bytes.
   @override
   Future<void> boot() async {
     final key = Config.get<String>('app.key');
@@ -32,13 +35,8 @@ class EncryptionServiceProvider extends ServiceProvider {
       return;
     }
 
-    if (key.length != 32) {
-      app.singleton('encrypter', () {
-        throw Exception('App Key must be 32 characters for AES-256.');
-      });
-      return;
-    }
-
-    app.singleton('encrypter', () => MagicEncrypter(key));
+    // Lazy: an invalid key surfaces a clear error when Crypt is first used,
+    // not during boot. fromAppKey handles both base64: and raw 32-char keys.
+    app.singleton('encrypter', () => MagicEncrypter.fromAppKey(key));
   }
 }
