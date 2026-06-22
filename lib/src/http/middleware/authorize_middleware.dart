@@ -1,6 +1,5 @@
 import 'package:magic/src/http/middleware/magic_middleware.dart';
 import 'package:magic/src/facades/gate.dart';
-import 'package:magic/src/facades/route.dart';
 
 /// Authorization Middleware.
 ///
@@ -21,26 +20,9 @@ import 'package:magic/src/facades/route.dart';
 ///     .middleware(['auth', 'can:edit-post']);
 /// ```
 ///
-/// ## With Route Arguments
-///
-/// When you need to check authorization against a model, pass the model
-/// from the route parameters:
-///
-/// ```dart
-/// class EditPostMiddleware extends MagicMiddleware {
-///   @override
-///   Future<void> handle(void Function() next) async {
-///     final postId = MagicRoute.param('id');
-///     final post = await Post.find(postId);
-///
-///     if (Gate.allows('edit-post', post)) {
-///       next();
-///     } else {
-///       MagicRoute.to('/unauthorized');
-///     }
-///   }
-/// }
-/// ```
+/// Gating resolves in the router's `redirect` callback (pre-build) via
+/// [redirectTarget], so a denied route never builds and the unauthorized
+/// destination mounts exactly once.
 class AuthorizeMiddleware extends MagicMiddleware {
   /// The ability to check.
   final String ability;
@@ -63,11 +45,10 @@ class AuthorizeMiddleware extends MagicMiddleware {
   });
 
   @override
-  Future<void> handle(void Function() next) async {
-    if (Gate.allows(ability, arguments)) {
-      next();
-    } else {
-      MagicRoute.to(unauthorizedRoute);
+  String? redirectTarget(String location) {
+    if (!Gate.allows(ability, arguments) && location != unauthorizedRoute) {
+      return unauthorizedRoute;
     }
+    return null;
   }
 }

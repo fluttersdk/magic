@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:encrypt/encrypt.dart';
 
 import 'exceptions.dart';
@@ -23,6 +26,39 @@ class MagicEncrypter {
     if (key.length != 32) {
       throw Exception('App Key must be 32 characters for AES-256.');
     }
+  }
+
+  /// Build an encrypter from an already-resolved [Key].
+  MagicEncrypter._fromKey(Key key)
+    : _encrypter = Encrypter(AES(key, mode: AESMode.cbc));
+
+  /// Build an encrypter from a Laravel-style `app.key`.
+  ///
+  /// Accepts either a `base64:`-prefixed key (as produced by
+  /// `magic key:generate`, which base64-encodes 32 random bytes) or a raw
+  /// 32-character string. Throws when the resolved key is not 32 bytes, so the
+  /// generator output and the encrypter stay compatible.
+  factory MagicEncrypter.fromAppKey(String appKey) {
+    if (appKey.startsWith('base64:')) {
+      final Uint8List bytes;
+      try {
+        bytes = base64.decode(appKey.substring('base64:'.length));
+      } on FormatException catch (e) {
+        // base64.decode throws a terse low-level FormatException; rethrow with
+        // an actionable message since every app key now flows through here.
+        throw Exception(
+          'App Key has a "base64:" prefix but the value is not valid base64 '
+          '(${e.message}). Re-run `magic key:generate`.',
+        );
+      }
+      if (bytes.length != 32) {
+        throw Exception(
+          'App Key must decode to 32 bytes for AES-256 (got ${bytes.length}).',
+        );
+      }
+      return MagicEncrypter._fromKey(Key(bytes));
+    }
+    return MagicEncrypter(appKey);
   }
 
   /// Encrypt the given value.

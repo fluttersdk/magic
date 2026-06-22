@@ -84,9 +84,6 @@ class MagicRouter {
   /// Whether the router has been built.
   bool _isBuilt = false;
 
-  /// Pending redirect from async middleware.
-  String? _pendingRedirect;
-
   /// Saved intended URL for redirect-after-login pattern.
   String? _intendedUrl;
 
@@ -391,12 +388,44 @@ class MagicRouter {
   }
 
   /// Handle global redirects (sync only).
+  ///
+  /// Runs before any page builds. Redirect-style guards drive it: every
+  /// global + route middleware's [MagicMiddleware.redirectTarget] is
+  /// evaluated for the matched location and the first non-null target wins.
+  /// Resolving redirects here (pre-build) instead of imperatively from a
+  /// guard widget keeps the destination view mounting exactly once.
   String? _handleRedirect(BuildContext context, GoRouterState state) {
-    // Check for pending redirect from middleware
-    if (_pendingRedirect != null) {
-      final redirect = _pendingRedirect;
-      _pendingRedirect = null;
-      return redirect;
+    // Evaluate redirect-style guards synchronously, pre-build.
+    final location = state.matchedLocation;
+    final route = _resolveRoute(state);
+    final middlewares = <MagicMiddleware>[
+      ...Kernel.globalMiddleware,
+      if (route != null) ...Kernel.resolveAll(route.middlewares),
+    ];
+    for (final middleware in middlewares) {
+      final target = middleware.redirectTarget(location);
+      if (target != null && target != location) {
+        return target;
+      }
+    }
+    return null;
+  }
+
+  /// Resolve the [RouteDefinition] whose pattern matches [state].
+  ///
+  /// Searches top-level routes and every layout's children. Matches on the
+  /// configured full path pattern (`state.fullPath`), so it works for static
+  /// and parameterized routes alike. Returns `null` when no route matches.
+  RouteDefinition? _resolveRoute(GoRouterState state) {
+    final fullPath = state.fullPath;
+    if (fullPath == null) return null;
+    for (final route in _routes) {
+      if (route.fullPath == fullPath) return route;
+    }
+    for (final layout in _layouts) {
+      for (final child in layout.children) {
+        if (child.fullPath == fullPath) return child;
+      }
     }
     return null;
   }
