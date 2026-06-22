@@ -34,6 +34,22 @@ void main() {
         final shortKey = 'base64:${base64.encode(<int>[1, 2, 3])}';
         expect(() => MagicEncrypter.fromAppKey(shortKey), throwsException);
       });
+
+      test(
+        'throws an actionable error when the base64: value is malformed',
+        () {
+          expect(
+            () => MagicEncrypter.fromAppKey('base64:###not-base64###'),
+            throwsA(
+              isA<Exception>().having(
+                (e) => e.toString(),
+                'message',
+                contains('not valid base64'),
+              ),
+            ),
+          );
+        },
+      );
     });
 
     test('encrypts and decrypts values', () {

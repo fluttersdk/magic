@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:encrypt/encrypt.dart';
 
@@ -39,7 +40,17 @@ class MagicEncrypter {
   /// generator output and the encrypter stay compatible.
   factory MagicEncrypter.fromAppKey(String appKey) {
     if (appKey.startsWith('base64:')) {
-      final bytes = base64.decode(appKey.substring('base64:'.length));
+      final Uint8List bytes;
+      try {
+        bytes = base64.decode(appKey.substring('base64:'.length));
+      } on FormatException catch (e) {
+        // base64.decode throws a terse low-level FormatException; rethrow with
+        // an actionable message since every app key now flows through here.
+        throw Exception(
+          'App Key has a "base64:" prefix but the value is not valid base64 '
+          '(${e.message}). Re-run `magic key:generate`.',
+        );
+      }
       if (bytes.length != 32) {
         throw Exception(
           'App Key must decode to 32 bytes for AES-256 (got ${bytes.length}).',

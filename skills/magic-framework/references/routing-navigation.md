@@ -359,7 +359,7 @@ class EnsureAuthenticated extends MagicMiddleware {
 }
 ```
 
-Middleware must call `next()` to proceed. If it doesn't, the pipeline halts and the route is blocked.
+The `handle()` hook must call `next()` to proceed; if it doesn't, the pipeline halts and the route is blocked. Redirect-style guards (the example above) instead override `redirectTarget`, which resolves before the route builds and never interacts with `next()`.
 
 ## RouteServiceProvider Pattern
 
