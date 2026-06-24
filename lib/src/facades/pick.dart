@@ -363,6 +363,13 @@ class Pick {
     String? fileName,
     Uint8List? bytes,
   }) async {
+    // file_picker 12 made fileName and bytes required and non-null on
+    // FilePicker.saveFile; guard here so the nullable facade surface stays
+    // source-compatible across file_picker 11 and 12 and fails with a clear
+    // error instead of an unhelpful type error.
+    if (fileName == null || bytes == null) {
+      throw ArgumentError('Pick.saveFile requires both fileName and bytes.');
+    }
     return FilePicker.saveFile(
       dialogTitle: dialogTitle,
       fileName: fileName,
