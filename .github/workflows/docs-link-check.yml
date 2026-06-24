@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Deterministic TOC<->anchor check for magic's explicit `<a name="...">`
       # convention, both directions: every TOC link `(#slug)` needs a matching
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check all links including external
         uses: lycheeverse/lychee-action@v2
