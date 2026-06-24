@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **`fluttersdk_wind` constraint bumped to `^1.1.1`.** Picks up wind 1.1.0's Material-free `WInput`/`WText` rewrite plus 1.1.1's two fixes that magic's W-widget UI depends on: `WInput` native text selection restored (mouse drag-select, double-tap word, long-press), and `WText` now inherits an ancestor `DefaultTextStyle` color (the CSS text-color cascade) before falling back to the OS-brightness baseline. The latter fixes invisible labels on magic's W-rendered surfaces (`Magic*View`, `MagicFeedback`, dialog buttons whose color lives on the container) when the app theme disagrees with the OS theme. Touches `pubspec.yaml`.
 - **Debug-tooling install guidance corrected to regular `dependencies`.** The `magic:install` post-install message recommended adding `magic_devtools` / `fluttersdk_dusk` / `fluttersdk_telescope` to `dev_dependencies`, but the install commands wire them into `lib/main.dart` (under `kDebugMode`), which trips the `depend_on_referenced_packages` lint. They are now documented as regular `dependencies` (tree-shaken from release via `kDebugMode`), matching dusk/telescope's own install docs. Also bumps the message's stale `fluttersdk_dusk ^0.0.7` to `^0.0.8`. Touches `install.yaml`.
 
 ## [0.0.3] - 2026-06-17

@@ -4,7 +4,7 @@
 
 Laravel-inspired Flutter framework: IoC container, 18 facades, Eloquent-style ORM, service providers, routing, auth, validation, broadcasting. UI is `fluttersdk_wind`; CLI + scaffolding run on `fluttersdk_artisan`.
 
-**Stack:** Dart >=3.11.0 · Flutter >=3.41.0. Runtime deps: `fluttersdk_wind ^1.0.0`, `fluttersdk_artisan ^0.0.8`, `dio`, `go_router`, `sqlite3`, `flutter_secure_storage`, `encrypt`. No `mockito` (mock via contract inheritance), no code generation.
+**Stack:** Dart >=3.11.0 · Flutter >=3.41.0. Runtime deps: `fluttersdk_wind ^1.1.1`, `fluttersdk_artisan ^0.0.8`, `dio`, `go_router`, `sqlite3`, `flutter_secure_storage`, `encrypt`. No `mockito` (mock via contract inheritance), no code generation.
 **Branch:** `master` is the active **0.0.x** development line — what pub.dev resolves. Pre-1.0: breaking changes are allowed; `1.0.0` is the future stable milestone. Direct pushes blocked; everything lands via PR.
 
 The dev-tooling adapters (`MagicDuskIntegration`, `MagicTelescopeIntegration`) live in the sibling `magic_devtools` package; magic core has zero dependency on `fluttersdk_dusk` / `fluttersdk_telescope`. CLI/scaffolding internals: `CLAUDE.local.md`. LLM-agent surface: `skills/magic-framework/SKILL.md`. Consumer overview: `README.md`.
