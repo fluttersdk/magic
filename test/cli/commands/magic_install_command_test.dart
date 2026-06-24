@@ -238,6 +238,7 @@ const Map<String, dynamic> _baseOptions = <String, dynamic>{
   'without-localization': false,
   'without-logging': false,
   'without-broadcasting': false,
+  'with-devtools': false,
 };
 
 /// Resolved magic package root.
@@ -449,6 +450,14 @@ void main() {
           'without-broadcasting',
         ]),
       );
+    });
+
+    test('signature includes the --with-devtools flag', () {
+      final cmd = MagicInstallCommand();
+      final optionNames = cmd.parsedSignature!.options
+          .map((o) => o.name)
+          .toSet();
+      expect(optionNames, contains('with-devtools'));
     });
 
     test('pluginName(ctx) returns the static string "magic"', () {
@@ -2521,5 +2530,333 @@ class _MyHomePageState extends State<MyHomePage> {
             'partial-state paths to inspect (bin/dispatcher.dart + bin/fsa)',
       );
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Group 17: --with-devtools (one-step debug-trio install, #10)
+  //
+  // The flag wires the debug trio (magic_devtools + fluttersdk_dusk +
+  // fluttersdk_telescope) into lib/main.dart under kDebugMode and adds the
+  // three packages as regular pubspec dependencies (the wiring is tree-shaken
+  // from release via kDebugMode). Wiring shape mirrors dusk_install_command +
+  // telescope_install_command. Idempotent on re-run; absent flag changes
+  // nothing.
+  // ---------------------------------------------------------------------------
+
+  group('MagicInstallCommand.buildDevtoolsWiring (pure transform)', () {
+    // The pure-functional transform that the fluent override applies to the
+    // generated lib/main.dart source. Tested directly so the wiring shape +
+    // idempotency are covered without a full pipeline run.
+
+    const baseMain = '''
+import 'package:flutter/material.dart';
+import 'package:magic/magic.dart';
+import 'config/app.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Magic.init(
+    configFactories: [
+      () => appConfig,
+    ],
+  );
+
+  runApp(
+    MagicApplication(title: 'My App'),
+  );
+}
+''';
+
+    test('injects kDebugMode import + dusk/telescope barrels', () {
+      final cmd = MagicInstallCommand();
+      final wired = cmd.buildDevtoolsWiring(baseMain);
+
+      expect(
+        wired,
+        contains("import 'package:flutter/foundation.dart' show kDebugMode;"),
+      );
+      expect(wired, contains("import 'package:fluttersdk_dusk/dusk.dart';"));
+      expect(
+        wired,
+        contains("import 'package:fluttersdk_telescope/telescope.dart';"),
+      );
+      expect(wired, contains("import 'package:magic_devtools/dusk.dart';"));
+      expect(
+        wired,
+        contains("import 'package:magic_devtools/telescope.dart';"),
+      );
+    });
+
+    test('injects the kDebugMode plugin-install block BEFORE Magic.init', () {
+      final cmd = MagicInstallCommand();
+      final wired = cmd.buildDevtoolsWiring(baseMain);
+
+      expect(wired, contains('DuskPlugin.install();'));
+      expect(wired, contains('TelescopePlugin.install();'));
+      expect(
+        wired,
+        contains('TelescopePlugin.registerWatcher(ExceptionWatcher());'),
+      );
+      expect(
+        wired,
+        contains('TelescopePlugin.registerWatcher(DumpWatcher());'),
+      );
+
+      // The plugin-install blocks must precede the Magic.init call.
+      final duskIdx = wired.indexOf('DuskPlugin.install();');
+      final initIdx = wired.indexOf('await Magic.init(');
+      expect(duskIdx, lessThan(initIdx));
+      final telescopeIdx = wired.indexOf('TelescopePlugin.install();');
+      expect(telescopeIdx, lessThan(initIdx));
+    });
+
+    test('injects the Magic integration block AFTER Magic.init', () {
+      final cmd = MagicInstallCommand();
+      final wired = cmd.buildDevtoolsWiring(baseMain);
+
+      expect(wired, contains('MagicDuskIntegration.install();'));
+      expect(wired, contains('MagicTelescopeIntegration.install();'));
+
+      // The integration blocks must sit AFTER the Magic.init call opening and
+      // BEFORE runApp (the container is ready, the app is not yet running).
+      final initIdx = wired.indexOf('await Magic.init(');
+      final runAppIdx = wired.indexOf('runApp(');
+      final duskIntegrationIdx = wired.indexOf(
+        'MagicDuskIntegration.install();',
+      );
+      expect(duskIntegrationIdx, greaterThan(initIdx));
+      expect(duskIntegrationIdx, lessThan(runAppIdx));
+      final telescopeIntegrationIdx = wired.indexOf(
+        'MagicTelescopeIntegration.install();',
+      );
+      expect(telescopeIntegrationIdx, greaterThan(initIdx));
+      expect(telescopeIntegrationIdx, lessThan(runAppIdx));
+    });
+
+    test('all injected blocks are gated under kDebugMode', () {
+      final cmd = MagicInstallCommand();
+      final wired = cmd.buildDevtoolsWiring(baseMain);
+
+      // Every devtools call must sit inside an `if (kDebugMode) {` block.
+      // Count: 2 before-init blocks (dusk + telescope) + 2 after-init blocks.
+      final kDebugBlocks = 'if (kDebugMode) {'.allMatches(wired).length;
+      expect(
+        kDebugBlocks,
+        4,
+        reason:
+            'wiring must add exactly 4 kDebugMode blocks (dusk install, '
+            'telescope install, dusk integration, telescope integration)',
+      );
+    });
+
+    test('is idempotent: a second pass adds no duplicate blocks', () {
+      final cmd = MagicInstallCommand();
+      final once = cmd.buildDevtoolsWiring(baseMain);
+      final twice = cmd.buildDevtoolsWiring(once);
+
+      expect(
+        twice,
+        once,
+        reason: 're-running the transform must be a byte-for-byte no-op',
+      );
+      // Spot-check no statement doubled.
+      expect('DuskPlugin.install();'.allMatches(twice).length, 1);
+      expect(
+        'MagicTelescopeIntegration.install();'.allMatches(twice).length,
+        1,
+      );
+      expect(
+        "import 'package:fluttersdk_dusk/dusk.dart';".allMatches(twice).length,
+        1,
+      );
+    });
+  });
+
+  group('MagicInstallCommand, --with-devtools (full install, real FS)', () {
+    // The dep-add rides ConfigEditor.addDependencyToPubspec (real disk), so the
+    // full --with-devtools path needs a real-FS tempDir harness (the InMemoryFs
+    // harness has no real pubspec.yaml at its fake projectRoot). The real
+    // install.yaml is used as the manifest (its publish: keys resolve cleanly
+    // through RealStubDriver, unlike the fixture's double-suffixed keys).
+
+    /// Seeds a real-FS consumer project rooted at a temp dir + builds a
+    /// testable command pinned to the REAL install.yaml and magic stub bundle.
+    ({
+      _TestableMagicInstallCommand cmd,
+      ArtisanContext ctx,
+      Directory root,
+      BufferedOutput output,
+    })
+    seedRealFsConsumer({Map<String, dynamic> optionOverrides = const {}}) {
+      final tempDir = Directory.systemTemp.createTempSync(
+        'magic_with_devtools_',
+      );
+      addTearDown(() {
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      });
+      File(p.join(tempDir.path, 'pubspec.yaml')).writeAsStringSync(
+        'name: test_consumer\n'
+        'environment:\n'
+        '  sdk: ^3.4.0\n'
+        'dependencies:\n'
+        '  flutter:\n'
+        '    sdk: flutter\n'
+        '  magic: any\n',
+      );
+      final pkgConfigDir = Directory(p.join(tempDir.path, '.dart_tool'))
+        ..createSync(recursive: true);
+      File(p.join(pkgConfigDir.path, 'package_config.json')).writeAsStringSync(
+        '{"configVersion": 2, "packages": [{"name": "magic", '
+        '"rootUri": "file://$_magicRoot", "packageUri": "lib/"}]}',
+      );
+
+      final output = BufferedOutput();
+      final installContext = InstallContext.test(
+        fs: RealFs(),
+        prompt: _RecordingPromptDriver(),
+        stubs: RealStubDriver(),
+        projectRoot: tempDir.path,
+        output: output,
+        clock: () => DateTime.utc(2025, 1, 1),
+      );
+      final cmd = _TestableMagicInstallCommand(
+        fakeManifestPath: p.join(_magicRoot, 'install.yaml'),
+        fakeContext: installContext,
+        fakeStubsDir: p.join(_magicRoot, 'assets', 'stubs'),
+      );
+      final ctx = ArtisanContext.bare(
+        MapInput(<String, dynamic>{
+          ..._baseOptions,
+          ...optionOverrides,
+        }, signature: cmd.parsedSignature),
+        output,
+      );
+      return (cmd: cmd, ctx: ctx, root: tempDir, output: output);
+    }
+
+    test('absent flag adds NO devtools wiring and NO trio deps', () async {
+      final (:cmd, :ctx, :root, :output) = seedRealFsConsumer();
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0, reason: output.content);
+      final main = File(
+        p.join(root.path, 'lib', 'main.dart'),
+      ).readAsStringSync();
+      expect(main, isNot(contains('DuskPlugin.install();')));
+      expect(main, isNot(contains('MagicTelescopeIntegration.install();')));
+      final pubspec = File(
+        p.join(root.path, 'pubspec.yaml'),
+      ).readAsStringSync();
+      expect(pubspec, isNot(contains('magic_devtools:')));
+      expect(pubspec, isNot(contains('fluttersdk_dusk:')));
+      expect(pubspec, isNot(contains('fluttersdk_telescope:')));
+    });
+
+    test(
+      '--with-devtools wires the kDebugMode trio + adds the three deps',
+      () async {
+        final (:cmd, :ctx, :root, :output) = seedRealFsConsumer(
+          optionOverrides: <String, dynamic>{'with-devtools': true},
+        );
+
+        final exit = await cmd.handle(ctx);
+
+        expect(exit, 0, reason: output.content);
+        // main.dart wiring.
+        final main = File(
+          p.join(root.path, 'lib', 'main.dart'),
+        ).readAsStringSync();
+        expect(main, contains('DuskPlugin.install();'));
+        expect(main, contains('TelescopePlugin.install();'));
+        expect(
+          main,
+          contains('TelescopePlugin.registerWatcher(ExceptionWatcher());'),
+        );
+        expect(main, contains('MagicDuskIntegration.install();'));
+        expect(main, contains('MagicTelescopeIntegration.install();'));
+        expect(main, contains("import 'package:magic_devtools/dusk.dart';"));
+        expect('if (kDebugMode) {'.allMatches(main).length, 4);
+        // pubspec deps (regular dependencies, tree-shaken via kDebugMode).
+        final pubspec = File(
+          p.join(root.path, 'pubspec.yaml'),
+        ).readAsStringSync();
+        expect(pubspec, contains('magic_devtools:'));
+        expect(pubspec, contains('fluttersdk_dusk:'));
+        expect(pubspec, contains('fluttersdk_telescope:'));
+        expect(pubspec, isNot(contains('dev_dependencies:')));
+      },
+    );
+
+    test(
+      '--with-devtools is idempotent on re-run (no duplicate wiring/deps)',
+      () async {
+        // First install.
+        final first = seedRealFsConsumer(
+          optionOverrides: <String, dynamic>{'with-devtools': true},
+        );
+        expect(
+          await first.cmd.handle(first.ctx),
+          0,
+          reason: first.output.content,
+        );
+
+        // Re-run --with-devtools in --preserve --force mode against the same
+        // project (main.dart now exists and is already wired). The smart-merge +
+        // idempotent devtools transform must not double-inject anything, and the
+        // YamlEditor dep-add must not duplicate keys.
+        final main1 = File(
+          p.join(first.root.path, 'lib', 'main.dart'),
+        ).readAsStringSync();
+        // Reuse the same tempDir for the second pass by re-seeding a command on it.
+        final output2 = BufferedOutput();
+        final installContext2 = InstallContext.test(
+          fs: RealFs(),
+          prompt: _RecordingPromptDriver(),
+          stubs: RealStubDriver(),
+          projectRoot: first.root.path,
+          output: output2,
+          clock: () => DateTime.utc(2025, 1, 1),
+        );
+        final cmd2 = _TestableMagicInstallCommand(
+          fakeManifestPath: p.join(_magicRoot, 'install.yaml'),
+          fakeContext: installContext2,
+          fakeStubsDir: p.join(_magicRoot, 'assets', 'stubs'),
+        );
+        final ctx2 = ArtisanContext.bare(
+          MapInput(<String, dynamic>{
+            ..._baseOptions,
+            'with-devtools': true,
+            'preserve': true,
+          }, signature: cmd2.parsedSignature),
+          output2,
+        );
+
+        expect(await cmd2.handle(ctx2), 0, reason: output2.content);
+
+        final main2 = File(
+          p.join(first.root.path, 'lib', 'main.dart'),
+        ).readAsStringSync();
+        expect('DuskPlugin.install();'.allMatches(main2).length, 1);
+        expect(
+          'MagicTelescopeIntegration.install();'.allMatches(main2).length,
+          1,
+        );
+        expect(
+          "import 'package:fluttersdk_dusk/dusk.dart';"
+              .allMatches(main2)
+              .length,
+          1,
+        );
+        final pubspec = File(
+          p.join(first.root.path, 'pubspec.yaml'),
+        ).readAsStringSync();
+        expect('magic_devtools:'.allMatches(pubspec).length, 1);
+        expect('fluttersdk_dusk:'.allMatches(pubspec).length, 1);
+        // Sanity: main.dart from the first pass already contained the wiring.
+        expect(main1, contains('DuskPlugin.install();'));
+      },
+    );
   });
 }
