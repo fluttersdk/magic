@@ -118,7 +118,8 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       '{--without-events : Skip events setup} '
       '{--without-localization : Skip localization setup} '
       '{--without-logging : Skip logging setup} '
-      '{--without-broadcasting : Skip broadcasting setup}';
+      '{--without-broadcasting : Skip broadcasting setup} '
+      '{--with-devtools : Wire the debug trio (magic_devtools + fluttersdk_dusk + fluttersdk_telescope) into lib/main.dart under kDebugMode and add them as dependencies}';
 
   @override
   String get description =>
@@ -136,6 +137,23 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// @param ctx  The active [ArtisanContext] handed to [handle].
   /// @return The boolean value of the `--preserve` flag.
   bool isPreserve(ArtisanContext ctx) => ctx.input.option('preserve') == true;
+
+  /// Returns `true` when the operator passed `--with-devtools`.
+  ///
+  /// The flag is a one-step replacement for the manual debug-trio bootstrap
+  /// (add three deps, then run `dusk:install` + `telescope:install`). When set,
+  /// [_applyFluentOverride] wires the trio (`magic_devtools` + `fluttersdk_dusk`
+  /// + `fluttersdk_telescope`) into `lib/main.dart` under `kDebugMode` and adds
+  /// the three packages as regular `dependencies`. They go under `dependencies`
+  /// (not `dev_dependencies`) because `lib/main.dart` imports them: the
+  /// `kDebugMode` gate tree-shakes the subsystem out of release builds, so the
+  /// dep classification matches the dusk/telescope install docs and avoids the
+  /// `depend_on_referenced_packages` lint.
+  ///
+  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @return The boolean value of the `--with-devtools` flag.
+  bool isWithDevtools(ArtisanContext ctx) =>
+      ctx.input.option('with-devtools') == true;
 
   /// Formats a unified diff of [existing] vs [magicTemplate] for console display.
   ///
@@ -535,6 +553,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         flags: flags,
         appName: appName,
         mainDartStrategy: strategyResult.strategy,
+        withDevtools: isWithDevtools(ctx),
       );
     } on _PreserveAbortedException catch (e) {
       ctx.output.error(e.message);
@@ -807,6 +826,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     required Map<String, bool> flags,
     required String appName,
     required MainDartStrategy mainDartStrategy,
+    bool withDevtools = false,
   }) {
     final projectRoot = installContext.projectRoot;
     final magicStubsDir = resolveMagicStubsDir(installContext);
@@ -890,15 +910,16 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     //              StateError rather than silently writing the wrong content.
     switch (mainDartStrategy) {
       case MainDartStrategy.overwrite:
+        final generated = InstallStubs.mainDartContent(
+          stubs: installContext.stubs,
+          searchPaths: searchPaths,
+          appName: appName,
+          configImports: _buildConfigImports(flags),
+          configFactories: _buildConfigFactories(flags),
+        );
         installer.writeFile(
           targetPath: p.join(projectRoot, 'lib/main.dart'),
-          content: InstallStubs.mainDartContent(
-            stubs: installContext.stubs,
-            searchPaths: searchPaths,
-            appName: appName,
-            configImports: _buildConfigImports(flags),
-            configFactories: _buildConfigFactories(flags),
-          ),
+          content: withDevtools ? buildDevtoolsWiring(generated) : generated,
         );
       case MainDartStrategy.preserve:
         // 1. Read the existing source from disk — the user explicitly chose
@@ -919,7 +940,12 @@ class MagicInstallCommand extends ArtisanInstallCommand {
           // 3. Queue the merged source as the canonical write for lib/main.dart.
           //    force=true is already threaded into commit() by handle() for
           //    the preserve case, so ConflictDetector will not block this write.
-          installer.writeFile(targetPath: mainPath, content: merged);
+          //    The devtools transform is idempotent, so applying it to an
+          //    already-wired merge result is a safe no-op on re-run.
+          installer.writeFile(
+            targetPath: mainPath,
+            content: withDevtools ? buildDevtoolsWiring(merged) : merged,
+          );
         } on FormatException catch (e) {
           throw _PreserveAbortedException(e.message);
         }
@@ -931,6 +957,20 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         );
     }
 
+    // Debug-trio deps: add magic_devtools + fluttersdk_dusk +
+    // fluttersdk_telescope as regular dependencies (not dev_dependencies) when
+    // --with-devtools is set. The kDebugMode wiring injected above imports
+    // them from lib/, so dev_dependencies would trip depend_on_referenced_packages;
+    // the kDebugMode gate tree-shakes the subsystem from release builds.
+    // addDependency routes through the same ConfigEditor.addDependencyToPubspec
+    // mechanism the delegated artisan install uses for fluttersdk_artisan, and
+    // is idempotent (YamlEditor.update overwrites in place, never duplicates).
+    if (withDevtools) {
+      for (final dep in _devtoolsDependencies.entries) {
+        installer.addDependency(dep.key, dep.value);
+      }
+    }
+
     // Replace the default `flutter create` counter widget test (it references
     // the now-removed MyApp, so it breaks `flutter test` + `dart analyze`) with
     // a Magic-compatible smoke test. Conflict detection + --force govern the
@@ -940,6 +980,124 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       targetPath: p.join(projectRoot, 'test/widget_test.dart'),
       content: InstallStubs.widgetTestContent(),
     );
+  }
+
+  /// The debug-trio packages added to the consumer's `dependencies` when
+  /// `--with-devtools` is set, mapped to their version constraints.
+  ///
+  /// Pinned to the versions the `install.yaml` post-install message documents:
+  /// bump these in lockstep when a trio package releases a new minor line. They
+  /// are regular `dependencies` (not `dev_dependencies`) because the wiring in
+  /// `lib/main.dart` imports them; the `kDebugMode` gate tree-shakes them from
+  /// release builds.
+  static const Map<String, String> _devtoolsDependencies = <String, String>{
+    'magic_devtools': '^0.0.1',
+    'fluttersdk_dusk': '^0.0.8',
+    'fluttersdk_telescope': '^0.0.4',
+  };
+
+  /// Injects the debug-trio runtime wiring into a generated `lib/main.dart`
+  /// [source] and returns the transformed source.
+  ///
+  /// Mirrors `dusk_install_command._injectRuntimeWiring` +
+  /// `telescope_install_command._injectRuntimeWiring`: the imports plus the
+  /// `kDebugMode`-gated `DuskPlugin.install()` / `TelescopePlugin.install()`
+  /// (with its `ExceptionWatcher` + `DumpWatcher`) blocks are placed BEFORE
+  /// `await Magic.init(` so the drivers are live during Magic boot, and the
+  /// `MagicDuskIntegration.install()` / `MagicTelescopeIntegration.install()`
+  /// blocks are placed AFTER `Magic.init(` (those query `Magic.find<X>()` /
+  /// resolve the network driver, so they need the container ready).
+  ///
+  /// Pure-functional and idempotent: every block is injected through
+  /// [MainDartEditor.injectBeforeAnchor] / [MainDartEditor.injectAfterAnchor],
+  /// each of which early-returns when the snippet is already present, so a
+  /// second pass over an already-wired source is a byte-for-byte no-op. This
+  /// is what makes a re-run of `magic:install --with-devtools` safe.
+  ///
+  /// @param source  The generated (or smart-merged) `lib/main.dart` content.
+  /// @return The transformed source with the debug-trio wiring injected.
+  @visibleForTesting
+  String buildDevtoolsWiring(String source) {
+    // 1. Imports. Each devtools package import is anchored against the existing
+    //    package import it must sit beside, so the generated import block stays
+    //    `directives_ordering`-clean: package imports grouped before relative
+    //    `config/...` imports, and alphabetically sorted within the group
+    //    (`flutter/foundation` before `flutter/material`, `fluttersdk_*` before
+    //    `magic`, `magic_devtools/*` after `magic`). Each injectBeforeAnchor is
+    //    idempotent via its snippet-presence check, so a re-run is a no-op.
+    var result = source;
+
+    // 1a. `flutter/foundation` sorts before `flutter/material`.
+    result = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: "import 'package:flutter/material.dart'",
+      snippet: "import 'package:flutter/foundation.dart' show kDebugMode;\n",
+    );
+
+    // 1b. `fluttersdk_*` sort after the flutter imports and before `magic`.
+    result = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: "import 'package:magic/magic.dart'",
+      snippet:
+          "import 'package:fluttersdk_dusk/dusk.dart';\n"
+          "import 'package:fluttersdk_telescope/telescope.dart';\n",
+    );
+
+    // 1c. `magic_devtools/*` sort after `magic` and before the first relative
+    //     `config/...` import; fall back to the `void main(` anchor when no
+    //     relative import is present (a preserve-mode source without configs).
+    const devtoolsImports =
+        "import 'package:magic_devtools/dusk.dart';\n"
+        "import 'package:magic_devtools/telescope.dart';\n";
+    final afterMagic = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: "import 'config/",
+      snippet: devtoolsImports,
+    );
+    result = afterMagic == result
+        ? MainDartEditor.injectBeforeAnchor(
+            source: result,
+            anchor: 'void main(',
+            snippet: devtoolsImports,
+          )
+        : afterMagic;
+
+    // 2. Plugin-install blocks BEFORE Magic.init: Dusk first so its snapshot
+    //    pipeline is live during Magic boot, then Telescope so ExceptionWatcher
+    //    catches boot errors.
+    result = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: 'await Magic.init(',
+      snippet: '  if (kDebugMode) {\n    DuskPlugin.install();\n  }\n',
+    );
+    result = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: 'await Magic.init(',
+      snippet:
+          '  if (kDebugMode) {\n'
+          '    TelescopePlugin.install();\n'
+          '    TelescopePlugin.registerWatcher(ExceptionWatcher());\n'
+          '    TelescopePlugin.registerWatcher(DumpWatcher());\n'
+          '  }\n',
+    );
+
+    // 3. Integration blocks AFTER Magic.init: both query the ready container.
+    result = MainDartEditor.injectAfterAnchor(
+      source: result,
+      anchor: 'Magic.init',
+      snippet:
+          '  if (kDebugMode) {\n    MagicDuskIntegration.install();\n  }\n',
+    );
+    result = MainDartEditor.injectAfterAnchor(
+      source: result,
+      anchor: 'Magic.init',
+      snippet:
+          '  if (kDebugMode) {\n'
+          '    MagicTelescopeIntegration.install();\n'
+          '  }\n',
+    );
+
+    return result;
   }
 
   /// Assembles the provider list rendered into `lib/config/app.dart`.

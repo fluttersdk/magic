@@ -80,6 +80,21 @@ dart run magic:artisan magic:install --without-auth --without-events
 | `--without-logging` | `config/logging.dart` |
 | `--without-broadcasting` | `config/broadcasting.dart`, `BroadcastServiceProvider` |
 
+#### Installing the debug tooling in one step
+
+The optional debug trio (`magic_devtools` + `fluttersdk_dusk` + `fluttersdk_telescope`) gives you the LLM-agent E2E driver (Dusk) and the runtime inspector (Telescope). Pass `--with-devtools` to wire all three in a single command instead of the manual multi-step bootstrap:
+
+```bash
+dart run magic:artisan magic:install --with-devtools
+```
+
+When set, after the core install completes the command:
+
+1. Adds `magic_devtools`, `fluttersdk_dusk`, and `fluttersdk_telescope` to `dependencies` (not `dev_dependencies`: `lib/main.dart` imports them, and the `kDebugMode` gate tree-shakes the subsystem out of release builds).
+2. Wires the runtime setup into `lib/main.dart` under `kDebugMode`: `DuskPlugin.install()` and `TelescopePlugin.install()` (plus its `ExceptionWatcher` + `DumpWatcher`) before `Magic.init()`, then `MagicDuskIntegration.install()` and `MagicTelescopeIntegration.install()` after it.
+
+The wiring is idempotent: re-running `magic:install --with-devtools` never duplicates the blocks or the dependency entries. Run `flutter pub get` afterwards, then `dart run magic:artisan mcp:install` to surface the Dusk/Telescope MCP tools.
+
 <a name="keygenerate"></a>
 ### key:generate
 
