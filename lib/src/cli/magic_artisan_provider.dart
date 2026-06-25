@@ -1,5 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import 'commands/design_lint_command.dart';
+import 'commands/design_sync_command.dart';
 import 'commands/key_generate_command.dart';
 import 'commands/magic_install_command.dart';
 import 'commands/make_component_command.dart';
@@ -33,7 +35,7 @@ import 'commands/previews_refresh_command.dart';
 /// ```
 ///
 /// Ships the magic code-gen surface: 15 make:* generators + `previews:refresh`
-/// + `magic:install` + `key:generate`.
+/// + `design:sync` + `design:lint` + `magic:install` + `key:generate`.
 class MagicArtisanProvider extends ArtisanServiceProvider {
   @override
   String get providerName => 'magic';
@@ -56,6 +58,8 @@ class MagicArtisanProvider extends ArtisanServiceProvider {
     MakeModelCommand(),
     MakeComponentCommand(),
     PreviewsRefreshCommand(),
+    DesignSyncCommand(),
+    DesignLintCommand(),
     MagicInstallCommand(),
     KeyGenerateCommand(),
   ];

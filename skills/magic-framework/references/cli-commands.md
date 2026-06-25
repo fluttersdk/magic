@@ -28,6 +28,8 @@ All commands are invoked via `dart run magic:artisan <command>` from the Flutter
 | **Generator** | `dart run magic:artisan make:lang code` | JSON language file |
 | **Generator** | `dart run magic:artisan make:component Name` | Atomic component folder (recipe + component + preview + index) |
 | **Codegen** | `dart run magic:artisan previews:refresh` | Regenerate `_previews.g.dart` from `*.preview.dart` files |
+| **Design** | `dart run magic:artisan design:sync` | Generate the wind theme (aliases + brand seed) from `DESIGN.md` |
+| **Design** | `dart run magic:artisan design:lint` | Validate `DESIGN.md` against the design rules |
 
 
 ## Project Setup
@@ -576,6 +578,36 @@ dart run magic:artisan previews:refresh --path=lib/ui/components
 | Flag | Effect |
 |:-----|:-------|
 | `--path=DIR` | Directory to scan for `*.preview.dart` files (default `lib`). |
+
+
+### `dart run magic:artisan design:sync`
+
+Generates the wind theme (semantic aliases + brand seed) from a `DESIGN.md`.
+
+```bash
+dart run magic:artisan design:sync
+dart run magic:artisan design:sync --input=DESIGN.md --output=lib/config/wind_theme.g.dart
+```
+
+**Output**: a Dart source file exposing `Map<String, String> designAliases` (17 property-prefixed semantic keys with arbitrary-hex light + `dark:` pairs, drop-in for `WindThemeData(aliases: ...)`) and `Map<String, MaterialColor> designColors` (the brand `primary` with a generated 50-900 ramp seeded from the DESIGN.md `primary` light hex). Idempotent (byte-identical on re-run) and written atomically. Do not hand-edit the generated file; re-run `design:sync`.
+
+| Flag | Effect |
+|:-----|:-------|
+| `--input=PATH` | DESIGN.md source, relative to the project root (default `DESIGN.md`). |
+| `--output=PATH` | Generated wind theme file (default `lib/config/wind_theme.g.dart`). |
+
+
+### `dart run magic:artisan design:lint`
+
+Validates a `DESIGN.md` against six rules: broken-ref (error), missing-primary, unknown-key (the `dark:` overlay is never flagged), section-order, missing-sections, orphaned-tokens, and contrast-ratio (WCAG AA 4.5:1 on component bg/text pairs). Exits nonzero only on an error-severity finding.
+
+```bash
+dart run magic:artisan design:lint --input=DESIGN.md
+```
+
+| Flag | Effect |
+|:-----|:-------|
+| `--input=PATH` | DESIGN.md to validate, relative to the project root (default `DESIGN.md`). |
 
 
 ## Common Patterns
