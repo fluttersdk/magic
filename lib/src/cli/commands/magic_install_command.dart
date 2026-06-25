@@ -1018,21 +1018,49 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// @return The transformed source with the debug-trio wiring injected.
   @visibleForTesting
   String buildDevtoolsWiring(String source) {
-    // 1. Imports. Injected before the `void main(` line so they land in the
-    //    file's import region; idempotent via injectBeforeAnchor's snippet
-    //    presence check.
+    // 1. Imports. Each devtools package import is anchored against the existing
+    //    package import it must sit beside, so the generated import block stays
+    //    `directives_ordering`-clean: package imports grouped before relative
+    //    `config/...` imports, and alphabetically sorted within the group
+    //    (`flutter/foundation` before `flutter/material`, `fluttersdk_*` before
+    //    `magic`, `magic_devtools/*` after `magic`). Each injectBeforeAnchor is
+    //    idempotent via its snippet-presence check, so a re-run is a no-op.
     var result = source;
-    const imports =
-        "import 'package:flutter/foundation.dart' show kDebugMode;\n"
-        "import 'package:fluttersdk_dusk/dusk.dart';\n"
-        "import 'package:fluttersdk_telescope/telescope.dart';\n"
-        "import 'package:magic_devtools/dusk.dart';\n"
-        "import 'package:magic_devtools/telescope.dart';\n";
+
+    // 1a. `flutter/foundation` sorts before `flutter/material`.
     result = MainDartEditor.injectBeforeAnchor(
       source: result,
-      anchor: 'void main(',
-      snippet: imports,
+      anchor: "import 'package:flutter/material.dart'",
+      snippet: "import 'package:flutter/foundation.dart' show kDebugMode;\n",
     );
+
+    // 1b. `fluttersdk_*` sort after the flutter imports and before `magic`.
+    result = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: "import 'package:magic/magic.dart'",
+      snippet:
+          "import 'package:fluttersdk_dusk/dusk.dart';\n"
+          "import 'package:fluttersdk_telescope/telescope.dart';\n",
+    );
+
+    // 1c. `magic_devtools/*` sort after `magic` and before the first relative
+    //     `config/...` import; fall back to the `void main(` anchor when no
+    //     relative import is present (a preserve-mode source without configs).
+    const devtoolsImports =
+        "import 'package:magic_devtools/dusk.dart';\n"
+        "import 'package:magic_devtools/telescope.dart';\n";
+    final afterMagic = MainDartEditor.injectBeforeAnchor(
+      source: result,
+      anchor: "import 'config/",
+      snippet: devtoolsImports,
+    );
+    result = afterMagic == result
+        ? MainDartEditor.injectBeforeAnchor(
+            source: result,
+            anchor: 'void main(',
+            snippet: devtoolsImports,
+          )
+        : afterMagic;
 
     // 2. Plugin-install blocks BEFORE Magic.init: Dusk first so its snapshot
     //    pipeline is live during Magic boot, then Telescope so ExceptionWatcher

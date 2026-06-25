@@ -2671,6 +2671,58 @@ void main() async {
         1,
       );
     });
+
+    test('keeps the import block directives_ordering-clean', () {
+      final cmd = MagicInstallCommand();
+      final wired = cmd.buildDevtoolsWiring(baseMain);
+
+      // Collect the import lines in source order.
+      final lines = wired.split('\n');
+      final importLines = lines
+          .where((line) => line.trimLeft().startsWith('import '))
+          .toList();
+
+      // 1. Every `package:` import must precede every relative import
+      //    (directives_ordering groups package imports before relative ones).
+      final firstRelativeIndex = importLines.indexWhere(
+        (line) => line.contains("import 'config/"),
+      );
+      final lastPackageIndex = importLines.lastIndexWhere(
+        (line) => line.contains("import 'package:"),
+      );
+      expect(
+        firstRelativeIndex,
+        greaterThan(lastPackageIndex),
+        reason: 'all package: imports must come before any relative import',
+      );
+
+      // 2. `package:flutter/foundation.dart` must come before
+      //    `package:flutter/material.dart` (alphabetical within the group).
+      final foundationIndex = importLines.indexWhere(
+        (line) => line.contains('package:flutter/foundation.dart'),
+      );
+      final materialIndex = importLines.indexWhere(
+        (line) => line.contains('package:flutter/material.dart'),
+      );
+      expect(
+        foundationIndex,
+        lessThan(materialIndex),
+        reason: 'foundation.dart must be ordered before material.dart',
+      );
+
+      // 3. The whole package-import block is sorted alphabetically, which is
+      //    what directives_ordering enforces for package: imports.
+      final packageImports = importLines
+          .where((line) => line.contains("import 'package:"))
+          .map((line) => line.trim())
+          .toList();
+      final sorted = [...packageImports]..sort();
+      expect(
+        packageImports,
+        sorted,
+        reason: 'package: imports must be sorted alphabetically',
+      );
+    });
   });
 
   group('MagicInstallCommand, --with-devtools (full install, real FS)', () {
