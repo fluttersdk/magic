@@ -1,0 +1,30 @@
+import 'package:flutter/widgets.dart';
+import 'package:magic/magic.dart';
+
+import '{{ snakeName }}.recipe.dart';
+
+/// {{ className }} component (slot-based).
+///
+/// Slot styling lives in `{{ snakeName }}.recipe.dart` (a [WindSlotRecipe]
+/// reading semantic tokens); this widget resolves the recipe to a per-slot
+/// className map and threads each slot into its [WDiv].
+@immutable
+class {{ className }} extends StatelessWidget {
+  /// The main content placed in the `root` slot.
+  final Widget child;
+
+  /// Creates a [{{ className }}].
+  const {{ className }}({
+    super.key,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final slots = {{ camelName }}Recipe()();
+    return WDiv(
+      className: slots['root'],
+      child: child,
+    );
+  }
+}

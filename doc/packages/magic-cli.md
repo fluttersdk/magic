@@ -22,6 +22,10 @@ The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic 
     - [make:listener](#makelistener)
     - [make:request](#makerequest)
     - [make:lang](#makelang)
+    - [make:component](#makecomponent)
+    - [previews:refresh](#previewsrefresh)
+    - [design:sync](#designsync)
+    - [design:lint](#designlint)
 
 <a name="introduction"></a>
 ## Introduction
@@ -353,3 +357,135 @@ dart run magic:artisan make:lang de
 ```
 
 **Output:** `assets/lang/<locale>.json`
+
+<a name="makecomponent"></a>
+### make:component
+
+Scaffolds an atomic 4-file component folder under `lib/ui/components/<name>/`:
+
+```bash
+dart run magic:artisan make:component Avatar
+dart run magic:artisan make:component Avatar --variants=intent,size
+dart run magic:artisan make:component Panel --slots
+```
+
+**Output** (for `Avatar`):
+
+- `lib/ui/components/avatar/avatar.dart` (`class Avatar`, unprefixed PascalCase)
+- `lib/ui/components/avatar/avatar.recipe.dart` (a `WindRecipe`, or a `WindSlotRecipe` under `--slots`, seeded with the requested `--variants` axes)
+- `lib/ui/components/avatar/avatar.preview.dart` (a single public `AvatarPreview` matrix)
+- `lib/ui/components/avatar/index.dart` (re-exports the component + recipe, NOT the preview)
+
+After scaffolding, `make:component` chains `previews:refresh` so the new preview lands in `_previews.g.dart` automatically.
+
+#### Options
+
+- `--variants=a,b`: seed the named variant axes into the recipe (values left empty to fill in).
+- `--slots`: scaffold a multi-part `WindSlotRecipe` instead of a single-element `WindRecipe`.
+- `--force`: overwrite an existing component.
+
+<a name="previewsrefresh"></a>
+### previews:refresh
+
+Regenerates the dev-only preview catalog index from `*.preview.dart` files:
+
+```bash
+dart run magic:artisan previews:refresh
+dart run magic:artisan previews:refresh --path=lib/ui/components
+```
+
+**Output:** `<scan-dir>/_previews.g.dart` (default scan dir `lib`).
+
+Each `*.preview.dart` file must declare exactly ONE public `*Preview` class. The command validates the class name, fails fast on a slug collision, sorts deterministically, and writes atomically. The generated file returns a `List<PreviewEntry>` from the `previewEntries()` function (never a top-level const list) so the catalog tree-shakes from release builds. Feed it to the catalog via `MagicPreview.register(previewEntries())`.
+
+#### Options
+
+- `--path=DIR`: directory to scan for `*.preview.dart` files (default `lib`).
+
+<a name="designsync"></a>
+### design:sync
+
+Generates the wind theme (semantic aliases + brand seed) from a `DESIGN.md`:
+
+```bash
+dart run magic:artisan design:sync
+dart run magic:artisan design:sync --input=DESIGN.md --output=lib/config/wind_theme.g.dart
+```
+
+**Output:** a Dart source file exposing a `Map<String, String> designAliases` and a `Map<String, MaterialColor> designColors`. The aliases map carries the 17 property-prefixed semantic keys (`bg-surface`, `text-fg`, `border-color-border`, ...) with arbitrary-hex light + `dark:` pairs (`'bg-surface': 'bg-[#f9f9ff] dark:bg-[#0f1419]'`), drop-in for `WindThemeData(aliases: designAliases)`. The brand `primary` `MaterialColor` carries a generated 50-900 ramp (seeded from the DESIGN.md `primary` light hex) for `WindThemeData.toThemeData()` Material interop.
+
+The command is idempotent (byte-identical output on re-run for an unchanged DESIGN.md) and writes atomically via `.tmp` + rename. Do not hand-edit the generated file; re-run `design:sync` instead.
+
+#### Options
+
+- `--input=PATH`: path to the DESIGN.md source, relative to the project root (default `DESIGN.md`).
+- `--output=PATH`: path for the generated wind theme file (default `lib/config/wind_theme.g.dart`).
+
+<a name="designlint"></a>
+### design:lint
+
+Validates a `DESIGN.md` against the design rules:
+
+```bash
+dart run magic:artisan design:lint
+dart run magic:artisan design:lint --input=DESIGN.md
+```
+
+The command exits nonzero only on an error-severity finding (a broken reference). Warnings and info notes are reported but do not fail the lint. Rules:
+
+- **broken-ref** (error): a component references a token (`{colors.x}`, `{rounded.x}`, `{spacing.x}`) that does not resolve.
+- **missing-primary** (warning): colors are defined but `primary` is absent.
+- **unknown-key** (warning): a top-level YAML key looks like a typo of a schema key. The single-file `dark:` overlay lives inside `colors`, so it is never flagged.
+- **section-order** (warning): markdown `##` sections appear out of canonical order.
+- **missing-sections** (info): the optional `spacing` / `rounded` groups are absent.
+- **orphaned-tokens** (warning): a custom color token is defined but never referenced by any component (Material Design 3 baseline families are exempt).
+- **contrast-ratio** (warning): a component `backgroundColor` / `textColor` pair falls below the WCAG AA minimum of 4.5:1.
+
+#### Options
+
+- `--input=PATH`: path to the DESIGN.md to validate, relative to the project root (default `DESIGN.md`).
+
+<a name="designmd-format"></a>
+### DESIGN.md format
+
+`DESIGN.md` is the single source of truth for the app theme: a YAML front matter (machine-readable design tokens) followed by a markdown body (human-readable rationale; ignored by `design:sync`).
+
+```markdown
+---
+name: Acme
+colors:
+  surface:
+    light: "#f9f9ff"   # single-file dark: overlay per role
+    dark: "#0f1419"
+  fg:
+    light: "#151c27"
+    dark: "#e6e9f0"
+  primary:
+    light: "#7c3aed"   # the brand seed for the MaterialColor ramp
+    dark: "#a78bfa"
+  on-primary: "#ffffff"  # a bare hex is light-only (dark mirrors light)
+typography:
+  body-md:
+    fontFamily: Plus Jakarta Sans
+    fontSize: 16px
+rounded:
+  md: 8px
+spacing:
+  md: 16px
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"   # {group.token} reference
+    textColor: "{colors.on-primary}"
+    rounded: "{rounded.md}"
+    padding: "{spacing.md}"
+---
+
+## Overview
+...
+## Colors
+...
+```
+
+Each color role is either a bare hex scalar (light only; dark mirrors light) or a `{ light, dark }` overlay map. The 17 semantic roles map onto the wind alias keys as: `surface`/`surface-container`/`surface-container-high` -> `bg-surface*`; `fg` (or `on-surface`)/`fg-muted`/`fg-disabled` -> `text-fg*`; `primary`/`on-primary`/`primary-container` -> `bg-primary` / `text-on-primary` / `bg-primary-container`; `accent` -> `bg-accent`; `border`/`border-subtle` -> `border-color-border*`; `destructive`/`on-destructive`/`destructive-container` -> `bg-destructive` / `text-on-destructive` / `bg-destructive-container`; `success`/`warning` -> `bg-success` / `bg-warning`.
+
+This is a wind-flavored superset of the open DESIGN.md format: the single-file `dark:` overlay is the deliberate divergence that lets one document drive both light and dark wind aliases.
