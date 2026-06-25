@@ -349,8 +349,8 @@ class Pick {
   ///
   /// **Parameters:**
   /// - [dialogTitle]: Title of the save dialog.
-  /// - [fileName]: Default file name.
-  /// - [bytes]: Optional bytes to write to the file.
+  /// - [fileName]: File name to save as. Required; throws [ArgumentError] if null.
+  /// - [bytes]: Bytes to write to the file. Required; throws [ArgumentError] if null.
   ///
   /// ```dart
   /// final savePath = await Pick.saveFile(
@@ -363,6 +363,13 @@ class Pick {
     String? fileName,
     Uint8List? bytes,
   }) async {
+    // file_picker 12 made fileName and bytes required and non-null on
+    // FilePicker.saveFile; guard here so the nullable facade surface stays
+    // source-compatible across file_picker 11 and 12 and fails with a clear
+    // error instead of an unhelpful type error.
+    if (fileName == null || bytes == null) {
+      throw ArgumentError('Pick.saveFile requires both fileName and bytes.');
+    }
     return FilePicker.saveFile(
       dialogTitle: dialogTitle,
       fileName: fileName,
