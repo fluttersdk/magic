@@ -26,6 +26,8 @@ All commands are invoked via `dart run magic:artisan <command>` from the Flutter
 | **Generator** | `dart run magic:artisan make:policy Name` | Authorization policy with Gate definitions |
 | **Generator** | `dart run magic:artisan make:request Name` | Form request (validation rules class) |
 | **Generator** | `dart run magic:artisan make:lang code` | JSON language file |
+| **Generator** | `dart run magic:artisan make:component Name` | Atomic component folder (recipe + component + preview + index) |
+| **Codegen** | `dart run magic:artisan previews:refresh` | Regenerate `_previews.g.dart` from `*.preview.dart` files |
 
 
 ## Project Setup
@@ -537,6 +539,43 @@ flutter:
   assets:
     - assets/lang/
 ```
+
+
+### `dart run magic:artisan make:component`
+
+Scaffolds an atomic 4-file component folder under `lib/ui/components/<name>/`.
+
+```bash
+dart run magic:artisan make:component Avatar
+dart run magic:artisan make:component Avatar --variants=intent,size
+dart run magic:artisan make:component Panel --slots
+```
+
+**Output** (for `Avatar`): `lib/ui/components/avatar/avatar.dart` (`class Avatar`, unprefixed PascalCase), `avatar.recipe.dart` (a `WindRecipe`, or a `WindSlotRecipe` under `--slots`, seeded with the requested `--variants` axes), `avatar.preview.dart` (a single public `AvatarPreview` matrix), and `index.dart` (re-exports the component + recipe, NOT the preview).
+
+After scaffolding, the command chains `previews:refresh` so the new preview lands in `_previews.g.dart` automatically.
+
+| Flag | Effect |
+|:-----|:-------|
+| `--variants=a,b` | Seeds the named variant axes into the recipe (values left empty to fill in). |
+| `--slots` | Scaffolds a multi-part `WindSlotRecipe` instead of a single-element `WindRecipe`. |
+| `--force` | Overwrite an existing component. |
+
+
+### `dart run magic:artisan previews:refresh`
+
+Regenerates the dev-only preview catalog index from `*.preview.dart` files.
+
+```bash
+dart run magic:artisan previews:refresh
+dart run magic:artisan previews:refresh --path=lib/ui/components
+```
+
+**Output**: `<scan-dir>/_previews.g.dart` (default scan dir `lib`). Each `*.preview.dart` file must declare exactly ONE public `*Preview` class; the command validates the name, fails fast on a slug collision, sorts deterministically, and writes atomically. The generated file returns a `List<PreviewEntry>` from the `previewEntries()` function (never a top-level const list) so the catalog tree-shakes from release builds. Feed it to the catalog via `MagicPreview.register(previewEntries())`.
+
+| Flag | Effect |
+|:-----|:-------|
+| `--path=DIR` | Directory to scan for `*.preview.dart` files (default `lib`). |
 
 
 ## Common Patterns

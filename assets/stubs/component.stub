@@ -1,0 +1,33 @@
+import 'package:flutter/widgets.dart';
+import 'package:magic/magic.dart';
+
+import '{{ snakeName }}.recipe.dart';
+
+/// {{ className }} component.
+///
+/// Variant logic lives in `{{ snakeName }}.recipe.dart` (a [WindRecipe] reading
+/// semantic tokens); this widget threads the resolved className into a [WDiv].
+/// Pass [className] to override the recipe output entirely (escape hatch).
+@immutable
+class {{ className }} extends StatelessWidget {
+  /// The main content.
+  final Widget child;
+
+  /// Optional className that overrides the recipe output entirely.
+  final String? className;
+
+  /// Creates a [{{ className }}].
+  const {{ className }}({
+    super.key,
+    required this.child,
+    this.className,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return WDiv(
+      className: className ?? {{ camelName }}Recipe()(),
+      child: child,
+    );
+  }
+}

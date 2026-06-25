@@ -22,6 +22,8 @@ The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic 
     - [make:listener](#makelistener)
     - [make:request](#makerequest)
     - [make:lang](#makelang)
+    - [make:component](#makecomponent)
+    - [previews:refresh](#previewsrefresh)
 
 <a name="introduction"></a>
 ## Introduction
@@ -353,3 +355,47 @@ dart run magic:artisan make:lang de
 ```
 
 **Output:** `assets/lang/<locale>.json`
+
+<a name="makecomponent"></a>
+### make:component
+
+Scaffolds an atomic 4-file component folder under `lib/ui/components/<name>/`:
+
+```bash
+dart run magic:artisan make:component Avatar
+dart run magic:artisan make:component Avatar --variants=intent,size
+dart run magic:artisan make:component Panel --slots
+```
+
+**Output** (for `Avatar`):
+
+- `lib/ui/components/avatar/avatar.dart` (`class Avatar`, unprefixed PascalCase)
+- `lib/ui/components/avatar/avatar.recipe.dart` (a `WindRecipe`, or a `WindSlotRecipe` under `--slots`, seeded with the requested `--variants` axes)
+- `lib/ui/components/avatar/avatar.preview.dart` (a single public `AvatarPreview` matrix)
+- `lib/ui/components/avatar/index.dart` (re-exports the component + recipe, NOT the preview)
+
+After scaffolding, `make:component` chains `previews:refresh` so the new preview lands in `_previews.g.dart` automatically.
+
+#### Options
+
+- `--variants=a,b`: seed the named variant axes into the recipe (values left empty to fill in).
+- `--slots`: scaffold a multi-part `WindSlotRecipe` instead of a single-element `WindRecipe`.
+- `--force`: overwrite an existing component.
+
+<a name="previewsrefresh"></a>
+### previews:refresh
+
+Regenerates the dev-only preview catalog index from `*.preview.dart` files:
+
+```bash
+dart run magic:artisan previews:refresh
+dart run magic:artisan previews:refresh --path=lib/ui/components
+```
+
+**Output:** `<scan-dir>/_previews.g.dart` (default scan dir `lib`).
+
+Each `*.preview.dart` file must declare exactly ONE public `*Preview` class. The command validates the class name, fails fast on a slug collision, sorts deterministically, and writes atomically. The generated file returns a `List<PreviewEntry>` from the `previewEntries()` function (never a top-level const list) so the catalog tree-shakes from release builds. Feed it to the catalog via `MagicPreview.register(previewEntries())`.
+
+#### Options
+
+- `--path=DIR`: directory to scan for `*.preview.dart` files (default `lib`).

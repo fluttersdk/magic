@@ -2,6 +2,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 
 import 'commands/key_generate_command.dart';
 import 'commands/magic_install_command.dart';
+import 'commands/make_component_command.dart';
 import 'commands/make_controller_command.dart';
 import 'commands/make_enum_command.dart';
 import 'commands/make_event_command.dart';
@@ -16,6 +17,7 @@ import 'commands/make_provider_command.dart';
 import 'commands/make_request_command.dart';
 import 'commands/make_seeder_command.dart';
 import 'commands/make_view_command.dart';
+import 'commands/previews_refresh_command.dart';
 
 /// Contributes magic:* (and make:* / key:generate) commands to the artisan
 /// dispatcher.
@@ -30,8 +32,8 @@ import 'commands/make_view_command.dart';
 /// };
 /// ```
 ///
-/// Ships the full 16-command magic code-gen surface that used to live in the
-/// `magic_cli` package: 14 make:* generators + `magic:install` + `key:generate`.
+/// Ships the magic code-gen surface: 15 make:* generators + `previews:refresh`
+/// + `magic:install` + `key:generate`.
 class MagicArtisanProvider extends ArtisanServiceProvider {
   @override
   String get providerName => 'magic';
@@ -52,6 +54,8 @@ class MagicArtisanProvider extends ArtisanServiceProvider {
     MakePolicyCommand(),
     MakeRequestCommand(),
     MakeModelCommand(),
+    MakeComponentCommand(),
+    PreviewsRefreshCommand(),
     MagicInstallCommand(),
     KeyGenerateCommand(),
   ];
