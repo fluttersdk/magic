@@ -26,6 +26,7 @@ The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic 
     - [previews:refresh](#previewsrefresh)
     - [design:sync](#designsync)
     - [design:lint](#designlint)
+    - [DESIGN.md format](#designmd-format)
 
 <a name="introduction"></a>
 ## Introduction
