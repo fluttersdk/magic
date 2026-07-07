@@ -4,6 +4,7 @@
 Map<String, dynamic> get appConfig => {
   'app': {
     'name': env('APP_NAME', 'My App'),
+    'title_separator': ' - ',
     'env': env('APP_ENV', 'production'),
     'debug': env('APP_DEBUG', false),
     'key': env('APP_KEY'),

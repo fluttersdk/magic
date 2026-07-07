@@ -1,0 +1,17 @@
+import 'package:magic/magic.dart';
+
+/// Builds the [WindSlotRecipe] for the {{ className }} component.
+///
+/// Each slot maps to its own className, built from semantic tokens
+/// (`bg-surface`, `text-fg`, `border-color-border`, ...). Variant axes carry a
+/// per-slot className map; the emission order per slot is
+/// `base ++ variant ++ compound ++ caller` (never sorted or deduped).
+WindSlotRecipe {{ camelName }}Recipe() {
+  return WindSlotRecipe(
+    slots: {
+      'root': 'flex flex-col',
+    },
+    variants: {
+{{ slotVariantAxes }}    },
+{{ defaultVariants }}  );
+}

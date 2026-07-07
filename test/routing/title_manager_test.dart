@@ -335,4 +335,117 @@ void main() {
       expect(route.routeTitle, 'Second');
     });
   });
+
+  group('TitleManager — separator configuration', () {
+    test('default separator is " - "', () {
+      TitleManager.configure();
+      TitleManager.instance
+        ..setRouteTitle('Home')
+        ..setSuffix('Site');
+
+      expect(TitleManager.instance.effectiveTitle, 'Home - Site');
+    });
+
+    test('setSeparator changes the glue between title and suffix', () {
+      TitleManager.configure();
+      TitleManager.instance
+        ..setRouteTitle('Home')
+        ..setSuffix('Site')
+        ..setSeparator(' | ');
+
+      expect(TitleManager.instance.effectiveTitle, 'Home | Site');
+    });
+
+    test('setSeparator returns the instance for chaining', () {
+      TitleManager.configure();
+
+      final result = TitleManager.instance.setSeparator(' :: ');
+
+      expect(identical(result, TitleManager.instance), isTrue);
+    });
+
+    test('setSeparator triggers onTitleChanged with the recomposed title', () {
+      final titles = <String>[];
+      TitleManager.configure(onTitleChanged: (title, _) => titles.add(title));
+      TitleManager.instance
+        ..setRouteTitle('Home')
+        ..setSuffix('Site');
+      titles.clear();
+
+      TitleManager.instance.setSeparator(' | ');
+
+      expect(titles, hasLength(1));
+      expect(titles.first, 'Home | Site');
+    });
+  });
+
+  group('TitleManager — lazy translation resolution', () {
+    tearDown(Translator.reset);
+
+    test('a loaded key resolves through trans in effectiveTitle', () async {
+      Translator.instance.setLoader(
+        const _FakeTranslationLoader({'titles.home': 'Anasayfa'}),
+      );
+      await Translator.instance.load(const Locale('en'));
+
+      TitleManager.configure();
+      TitleManager.instance.setRouteTitle('titles.home');
+
+      expect(TitleManager.instance.effectiveTitle, 'Anasayfa');
+      expect(TitleManager.instance.currentTitle, 'Anasayfa');
+    });
+
+    test('an unmatched string passes through unchanged', () {
+      TitleManager.configure();
+      TitleManager.instance.setRouteTitle('Dashboard');
+
+      expect(TitleManager.instance.effectiveTitle, 'Dashboard');
+      expect(TitleManager.instance.currentTitle, 'Dashboard');
+    });
+
+    test('the suffix is composed literally, never run through trans', () async {
+      Translator.instance.setLoader(
+        const _FakeTranslationLoader({
+          'titles.home': 'Anasayfa',
+          'Site': 'TRANSLATED_SITE',
+        }),
+      );
+      await Translator.instance.load(const Locale('en'));
+
+      TitleManager.configure();
+      TitleManager.instance
+        ..setRouteTitle('titles.home')
+        ..setSuffix('Site');
+
+      // The title resolves via trans; the suffix stays the literal 'Site'.
+      expect(TitleManager.instance.effectiveTitle, 'Anasayfa - Site');
+    });
+  });
+
+  group('TitleManager — reapply', () {
+    test('reapply re-invokes onTitleChanged with the effective title', () {
+      final titles = <String>[];
+      TitleManager.configure(onTitleChanged: (title, _) => titles.add(title));
+      TitleManager.instance.setAppTitle('App');
+      titles.clear();
+
+      TitleManager.instance.reapply();
+
+      expect(titles, hasLength(1));
+      expect(titles.first, 'App');
+    });
+  });
+}
+
+/// Test double that feeds a fixed sentence map to the [Translator].
+///
+/// Used to prove that a loaded key resolves through `trans()` at read time
+/// while the suffix remains a literal.
+class _FakeTranslationLoader implements TranslationLoader {
+  const _FakeTranslationLoader(this._sentences);
+
+  final Map<String, dynamic> _sentences;
+
+  @override
+  Future<Map<String, dynamic>> load(Locale locale) async => _sentences;
 }

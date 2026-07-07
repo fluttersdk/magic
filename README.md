@@ -73,7 +73,7 @@ The same Facades, the same Eloquent syntax, the same Service Provider lifecycle 
 | 🎨 | **Wind UI** | Built-in [Wind](https://wind.fluttersdk.com) Tailwind-syntax styling with `className` strings. |
 | 📡 | **Broadcasting** | Laravel Echo equivalent: real-time WebSocket channels via the `Echo` facade with presence support and `Echo.fake()`. |
 | 🧪 | **Testing** | First-class fakes: `Http.fake()`, `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()`, `Echo.fake()`. No mockito needed. |
-| 🧰 | **Magic CLI** | Artisan-style scaffolding via `dart run magic:artisan make:model`, `make:controller`, and 14 generators. |
+| 🧰 | **Magic CLI** | Artisan-style scaffolding via `dart run magic:artisan make:model`, `make:controller`, 15 generators, plus `make:component` for design-first component workflows and `design:sync` / `design:lint` to drive the Wind theme from a `DESIGN.md`. |
 
 ## A taste of Magic
 

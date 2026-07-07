@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import '../facades/lang.dart';
+
 /// Manages page titles across routing, widgets, and facades.
 ///
 /// Follows the singleton pattern used by [MagicRouter]. Computes the effective
@@ -47,6 +49,11 @@ class TitleManager {
   String? _appTitle;
   String? _routeTitle;
   String? _overrideTitle;
+
+  /// The glue inserted between a resolved title and the suffix.
+  ///
+  /// Defaults to `' - '` and is configurable via [setSeparator].
+  String _separator = ' - ';
 
   /// Callback invoked whenever the effective title changes.
   ///
@@ -96,35 +103,56 @@ class TitleManager {
     return this;
   }
 
+  /// Set the separator placed between the title and the suffix.
+  ///
+  /// Only affects how the suffix is glued to a title (e.g. `' | '` yields
+  /// `"Home | Site"`). Triggers a title recomputation.
+  TitleManager setSeparator(String separator) {
+    _separator = separator;
+    _applyTitle();
+    return this;
+  }
+
   // ---------------------------------------------------------------------------
   // Accessors
   // ---------------------------------------------------------------------------
 
   /// Returns the effective title **without** the suffix applied.
   ///
-  /// Resolution order: override → routeTitle → appTitle.
-  String? get currentTitle => _overrideTitle ?? _routeTitle ?? _appTitle;
+  /// Resolution order: override → routeTitle → appTitle. The chosen title is
+  /// resolved through [trans] lazily at read time, so a stored translation key
+  /// reflects the current locale. A plain literal (no matching key) passes
+  /// through unchanged.
+  String? get currentTitle {
+    final title = _overrideTitle ?? _routeTitle ?? _appTitle;
+    return title != null ? trans(title) : null;
+  }
 
   /// Returns the computed title **with** the suffix applied.
   ///
-  /// When an override or route title is active and a suffix is present, the
-  /// result is `"$title - $_suffix"`. When the resolved title falls back to
-  /// the application title, the suffix is omitted and the app title is
-  /// returned as-is. When no title is available, an empty string is returned.
+  /// The resolved title is passed through [trans] lazily at read time (a plain
+  /// literal passes through unchanged); the suffix stays literal and is never
+  /// translated. When an override or route title is active and a suffix is
+  /// present, the result is `"$title$_separator$suffix"`. When the resolved
+  /// title falls back to the application title, the suffix is omitted. When no
+  /// title is available, an empty string is returned.
   String get effectiveTitle {
     final overrideTitle = _overrideTitle;
     if (overrideTitle != null) {
+      final resolved = trans(overrideTitle);
       final suffix = _suffix;
-      return suffix != null ? '$overrideTitle - $suffix' : overrideTitle;
+      return suffix != null ? '$resolved$_separator$suffix' : resolved;
     }
 
     final routeTitle = _routeTitle;
     if (routeTitle != null) {
+      final resolved = trans(routeTitle);
       final suffix = _suffix;
-      return suffix != null ? '$routeTitle - $suffix' : routeTitle;
+      return suffix != null ? '$resolved$_separator$suffix' : resolved;
     }
 
-    return _appTitle ?? '';
+    final appTitle = _appTitle;
+    return appTitle != null ? trans(appTitle) : '';
   }
 
   // ---------------------------------------------------------------------------
@@ -141,6 +169,13 @@ class TitleManager {
   // ---------------------------------------------------------------------------
   // Internal
   // ---------------------------------------------------------------------------
+
+  /// Re-push the current [effectiveTitle] through the change callback.
+  ///
+  /// Lets the foundation layer re-emit the title without a state change (e.g.
+  /// on a locale switch, so translation keys re-resolve). [TitleManager] does
+  /// not subscribe to locale changes itself; the caller triggers this.
+  void reapply() => _applyTitle();
 
   /// Compute [effectiveTitle] and invoke [_onTitleChanged].
   ///

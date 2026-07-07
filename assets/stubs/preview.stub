@@ -1,0 +1,24 @@
+import 'package:flutter/widgets.dart';
+import 'package:magic/magic.dart';
+
+import '{{ snakeName }}.dart';
+
+/// Static variant-matrix preview for [{{ className }}].
+///
+/// Renders the component so the dev-only `/preview` catalog can show it in both
+/// light and dark. One public preview class per file is the discovery contract
+/// `previews:refresh` enforces.
+class {{ className }}Preview extends StatelessWidget {
+  /// Creates the {{ className }} preview.
+  const {{ className }}Preview({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const WDiv(
+      className: 'flex flex-col gap-6 p-6',
+      child: {{ className }}(
+        child: WText('{{ className }}', className: 'text-sm text-fg'),
+      ),
+    );
+  }
+}

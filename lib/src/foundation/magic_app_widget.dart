@@ -80,6 +80,12 @@ class MagicApplication extends StatefulWidget {
   /// Optional title suffix appended to page titles (e.g. '- My App').
   final String? titleSuffix;
 
+  /// Optional glue inserted between a page title and the suffix (e.g. ' | ').
+  ///
+  /// When `null`, the separator is sourced from `app.title_separator` in config
+  /// and defaults to `' - '`.
+  final String? titleSeparator;
+
   /// Wind theme data for styling.
   /// MaterialApp theme will be derived from this using controller.toThemeData().
   final WindThemeData? windTheme;
@@ -118,6 +124,7 @@ class MagicApplication extends StatefulWidget {
     super.key,
     this.title = 'Magic App',
     this.titleSuffix,
+    this.titleSeparator,
     this.windTheme,
     this.themeMode = ThemeMode.system,
     this.initialRoute = '/',
@@ -139,6 +146,12 @@ class _MagicApplicationState extends State<MagicApplication> {
   bool _initialized = false;
   bool _hasError = false;
 
+  /// Whether the locale-change title listener has been attached to [Lang].
+  ///
+  /// Tracked so [dispose] removes exactly what [_initialize] added, and never
+  /// touches [Lang] when the translator was unbound at init time.
+  bool _titleListenerAttached = false;
+
   /// Saved brightness preference loaded from Vault.
   ///
   /// - `null` means no preference saved (follow system).
@@ -150,6 +163,20 @@ class _MagicApplicationState extends State<MagicApplication> {
     super.initState();
     _initialize();
   }
+
+  @override
+  void dispose() {
+    if (_titleListenerAttached) {
+      Lang.removeListener(_reapplyTitle);
+    }
+    super.dispose();
+  }
+
+  /// Re-emit the current page title through [TitleManager].
+  ///
+  /// Invoked on every locale change so a stored translation key re-resolves
+  /// against the new locale without rebuilding the widget tree.
+  void _reapplyTitle() => TitleManager.instance.reapply();
 
   /// Initialize the application and load saved theme preference.
   ///
@@ -169,9 +196,28 @@ class _MagicApplicationState extends State<MagicApplication> {
       // 3. Call the app's onInit callback.
       widget.onInit?.call();
 
-      // 4. Configure TitleManager with app title and optional suffix.
+      // 4. Configure TitleManager with app title, suffix, and separator.
+      //    Suffix and separator fall back to config when their params are null,
+      //    so the app name and glue can be set once in config/app.dart.
       TitleManager.instance.setAppTitle(widget.title);
-      TitleManager.instance.setSuffix(widget.titleSuffix);
+      TitleManager.instance.setSuffix(
+        widget.titleSuffix ?? Config.get<String?>('app.name', null),
+      );
+      TitleManager.instance.setSeparator(
+        widget.titleSeparator ??
+            Config.get<String>('app.title_separator', ' - ')!,
+      );
+
+      // 5. Re-apply the title on locale change so translation keys re-resolve.
+      //    Magic.reload() already refreshes the MaterialApp title when a locale
+      //    switch runs with reload:true; this listener covers the reload:false
+      //    path, the OS-level locale change, and the app-switcher label, none
+      //    of which rebuild MagicApplication. Guarded by an explicit bound
+      //    check so it never runs when the translator is not registered.
+      if (Magic.bound('translator')) {
+        Lang.addListener(_reapplyTitle);
+        _titleListenerAttached = true;
+      }
 
       setState(() => _initialized = true);
     } catch (e) {

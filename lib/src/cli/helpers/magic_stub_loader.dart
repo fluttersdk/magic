@@ -54,6 +54,20 @@ class MagicStubLoader {
     return file.readAsStringSync();
   }
 
+  /// Loads the named stub from an explicit [stubsDir] (bypassing
+  /// package_config resolution). Used when the caller already knows the stubs
+  /// directory, e.g. a generator under test pointing at a checkout-local
+  /// `assets/stubs/`.
+  ///
+  /// Throws [StateError] when the stub file does not exist under [stubsDir].
+  static String loadFrom(String name, String stubsDir) {
+    final file = File(p.join(stubsDir, '$name.stub'));
+    if (!file.existsSync()) {
+      throw StateError('Stub file not found: $name.stub at ${file.path}.');
+    }
+    return file.readAsStringSync();
+  }
+
   /// Resolves the absolute path to magic's `assets/stubs/` directory.
   ///
   /// Strategy:

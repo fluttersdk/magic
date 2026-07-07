@@ -803,8 +803,8 @@ void main() {
         // still complete successfully.
         expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
         final main = fs.readAsString('/proj/lib/main.dart');
-        // The appName placeholder resolves to '' — MagicApplication title is blank.
-        expect(main, contains("MagicApplication(title: '')"));
+        // The appName placeholder resolves to '' — title and brand suffix blank.
+        expect(main, contains("MagicApplication(title: '', titleSuffix: '')"));
       },
     );
 
@@ -817,7 +817,12 @@ void main() {
         await cmd.handle(ctx);
 
         final main = fs.readAsString('/proj/lib/main.dart');
-        expect(main, contains("MagicApplication(title: 'My Cool App')"));
+        expect(
+          main,
+          contains(
+            "MagicApplication(title: 'My Cool App', titleSuffix: 'My Cool App')",
+          ),
+        );
       },
     );
   });
