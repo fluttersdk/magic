@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.9
   magic:
     path: ..
+    version: 0.0.4
   fluttersdk_artisan: ^0.0.8
 
 dev_dependencies:
