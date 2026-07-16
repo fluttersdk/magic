@@ -94,9 +94,7 @@ class MagicFeedback {
       duration: Duration(milliseconds: durationMs),
     );
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(snackBar);
+    _showSnackBarSafely(context, snackBar);
   }
 
   /// Show a success snackbar.
@@ -383,14 +381,34 @@ class MagicFeedback {
       duration: Duration(milliseconds: durationMs),
     );
 
-    ScaffoldMessenger.of(_context!)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(snackBar);
+    _showSnackBarSafely(_context!, snackBar);
   }
 
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// Shows [snackBar] through the nearest [ScaffoldMessenger], degrading to a
+  /// logged warning instead of throwing when the surface cannot host it.
+  ///
+  /// The whole magic UI layer is Wind-based (WDiv/WText), so a view registers
+  /// no Material [Scaffold]; `ScaffoldMessenger.showSnackBar` then trips its
+  /// `_scaffolds.isNotEmpty` assertion (and `ScaffoldMessenger.of` throws when
+  /// no messenger exists at all). A snackbar is a best-effort affordance and
+  /// the condition it reports is already logged by the caller, so a missing
+  /// host must never crash the calling flow: an unhandled throw here used to
+  /// escape the caller's own try/catch and stall it (the AI-analyze step span
+  /// forever on a failed probe because its error toast threw before the flow
+  /// could reset). Degrade to a warning instead.
+  static void _showSnackBarSafely(BuildContext context, SnackBar snackBar) {
+    try {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(snackBar);
+    } catch (error) {
+      Log.warning('MagicFeedback: snackbar could not be shown ($error)');
+    }
+  }
 
   /// Parse Wind color class to Flutter Color.
   static Color _parseWindColor(String className) {
