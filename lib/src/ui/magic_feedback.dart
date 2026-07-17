@@ -384,7 +384,7 @@ class MagicFeedback {
   /// `ScaffoldMessenger.showSnackBar`: the whole magic UI layer is Wind-based
   /// (WDiv/WText) and registers no Material [Scaffold], so the ScaffoldMessenger
   /// path threw `_scaffolds.isNotEmpty` and every toast/error affordance was
-  /// either invisible or crashed the caller (the AI-analyze step span forever
+  /// either invisible or crashed the caller (the AI-analyze step spun forever
   /// on a failed probe because its error toast threw before the flow could
   /// reset). The Navigator always builds an [Overlay], so a toast shows without
   /// a Scaffold. It is read from `navigatorKey.currentState.overlay` rather than
@@ -438,11 +438,18 @@ class MagicFeedback {
   }
 
   /// Removes the active toast overlay entry and cancels its timer, if any.
+  ///
+  /// Guards the removal on [OverlayEntry.mounted]: a late-firing dismiss timer
+  /// (the overlay was torn down, e.g. a route pop, before the duration elapsed)
+  /// would otherwise call `remove()` on an already-detached entry and throw.
   static void _dismissToast() {
     _toastTimer?.cancel();
     _toastTimer = null;
-    _activeToast?.remove();
+    final OverlayEntry? entry = _activeToast;
     _activeToast = null;
+    if (entry != null && entry.mounted) {
+      entry.remove();
+    }
   }
 
   /// Parse Wind color class to Flutter Color.
