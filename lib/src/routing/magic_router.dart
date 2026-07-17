@@ -753,6 +753,11 @@ class MagicRouter {
     _instance?._router?.routerDelegate.removeListener(
       _instance!._onRouteChanged,
     );
+    // Dispose the GoRouter so it releases its internal subscription to the
+    // refreshListenable (the auth state notifier). Dropping the reference alone
+    // would leak that listener on the long-lived notifier, and the orphaned
+    // router would keep reacting to auth changes.
+    _instance?._router?.dispose();
     _instance?._routes.clear();
     _instance?._layouts.clear();
     _instance?._observers.clear();
