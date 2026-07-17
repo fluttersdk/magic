@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 - [ ] `example/` updated when the change touches the canonical consumer scaffold
 - [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
 
+### Fixed
+
+- **`MagicFeedback` toasts now show in Scaffold-less (Wind-only) views instead of throwing or silently doing nothing.** `Magic.error` / `Magic.success` / `MagicFeedback.info` routed through `ScaffoldMessenger.of(context).showSnackBar`, which asserts `_scaffolds.isNotEmpty` when no Material `Scaffold` hosts the view. In a Wind-built screen (no `Scaffold`) that assertion escaped the caller's own `try/catch` and stalled the flow. Two-part fix: (1) the snackbar path degrades to a logged warning when no messenger is available instead of throwing; (2) toast delivery moves off `ScaffoldMessenger` onto the Navigator overlay, read from `navigatorKey.currentState.overlay` (NOT `Overlay.maybeOf`, which sits above that overlay), as a single non-interactive auto-dismissing bottom entry that replaces the previous one. The `Magic.error` / `success` / `toast` API surface is unchanged; only the delivery path is. Touches `lib/src/ui/magic_feedback.dart`.
+
 ## [0.0.4] - 2026-07-08
 
 ### Added
