@@ -34,70 +34,62 @@ void main() {
     Auth.unfake();
   });
 
-  testWidgets(
-    'a passive logout re-runs redirects and ejects to /login',
-    (tester) async {
-      // 1. Start authenticated: the protected route is reachable.
-      Auth.fake(user: _fakeUser());
-      Kernel.register('auth', () => _LiveAuthGuard());
-      Kernel.register('guest', () => _LiveGuestGuard());
+  testWidgets('a passive logout re-runs redirects and ejects to /login', (
+    tester,
+  ) async {
+    // 1. Start authenticated: the protected route is reachable.
+    Auth.fake(user: _fakeUser());
+    Kernel.register('auth', () => _LiveAuthGuard());
+    Kernel.register('guest', () => _LiveGuestGuard());
 
-      MagicRoute.page('/', () => const Text('dashboard')).middleware(['auth']);
-      MagicRoute.page(
-        '/login',
-        () => const Text('login'),
-      ).middleware(['guest']);
+    MagicRoute.page('/', () => const Text('dashboard')).middleware(['auth']);
+    MagicRoute.page('/login', () => const Text('login')).middleware(['guest']);
 
-      await tester.pumpWidget(
-        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+    );
+    await tester.pumpAndSettle();
 
-      expect(MagicRouter.instance.currentPath, '/');
+    expect(MagicRouter.instance.currentPath, '/');
 
-      // 2. Simulate the passive 401 -> AuthInterceptor logout. This only bumps
-      //    the guard's stateNotifier; there is no explicit navigation here.
-      await Auth.logout();
-      await tester.pumpAndSettle();
+    // 2. Simulate the passive 401 -> AuthInterceptor logout. This only bumps
+    //    the guard's stateNotifier; there is no explicit navigation here.
+    await Auth.logout();
+    await tester.pumpAndSettle();
 
-      // 3. The router re-evaluated the redirect chain off the state change and
-      //    ejected the now-guest user to the login route.
-      expect(MagicRouter.instance.currentPath, '/login');
-    },
-  );
+    // 3. The router re-evaluated the redirect chain off the state change and
+    //    ejected the now-guest user to the login route.
+    expect(MagicRouter.instance.currentPath, '/login');
+  });
 
-  testWidgets(
-    'a logged-out user resting on /login does not loop',
-    (tester) async {
-      // Guest (no user) sitting on the guest route: the guest middleware must
-      // return null (allow), so the refresh-driven re-evaluation stays put and
-      // go_router never exceeds its redirect budget.
-      Auth.fake();
-      Kernel.register('auth', () => _LiveAuthGuard());
-      Kernel.register('guest', () => _LiveGuestGuard());
+  testWidgets('a logged-out user resting on /login does not loop', (
+    tester,
+  ) async {
+    // Guest (no user) sitting on the guest route: the guest middleware must
+    // return null (allow), so the refresh-driven re-evaluation stays put and
+    // go_router never exceeds its redirect budget.
+    Auth.fake();
+    Kernel.register('auth', () => _LiveAuthGuard());
+    Kernel.register('guest', () => _LiveGuestGuard());
 
-      MagicRoute.page('/', () => const Text('dashboard')).middleware(['auth']);
-      MagicRoute.page(
-        '/login',
-        () => const Text('login'),
-      ).middleware(['guest']);
+    MagicRoute.page('/', () => const Text('dashboard')).middleware(['auth']);
+    MagicRoute.page('/login', () => const Text('login')).middleware(['guest']);
 
-      MagicRouter.instance.setInitialLocation('/login');
+    MagicRouter.instance.setInitialLocation('/login');
 
-      await tester.pumpWidget(
-        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+    );
+    await tester.pumpAndSettle();
 
-      expect(MagicRouter.instance.currentPath, '/login');
+    expect(MagicRouter.instance.currentPath, '/login');
 
-      // A spurious state bump (e.g. a failed restore) must not start a loop.
-      Auth.stateNotifier.value++;
-      await tester.pumpAndSettle();
+    // A spurious state bump (e.g. a failed restore) must not start a loop.
+    Auth.stateNotifier.value++;
+    await tester.pumpAndSettle();
 
-      expect(MagicRouter.instance.currentPath, '/login');
-    },
-  );
+    expect(MagicRouter.instance.currentPath, '/login');
+  });
 }
 
 /// Auth guard reading live auth state: redirects a guest off protected routes.
