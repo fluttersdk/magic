@@ -17,6 +17,10 @@ All notable changes to this project will be documented in this file.
 
 - **`MagicRouter` now re-runs its redirect chain when auth state changes, not only on navigation.** The router evaluated its guards (the `'auth'` / `'guest'` redirects) only while resolving a route, so a login or logout that happened while the user was already sitting on a page (a token expiry, a background sign-out, a successful login on the auth screen) did not move them off a now-forbidden route until the next manual navigation. The router now listens to the auth guard's state notifier and refreshes `routerConfig` on a change, so an auth transition re-evaluates redirects immediately (an expired session bounces to login; a login leaves the guest-only auth screen). Consumers with no bound `auth` guard are unaffected (the notifier is absent and the listener is a no-op). Touches `lib/src/routing/magic_router.dart`; covered by `test/routing/router_auth_refresh_test.dart`.
 
+### Fixed
+
+- **`MagicFeedback` toasts now show in Scaffold-less (Wind-only) views instead of throwing or silently doing nothing.** `Magic.error` / `Magic.success` / `MagicFeedback.info` routed through `ScaffoldMessenger.of(context).showSnackBar`, which asserts `_scaffolds.isNotEmpty` when no Material `Scaffold` hosts the view. In a Wind-built screen (no `Scaffold`) that assertion escaped the caller's own `try/catch` and stalled the flow. Toast delivery now goes through the Navigator overlay, read from `navigatorKey.currentState.overlay` (NOT `Overlay.maybeOf`, which sits above that overlay), as a single non-interactive auto-dismissing bottom entry that replaces the previous one and degrades to a logged warning when no overlay is available (never throwing). The `Magic.error` / `success` / `toast` API surface is unchanged; only the delivery path is. Touches `lib/src/ui/magic_feedback.dart`; covered by `test/ui/magic_feedback_test.dart`.
+
 ## [0.0.4] - 2026-07-08
 
 ### Added

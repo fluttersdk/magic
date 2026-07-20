@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 
@@ -57,7 +59,6 @@ class MagicFeedback {
       return;
     }
 
-    final context = _context!;
     final durationMs =
         duration?.inMilliseconds ?? // Modified duration calculation
         _getIntConfig('view.snackbar.duration', 4000);
@@ -76,7 +77,7 @@ class MagicFeedback {
       );
     } else {
       snackbarContent = WDiv(
-        className: '$styleClass flex flex-col',
+        className: '$styleClass flex flex-col px-4 py-3 rounded-lg shadow-lg',
         children: [
           WText(title, className: 'font-bold text-sm'),
           if (message.isNotEmpty)
@@ -85,18 +86,7 @@ class MagicFeedback {
       );
     }
 
-    final snackBar = SnackBar(
-      content: snackbarContent,
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      behavior: SnackBarBehavior.floating,
-      padding: EdgeInsets.zero,
-      duration: Duration(milliseconds: durationMs),
-    );
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(snackBar);
+    _showOverlayToast(snackbarContent, durationMs);
   }
 
   /// Show a success snackbar.
@@ -374,23 +364,99 @@ class MagicFeedback {
       );
     }
 
-    final snackBar = SnackBar(
-      content: Center(child: toastContent),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      behavior: SnackBarBehavior.floating,
-      padding: EdgeInsets.zero,
-      duration: Duration(milliseconds: durationMs),
-    );
-
-    ScaffoldMessenger.of(_context!)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(snackBar);
+    _showOverlayToast(toastContent, durationMs);
   }
 
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /// The currently visible toast overlay entry and its auto-dismiss timer.
+  ///
+  /// Only one toast is shown at a time: a new toast replaces the current one
+  /// (mirroring the old `hideCurrentSnackBar()` behaviour).
+  static OverlayEntry? _activeToast;
+  static Timer? _toastTimer;
+
+  /// Renders [content] as a transient bottom overlay toast for [durationMs].
+  ///
+  /// Delivery is via the router's [Navigator] overlay, NOT
+  /// `ScaffoldMessenger.showSnackBar`: the whole magic UI layer is Wind-based
+  /// (WDiv/WText) and registers no Material [Scaffold], so the ScaffoldMessenger
+  /// path threw `_scaffolds.isNotEmpty` and every toast/error affordance was
+  /// either invisible or crashed the caller (the AI-analyze step spun forever
+  /// on a failed probe because its error toast threw before the flow could
+  /// reset). The Navigator always builds an [Overlay], so a toast shows without
+  /// a Scaffold. It is read from `navigatorKey.currentState.overlay` rather than
+  /// `Overlay.maybeOf(navigatorContext)`, because that context sits ABOVE the
+  /// Navigator's overlay (an ancestor lookup finds nothing). Degrades to a
+  /// logged warning when no overlay is available (never throws into the
+  /// caller). The toast is non-interactive ([IgnorePointer]) so it never blocks
+  /// the UI beneath it.
+  static void _showOverlayToast(Widget content, int durationMs) {
+    final OverlayState? overlay =
+        MagicRouter.instance.navigatorKey.currentState?.overlay;
+    if (overlay == null) {
+      Log.warning('MagicFeedback: no Overlay available - toast skipped');
+      return;
+    }
+
+    _dismissToast();
+
+    final OverlayEntry entry = OverlayEntry(
+      builder: (_) => Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: SafeArea(
+          minimum: const EdgeInsets.only(bottom: 24),
+          child: IgnorePointer(
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 180),
+                    builder: (_, value, child) =>
+                        Opacity(opacity: value, child: child),
+                    child: content,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+    _activeToast = entry;
+    _toastTimer = Timer(Duration(milliseconds: durationMs), _dismissToast);
+  }
+
+  /// Removes and disposes the active toast overlay entry and cancels its timer,
+  /// if any.
+  ///
+  /// Guards the removal on [OverlayEntry.mounted]: a late-firing dismiss timer
+  /// (the overlay was torn down, e.g. a route pop, before the duration elapsed)
+  /// would otherwise call `remove()` on an already-detached entry and throw.
+  /// [OverlayEntry.dispose] is called only after our own `remove()` (which
+  /// clears the entry's overlay link, the precondition `dispose` asserts on);
+  /// when the entry is already detached the overlay teardown that detached it
+  /// owns its disposal, so disposing here would re-trip that same assert.
+  static void _dismissToast() {
+    _toastTimer?.cancel();
+    _toastTimer = null;
+    final OverlayEntry? entry = _activeToast;
+    _activeToast = null;
+    if (entry != null && entry.mounted) {
+      entry.remove();
+      entry.dispose();
+    }
+  }
 
   /// Parse Wind color class to Flutter Color.
   static Color _parseWindColor(String className) {
