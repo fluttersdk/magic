@@ -100,6 +100,22 @@ void main() {
       expect(TitleManager.instance.effectiveTitle, 'App');
     });
 
+    test('a blank suffix is treated as absent (no dangling separator)', () {
+      // A misconfigured app name (empty or whitespace, e.g. an unset
+      // APP_NAME) must not leave a trailing separator like "Dashboard - " on
+      // the route title.
+      TitleManager.configure();
+      TitleManager.instance
+        ..setAppTitle('App')
+        ..setRouteTitle('Dashboard')
+        ..setSuffix('');
+
+      expect(TitleManager.instance.effectiveTitle, 'Dashboard');
+
+      TitleManager.instance.setSuffix('   ');
+      expect(TitleManager.instance.effectiveTitle, 'Dashboard');
+    });
+
     test(
       'suffix not applied when raw title is null — returns empty string',
       () {
