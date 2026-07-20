@@ -238,15 +238,17 @@ class MagicRouter {
   Listenable? _resolveAuthRefreshListenable() {
     try {
       return Auth.stateNotifier;
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Use debugPrint, not the Log facade: this runs at router-build time,
       // which can precede the container binding of the log service (and of
       // auth itself). Resolving Log here would throw the very "service not
       // registered" error we are guarding against, mirroring the
-      // container-free warning in [setInitialLocation].
+      // container-free warning in [setInitialLocation]. The stack trace is
+      // included: a misconfiguration here (missing guard, wrong binding order)
+      // is otherwise hard to trace back to its origin from the message alone.
       debugPrint(
         'MagicRouter: auth state notifier unavailable; redirects will not '
-        're-run on auth-state changes ($e).',
+        're-run on auth-state changes ($e).\n$stackTrace',
       );
       return null;
     }
