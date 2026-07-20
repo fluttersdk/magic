@@ -329,10 +329,10 @@ packages:
     dependency: transitive
     description:
       name: fluttersdk_wind
-      sha256: "9cf3c6045d7f1391148a37726e09d8b76c20ddc787481b013c3f8768b99ad62b"
+      sha256: "6e45c03595e7b42cd2b1467d7aae0b6290e5f486f486b9434c65497e29f362af"
       url: "https://pub.dev"
     source: hosted
-    version: "1.1.2"
+    version: "1.2.0"
   fluttersdk_wind_diagnostics_contracts:
     dependency: transitive
     description:
@@ -531,7 +531,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.3"
+    version: "0.0.4"
   matcher:
     dependency: transitive
     description:

@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 - [ ] `example/` updated when the change touches the canonical consumer scaffold
 - [ ] `flutter test` green; `dart analyze` clean; `dart format` no diff; `dart pub publish --dry-run` no blocking errors
 
+### Added
+
+- **`MagicRouter` now re-runs its redirect chain when auth state changes, not only on navigation.** The router evaluated its guards (the `'auth'` / `'guest'` redirects) only while resolving a route, so a login or logout that happened while the user was already sitting on a page (a token expiry, a background sign-out, a successful login on the auth screen) did not move them off a now-forbidden route until the next manual navigation. The router now listens to the auth guard's state notifier and refreshes `routerConfig` on a change, so an auth transition re-evaluates redirects immediately (an expired session bounces to login; a login leaves the guest-only auth screen). Consumers with no bound `auth` guard are unaffected (the notifier is absent and the listener is a no-op). Touches `lib/src/routing/magic_router.dart`; covered by `test/routing/router_auth_refresh_test.dart`.
+
 ## [0.0.4] - 2026-07-08
 
 ### Added
