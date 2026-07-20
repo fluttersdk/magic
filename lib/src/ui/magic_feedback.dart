@@ -437,11 +437,16 @@ class MagicFeedback {
     _toastTimer = Timer(Duration(milliseconds: durationMs), _dismissToast);
   }
 
-  /// Removes the active toast overlay entry and cancels its timer, if any.
+  /// Removes and disposes the active toast overlay entry and cancels its timer,
+  /// if any.
   ///
   /// Guards the removal on [OverlayEntry.mounted]: a late-firing dismiss timer
   /// (the overlay was torn down, e.g. a route pop, before the duration elapsed)
   /// would otherwise call `remove()` on an already-detached entry and throw.
+  /// [OverlayEntry.dispose] is called only after our own `remove()` (which
+  /// clears the entry's overlay link, the precondition `dispose` asserts on);
+  /// when the entry is already detached the overlay teardown that detached it
+  /// owns its disposal, so disposing here would re-trip that same assert.
   static void _dismissToast() {
     _toastTimer?.cancel();
     _toastTimer = null;
@@ -449,6 +454,7 @@ class MagicFeedback {
     _activeToast = null;
     if (entry != null && entry.mounted) {
       entry.remove();
+      entry.dispose();
     }
   }
 
