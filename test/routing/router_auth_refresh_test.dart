@@ -90,6 +90,36 @@ void main() {
 
     expect(MagicRouter.instance.currentPath, '/login');
   });
+
+  testWidgets('a login on /login re-runs redirects and leaves for /', (
+    tester,
+  ) async {
+    // The other half of the auth transition: a guest resting on the guest-only
+    // login route logs in, and the refresh-driven re-evaluation should send the
+    // now-authenticated user home with no explicit navigation call.
+    Auth.fake();
+    Kernel.register('auth', () => _LiveAuthGuard());
+    Kernel.register('guest', () => _LiveGuestGuard());
+
+    MagicRoute.page('/', () => const Text('dashboard')).middleware(['auth']);
+    MagicRoute.page('/login', () => const Text('login')).middleware(['guest']);
+
+    MagicRouter.instance.setInitialLocation('/login');
+
+    await tester.pumpWidget(
+      MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+    );
+    await tester.pumpAndSettle();
+
+    expect(MagicRouter.instance.currentPath, '/login');
+
+    // Log in: the guard's stateNotifier bumps, the router re-evaluates, and the
+    // guest guard now sends the authenticated user home.
+    await Auth.login(const <String, dynamic>{'token': 'tok'}, _fakeUser());
+    await tester.pumpAndSettle();
+
+    expect(MagicRouter.instance.currentPath, '/');
+  });
 }
 
 /// Auth guard reading live auth state: redirects a guest off protected routes.
