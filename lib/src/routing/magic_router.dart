@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../http/kernel.dart';
 import '../http/middleware/magic_middleware.dart';
+import '../facades/auth.dart';
 import '../facades/log.dart';
 import 'route_definition.dart';
 import 'title_manager.dart';
@@ -208,10 +209,49 @@ class MagicRouter {
       observers: _observers,
       routes: _buildRoutes(),
       redirect: _handleRedirect,
+      refreshListenable: _resolveAuthRefreshListenable(),
       onException: (context, state, router) {
         Log.warning('Route not found: ${state.uri}');
       },
     );
+  }
+
+  /// Resolve the auth guard's state notifier as the router's refresh signal.
+  ///
+  /// GoRouter re-runs [_handleRedirect] whenever the returned [Listenable]
+  /// notifies. The default guard's `stateNotifier` bumps on every login,
+  /// logout, and session restore, so a passive 401 (expired or revoked token)
+  /// that triggers a logout re-evaluates the redirect chain and ejects the
+  /// user from a protected screen to the login route, with no explicit
+  /// navigation call.
+  ///
+  /// This only adds a re-evaluation trigger: it does not force any redirect.
+  /// The middleware chain still decides the target, returning `null` (allow)
+  /// once the user is on the correct side, so a logged-out user resting on the
+  /// login route does not loop.
+  ///
+  /// Resolution is defensive. The router may be built before auth is fully
+  /// configured (no `auth` binding in the container, missing guard config), in
+  /// which case reaching the notifier throws. We then return `null` (no refresh
+  /// signal) rather than crashing router construction, mirroring the tolerance
+  /// in [AuthServiceProvider.boot].
+  Listenable? _resolveAuthRefreshListenable() {
+    try {
+      return Auth.stateNotifier;
+    } catch (e, stackTrace) {
+      // Use debugPrint, not the Log facade: this runs at router-build time,
+      // which can precede the container binding of the log service (and of
+      // auth itself). Resolving Log here would throw the very "service not
+      // registered" error we are guarding against, mirroring the
+      // container-free warning in [setInitialLocation]. The stack trace is
+      // included: a misconfiguration here (missing guard, wrong binding order)
+      // is otherwise hard to trace back to its origin from the message alone.
+      debugPrint(
+        'MagicRouter: auth state notifier unavailable; redirects will not '
+        're-run on auth-state changes ($e).\n$stackTrace',
+      );
+      return null;
+    }
   }
 
   /// Convert route definitions to GoRouter routes.
@@ -715,6 +755,11 @@ class MagicRouter {
     _instance?._router?.routerDelegate.removeListener(
       _instance!._onRouteChanged,
     );
+    // Dispose the GoRouter so it releases its internal subscription to the
+    // refreshListenable (the auth state notifier). Dropping the reference alone
+    // would leak that listener on the long-lived notifier, and the orphaned
+    // router would keep reacting to auth changes.
+    _instance?._router?.dispose();
     _instance?._routes.clear();
     _instance?._layouts.clear();
     _instance?._observers.clear();
