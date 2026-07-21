@@ -132,27 +132,36 @@ class TitleManager {
   ///
   /// The resolved title is passed through [trans] lazily at read time (a plain
   /// literal passes through unchanged); the suffix stays literal and is never
-  /// translated. When an override or route title is active and a suffix is
-  /// present, the result is `"$title$_separator$suffix"`. When the resolved
-  /// title falls back to the application title, the suffix is omitted. When no
-  /// title is available, an empty string is returned.
+  /// translated. When an override or route title is active and a NON-EMPTY
+  /// suffix is present, the result is `"$title$_separator$suffix"`. A null or
+  /// blank suffix (e.g. an unset `APP_NAME`) is treated as absent, so the title
+  /// never trails a dangling separator (`"Home | "`) or an empty suffix. When
+  /// the resolved title falls back to the application title, the suffix is
+  /// omitted. When no title is available, an empty string is returned.
   String get effectiveTitle {
     final overrideTitle = _overrideTitle;
     if (overrideTitle != null) {
       final resolved = trans(overrideTitle);
-      final suffix = _suffix;
-      return suffix != null ? '$resolved$_separator$suffix' : resolved;
+      return _withSuffix(resolved);
     }
 
     final routeTitle = _routeTitle;
     if (routeTitle != null) {
       final resolved = trans(routeTitle);
-      final suffix = _suffix;
-      return suffix != null ? '$resolved$_separator$suffix' : resolved;
+      return _withSuffix(resolved);
     }
 
     final appTitle = _appTitle;
     return appTitle != null ? trans(appTitle) : '';
+  }
+
+  /// Glues the [_suffix] onto [title] with the [_separator], or returns [title]
+  /// unchanged when the suffix is null or blank (so a missing app name never
+  /// leaves a dangling `"$title$separator"`).
+  String _withSuffix(String title) {
+    final suffix = _suffix;
+    if (suffix == null || suffix.trim().isEmpty) return title;
+    return '$title$_separator$suffix';
   }
 
   // ---------------------------------------------------------------------------
