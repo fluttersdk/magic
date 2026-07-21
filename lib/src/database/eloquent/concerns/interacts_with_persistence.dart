@@ -46,6 +46,38 @@ import '../../events/model_events.dart';
 /// ```
 mixin InteractsWithPersistence on Model {
   // ---------------------------------------------------------------------------
+  // Validation State
+  // ---------------------------------------------------------------------------
+
+  /// Per-field validation errors from the most recent remote [save].
+  ///
+  /// Populated when a remote save receives a Laravel validation response
+  /// (`{message: ..., errors: {field: [msg, ...]}}`, typically a 422) and reset
+  /// on every remote save attempt. Read through [validationErrors].
+  Map<String, List<String>> _validationErrors = {};
+
+  /// The per-field validation errors from the most recent [save].
+  ///
+  /// A remote save that fails with the Laravel validation shape
+  /// (`{message: ..., errors: {field: [msg, ...]}}`, typically a 422) fills this
+  /// map so the caller can render the messages under the matching form fields
+  /// instead of a generic failure. It is cleared at the start of each remote
+  /// save, so a successful save (or a save with no field errors) leaves it
+  /// empty; a thrown transport error also leaves it empty, letting the caller
+  /// treat that as a non-field failure. The returned map is unmodifiable.
+  Map<String, List<String>> get validationErrors =>
+      Map.unmodifiable(_validationErrors);
+
+  /// The first validation message for [field], or `null` when [field] has none.
+  ///
+  /// A convenience over [validationErrors] for the common form case of showing
+  /// a single message per field.
+  String? validationError(String field) =>
+      _validationErrors[field]?.isNotEmpty == true
+      ? _validationErrors[field]!.first
+      : null;
+
+  // ---------------------------------------------------------------------------
   // Static Factory Methods
   // ---------------------------------------------------------------------------
 
@@ -222,6 +254,8 @@ mixin InteractsWithPersistence on Model {
 
     // Save to remote
     if (useRemote) {
+      // Drop any field errors from a prior save before the round trip.
+      _validationErrors = {};
       try {
         MagicResponse response;
         if (exists) {
@@ -239,9 +273,15 @@ mixin InteractsWithPersistence on Model {
               id = responseData[primaryKey];
             }
           }
+        } else {
+          // A non-2xx (a 422 validation failure and the like) carries the
+          // per-field error shape; surface it for the caller without changing
+          // the bool return contract.
+          _validationErrors = _extractValidationErrors(response);
         }
       } catch (_) {
-        // Remote failed, continue to local
+        // Remote failed (transport). Leave _validationErrors empty so the
+        // caller treats this as a non-field failure.
       }
     }
 
@@ -407,6 +447,16 @@ mixin InteractsWithPersistence on Model {
     } catch (_) {
       // Sync failed silently
     }
+  }
+
+  /// Extract the Laravel validation error shape from a failed [response].
+  ///
+  /// Reads `response.data`'s `{errors: {field: [msg, ...]}}` block (the shape
+  /// Laravel returns on a 422) and returns `{}` when that shape is absent, so a
+  /// non-validation failure yields no field errors. Delegates to
+  /// [MagicResponse.errors], the framework's canonical parser for this shape.
+  Map<String, List<String>> _extractValidationErrors(MagicResponse response) {
+    return response.errors;
   }
 
   /// Extract model data from API response.

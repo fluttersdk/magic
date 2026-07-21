@@ -427,6 +427,88 @@ void main() {
       expect(map.containsKey('email'), isFalse);
     });
   });
+
+  group('InteractsWithPersistence validation errors', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    tearDown(() {
+      Http.unfake();
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    test('save exposes 422 field errors and clears them on success', () async {
+      // 1. A remote 422 populates validationErrors and keeps save() false.
+      Http.fake(
+        (MagicRequest request) => Http.response({
+          'message': 'The given data was invalid.',
+          'errors': {
+            'name': ['The name field is required.'],
+          },
+        }, 422),
+      );
+
+      final user = _RemoteUser()..fill({'email': 'new@example.com'});
+      final failed = await user.save();
+
+      expect(failed, isFalse);
+      expect(
+        user.validationErrors,
+        containsPair('name', ['The name field is required.']),
+      );
+      expect(user.validationError('name'), 'The name field is required.');
+
+      // 2. A subsequent successful save clears the prior field errors.
+      Http.fake(
+        (MagicRequest request) => Http.response({
+          'data': {'id': 7, 'name': 'Ok'},
+        }, 201),
+      );
+      user.setAttribute('name', 'Ok');
+      final ok = await user.save();
+
+      expect(ok, isTrue);
+      expect(user.validationErrors, isEmpty);
+      expect(user.validationError('name'), isNull);
+    });
+
+    test('save leaves validationErrors empty on a non-field failure', () async {
+      // A 500 with no `errors` block is a non-validation failure: save() is
+      // false but no per-field errors are surfaced.
+      Http.fake(
+        (MagicRequest request) =>
+            Http.response({'message': 'Server error.'}, 500),
+      );
+
+      final user = _RemoteUser()..fill({'name': 'Boom'});
+      final failed = await user.save();
+
+      expect(failed, isFalse);
+      expect(user.validationErrors, isEmpty);
+      expect(user.validationError('name'), isNull);
+    });
+  });
+}
+
+/// A remote-only model for testing the validation-error surface on [save].
+class _RemoteUser extends Model with InteractsWithPersistence {
+  @override
+  String get table => 'remote_users';
+
+  @override
+  String get resource => 'remote_users';
+
+  @override
+  List<String> get fillable => ['name', 'email'];
+
+  @override
+  bool get useLocal => false;
+
+  @override
+  bool get useRemote => true;
 }
 
 /// A model with hidden attributes for testing serialization.
