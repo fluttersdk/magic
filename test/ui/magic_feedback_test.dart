@@ -57,4 +57,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+
+  test('degrades without throwing when no context and the log service is '
+      'unbound', () {
+    // No harness pumped (so no navigator context) and `log` is unbound (setUp
+    // only flushes). The degrade path must fall back to debugPrint, not throw
+    // "Service [log] is not registered" into the caller.
+    expect(
+      () => MagicFeedback.error('No context', 'should not throw'),
+      returnsNormally,
+    );
+  });
 }

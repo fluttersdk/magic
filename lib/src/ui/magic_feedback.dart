@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 
+import '../foundation/magic.dart';
 import '../routing/magic_router.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
@@ -51,11 +52,9 @@ class MagicFeedback {
     String message, {
     String type = 'info', // Added
     Duration? duration, // Modified
-    Color? backgroundColor,
-    Color? color,
   }) {
     if (_context == null) {
-      Log.warning('MagicFeedback: Cannot show snackbar - context not mounted');
+      _warn('MagicFeedback: Cannot show snackbar - context not mounted');
       return;
     }
 
@@ -119,7 +118,7 @@ class MagicFeedback {
     bool barrierDismissible = true,
   }) {
     if (_context == null) {
-      Log.warning('MagicFeedback: Cannot show dialog - context not mounted');
+      _warn('MagicFeedback: Cannot show dialog - context not mounted');
       return Future.value(null);
     }
 
@@ -263,7 +262,7 @@ class MagicFeedback {
   /// Show a loading dialog.
   static void showLoading({String? message}) {
     if (_context == null) {
-      Log.warning('MagicFeedback: Cannot show loading - context not mounted');
+      _warn('MagicFeedback: Cannot show loading - context not mounted');
       return;
     }
 
@@ -397,7 +396,7 @@ class MagicFeedback {
     final OverlayState? overlay =
         MagicRouter.instance.navigatorKey.currentState?.overlay;
     if (overlay == null) {
-      Log.warning('MagicFeedback: no Overlay available - toast skipped');
+      _warn('MagicFeedback: no Overlay available - toast skipped');
       return;
     }
 
@@ -422,7 +421,16 @@ class MagicFeedback {
                     duration: const Duration(milliseconds: 180),
                     builder: (_, value, child) =>
                         Opacity(opacity: value, child: child),
-                    child: content,
+                    // A transparent Material gives the overlay subtree a real
+                    // DefaultTextStyle. Without it the toast text inherits the
+                    // root fallback style (the yellow double-underline debug
+                    // decoration), since the Navigator's Overlay sits above the
+                    // route's Material. Matches the snackbar/dialog/loading
+                    // builders, which already wrap their content in a Material.
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: content,
+                    ),
                   ),
                 ),
               ),
@@ -455,6 +463,23 @@ class MagicFeedback {
     if (entry != null && entry.mounted) {
       entry.remove();
       entry.dispose();
+    }
+  }
+
+  /// Logs a degradation warning through [Log] when the `log` service is bound,
+  /// falling back to [debugPrint] otherwise.
+  ///
+  /// Feedback can be triggered before `Magic.init` binds the logging service
+  /// (early startup, or a test that never registers it) or during teardown;
+  /// calling [Log.warning] then throws a "Service [log] is not registered"
+  /// error into the caller. Guarding on [Magic.bound] keeps the degrade path
+  /// from turning a missing snackbar into a crash, without silently dropping
+  /// the diagnostic.
+  static void _warn(String message) {
+    if (Magic.bound('log')) {
+      Log.warning(message);
+    } else {
+      debugPrint(message);
     }
   }
 
