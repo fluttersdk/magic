@@ -53,29 +53,44 @@ mixin InteractsWithPersistence on Model {
   ///
   /// Populated when a remote save receives a Laravel validation response
   /// (`{message: ..., errors: {field: [msg, ...]}}`, typically a 422) and reset
-  /// on every remote save attempt. Read through [validationErrors].
-  Map<String, List<String>> _validationErrors = {};
+  /// on every remote save attempt. Always holds a deeply unmodifiable map (see
+  /// [_extractValidationErrors]), so [validationErrors] hands it out directly.
+  Map<String, List<String>> _validationErrors = const {};
 
   /// The per-field validation errors from the most recent [save].
   ///
   /// A remote save that fails with the Laravel validation shape
   /// (`{message: ..., errors: {field: [msg, ...]}}`, typically a 422) fills this
   /// map so the caller can render the messages under the matching form fields
-  /// instead of a generic failure. It is cleared at the start of each remote
-  /// save, so a successful save (or a save with no field errors) leaves it
-  /// empty; a thrown transport error also leaves it empty, letting the caller
-  /// treat that as a non-field failure. The returned map is unmodifiable.
-  Map<String, List<String>> get validationErrors =>
-      Map.unmodifiable(_validationErrors);
+  /// instead of a generic failure.
+  ///
+  /// It is cleared at the start of every remote save, so it stays empty after a
+  /// remote save that succeeded or returned no field errors, and after a thrown
+  /// transport error (which the caller treats as a non-field failure). A model
+  /// that never saves remotely never fills it.
+  ///
+  /// It tracks the REMOTE leg, not [save]'s return value: a hybrid model
+  /// (`useRemote` and `useLocal` both true) whose remote leg returns a 422 while
+  /// its local write succeeds returns `true` from [save] with this map filled.
+  /// Check it even after a save reported success when local persistence is on.
+  ///
+  /// Deeply unmodifiable: neither the map nor the message lists inside it can be
+  /// mutated through this getter.
+  Map<String, List<String>> get validationErrors => _validationErrors;
 
   /// The first validation message for [field], or `null` when [field] has none.
   ///
   /// A convenience over [validationErrors] for the common form case of showing
   /// a single message per field.
-  String? validationError(String field) =>
-      _validationErrors[field]?.isNotEmpty == true
-      ? _validationErrors[field]!.first
-      : null;
+  String? validationError(String field) {
+    final List<String>? messages = _validationErrors[field];
+
+    if (messages == null || messages.isEmpty) {
+      return null;
+    }
+
+    return messages.first;
+  }
 
   // ---------------------------------------------------------------------------
   // Static Factory Methods
@@ -255,7 +270,7 @@ mixin InteractsWithPersistence on Model {
     // Save to remote
     if (useRemote) {
       // Drop any field errors from a prior save before the round trip.
-      _validationErrors = {};
+      _validationErrors = const {};
       try {
         MagicResponse response;
         if (exists) {
@@ -453,10 +468,18 @@ mixin InteractsWithPersistence on Model {
   ///
   /// Reads `response.data`'s `{errors: {field: [msg, ...]}}` block (the shape
   /// Laravel returns on a 422) and returns `{}` when that shape is absent, so a
-  /// non-validation failure yields no field errors. Delegates to
+  /// non-validation failure yields no field errors. Delegates the parsing to
   /// [MagicResponse.errors], the framework's canonical parser for this shape.
+  ///
+  /// The result is frozen at both levels: [MagicResponse.errors] builds a fresh
+  /// mutable map of mutable lists, and a shallow `Map.unmodifiable` would still
+  /// let a caller mutate the per-field lists it hands out.
   Map<String, List<String>> _extractValidationErrors(MagicResponse response) {
-    return response.errors;
+    return Map<String, List<String>>.unmodifiable({
+      for (final MapEntry<String, List<String>> entry
+          in response.errors.entries)
+        entry.key: List<String>.unmodifiable(entry.value),
+    });
   }
 
   /// Extract model data from API response.

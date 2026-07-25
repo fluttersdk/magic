@@ -475,6 +475,28 @@ void main() {
       expect(user.validationError('name'), isNull);
     });
 
+    test('validationErrors is unmodifiable at both levels', () async {
+      Http.fake(
+        (MagicRequest request) => Http.response({
+          'message': 'The given data was invalid.',
+          'errors': {
+            'name': ['The name field is required.'],
+          },
+        }, 422),
+      );
+
+      final user = _RemoteUser()..fill({'email': 'new@example.com'});
+      await user.save();
+
+      final Map<String, List<String>> errors = user.validationErrors;
+
+      // A shallow Map.unmodifiable would still hand out growable message
+      // lists, so the per-field list has to be frozen too.
+      expect(errors, containsPair('name', ['The name field is required.']));
+      expect(() => errors['email'] = ['injected'], throwsUnsupportedError);
+      expect(() => errors['name']?.add('injected'), throwsUnsupportedError);
+    });
+
     test('save leaves validationErrors empty on a non-field failure', () async {
       // A 500 with no `errors` block is a non-validation failure: save() is
       // false but no per-field errors are surfaced.
