@@ -249,6 +249,23 @@ if (user != null) {
 }
 ```
 
+### Validation Errors
+
+`save()` returns a `bool`, which tells you *that* a remote save failed but not *why*. When the backend answers with Laravel's validation shape (`{"message": ..., "errors": {"field": ["message"]}}`, typically a 422), the per-field messages are captured on the model so a form can render them under the matching fields:
+
+```dart
+final monitor = Monitor()..fill({'name': '', 'url': 'not-a-url'});
+
+if (!await monitor.save()) {
+  monitor.validationErrors;              // {'name': ['The name field is required.'], ...}
+  monitor.validationError('name');       // 'The name field is required.' (first message)
+}
+```
+
+`validationErrors` is cleared at the start of every remote save, so it stays empty after a save that succeeded or returned no field errors. A save that failed on the transport (no response at all) also leaves it empty, which is how you tell a field-validation failure from a network failure: an empty map plus a `false` return means "show a generic error".
+
+The map is deeply unmodifiable, and it tracks the remote leg rather than the return value. A [hybrid](#hybrid-persistence) model whose remote save 422s while its local write succeeds returns `true` and still carries the errors, so check the map even after a successful save when local persistence is on.
+
 ### Dirty Checking
 
 Track which attributes have changed:

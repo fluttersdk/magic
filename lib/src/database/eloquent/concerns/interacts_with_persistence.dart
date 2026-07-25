@@ -46,6 +46,53 @@ import '../../events/model_events.dart';
 /// ```
 mixin InteractsWithPersistence on Model {
   // ---------------------------------------------------------------------------
+  // Validation State
+  // ---------------------------------------------------------------------------
+
+  /// Per-field validation errors from the most recent remote [save].
+  ///
+  /// Populated when a remote save receives a Laravel validation response
+  /// (`{message: ..., errors: {field: [msg, ...]}}`, typically a 422) and reset
+  /// on every remote save attempt. Always holds a deeply unmodifiable map (see
+  /// [_extractValidationErrors]), so [validationErrors] hands it out directly.
+  Map<String, List<String>> _validationErrors = const {};
+
+  /// The per-field validation errors from the most recent [save].
+  ///
+  /// A remote save that fails with the Laravel validation shape
+  /// (`{message: ..., errors: {field: [msg, ...]}}`, typically a 422) fills this
+  /// map so the caller can render the messages under the matching form fields
+  /// instead of a generic failure.
+  ///
+  /// It is cleared at the start of every remote save, so it stays empty after a
+  /// remote save that succeeded or returned no field errors, and after a thrown
+  /// transport error (which the caller treats as a non-field failure). A model
+  /// that never saves remotely never fills it.
+  ///
+  /// It tracks the REMOTE leg, not [save]'s return value: a hybrid model
+  /// (`useRemote` and `useLocal` both true) whose remote leg returns a 422 while
+  /// its local write succeeds returns `true` from [save] with this map filled.
+  /// Check it even after a save reported success when local persistence is on.
+  ///
+  /// Deeply unmodifiable: neither the map nor the message lists inside it can be
+  /// mutated through this getter.
+  Map<String, List<String>> get validationErrors => _validationErrors;
+
+  /// The first validation message for [field], or `null` when [field] has none.
+  ///
+  /// A convenience over [validationErrors] for the common form case of showing
+  /// a single message per field.
+  String? validationError(String field) {
+    final List<String>? messages = _validationErrors[field];
+
+    if (messages == null || messages.isEmpty) {
+      return null;
+    }
+
+    return messages.first;
+  }
+
+  // ---------------------------------------------------------------------------
   // Static Factory Methods
   // ---------------------------------------------------------------------------
 
@@ -222,6 +269,8 @@ mixin InteractsWithPersistence on Model {
 
     // Save to remote
     if (useRemote) {
+      // Drop any field errors from a prior save before the round trip.
+      _validationErrors = const {};
       try {
         MagicResponse response;
         if (exists) {
@@ -239,9 +288,15 @@ mixin InteractsWithPersistence on Model {
               id = responseData[primaryKey];
             }
           }
+        } else {
+          // A non-2xx (a 422 validation failure and the like) carries the
+          // per-field error shape; surface it for the caller without changing
+          // the bool return contract.
+          _validationErrors = _extractValidationErrors(response);
         }
       } catch (_) {
-        // Remote failed, continue to local
+        // Remote failed (transport). Leave _validationErrors empty so the
+        // caller treats this as a non-field failure.
       }
     }
 
@@ -407,6 +462,24 @@ mixin InteractsWithPersistence on Model {
     } catch (_) {
       // Sync failed silently
     }
+  }
+
+  /// Extract the Laravel validation error shape from a failed [response].
+  ///
+  /// Reads `response.data`'s `{errors: {field: [msg, ...]}}` block (the shape
+  /// Laravel returns on a 422) and returns `{}` when that shape is absent, so a
+  /// non-validation failure yields no field errors. Delegates the parsing to
+  /// [MagicResponse.errors], the framework's canonical parser for this shape.
+  ///
+  /// The result is frozen at both levels: [MagicResponse.errors] builds a fresh
+  /// mutable map of mutable lists, and a shallow `Map.unmodifiable` would still
+  /// let a caller mutate the per-field lists it hands out.
+  Map<String, List<String>> _extractValidationErrors(MagicResponse response) {
+    return Map<String, List<String>>.unmodifiable({
+      for (final MapEntry<String, List<String>> entry
+          in response.errors.entries)
+        entry.key: List<String>.unmodifiable(entry.value),
+    });
   }
 
   /// Extract model data from API response.
