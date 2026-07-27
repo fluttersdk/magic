@@ -187,6 +187,28 @@ date1.diffForHumans(date2);  // "5 days before"
 date2.diffForHumans(date1);  // "5 days after"
 ```
 
+<a name="timezone-support"></a>
+## Timezone Support
+
+When `localization.auto_detect_timezone` is enabled (it defaults to `false`), Magic
+resolves the device's real IANA timezone identifier on boot through the platform's
+native APIs, via the `flutter_timezone` package. The resolved identifier is what
+`DateManager.instance.timezoneName` returns, and the `LocalizationInterceptor`
+sends it as the `X-Timezone` header on every outgoing request. When detection
+cannot resolve a valid zone, the configured `localization.timezone` value stays in
+place; Magic does not guess a zone from the UTC offset, because an offset does not
+identify a zone (Istanbul and Kyiv share a winter offset but differ in DST rules).
+
+Carbon instances do NOT pick this zone up implicitly. A `Carbon` built without an
+explicit zone uses the system local time, so the detected identifier is there for
+the backend to interpret timestamps with, not a global conversion applied to every
+instance. To work in a specific zone, pass it explicitly:
+
+```dart
+Carbon.now('Europe/Istanbul');           // build in a zone
+Carbon.now().setTimezone('America/New_York'); // convert an existing instance
+```
+
 <a name="model-integration"></a>
 ## Model Integration
 

@@ -6,6 +6,7 @@ import '../facades/config.dart';
 import '../facades/lang.dart';
 import '../facades/log.dart';
 import '../facades/vault.dart';
+import '../localization/translator.dart';
 import '../routing/magic_router.dart';
 import '../routing/title_manager.dart';
 
@@ -93,7 +94,12 @@ class MagicApplication extends StatefulWidget {
   /// Theme mode (light/dark/system).
   final ThemeMode themeMode;
 
-  /// Locale override (defaults to config `localization.locale`).
+  /// Locale override. When set it wins over every other source, forever:
+  /// a runtime `Lang.setLocale()` no longer reaches [MaterialApp.locale].
+  ///
+  /// Leave it `null` (the recommended setup) to follow the runtime locale of
+  /// the translator, falling back to config `localization.locale` while no
+  /// locale has been loaded at runtime.
   final Locale? locale;
 
   /// Localization delegates override.
@@ -252,19 +258,66 @@ class _MagicApplicationState extends State<MagicApplication> {
       builder: (context, controller) => MagicAppWidget(
         key: MagicAppWidget._appKey,
         themeMode: widget.themeMode,
-        builder: (context) => MaterialApp.router(
-          onGenerateTitle: (_) => TitleManager.instance.effectiveTitle,
-          theme: controller.toThemeData(),
-          themeMode: widget.themeMode,
-          locale: widget.locale ?? _getLocaleFromConfig(),
-          supportedLocales: _getSupportedLocalesFromConfig(),
-          localizationsDelegates:
-              widget.localizationsDelegates ?? _getLocalizationsDelegates(),
-          debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
-          routerConfig: MagicRouter.instance.routerConfig,
-        ),
+        builder: (context) => _buildLocalizedApp(controller),
       ),
     );
+  }
+
+  /// Build the router app so that it re-reads the locale on every change.
+  ///
+  /// The subscription lives here, below [WindTheme] and inside
+  /// [MagicAppWidget], because `locale:` is read in exactly this build: a
+  /// locale switch must re-run this closure and nothing above it, the same
+  /// scope `Magic.reload()` refreshes. Two rejected alternatives, for the next
+  /// reader: subscribing in [_MagicApplicationState] would rebuild [WindTheme]
+  /// with a freshly constructed [WindThemeData] on every locale change (its
+  /// `didUpdateWidget` pushes new data into the theme controller, so the live
+  /// brightness toggle would be at stake), and a manual
+  /// `Lang.addListener` + `setState` pair would add a second listener to
+  /// tear down plus a `setState`-after-dispose hazard, both of which
+  /// [ListenableBuilder] handles for us.
+  ///
+  /// When the translator is unbound there is nothing to follow, so the app is
+  /// built directly and the config locale stays authoritative, as before.
+  Widget _buildLocalizedApp(WindThemeController controller) {
+    if (!Magic.bound('translator')) {
+      return _buildRouterApp(controller);
+    }
+
+    return ListenableBuilder(
+      listenable: Translator.instance,
+      builder: (context, _) => _buildRouterApp(controller),
+    );
+  }
+
+  /// Build the [MaterialApp.router] that drives the whole application.
+  MaterialApp _buildRouterApp(WindThemeController controller) {
+    return MaterialApp.router(
+      onGenerateTitle: (_) => TitleManager.instance.effectiveTitle,
+      theme: controller.toThemeData(),
+      themeMode: widget.themeMode,
+      locale: widget.locale ?? _resolveRuntimeLocale(),
+      supportedLocales: _getSupportedLocalesFromConfig(),
+      localizationsDelegates:
+          widget.localizationsDelegates ?? _getLocalizationsDelegates(),
+      debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
+      routerConfig: MagicRouter.instance.routerConfig,
+    );
+  }
+
+  /// Resolve the locale to hand to [MaterialApp], runtime value first.
+  ///
+  /// The translator's loaded locale outranks the static config value, so a
+  /// `Lang.setLocale()` survives every later rebuild instead of reverting to
+  /// the value that was compiled into config. Config is consulted only while
+  /// no locale has been loaded at runtime (translator unbound, or bound but
+  /// not booted yet), which keeps the pre-translator behavior untouched.
+  Locale? _resolveRuntimeLocale() {
+    if (Magic.bound('translator') && Lang.isLoaded) {
+      return Lang.current;
+    }
+
+    return _getLocaleFromConfig();
   }
 
   /// Get localization delegates based on translation service registration.
