@@ -138,4 +138,46 @@ void main() {
       expect(DateManager.instance.timezoneName, 'Asia/Tokyo');
     });
   });
+
+  group('DateManager UTC resolution', () {
+    test('boot() does not throw when detection fails and the default is UTC',
+        () async {
+      // The regression: `timezone/data/latest.dart` has no database entry named
+      // "UTC" (it ships `Etc/UTC`), so the UTC fallback inside
+      // _setTimezoneInternal threw and escaped boot(). Detection now correctly
+      // returns null when no platform answers, which makes that fallback the
+      // path every such app takes, so a failed detection took application
+      // startup down with it.
+      _clearPlatformTimezone();
+      Config.set('localization.auto_detect_timezone', true);
+      Config.set('localization.timezone', 'UTC');
+
+      await expectLater(DateManager.instance.boot(), completes);
+      expect(DateManager.instance.timezoneName, 'UTC');
+    });
+
+    test('UTC is accepted as a valid timezone', () async {
+      _clearPlatformTimezone();
+      Config.set('localization.auto_detect_timezone', false);
+      Config.set('localization.timezone', 'UTC');
+      await DateManager.instance.boot();
+
+      expect(DateManager.instance.timezoneName, 'UTC');
+
+      // Setting it again must resolve rather than fall through the
+      // "Invalid timezone" degradation path.
+      DateManager.instance.setTimezone('UTC');
+
+      expect(DateManager.instance.timezoneName, 'UTC');
+    });
+
+    test('an unresolvable zone degrades to UTC instead of throwing', () async {
+      _clearPlatformTimezone();
+      Config.set('localization.auto_detect_timezone', false);
+      Config.set('localization.timezone', 'Nowhere/Imaginary');
+
+      await expectLater(DateManager.instance.boot(), completes);
+      expect(DateManager.instance.timezoneName, 'UTC');
+    });
+  });
 }

@@ -142,17 +142,39 @@ class DateManager {
 
   /// Internal method to set timezone.
   void _setTimezoneInternal(String timezone) {
+    // "UTC" is resolved against the package's const [tz.UTC] rather than the
+    // database, because the database that `timezone/data/latest.dart` loads has
+    // no entry under that name (it ships `Etc/UTC`). Going through
+    // getLocation('UTC') therefore threw, which made the UTC fallback below
+    // unreachable, and reported the documented default of
+    // `localization.timezone` as invalid.
+    if (timezone == _utcName) {
+      _applyUtc();
+      return;
+    }
+
     try {
       _timezone = tz.getLocation(timezone);
       _timezoneName = timezone;
       tz.setLocalLocation(_timezone!);
     } catch (e) {
-      // Fallback to UTC if timezone not found
+      // Fallback to UTC if timezone not found. This must not throw: boot()
+      // calls it with whatever detection or config produced, and an
+      // unresolvable zone is not a reason to fail application startup.
       _logError('Invalid timezone: $timezone, falling back to UTC');
-      _timezone = tz.getLocation('UTC');
-      _timezoneName = 'UTC';
-      tz.setLocalLocation(_timezone!);
+      _applyUtc();
     }
+  }
+
+  /// The canonical UTC identifier, taken from the package's const location so
+  /// the spelling cannot drift from what [tz.UTC] reports.
+  static String get _utcName => tz.UTC.name;
+
+  /// Apply UTC without consulting the database.
+  void _applyUtc() {
+    _timezone = tz.UTC;
+    _timezoneName = _utcName;
+    tz.setLocalLocation(tz.UTC);
   }
 
   // ---------------------------------------------------------------------------
@@ -271,6 +293,11 @@ class DateManager {
 
   /// Check if a timezone identifier is valid.
   bool _isValidTimezone(String name) {
+    // "UTC" is valid even though the loaded database has no entry under that
+    // name; see [_setTimezoneInternal]. Without this, the documented default
+    // of `localization.timezone` reads as invalid.
+    if (name == _utcName) return true;
+
     try {
       tz.getLocation(name);
       return true;
