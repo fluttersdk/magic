@@ -2,6 +2,7 @@ import 'dart:ui' show Locale;
 
 import '../foundation/magic.dart';
 import '../network/contracts/network_driver.dart';
+import '../support/date_manager.dart';
 import '../support/service_provider.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
@@ -38,6 +39,15 @@ class LocalizationServiceProvider extends ServiceProvider {
 
   @override
   Future<void> boot() async {
+    // Boot the date runtime before anything reads it. Nothing else in the
+    // framework did, so the IANA database stayed uninitialized and
+    // `localization.timezone` / `auto_detect_timezone` had no effect unless the
+    // consumer called DateManager.boot() by hand. That is what the
+    // LocalizationInterceptor's `X-Timezone` header reports, so the backend
+    // received the unbooted default rather than the device's zone. Booting is
+    // idempotent and never throws: an unresolvable zone degrades to UTC.
+    await DateManager.instance.boot();
+
     final translator = Translator.instance;
 
     // Load supported locales from config
