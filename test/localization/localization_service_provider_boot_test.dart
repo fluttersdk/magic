@@ -31,34 +31,39 @@ void main() {
       Config.set('localization.auto_detect_locale', false);
       Config.set('localization.locale', 'en');
 
-      final LocalizationServiceProvider provider =
-          LocalizationServiceProvider(MagicApp.instance);
+      final LocalizationServiceProvider provider = LocalizationServiceProvider(
+        MagicApp.instance,
+      );
       provider.register();
 
       return provider;
     }
 
-    test('DateManager is booted so the X-Timezone header has a real value',
-        () async {
-      // Nothing in the framework used to boot DateManager, so the IANA database
-      // stayed uninitialized, `localization.timezone` had no effect, and the
-      // LocalizationInterceptor's X-Timezone header reported the unbooted
-      // default. Every consumer had to call DateManager.boot() by hand.
-      final LocalizationServiceProvider provider =
-          await arrange('Asia/Tokyo');
-      expect(DateManager.instance.isBooted, isFalse);
+    test(
+      'DateManager is booted so the X-Timezone header has a real value',
+      () async {
+        // Nothing in the framework used to boot DateManager, so the IANA database
+        // stayed uninitialized, `localization.timezone` had no effect, and the
+        // LocalizationInterceptor's X-Timezone header reported the unbooted
+        // default. Every consumer had to call DateManager.boot() by hand.
+        final LocalizationServiceProvider provider = await arrange(
+          'Asia/Tokyo',
+        );
+        expect(DateManager.instance.isBooted, isFalse);
 
-      await provider.boot();
+        await provider.boot();
 
-      expect(DateManager.instance.isBooted, isTrue);
-      expect(DateManager.instance.timezoneName, 'Asia/Tokyo');
-    });
+        expect(DateManager.instance.isBooted, isTrue);
+        expect(DateManager.instance.timezoneName, 'Asia/Tokyo');
+      },
+    );
 
     test('boot() survives an unresolvable configured timezone', () async {
       // Booting must not be able to fail application startup: an unresolvable
       // zone degrades to UTC rather than throwing out of the provider.
-      final LocalizationServiceProvider provider =
-          await arrange('Nowhere/Imaginary');
+      final LocalizationServiceProvider provider = await arrange(
+        'Nowhere/Imaginary',
+      );
 
       await expectLater(provider.boot(), completes);
 

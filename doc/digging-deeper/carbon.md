@@ -8,6 +8,7 @@ Carbon is Magic's date and time utility, inspired by PHP's Carbon library, offer
 - [Manipulation](#manipulation)
 - [Comparison](#comparison)
 - [Human Readable](#human-readable)
+- [Timezone Support](#timezone-support)
 - [Model Integration](#model-integration)
 
 <a name="introduction"></a>

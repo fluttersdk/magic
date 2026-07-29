@@ -49,8 +49,8 @@ void main() {
     test('returns the IANA identifier reported by the platform', () async {
       _mockPlatformTimezone('Pacific/Auckland');
 
-      final String? detected =
-          await DateManager.instance.detectPlatformTimezone();
+      final String? detected = await DateManager.instance
+          .detectPlatformTimezone();
 
       expect(detected, 'Pacific/Auckland');
       expect(DateManager.instance.detectTimezone(), 'Pacific/Auckland');
@@ -59,8 +59,8 @@ void main() {
     test('returns null for an identifier outside the IANA database', () async {
       _mockPlatformTimezone('Mars/Olympus_Mons');
 
-      final String? detected =
-          await DateManager.instance.detectPlatformTimezone();
+      final String? detected = await DateManager.instance
+          .detectPlatformTimezone();
 
       expect(detected, isNull);
     });
@@ -140,21 +140,23 @@ void main() {
   });
 
   group('DateManager UTC resolution', () {
-    test('boot() does not throw when detection fails and the default is UTC',
-        () async {
-      // The regression: `timezone/data/latest.dart` has no database entry named
-      // "UTC" (it ships `Etc/UTC`), so the UTC fallback inside
-      // _setTimezoneInternal threw and escaped boot(). Detection now correctly
-      // returns null when no platform answers, which makes that fallback the
-      // path every such app takes, so a failed detection took application
-      // startup down with it.
-      _clearPlatformTimezone();
-      Config.set('localization.auto_detect_timezone', true);
-      Config.set('localization.timezone', 'UTC');
+    test(
+      'boot() does not throw when detection fails and the default is UTC',
+      () async {
+        // The regression: `timezone/data/latest.dart` has no database entry named
+        // "UTC" (it ships `Etc/UTC`), so the UTC fallback inside
+        // _setTimezoneInternal threw and escaped boot(). Detection now correctly
+        // returns null when no platform answers, which makes that fallback the
+        // path every such app takes, so a failed detection took application
+        // startup down with it.
+        _clearPlatformTimezone();
+        Config.set('localization.auto_detect_timezone', true);
+        Config.set('localization.timezone', 'UTC');
 
-      await expectLater(DateManager.instance.boot(), completes);
-      expect(DateManager.instance.timezoneName, 'UTC');
-    });
+        await expectLater(DateManager.instance.boot(), completes);
+        expect(DateManager.instance.timezoneName, 'UTC');
+      },
+    );
 
     test('UTC is accepted as a valid timezone', () async {
       _clearPlatformTimezone();
