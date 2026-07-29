@@ -239,6 +239,12 @@ class DateManager {
   /// print(zone); // "Europe/Istanbul"
   /// ```
   Future<String?> detectPlatformTimezone() async {
+    // Drop any previous answer before asking again. Both failure paths below
+    // return null, and leaving a stale identifier cached would make
+    // detectTimezone() keep reporting a zone this call could not confirm, which
+    // is the opposite of the "degrades to null" contract in the docblock above.
+    _platformTimezone = null;
+
     try {
       final TimezoneInfo info = await FlutterTimezone.getLocalTimezone();
       final String identifier = info.identifier.trim();

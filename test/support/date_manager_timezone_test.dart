@@ -1,8 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:magic/src/facades/config.dart';
-import 'package:magic/src/foundation/application.dart';
-import 'package:magic/src/support/date_manager.dart';
+import 'package:magic/magic.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 /// The channel `flutter_timezone` talks to; faking it keeps these tests off a
@@ -36,6 +34,12 @@ void main() {
   });
 
   setUp(() {
+    // Follows the repo's container-reset pattern (see
+    // test/foundation/application_test.dart): these tests write through the
+    // Config facade, so without flushing the IoC container a value set by one
+    // test leaks into the next and the failure surfaces somewhere unrelated.
+    MagicApp.reset();
+    Magic.flush();
     DateManager.reset();
   });
 
@@ -43,6 +47,7 @@ void main() {
     _clearPlatformTimezone();
     DateManager.reset();
     MagicApp.reset();
+    Magic.flush();
   });
 
   group('DateManager.detectPlatformTimezone', () {
@@ -76,6 +81,30 @@ void main() {
 
       expect(await DateManager.instance.detectPlatformTimezone(), isNull);
     });
+
+    test(
+      'a later failed lookup does not leave the previous zone cached',
+      () async {
+        // The cache is what the synchronous detectTimezone() reads, so a failed
+        // re-detection that left the old value behind would keep reporting a zone
+        // this device could no longer confirm.
+        _mockPlatformTimezone('Pacific/Auckland');
+        expect(
+          await DateManager.instance.detectPlatformTimezone(),
+          'Pacific/Auckland',
+        );
+        expect(DateManager.instance.detectTimezone(), 'Pacific/Auckland');
+
+        _mockPlatformTimezone('Mars/Olympus_Mons');
+
+        expect(await DateManager.instance.detectPlatformTimezone(), isNull);
+        expect(
+          DateManager.instance.detectTimezone(),
+          anyOf(isNull, equals(DateTime.now().timeZoneName)),
+          reason: 'the stale Pacific/Auckland must not survive a failed lookup',
+        );
+      },
+    );
   });
 
   group('DateManager.detectTimezone', () {
