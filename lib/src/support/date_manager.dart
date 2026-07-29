@@ -166,11 +166,20 @@ class DateManager {
     }
   }
 
-  /// The canonical UTC identifier, taken from the package's const location so
-  /// the spelling cannot drift from what [tz.UTC] reports.
-  static String get _utcName => tz.UTC.name;
+  /// The canonical UTC identifier this class reports.
+  ///
+  /// A literal rather than `tz.UTC.name`, because that name is NOT stable:
+  /// `initializeTimeZones()` rebinds the package's UTC location from the loaded
+  /// database, so it reads `UTC` on some hosts and `Etc/UTC` on others (a Linux
+  /// CI runner reports the latter). Deriving the spelling from it made the
+  /// reported timezone host-dependent, and made the equality check below miss
+  /// on exactly the hosts where the fallback matters most.
+  static const String _utcName = 'UTC';
 
   /// Apply UTC without consulting the database.
+  ///
+  /// [tz.UTC] is the location (always offset zero whichever name it carries);
+  /// [_utcName] is what we report, so the identifier is the same everywhere.
   void _applyUtc() {
     _timezone = tz.UTC;
     _timezoneName = _utcName;
