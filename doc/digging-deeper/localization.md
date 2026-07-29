@@ -343,6 +343,25 @@ final response = await Http.get('/api/profile');
 > [!NOTE]
 > `LocalizationInterceptor` is registered automatically by `LocalizationServiceProvider`. You do not need to add it to your provider list or network configuration manually.
 
+### Timezone Detection
+
+Set `auto_detect_timezone` to `true` in `config/localization.dart` (it defaults to
+`false`) and Magic resolves the device's real IANA timezone identifier on boot,
+reading it from the platform's native APIs via the `flutter_timezone` package. The
+resolved value is sent as the `X-Timezone` header on every outgoing request, so the
+backend can interpret the client's timestamps.
+
+```dart
+// config/localization.dart
+'auto_detect_timezone': true,
+'timezone': 'UTC', // the fallback when detection cannot resolve a zone
+```
+
+You do not need any timezone detection code of your own. When detection cannot
+resolve a valid identifier, the configured `timezone` stays in place; Magic does
+not guess a zone from the device's UTC offset, because an offset does not identify
+a zone (many zones share an offset and differ in DST rules).
+
 <a name="cli-commands"></a>
 ## CLI Commands
 

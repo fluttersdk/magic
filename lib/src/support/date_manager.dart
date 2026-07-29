@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:intl/intl.dart';
 import 'package:jiffy/jiffy.dart';
 import 'package:timezone/data/latest.dart' as tz;
@@ -53,6 +54,13 @@ class DateManager {
   /// Current timezone name.
   String _timezoneName = 'UTC';
 
+  /// The IANA identifier reported by the platform, cached.
+  ///
+  /// The platform lookup is asynchronous while [detectTimezone] is part of the
+  /// published synchronous API, so the async resolver stores its answer here
+  /// and the synchronous path reads it back.
+  String? _platformTimezone;
+
   /// Current locale.
   String _locale = 'en';
 
@@ -75,6 +83,10 @@ class DateManager {
         Config.get<bool>('localization.auto_detect_timezone', false) ?? false;
 
     if (autoDetectTimezone) {
+      // Warm the platform identifier before the synchronous detection runs:
+      // asking the platform is async, detectAndSetTimezone() is not.
+      await detectPlatformTimezone();
+
       final detected = detectAndSetTimezone();
       _logDebug('Timezone auto-detected', {'timezone': detected});
     } else {
@@ -130,17 +142,48 @@ class DateManager {
 
   /// Internal method to set timezone.
   void _setTimezoneInternal(String timezone) {
+    // "UTC" is resolved against the package's const [tz.UTC] rather than the
+    // database, because the database that `timezone/data/latest.dart` loads has
+    // no entry under that name (it ships `Etc/UTC`). Going through
+    // getLocation('UTC') therefore threw, which made the UTC fallback below
+    // unreachable, and reported the documented default of
+    // `localization.timezone` as invalid.
+    if (timezone == _utcName) {
+      _applyUtc();
+      return;
+    }
+
     try {
       _timezone = tz.getLocation(timezone);
       _timezoneName = timezone;
       tz.setLocalLocation(_timezone!);
     } catch (e) {
-      // Fallback to UTC if timezone not found
+      // Fallback to UTC if timezone not found. This must not throw: boot()
+      // calls it with whatever detection or config produced, and an
+      // unresolvable zone is not a reason to fail application startup.
       _logError('Invalid timezone: $timezone, falling back to UTC');
-      _timezone = tz.getLocation('UTC');
-      _timezoneName = 'UTC';
-      tz.setLocalLocation(_timezone!);
+      _applyUtc();
     }
+  }
+
+  /// The canonical UTC identifier this class reports.
+  ///
+  /// A literal rather than `tz.UTC.name`, because that name is NOT stable:
+  /// `initializeTimeZones()` rebinds the package's UTC location from the loaded
+  /// database, so it reads `UTC` on some hosts and `Etc/UTC` on others (a Linux
+  /// CI runner reports the latter). Deriving the spelling from it made the
+  /// reported timezone host-dependent, and made the equality check below miss
+  /// on exactly the hosts where the fallback matters most.
+  static const String _utcName = 'UTC';
+
+  /// Apply UTC without consulting the database.
+  ///
+  /// [tz.UTC] is the location (always offset zero whichever name it carries);
+  /// [_utcName] is what we report, so the identifier is the same everywhere.
+  void _applyUtc() {
+    _timezone = tz.UTC;
+    _timezoneName = _utcName;
+    tz.setLocalLocation(tz.UTC);
   }
 
   // ---------------------------------------------------------------------------
@@ -149,10 +192,15 @@ class DateManager {
 
   /// Detect and set the device timezone.
   ///
-  /// Uses the device's DateTime to detect timezone by matching offset
-  /// against the IANA timezone database.
+  /// Applies whatever [detectTimezone] resolves. When detection yields
+  /// nothing, the configured `localization.timezone` stays in effect: an
+  /// undetectable device is never worth a guess.
+  ///
+  /// Call [detectPlatformTimezone] first (the framework does so during [boot])
+  /// so the platform identifier is available to this synchronous path.
   ///
   /// ```dart
+  /// await DateManager.instance.detectPlatformTimezone();
   /// DateManager.instance.detectAndSetTimezone();
   /// ```
   String detectAndSetTimezone() {
@@ -173,41 +221,79 @@ class DateManager {
     return fallback;
   }
 
+  /// Resolve the device's IANA timezone identifier from the platform.
+  ///
+  /// Asks the operating system (or the browser on web) for its zone
+  /// identifier, validates it against the IANA database, and caches it for the
+  /// synchronous [detectTimezone].
+  ///
+  /// Returns the identifier, or null when the platform reports nothing usable.
+  /// Never throws: a missing plugin registration or a platform channel failure
+  /// degrades to null so the configured timezone stays in place.
+  ///
+  /// Requires the IANA database to be initialized, which [boot] does; call
+  /// this after `Magic.init()`.
+  ///
+  /// ```dart
+  /// final zone = await DateManager.instance.detectPlatformTimezone();
+  /// print(zone); // "Europe/Istanbul"
+  /// ```
+  Future<String?> detectPlatformTimezone() async {
+    // Drop any previous answer before asking again. Both failure paths below
+    // return null, and leaving a stale identifier cached would make
+    // detectTimezone() keep reporting a zone this call could not confirm, which
+    // is the opposite of the "degrades to null" contract in the docblock above.
+    _platformTimezone = null;
+
+    try {
+      final TimezoneInfo info = await FlutterTimezone.getLocalTimezone();
+      final String identifier = info.identifier.trim();
+
+      // An identifier the database does not know is worse than none at all:
+      // consumers forward it to a backend as if it were authoritative.
+      if (identifier.isEmpty || !_isValidTimezone(identifier)) {
+        _logError('Platform reported an unusable timezone: "$identifier"');
+        return null;
+      }
+
+      _platformTimezone = identifier;
+
+      return identifier;
+    } catch (e) {
+      _logError('Platform timezone lookup failed: $e');
+      return null;
+    }
+  }
+
   /// Detect the device timezone without setting it.
   ///
-  /// Returns the detected IANA timezone identifier or null if detection fails.
+  /// Resolution order:
+  ///
+  /// 1. The platform identifier resolved by [detectPlatformTimezone].
+  /// 2. `DateTime.now().timeZoneName`, but only when it happens to be a real
+  ///    IANA identifier: most platforms report an abbreviation there (`"+03"`,
+  ///    `"EET"`), which names no zone.
+  ///
+  /// Returns null when neither yields a valid identifier. The UTC offset
+  /// deliberately plays no part: many zones share an offset while differing in
+  /// DST rules, so an offset match resolves to a plausible but wrong city.
   ///
   /// ```dart
   /// final tz = DateManager.instance.detectTimezone();
   /// print(tz); // "Europe/Istanbul"
   /// ```
   String? detectTimezone() {
-    try {
-      final now = DateTime.now();
-      final offset = now.timeZoneOffset;
-      final deviceTzName = now.timeZoneName;
-
-      // Try direct IANA name first
-      if (_isValidTimezone(deviceTzName)) {
-        return deviceTzName;
-      }
-
-      // Search in timezone database for matching offset
-      final locations = tz.timeZoneDatabase.locations;
-      for (final entry in locations.entries) {
-        final location = entry.value;
-        final tzNow = tz.TZDateTime.now(location);
-        if (tzNow.timeZoneOffset == offset) {
-          return entry.key;
-        }
-      }
-
-      // Fallback to common offset mapping
-      return _findTimezoneByOffset(offset);
-    } catch (e) {
-      _logError('Timezone detection error: $e');
-      return null;
+    final String? platformTimezone = _platformTimezone;
+    if (platformTimezone != null) {
+      return platformTimezone;
     }
+
+    final String deviceTzName = DateTime.now().timeZoneName;
+    if (_isValidTimezone(deviceTzName)) {
+      return deviceTzName;
+    }
+
+    return null;
   }
 
   /// Get all available timezones from the IANA database.
@@ -222,54 +308,17 @@ class DateManager {
 
   /// Check if a timezone identifier is valid.
   bool _isValidTimezone(String name) {
+    // "UTC" is valid even though the loaded database has no entry under that
+    // name; see [_setTimezoneInternal]. Without this, the documented default
+    // of `localization.timezone` reads as invalid.
+    if (name == _utcName) return true;
+
     try {
       tz.getLocation(name);
       return true;
     } catch (_) {
       return false;
     }
-  }
-
-  /// Find a timezone by offset (fallback).
-  String? _findTimezoneByOffset(Duration offset) {
-    final offsetHours = offset.inHours;
-    final offsetMinutes = offset.inMinutes % 60;
-
-    // Common timezones by offset
-    final commonTimezones = <int, String>{
-      -12: 'Etc/GMT+12',
-      -11: 'Pacific/Midway',
-      -10: 'Pacific/Honolulu',
-      -9: 'America/Anchorage',
-      -8: 'America/Los_Angeles',
-      -7: 'America/Denver',
-      -6: 'America/Chicago',
-      -5: 'America/New_York',
-      -4: 'America/Caracas',
-      -3: 'America/Sao_Paulo',
-      -2: 'Atlantic/South_Georgia',
-      -1: 'Atlantic/Azores',
-      0: 'UTC',
-      1: 'Europe/Paris',
-      2: 'Europe/Berlin',
-      3: 'Europe/Istanbul',
-      4: 'Asia/Dubai',
-      5: 'Asia/Karachi',
-      6: 'Asia/Dhaka',
-      7: 'Asia/Bangkok',
-      8: 'Asia/Singapore',
-      9: 'Asia/Tokyo',
-      10: 'Australia/Sydney',
-      11: 'Pacific/Noumea',
-      12: 'Pacific/Auckland',
-    };
-
-    // Handle special offsets
-    if (offsetMinutes == 30 && offsetHours == 5) return 'Asia/Kolkata';
-    if (offsetMinutes == 30 && offsetHours == 9) return 'Australia/Darwin';
-    if (offsetMinutes == 45 && offsetHours == 5) return 'Asia/Kathmandu';
-
-    return commonTimezones[offsetHours];
   }
 
   /// Log an error gracefully.

@@ -9,6 +9,10 @@ Laravel-inspired Flutter framework: IoC container, 18 facades, Eloquent-style OR
 
 The dev-tooling adapters (`MagicDuskIntegration`, `MagicTelescopeIntegration`) live in the sibling `magic_devtools` package; magic core has zero dependency on `fluttersdk_dusk` / `fluttersdk_telescope`. CLI/scaffolding internals: `CLAUDE.local.md`. LLM-agent surface: `skills/magic-framework/SKILL.md`. Consumer overview: `README.md`.
 
+## Two examples, distinct roles
+
+Two separate examples exist: `magic/example/` (this repo) and `magic_example/` (workspace root). **`magic/example/`** is magic's in-repo smoke reference: 17 dart files, pinned `magic: {path: ..}`, runs in magic's CI, regenerated per release by `magic:install`, and published on pub.dev's package example tab. It intentionally declares no dependency of its own beyond `magic`, to keep CI overhead low; `magic` still pulls a few plugins transitively, so the built example is not plugin-free. **`magic_example/`** is the batteries-included boilerplate fork for real products: 49 dart files, all eight fluttersdk dependencies wired (magic, magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_devtools, dusk, telescope), the same directory shape a production app uses, and a gitignored `pubspec_overrides.yaml` for sibling development. They cannot be merged into one project: **pub refuses to unify path and hosted dependencies in the same resolution graph**. Attempting to add `magic_notifications: ^0.0.2` to `magic/example` while it keeps `magic: {path: ..}` fails with "Because magic_notifications depends on magic from hosted and example depends on magic from path, magic_notifications is forbidden." This is why `magic/example` stays minimal and `magic_example` lives in its own repo with hosted dependency resolution.
+
 ## Golden Rules (every change; self-check before reporting done)
 
 A change is not finished until ALL of these hold for the touched scope:
