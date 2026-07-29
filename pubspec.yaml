@@ -1,6 +1,6 @@
 name: magic
 description: "A Laravel-inspired Flutter framework with Eloquent ORM, routing, and MVC architecture."
-version: 0.0.5
+version: 0.0.6
 homepage: https://magic.fluttersdk.com
 repository: https://github.com/fluttersdk/magic
 issue_tracker: https://github.com/fluttersdk/magic/issues
@@ -49,7 +49,7 @@ dependencies:
   faker: ^2.2.0
   web_socket_channel: ^3.0.0
   yaml: ^3.1.3
-  fluttersdk_artisan: ^0.0.8
+  fluttersdk_artisan: ^0.0.9
   flutter_test:
     sdk: flutter
 
