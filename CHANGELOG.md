@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-07-29
+
 ### Contributing checklist (before merging into `[Unreleased]`)
 
 - [ ] CHANGELOG entry added under the appropriate bucket (BREAKING / Added / Changed / Removed / Fixed / Improvements)
