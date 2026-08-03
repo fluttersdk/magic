@@ -50,11 +50,18 @@ void main() {
     });
 
     test('it handles expiration', () async {
-      // 100ms TTL
-      await store.put('short', 'value', ttl: const Duration(milliseconds: 100));
-      expect(store.get('short'), 'value');
+      // A generous TTL, because this assertion is about the value being
+      // readable and not about the clock. The previous 100ms window had to
+      // survive a file write plus the scheduler, and on a loaded CI runner it
+      // did not: the entry expired before the read and turned master red with
+      // nothing wrong in the store.
+      await store.put('long', 'value', ttl: const Duration(minutes: 5));
+      expect(store.get('long'), 'value');
 
-      await Future.delayed(const Duration(milliseconds: 200));
+      // An already-elapsed TTL puts `expire_at` in the past, so the expiry
+      // branch is covered by construction instead of by waiting. A wall-clock
+      // delay can only ever be too short here, never too long.
+      await store.put('short', 'value', ttl: const Duration(milliseconds: -1));
       expect(store.get('short'), null);
     });
 
