@@ -65,10 +65,6 @@ prompts:
     type: bool
     default: false
     question: "Skip cache setup?"
-  - key: withoutEvents
-    type: bool
-    default: false
-    question: "Skip events setup?"
   - key: withoutLocalization
     type: bool
     default: false
@@ -117,8 +113,8 @@ post_install:
     wired into lib/main.dart under kDebugMode (release builds tree-shake them),
     so add them to dependencies, not dev_dependencies (lib/ imports them):
 
-       magic_devtools: ^0.0.1
-       fluttersdk_dusk: ^0.0.8
+       magic_devtools: ^0.0.2
+       fluttersdk_dusk: ^0.0.9
        fluttersdk_telescope: ^0.0.4
 
     Then:
@@ -129,12 +125,15 @@ post_install:
        dart run magic:artisan dusk:install
        dart run magic:artisan telescope:install
 
-    Wire the adapters in lib/main.dart (debug-only, after Magic.init()):
+    Wire the adapters in lib/main.dart (debug-only, two phases around Magic.init()):
 
-       import 'package:magic_devtools/dusk.dart';
-       import 'package:magic_devtools/telescope.dart';
-       // ... if (kDebugMode) { MagicDuskIntegration.install(); }
-       // ...               { MagicTelescopeIntegration.install(); }
+       import 'package:magic_devtools/magic_devtools.dart';
+       // if (kDebugMode) MagicDevtools.installPre();    <- before Magic.init()
+       // await Magic.init(configFactories: [...]);
+       // if (kDebugMode) MagicDevtools.installPost();   <- after Magic.init()
+
+    Keep kDebugMode at the call site; moving it inside the methods defeats the
+    release tree-shake.
 
     The dusk:install / telescope:install commands wire the kDebugMode setup
     blocks into lib/main.dart. MCP tools surface for Claude Code / Cursor via:

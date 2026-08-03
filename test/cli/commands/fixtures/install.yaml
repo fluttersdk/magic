@@ -58,10 +58,6 @@ prompts:
     type: bool
     default: false
     question: "Skip cache setup?"
-  - key: withoutEvents
-    type: bool
-    default: false
-    question: "Skip events setup?"
   - key: withoutLocalization
     type: bool
     default: false
