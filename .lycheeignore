@@ -10,6 +10,15 @@
 # GitHub login/auth walls (linked repos are public but auth redirects happen)
 https://github.com/login*
 
+# GitHub stargazers pages. These 404 for any unauthenticated non-browser client,
+# on every repository, not just ours: verified on 2026-08-03 against
+# flutter/flutter, fluttersdk/wind, and fluttersdk/magic, all of which return
+# 404 for /stargazers and 200 for the repo root. The README badge link is
+# therefore a permanent false positive that failed the weekly pass every week.
+# Listed as the literal URL rather than a wildcard because this repo links only
+# its own; add a sibling line if another stargazers link ever appears.
+https://github.com/fluttersdk/magic/stargazers
+
 # pub.dev search and analytics pages (rate-limited for CI IPs)
 https://pub.dev/packages*
 
