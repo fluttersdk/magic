@@ -3,6 +3,20 @@
 Laravel-inspired UI architecture. Controllers manage state and business logic; Views observe and render.
 
 
+## Contents
+
+- [MagicController](#magiccontroller)
+- [MagicStateMixin\<T\>](#magicstatemixint)
+- [Singleton Accessor Pattern](#singleton-accessor-pattern)
+- [ValidatesRequests Mixin](#validatesrequests-mixin)
+- [ValueNotifier Pattern](#valuenotifier-pattern)
+- [MagicView\<T\>](#magicviewt)
+- [MagicStatefulView\<T\>](#magicstatefulviewt)
+- [MagicResponsiveView\<T\>](#magicresponsiveviewt)
+- [MagicBuilder\<T\>](#magicbuildert)
+- [Complete Lifecycle Example](#complete-lifecycle-example)
+- [Gotchas](#gotchas)
+
 ## MagicController
 
 Base class for all controllers. Extends `ChangeNotifier`.

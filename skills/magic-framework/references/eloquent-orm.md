@@ -3,6 +3,24 @@
 Laravel-inspired ORM for Flutter. Supports hybrid persistence (Remote API + Local SQLite).
 
 
+## Contents
+
+- [Model Definition Template](#model-definition-template)
+- [Configuration Properties](#configuration-properties)
+- [Attribute API](#attribute-api)
+- [Casting](#casting)
+- [Mass Assignment & MassAssignmentException](#mass-assignment--massassignmentexception)
+- [Relations](#relations)
+- [Dirty Tracking](#dirty-tracking)
+- [HasTimestamps Mixin](#hastimestamps-mixin)
+- [InteractsWithPersistence Mixin](#interactswithpersistence-mixin)
+- [Hybrid Persistence Flow](#hybrid-persistence-flow)
+- [QueryBuilder](#querybuilder)
+- [Migrations](#migrations)
+- [Factories & Seeders](#factories--seeders)
+- [Model Events](#model-events)
+- [Gotchas](#gotchas)
+
 ## Model Definition Template
 
 Complete boilerplate for a model with timestamps and persistence:

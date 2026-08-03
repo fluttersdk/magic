@@ -7,6 +7,20 @@ Import via:
 import 'package:magic/magic.dart';
 ```
 
+## Contents
+
+- [Network Configuration](#network-configuration)
+- [Http Facade](#http-facade)
+- [MagicResponse API](#magicresponse-api)
+- [Validation Error Example](#validation-error-example)
+- [Interceptors](#interceptors)
+- [Driver Plugin Hook](#driver-plugin-hook)
+- [ValidatesRequests Mixin](#validatesrequests-mixin)
+- [MagicStateMixin Fetch Helpers](#magicstatemixin-fetch-helpers)
+- [Common Patterns](#common-patterns)
+- [Testing](#testing)
+- [Gotchas](#gotchas)
+
 ## Network Configuration
 
 Defined in `lib/config/network.dart`. The default configuration uses the `api` driver.

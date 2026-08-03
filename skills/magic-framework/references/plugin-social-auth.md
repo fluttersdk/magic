@@ -4,6 +4,22 @@
 
 Laravel Socialite-style social authentication for Magic Framework: Google, Microsoft, and GitHub out of the box with a pluggable driver system.
 
+## Contents
+
+- [Installation](#installation)
+- [Registration](#registration)
+- [SocialAuth Facade](#socialauth-facade)
+- [SocialAuthManager](#socialauthmanager)
+- [Built-in Drivers](#built-in-drivers)
+- [Contracts](#contracts)
+- [Models](#models)
+- [Configuration](#configuration)
+- [SocialAuthButtons Widget](#socialauthbuttons-widget)
+- [Custom Driver](#custom-driver)
+- [Custom Handler (e.g., Firebase)](#custom-handler-eg-firebase)
+- [Exceptions](#exceptions)
+- [Gotchas](#gotchas)
+
 ## Installation
 
 ```bash
