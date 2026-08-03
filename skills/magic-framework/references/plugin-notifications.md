@@ -4,6 +4,20 @@
 
 Push and in-app notification system for Magic Framework: the `Notify` facade, database (in-app) notifications with real-time streaming, OneSignal push integration, and background polling.
 
+## Contents
+
+- [Installation](#installation)
+- [CLI commands and MCP tools](#cli-commands-and-mcp-tools)
+- [Notify Facade API](#notify-facade-api)
+- [Contracts](#contracts)
+- [Channels](#channels)
+- [PushDriver](#pushdriver)
+- [Models](#models)
+- [Configuration](#configuration)
+- [Service Provider Setup](#service-provider-setup)
+- [Usage Patterns](#usage-patterns)
+- [Gotchas](#gotchas)
+
 ## Installation
 
 ```bash

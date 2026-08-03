@@ -2,6 +2,18 @@
 
 Guard-based authentication with secure token storage, automatic session restoration, and authorization via Gate and Policies.
 
+## Contents
+
+- [Auth Facade](#auth-facade)
+- [Auth Configuration](#auth-configuration)
+- [Guards](#guards)
+- [Token Management](#token-management)
+- [Gate & Authorization](#gate--authorization)
+- [Authorization Widgets](#authorization-widgets)
+- [User Model: Authenticatable Mixin](#user-model-authenticatable-mixin)
+- [Auth Events](#auth-events)
+- [Gotchas](#gotchas)
+
 ## Auth Facade
 
 The `Auth` facade provides static access to the authentication system and proxies calls to the default guard.

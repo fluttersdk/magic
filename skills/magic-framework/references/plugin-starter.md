@@ -4,6 +4,22 @@
 
 Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, notification UI, and responsive app/guest layouts with an opt-in feature flag system.
 
+## Contents
+
+- [Installation & Setup](#installation--setup)
+- [MagicStarter Facade API](#magicstarter-facade-api)
+- [Configuration](#configuration)
+- [View Registry](#view-registry)
+- [Reusable Widgets](#reusable-widgets)
+- [Session scope (cross-tenant leak guard)](#session-scope-cross-tenant-leak-guard)
+- [Route middleware](#route-middleware)
+- [Plan upgrade wall](#plan-upgrade-wall)
+- [Settings page width](#settings-page-width)
+- [Controllers](#controllers)
+- [Layouts & Notification Integration](#layouts--notification-integration)
+- [Gate Abilities](#gate-abilities)
+- [Gotchas](#gotchas)
+
 ## Installation & Setup
 
 ```bash

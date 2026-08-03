@@ -1,3 +1,17 @@
+# Bootstrap & Lifecycle
+
+How a Magic app comes up: the ordered stages of `Magic.init()`, the IoC container it fills, the register-then-boot split every ServiceProvider follows, where Env and Config resolve, and the reset discipline tests depend on.
+
+## Contents
+
+- [Magic.init() Lifecycle](#magicinit-lifecycle)
+- [IoC Container (Magic.make, Magic.put, Magic.singleton)](#ioc-container-magicmake-magicput-magicsingleton)
+- [Controller Management](#controller-management)
+- [ServiceProvider Lifecycle](#serviceprovider-lifecycle)
+- [Environment & Configuration](#environment--configuration)
+- [Testing: Reset & Flush](#testing-reset--flush)
+- [Key Gotchas](#key-gotchas)
+
 ## Magic.init() Lifecycle
 
 The bootstrap process follows a strict sequence executed via `Magic.init()`:
