@@ -1,14 +1,22 @@
+<!-- magic_deeplink v0.0.2 | Updated: 2026-08-04 -->
+
 # magic_deeplink Plugin
 
-Deep link handling plugin for Magic Framework — wraps `app_links` with a handler chain, IoC binding, and CLI tooling for generating server-side verification files.
+Deep link handling plugin for Magic Framework: wraps `app_links` with a handler chain, IoC binding, and CLI tooling for generating server-side verification files.
 
 ## Installation
 
 ```bash
+# Register the plugin's artisan provider with the app dispatcher (once)
+dart run magic:artisan plugin:install magic_deeplink
+
+# Scaffold the config, inject the provider, wire the config factory
 dart run magic:artisan deeplink:install
 ```
 
-Scaffolds `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/config/app.dart`, and injects `deeplinkConfig` into `lib/main.dart`.
+The order matters: `deeplink:install` and `deeplink:generate` are contributed by `DeeplinkArtisanProvider`, and the dispatcher only knows about that provider after `plugin:install` has written it into `.artisan/plugins.json` and regenerated `lib/app/_plugins.g.dart`. Run the second command first and the dispatcher reports an unknown command.
+
+`deeplink:install` scaffolds `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/config/app.dart`, and injects `deeplinkConfig` into `lib/main.dart`.
 
 ## DeeplinkManager API
 
