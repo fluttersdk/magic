@@ -115,7 +115,6 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       '{--without-database : Skip database setup} '
       '{--without-network : Skip network setup} '
       '{--without-cache : Skip cache setup} '
-      '{--without-events : Skip events setup} '
       '{--without-localization : Skip localization setup} '
       '{--without-logging : Skip logging setup} '
       '{--without-broadcasting : Skip broadcasting setup} '
@@ -358,7 +357,6 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     'without-database',
     'without-network',
     'without-cache',
-    'without-events',
     'without-localization',
     'without-logging',
     'without-broadcasting',

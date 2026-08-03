@@ -71,7 +71,7 @@ You can exclude features you don't need with `--without-*` flags:
 
 ```bash
 dart run magic:artisan magic:install --without-database
-dart run magic:artisan magic:install --without-auth --without-events
+dart run magic:artisan magic:install --without-auth --without-cache
 ```
 
 | Flag | What it skips |
@@ -80,7 +80,6 @@ dart run magic:artisan magic:install --without-auth --without-events
 | `--without-database` | Database directories, `config/database.dart`, `DatabaseServiceProvider`, web SQLite setup |
 | `--without-network` | `config/network.dart`, `NetworkServiceProvider` |
 | `--without-cache` | `config/cache.dart`, `CacheServiceProvider` |
-| `--without-events` | `lib/app/events/` and `lib/app/listeners/` directories |
 | `--without-localization` | `assets/lang/` directory, `LocalizationServiceProvider` |
 | `--without-logging` | `config/logging.dart` |
 | `--without-broadcasting` | `config/broadcasting.dart`, `BroadcastServiceProvider` |

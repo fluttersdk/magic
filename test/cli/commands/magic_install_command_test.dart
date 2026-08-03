@@ -234,7 +234,6 @@ const Map<String, dynamic> _baseOptions = <String, dynamic>{
   'without-database': false,
   'without-network': false,
   'without-cache': false,
-  'without-events': false,
   'without-localization': false,
   'without-logging': false,
   'without-broadcasting': false,
@@ -444,7 +443,6 @@ void main() {
           'without-database',
           'without-network',
           'without-cache',
-          'without-events',
           'without-localization',
           'without-logging',
           'without-broadcasting',
@@ -669,7 +667,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MagicInstallCommand, edge cases', () {
-    test('all 8 --without-X=true produces a minimal install with only '
+    test('all 7 --without-X=true produces a minimal install with only '
         'base app/view/routing configs', () async {
       final (:cmd, :ctx, :fs, prompt: _) = _buildHarness(
         optionOverrides: <String, dynamic>{
@@ -677,7 +675,6 @@ void main() {
           'without-database': true,
           'without-network': true,
           'without-cache': true,
-          'without-events': true,
           'without-localization': true,
           'without-logging': true,
           'without-broadcasting': true,
