@@ -375,4 +375,108 @@ void main() {
       expect(presence.onLeave, isA<Stream>());
     });
   });
+
+  group('listener registration', () {
+    test('listen() records the event so a deleted subscription is visible', () {
+      // The reason this exists: `listen()` used to return `this` and drop both
+      // arguments, so an application could delete its subscription line and its
+      // whole suite stayed green. Subscribing and listening are separate steps
+      // and `assertSubscribed` only covers the first.
+      final fake = FakeBroadcastManager();
+
+      fake.connection().private('teams.1').listen('order.shipped', (_) {});
+
+      fake.assertListening('private-teams.1', 'order.shipped');
+      expect(fake.driver.listeners, {
+        'private-teams.1': ['order.shipped'],
+      });
+    });
+
+    test('assertListening throws when nothing registered that event', () {
+      final fake = FakeBroadcastManager();
+      fake.connection().private('teams.1');
+
+      expect(
+        () => fake.assertListening('private-teams.1', 'order.shipped'),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('assertNotListening throws once a handler is registered', () {
+      final fake = FakeBroadcastManager();
+      fake.connection().channel('public').listen('ping', (_) {});
+
+      fake.assertNotListening('public', 'other');
+      expect(
+        () => fake.assertNotListening('public', 'ping'),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('dispatch() runs the registered handler with the decoded payload', () {
+      // What turns "a handler exists" into "a handler runs on a frame", which is
+      // the only thing that proves a consumer's wiring end to end.
+      final fake = FakeBroadcastManager();
+      BroadcastEvent? received;
+
+      fake
+          .connection()
+          .private('teams.1')
+          .listen('order.shipped', (e) => received = e);
+
+      fake.dispatch('private-teams.1', 'order.shipped', {'id': 7});
+
+      expect(received, isNotNull);
+      expect(received!.event, 'order.shipped');
+      expect(received!.channel, 'private-teams.1');
+      expect(received!.data, {'id': 7});
+    });
+
+    test('dispatch() into silence throws rather than passing quietly', () {
+      final fake = FakeBroadcastManager();
+      fake.connection().private('teams.1');
+
+      expect(
+        () => fake.dispatch('private-teams.1', 'order.shipped', const {}),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('a second listen() for one event replaces the first', () {
+      // Matches ReverbBroadcastDriver, which cancels the previous subscription
+      // before storing the new one. A fake that appended would hide a
+      // double-registration bug instead of reproducing it.
+      final fake = FakeBroadcastManager();
+      final List<String> calls = [];
+
+      fake.connection().private('teams.1')
+        ..listen('ping', (_) => calls.add('first'))
+        ..listen('ping', (_) => calls.add('second'));
+
+      fake.dispatch('private-teams.1', 'ping', const {});
+
+      expect(calls, ['second']);
+      expect(fake.driver.listeners['private-teams.1'], ['ping']);
+    });
+
+    test('stopListening() removes the handler', () {
+      final fake = FakeBroadcastManager();
+      final channel = fake.connection().private('teams.1')
+        ..listen('ping', (_) {});
+
+      channel.stopListening('ping');
+
+      fake.assertNotListening('private-teams.1', 'ping');
+    });
+
+    test('reset() clears registrations along with the rest', () {
+      final fake = FakeBroadcastManager();
+      fake.connection().private('teams.1').listen('ping', (_) {});
+
+      fake.reset();
+
+      expect(fake.driver.listeners, isEmpty);
+      fake.assertNotListening('private-teams.1', 'ping');
+    });
+  });
 }
