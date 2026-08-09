@@ -78,6 +78,61 @@ class FakeBroadcastManager extends BroadcastManager {
     }
   }
 
+  /// Assert that a handler for [event] is registered on [channel].
+  ///
+  /// Subscribing to a channel and listening for an event are separate steps, and
+  /// [assertSubscribed] only covers the first: an application can hold a live
+  /// channel and register no handler at all. This is the assertion that fails
+  /// when a `listen()` line is deleted.
+  ///
+  /// Throws [AssertionError] if no handler is registered.
+  void assertListening(String channel, String event) {
+    final Map<String, void Function(BroadcastEvent)>? handlers =
+        _driver._listeners[channel];
+
+    if (handlers == null || !handlers.containsKey(event)) {
+      throw AssertionError(
+        'Expected a handler for "$event" on channel "$channel" but none was '
+        'registered. Registered: ${_driver.listeners}',
+      );
+    }
+  }
+
+  /// Assert that NO handler for [event] is registered on [channel].
+  ///
+  /// Throws [AssertionError] if a handler is registered.
+  void assertNotListening(String channel, String event) {
+    if (_driver._listeners[channel]?.containsKey(event) ?? false) {
+      throw AssertionError(
+        'Expected no handler for "$event" on channel "$channel" but one was '
+        'registered.',
+      );
+    }
+  }
+
+  /// Deliver [data] to the handler registered for [event] on [channel], exactly
+  /// as the driver would on an incoming frame.
+  ///
+  /// This is what turns "a handler exists" into "a handler runs on a frame".
+  /// [data] is handed over already decoded, matching [BroadcastEvent.data] on the
+  /// real driver, which performs the Pusher double-JSON-decode before a handler
+  /// ever sees it.
+  ///
+  /// Throws [AssertionError] if no handler is registered, because dispatching
+  /// into silence is the failure this method exists to make visible.
+  void dispatch(String channel, String event, Map<String, dynamic> data) {
+    assertListening(channel, event);
+
+    _driver._listeners[channel]![event]!(
+      BroadcastEvent(
+        event: event,
+        channel: channel,
+        data: data,
+        receivedAt: DateTime.now(),
+      ),
+    );
+  }
+
   /// Assert that at least one interceptor has been added to the driver.
   ///
   /// Throws [AssertionError] if no interceptors have been added.
@@ -138,20 +193,50 @@ class FakeBroadcastDriver implements BroadcastDriver {
   @override
   BroadcastChannel channel(String name) {
     _subscribedChannels.add(name);
-    return _FakeBroadcastChannel(name);
+    return _FakeBroadcastChannel(name, this);
   }
 
   @override
   BroadcastChannel private(String name) {
     _subscribedChannels.add('private-$name');
-    return _FakeBroadcastChannel('private-$name');
+    return _FakeBroadcastChannel('private-$name', this);
   }
 
   @override
   BroadcastPresenceChannel join(String name) {
     _subscribedChannels.add('presence-$name');
-    return _FakeBroadcastPresenceChannel('presence-$name');
+    return _FakeBroadcastPresenceChannel('presence-$name', this);
   }
+
+  /// Event handlers registered through [BroadcastChannel.listen], keyed by
+  /// channel name and then by event name.
+  ///
+  /// The driver owns this rather than the channel because the channel factories
+  /// above mint a NEW channel object on every call and keep no reference, so a
+  /// registration recorded on the channel would vanish the moment the caller let
+  /// go of it. That is what made a listener registration untestable.
+  final Map<String, Map<String, void Function(BroadcastEvent)>> _listeners = {};
+
+  /// Registered event names per channel, for low-level inspection.
+  Map<String, List<String>> get listeners => Map.unmodifiable({
+    for (final MapEntry<String, Map<String, void Function(BroadcastEvent)>> e
+        in _listeners.entries)
+      e.key: List<String>.unmodifiable(e.value.keys),
+  });
+
+  void _register(
+    String channel,
+    String event,
+    void Function(BroadcastEvent) callback,
+  ) {
+    // Last registration wins, matching ReverbBroadcastDriver, which cancels the
+    // previous subscription before storing the new one. A fake that appended
+    // instead would hide a double-registration bug rather than reproduce it.
+    (_listeners[channel] ??= {})[event] = callback;
+  }
+
+  void _unregister(String channel, String event) =>
+      _listeners[channel]?.remove(event);
 
   @override
   void leave(String name) => _subscribedChannels.remove(name);
@@ -164,6 +249,7 @@ class FakeBroadcastDriver implements BroadcastDriver {
     _connected = false;
     _subscribedChannels.clear();
     _addedInterceptors.clear();
+    _listeners.clear();
   }
 }
 
@@ -172,9 +258,10 @@ class FakeBroadcastDriver implements BroadcastDriver {
 // ---------------------------------------------------------------------------
 
 class _FakeBroadcastChannel implements BroadcastChannel {
-  _FakeBroadcastChannel(this._name);
+  _FakeBroadcastChannel(this._name, this._driver);
 
   final String _name;
+  final FakeBroadcastDriver _driver;
 
   @override
   String get name => _name;
@@ -186,10 +273,19 @@ class _FakeBroadcastChannel implements BroadcastChannel {
   BroadcastChannel listen(
     String event,
     void Function(BroadcastEvent) callback,
-  ) => this;
+  ) {
+    // Recorded rather than discarded, and the difference is what a consumer's
+    // test can prove. This used to return `this` and drop both arguments, so a
+    // subscription line could be deleted from an application and its whole suite
+    // stayed green: the one line every broadcast depends on was the one line
+    // nothing covered.
+    _driver._register(_name, event, callback);
+
+    return this;
+  }
 
   @override
-  void stopListening(String event) {}
+  void stopListening(String event) => _driver._unregister(_name, event);
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +294,7 @@ class _FakeBroadcastChannel implements BroadcastChannel {
 
 class _FakeBroadcastPresenceChannel extends _FakeBroadcastChannel
     implements BroadcastPresenceChannel {
-  _FakeBroadcastPresenceChannel(super.name);
+  _FakeBroadcastPresenceChannel(super.name, super.driver);
 
   @override
   List<Map<String, dynamic>> get members => const [];

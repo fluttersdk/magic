@@ -81,9 +81,14 @@ Register via `Echo.addInterceptor()` or `driver.addInterceptor()` in a ServicePr
 
 - `Echo.fake()` — binds `FakeBroadcastManager` in container; returns the fake for assertions
 - `Echo.unfake()` — removes fake binding (or use `MagicApp.reset()` + `Magic.flush()` in `setUp()`)
-- Assertions: `assertConnected()`, `assertDisconnected()`, `assertSubscribed(channel)`, `assertNotSubscribed(channel)`, `assertInterceptorAdded()` — all throw `AssertionError` with descriptive messages
+- Assertions: `assertConnected()`, `assertDisconnected()`, `assertSubscribed(channel)`, `assertNotSubscribed(channel)`, `assertListening(channel, event)`, `assertNotListening(channel, event)`, `assertInterceptorAdded()` — all throw `AssertionError` with descriptive messages
+- `fake.dispatch(channel, event, data)` — run the registered handler with a decoded payload, as the driver would on an incoming frame. Throws if nothing is listening, because dispatching into silence is the failure it exists to reveal
 - `fake.reset()` — clear all recorded state
-- `fake.driver` — access underlying `FakeBroadcastDriver` for low-level inspection (`.subscribedChannels`, `.addedInterceptors`, `.isConnected`)
+- `fake.driver` — access underlying `FakeBroadcastDriver` for low-level inspection (`.subscribedChannels`, `.addedInterceptors`, `.isConnected`, `.listeners`)
+
+**Subscribing and listening are separate, and only `assertListening` covers the second.** `assertSubscribed` passes for an app that holds a live channel and registers no handler at all, so a deleted `listen()` line is invisible to it. Reach for `assertListening` on the line your realtime feature depends on, and `dispatch()` when you need to prove a handler actually runs rather than merely exists.
+
+A second `listen()` for one event REPLACES the first, matching `ReverbBroadcastDriver`, which cancels the previous subscription before storing the new one.
 
 ## Config
 
