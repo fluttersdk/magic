@@ -496,6 +496,11 @@ MagicRoute.page('/settings', () => SettingsPage());             // -> '/settings
 > it: analytics, breadcrumb trails, and Sentry's Flutter Web release health,
 > which starts a session only when it sees this value change.
 
+Pages inside a layout are named the same way and reach the same observers.
+Layouts compile to `ShellRoute`, and because the shell does not take its own
+`navigatorKey`, its children push onto the root navigator that your observers
+are already watching.
+
 Observers are passed directly to GoRouter and receive all navigation events (`didPush`, `didPop`, `didReplace`, `didRemove`).
 
 > [!NOTE]

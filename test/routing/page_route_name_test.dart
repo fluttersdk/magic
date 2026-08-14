@@ -100,6 +100,39 @@ void main() {
             'A null name is what silently disables every screen-aware observer.',
       );
     });
+
+    testWidgets('a page inside a layout is named too', (tester) async {
+      // Layouts become ShellRoutes, which introduce a nested Navigator. An
+      // observer registered on the root router does not automatically see
+      // pushes inside that shell, so this asserts the case an app with a
+      // sidebar or tab bar actually runs in.
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => Column(
+          children: [
+            const Text('shell'),
+            Expanded(child: child),
+          ],
+        ),
+        routes: () {
+          MagicRoute.page('/', () => const SizedBox()).name('home');
+        },
+      );
+
+      final observer = _NameRecordingObserver();
+      MagicRouter.instance.addObserver(observer);
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        observer.names,
+        contains('home'),
+        reason: 'A shell must not hide its pages from a screen-aware observer.',
+      );
+    });
   });
 }
 
