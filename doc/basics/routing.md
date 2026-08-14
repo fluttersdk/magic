@@ -481,6 +481,26 @@ class RouteServiceProvider extends ServiceProvider {
 }
 ```
 
+Every page carries a name in its `RouteSettings`, which is what an observer
+reads to tell one screen from another. It is the route's `.name()` when you set
+one, and the route path otherwise:
+
+```dart
+MagicRoute.page('/orders', () => OrdersPage()).name('orders');  // -> 'orders'
+MagicRoute.page('/settings', () => SettingsPage());             // -> '/settings'
+```
+
+> [!NOTE]
+> `GoRoute.name` and `RouteSettings.name` are different things, and only the
+> second one reaches an observer. Anything that identifies screens depends on
+> it: analytics, breadcrumb trails, and Sentry's Flutter Web release health,
+> which starts a session only when it sees this value change.
+
+Pages inside a layout are named the same way and reach the same observers.
+Layouts compile to `ShellRoute`, and because the shell does not take its own
+`navigatorKey`, its children push onto the root navigator that your observers
+are already watching.
+
 Observers are passed directly to GoRouter and receive all navigation events (`didPush`, `didPop`, `didReplace`, `didRemove`).
 
 > [!NOTE]

@@ -149,7 +149,10 @@ class Pick {
 
       // User cancelled camera - check if we should fallback
       if (xFile == null && fallbackToGallery) {
-        return image(
+        // Awaited, not just returned: an un-awaited future escapes this try
+        // block, so a failure inside the gallery fallback would never reach the
+        // `catch` below and `onError` would never fire.
+        return await image(
           maxWidth: maxWidth,
           maxHeight: maxHeight,
           imageQuality: imageQuality,
@@ -257,7 +260,8 @@ class Pick {
 
       // User cancelled - check if we should fallback
       if (xFile == null && fallbackToGallery) {
-        return video(maxDuration: maxDuration);
+        // Awaited for the same reason as the image fallback above.
+        return await video(maxDuration: maxDuration);
       }
 
       return xFile != null ? _xFileToMagicFile(xFile) : null;
