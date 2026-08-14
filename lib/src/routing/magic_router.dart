@@ -342,10 +342,25 @@ class MagicRouter {
     // Wrap child with opaque background to prevent overlap during transitions
     final opaqueChild = Material(type: MaterialType.canvas, child: child);
 
+    // The name a NavigatorObserver will read off this page.
+    //
+    // `GoRoute.name` names the ROUTE and never reaches `RouteSettings`, so
+    // without this every observer sees null and cannot tell one screen from
+    // another. That silently disables anything screen-aware: analytics,
+    // breadcrumb trails, and Sentry's web release health, which starts a
+    // session only when it sees this value change and otherwise reports zero
+    // sessions forever with nothing in any log to explain it.
+    //
+    // Falls back to the path because `.name()` is optional and most routes
+    // skip it, so keying only on `routeName` would leave the common case as
+    // broken as before. The path is always present and already unique.
+    final pageName = route.routeName ?? route.fullPath;
+
     switch (route.transitionType) {
       case RouteTransition.fade:
         return CustomTransitionPage(
           key: state.pageKey,
+          name: pageName,
           child: opaqueChild,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
@@ -355,6 +370,7 @@ class MagicRouter {
       case RouteTransition.slideRight:
         return CustomTransitionPage(
           key: state.pageKey,
+          name: pageName,
           child: opaqueChild,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             // Incoming page slides from right
@@ -391,6 +407,7 @@ class MagicRouter {
       case RouteTransition.slideUp:
         return CustomTransitionPage(
           key: state.pageKey,
+          name: pageName,
           child: opaqueChild,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return SlideTransition(
@@ -412,6 +429,7 @@ class MagicRouter {
       case RouteTransition.scale:
         return CustomTransitionPage(
           key: state.pageKey,
+          name: pageName,
           child: opaqueChild,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return ScaleTransition(
@@ -423,7 +441,11 @@ class MagicRouter {
 
       case RouteTransition.none:
         // No animation - instant page switch
-        return NoTransitionPage(key: state.pageKey, child: opaqueChild);
+        return NoTransitionPage(
+          key: state.pageKey,
+          name: pageName,
+          child: opaqueChild,
+        );
     }
   }
 
