@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -264,7 +265,27 @@ abstract class BaseGuard implements Guard {
       Log.debug('Auth: No cached user found');
     }
 
-    // 2. Sync from API (fresh data)
+    // 2. Sync from API (fresh data).
+    //
+    // Awaited only when the cache had nothing to show. `AuthServiceProvider`
+    // awaits `restore()`, which holds `Magic.init()`, which holds `runApp`, so
+    // anything awaited here is time the user spends looking at a blank window.
+    // Against a backend that accepts the connection and then says nothing (a
+    // captive portal, a dead mobile link) that is the whole client timeout: on
+    // an app configured for 120s it measured as roughly two minutes of white
+    // screen on a cold start, with the console stopping dead on the line above.
+    //
+    // With a cached user already set the screen can render now and correct
+    // itself when the sync lands, which is what this class has documented as
+    // its cache strategy from the start ("2. Sync from API in background").
+    // Without one there is nothing to render and no honest way to route, so the
+    // API is the only answer and waiting for it is the point.
+    if (cachedUser != null) {
+      unawaited(_syncUserFromApi());
+
+      return;
+    }
+
     await _syncUserFromApi();
   }
 
@@ -282,8 +303,24 @@ abstract class BaseGuard implements Guard {
       final response = await Http.get(userEndpoint!);
 
       if (!response.successful) {
-        Log.warning('Auth: Token invalid, logging out');
-        await logout();
+        // Only the server may end a session. A transport failure (a timeout, a
+        // DNS miss, a dead mobile link) reaches here as statusCode 0, because
+        // `DioNetworkDriver._handleError` has no response to report: that is
+        // "nobody answered", not "your token is bad". Logging out on it threw
+        // away a valid session because the phone went through a tunnel, and
+        // said "Token invalid" about a server that never spoke.
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          Log.warning('Auth: Token rejected by the server, logging out');
+          await logout();
+
+          return;
+        }
+
+        Log.warning(
+          'Auth: user sync failed (status ${response.statusCode}); '
+          'keeping the cached session',
+        );
+
         return;
       }
 
