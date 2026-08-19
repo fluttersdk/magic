@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -81,6 +84,56 @@ class MockGuard implements Guard {
           ..setRawAttributes({'id': 1, 'name': 'Restored User'}, sync: true),
       );
     }
+  }
+}
+
+/// A guard that keeps [BaseGuard.restore] rather than replacing it, so the real
+/// cache-first path is what the test drives.
+class _CacheFirstGuard extends BaseGuard {
+  _CacheFirstGuard()
+    : super(
+        userEndpoint: '/user',
+        userFactory: (data) => MockUser()..setRawAttributes(data, sync: true),
+      );
+
+  @override
+  Future<void> login(Map<String, dynamic> data, Authenticatable user) async {}
+}
+
+/// A driver whose GET never answers until the test opens the gate, standing in
+/// for a backend that accepts the connection and then says nothing.
+class _GatedDriver extends FakeNetworkDriver {
+  _GatedDriver(this.gate);
+
+  final Completer<void> gate;
+
+  @override
+  Future<MagicResponse> get(
+    String url, {
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    await gate.future;
+
+    return super.get(url, query: query, headers: headers);
+  }
+}
+
+/// A driver whose GET answers the way [DioNetworkDriver] answers a transport
+/// failure: no response, so `statusCode` is 0 rather than anything the server
+/// said.
+class _StatusDriver extends FakeNetworkDriver {
+  _StatusDriver(this.statusCode);
+
+  final int statusCode;
+
+  @override
+  Future<MagicResponse> get(
+    String url, {
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    return MagicResponse(data: null, statusCode: statusCode, headers: {});
   }
 }
 
@@ -402,6 +455,109 @@ void main() {
       expect(result.success, isFalse);
       expect(result.message, 'Validation failed');
       expect(result.errors['email'], ['Invalid email']);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // BaseGuard.restore: the cache answers, the API sync does not hold the boot
+  // ---------------------------------------------------------------------------
+
+  group('BaseGuard.restore cache-first contract', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    tearDown(() {
+      Vault.unfake();
+      Log.unfake();
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    test(
+      'returns once the cached user is in place, without waiting for the API',
+      () async {
+        // `AuthServiceProvider.boot()` awaits `restore()`, so anything `restore()`
+        // awaits holds `Magic.init()`, and nothing renders until it lets go. With
+        // a backend that accepts the connection and never answers (a captive
+        // portal, a dead mobile link), that is the whole client timeout: measured
+        // on an iPhone as roughly two minutes of blank white screen on a cold
+        // start, with the console stopping dead on "Auth: Cached user restored".
+        //
+        // The class docblock has always said "2. Sync from API in background".
+        Log.fake();
+        Vault.fake({
+          'auth_token': 'stored-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+
+        final gate = Completer<void>();
+        Magic.singleton('network', () => _GatedDriver(gate));
+
+        final guard = _CacheFirstGuard();
+
+        // No timeout wrapper on purpose: if `restore()` waits for the gate this
+        // never completes and the case fails as a hang, which is exactly the
+        // shape of the defect.
+        await guard.restore();
+
+        expect(
+          guard.check(),
+          isTrue,
+          reason: 'the cached user is what makes the app renderable',
+        );
+        expect(guard.user<MockUser>()?.name, 'Cached User');
+        expect(
+          gate.isCompleted,
+          isFalse,
+          reason:
+              'the API has not answered yet, and must not have been waited on',
+        );
+
+        gate.complete();
+      },
+    );
+
+    test(
+      'a transport failure keeps the session, only the server may end it',
+      () async {
+        // `DioNetworkDriver._handleError` has no response to report on a
+        // timeout, a DNS failure or a dead link, so it returns statusCode 0.
+        // Reading that as "not successful" and logging out throws away a valid
+        // session because the phone went through a tunnel, and the log line
+        // said "Token invalid" about a server that never answered.
+        Log.fake();
+        Vault.fake({
+          'auth_token': 'stored-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+        Magic.singleton('network', () => _StatusDriver(0));
+
+        final guard = _CacheFirstGuard();
+        await guard.restore();
+        // The sync no longer blocks restore, so let its microtask run.
+        await Future<void>.delayed(Duration.zero);
+
+        expect(guard.check(), isTrue);
+        expect(await Vault.get('auth_token'), 'stored-token');
+      },
+    );
+
+    test('a 401 does end the session, because the server said so', () async {
+      Log.fake();
+      Vault.fake({
+        'auth_token': 'stored-token',
+        'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+      });
+      Magic.singleton('network', () => _StatusDriver(401));
+
+      final guard = _CacheFirstGuard();
+      await guard.restore();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(guard.check(), isFalse);
+      expect(await Vault.get('auth_token'), isNull);
     });
   });
 }
