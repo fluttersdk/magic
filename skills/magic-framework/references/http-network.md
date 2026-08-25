@@ -17,6 +17,7 @@ import 'package:magic/magic.dart';
 - [Driver Plugin Hook](#driver-plugin-hook)
 - [ValidatesRequests Mixin](#validatesrequests-mixin)
 - [MagicStateMixin Fetch Helpers](#magicstatemixin-fetch-helpers)
+- [Paginated Collections](#paginated-collections)
 - [Common Patterns](#common-patterns)
 - [Testing](#testing)
 - [Gotchas](#gotchas)
@@ -450,6 +451,74 @@ await controller.loadProjects('team-1');
 expect(controller.isSuccess, isTrue);
 expect(controller.rxState?.length, 1);
 ```
+
+## Paginated Collections
+
+`fetchList` replaces the whole list and ignores the pagination envelope. For a collection long enough that rendering all of it is the problem (a log, a check history, a feed), use `MagicPaginator<E>` plus `MagicPaginatedListView<E>`.
+
+### `MagicPaginator<E>`
+
+```dart
+final checks = MagicPaginator<CheckRow>(
+  url: 'monitors/$id/checks',   // no pagination parameter; it adds its own
+  fromMap: CheckRow.fromMap,
+  perPage: 50,                  // sent as `per_page`; omit to let the server decide
+  query: {'region': 'eu-central'},  // travels with every page
+  dataKey: 'data',
+);
+
+await checks.loadFirst();
+await checks.loadMore();
+await checks.refresh();
+```
+
+| Member | Meaning |
+|---|---|
+| `items` | every row so far, oldest page first. A live `UnmodifiableListView`, not a copy |
+| `hasMore` | the server reported a page after the last one read |
+| `isLoading` | a request is in flight |
+| `error` | last failure message, cleared by the next success |
+| `isEmpty` | a first page arrived and held nothing (false before the first load) |
+| `mode` | `PaginationMode.cursor` / `.offset` / `.single`, read from the response |
+
+It is a `ChangeNotifier`; listen to it directly.
+
+### Mode is read, not configured
+
+| Response `meta` | Mode | Next request |
+|---|---|---|
+| `next_cursor` | `cursor` | `?cursor=<token>` |
+| `current_page` + `last_page` | `offset` | `?page=<n+1>` |
+| neither | `single` | none; the collection is complete |
+
+The `next_cursor` KEY selects the mode and its VALUE decides `hasMore`, because it is present and null on the last cursor page.
+
+**Recommend `cursorPaginate()` server-side for data that grows at the head.** Offset counts from the start, so a row inserted at the top between two requests shifts everything down and page two repeats the last row of page one. A cursor names a position, so it cannot drift, and the query stays cheap at any depth. The cost is no total and no page jumping.
+
+### `MagicPaginatedListView<E>`
+
+```dart
+WDiv(
+  className: 'h-[600px]',            // REQUIRED: it is a ListView
+  child: MagicPaginatedListView<CheckRow>(
+    paginator: controller.checks,
+    itemBuilder: (context, row, index) => CheckHistoryRow(row: row),
+    separatorBuilder: (_, _) => const WDiv(className: 'h-px bg-gray-200'),
+    emptyState: const MSEmptyState(title: 'No checks yet'),
+    loadingFooter: const WDiv(className: 'p-4', child: WText('Loading...')),
+    loadMoreExtent: 400,             // px from the end that triggers the fetch
+  ),
+)
+```
+
+Builds only what the viewport shows and calls `loadMore()` as the tail approaches. Measured: 500 rows in a 300px viewport cost under 30 `itemBuilder` calls.
+
+### Gotchas
+
+- **It needs a bounded height.** Unbounded throws; `shrinkWrap: true` "fixes" that by measuring every row, which builds all of them and saves nothing. Bound it, or move the page to a sliver scaffold.
+- **`loadMore()` is safe to call every frame.** It refuses while a request is in flight and when `hasMore` is false. Without that guard a scroll callback fetches the same page repeatedly and appends each row two or three times.
+- **A failed page does not clear the list.** Rows stay, `error` is set, `hasMore` is untouched so a retry has a target.
+- **`items` is a live view.** Reading it does not copy, and it cannot be written through.
 
 ## Common Patterns
 

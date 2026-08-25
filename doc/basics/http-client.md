@@ -9,6 +9,9 @@ Magic provides a powerful HTTP client through the `Http` facade, built on top of
     - [POST Requests](#post-requests)
     - [PUT & DELETE](#put--delete)
 - [RESTful Resources](#restful-resources)
+- [Paginated Collections](#paginated-collections)
+    - [Cursor or Offset](#cursor-or-offset)
+    - [Rendering It Lazily](#rendering-it-lazily)
 - [Handling Responses](#handling-responses)
     - [Response Properties](#response-properties)
     - [Validation Errors](#validation-errors)
@@ -146,6 +149,83 @@ final updated = await Http.update('users', '1', {
 // DELETE /users/1
 await Http.destroy('users', '1');
 ```
+
+<a name="paginated-collections"></a>
+## Paginated Collections
+
+`Http.index()` and `fetchList()` read a collection in one request and hand you every row. That is the right shape for a settings screen and the wrong one for a log, a check history, or a feed: a long collection rendered as a column of every row costs one build, one layout and one semantics node per row on the first frame, whether or not the reader ever scrolls that far.
+
+`MagicPaginator` reads such a collection one page at a time. It holds the rows fetched so far, knows whether the server has more, and appends rather than replaces:
+
+```dart
+final checks = MagicPaginator<CheckRow>(
+  url: 'monitors/$id/checks',
+  fromMap: CheckRow.fromMap,
+  perPage: 50,
+);
+
+await checks.loadFirst();   // first page
+await checks.loadMore();    // append the next one
+await checks.refresh();     // start over from page one
+
+checks.items;      // every row so far, oldest page first
+checks.hasMore;    // is there another page
+checks.isLoading;  // a request is in flight
+checks.error;      // the last failure, cleared by the next success
+checks.isEmpty;    // a first page arrived and held nothing
+```
+
+It is a `ChangeNotifier`, so a widget can listen to it directly and a controller can hold several without inventing a state enum per list.
+
+> [!NOTE]
+> `loadMore()` is a no-op while a request is in flight and when there is nothing more to fetch, so it is safe to call from a scroll callback that fires every frame.
+
+A failed `loadMore()` keeps the rows already on screen and leaves `hasMore` alone, so the reader does not lose page one because page two timed out, and a retry still has a target.
+
+<a name="cursor-or-offset"></a>
+### Cursor or Offset
+
+The mode is read from the response rather than configured, so one paginator serves whichever the endpoint uses:
+
+| Response `meta` | Mode | Next page |
+|---|---|---|
+| `next_cursor` | `PaginationMode.cursor` | `?cursor=<token>` |
+| `current_page` + `last_page` | `PaginationMode.offset` | `?page=<n+1>` |
+| neither | `PaginationMode.single` | there is no next page |
+
+**Prefer `cursorPaginate()` on the server for anything that grows at the head**, which is most live data: checks, events, messages, notifications.
+
+```php
+// Drifts: a row inserted at the top between two requests shifts
+// everything down, so page two repeats the last row of page one.
+return CheckResource::collection($query->paginate($perPage));
+
+// Stable: the cursor names a position in the ordering.
+return CheckResource::collection($query->cursorPaginate($perPage));
+```
+
+Cursor pagination also costs the database the same at any depth, because it seeks to a position instead of counting past every row it skips. What you give up is a total count and the ability to jump to page five, neither of which an infinitely scrolling list uses.
+
+<a name="rendering-it-lazily"></a>
+### Rendering It Lazily
+
+`MagicPaginatedListView` builds the rows the viewport can show and asks for the next page as the tail comes into view:
+
+```dart
+WDiv(
+  className: 'h-[600px]',
+  child: MagicPaginatedListView<CheckRow>(
+    paginator: controller.checks,
+    itemBuilder: (_, CheckRow row, _) => CheckHistoryRow(row: row),
+    separatorBuilder: (_, _) => const WDiv(className: 'h-px bg-gray-200'),
+    emptyState: const MSEmptyState(title: 'No checks yet'),
+    loadingFooter: const WDiv(className: 'p-4', child: WText('Loading...')),
+  ),
+)
+```
+
+> [!WARNING]
+> It is a `ListView`, so it needs a **bounded height**. Dropping it into a page that already scrolls without a bound throws, and reaching for `shrinkWrap: true` to make that work defeats the whole thing: shrink-wrapping measures every row, so all of them get built and nothing is saved. Give it a height, or give the page a sliver-based scaffold.
 
 <a name="handling-responses"></a>
 ## Handling Responses

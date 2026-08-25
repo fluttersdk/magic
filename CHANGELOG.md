@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`MagicPaginator<E>` and `MagicPaginatedListView<E>`: a collection that arrives one page at a time and costs the viewport rather than the result.** `fetchList` reads the `data` key, replaces whatever was there, and ignores the pagination envelope entirely, so the only shape it supports is "fetch everything and render everything". That is fine for a settings screen and wrong for a log, a check history or a feed: rendering a long collection as a column of every row costs one build, one layout and one semantics node per row on the FIRST frame, whether or not the reader ever scrolls that far. The paginator holds the rows fetched so far, knows whether the server has more, and appends; the list widget builds only what the viewport can show and asks for the next page as the tail comes into view. Measured in a widget test: 500 rows in a 300px viewport cost fewer than 30 `itemBuilder` calls. (`lib/src/http/magic_paginator.dart`, `lib/src/ui/magic_paginated_list_view.dart`)
+
+- **Both Laravel envelopes are read, and the mode is taken from the response rather than configured.** A `meta.next_cursor` key means `cursorPaginate()` and the next page is requested with `?cursor=`; a `meta.current_page` key means `paginate()` and the next page is `?page=n+1`; neither means a bare collection that is already complete. **Reach for `cursorPaginate()` on anything that grows at the head**, which is most live data: offset addresses a page by counting from the start, so a row inserted at the top between two requests shifts everything down and page two repeats the last row of page one. A cursor names a position in the ordering, so it cannot drift, and the database answers it without counting past the rows it skips. The KEY identifies the mode and its VALUE decides `hasMore`, because `next_cursor` is present and null on the last cursor page.
+
+- **Two failure modes are guarded rather than left to the caller.** `loadMore()` is a no-op while a request is in flight, because an infinite-scroll list fires it from a scroll callback that runs on every frame near the end; without the guard the same page is fetched and appended several times and every row in it shows two or three times. And a failed `loadMore()` keeps the rows already on screen and leaves `hasMore` alone: losing page one because page two timed out is worse than the timeout, and the retry needs a target. `items` is a live `UnmodifiableListView` rather than a `List.unmodifiable` copy, since the widget reads it once per build and a copy per frame is the cost this class exists to avoid.
+
 ## [0.0.8] - 2026-08-25
 
 ### Fixed
