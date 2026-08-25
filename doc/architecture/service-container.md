@@ -54,6 +54,29 @@ final cache2 = Magic.make<CacheManager>('cache');
 // cache1 == cache2
 ```
 
+### Rebinding, and where fakes go
+
+Binding a key that has already been resolved discards the instance the old
+factory produced, so the new binding takes effect immediately. That is what
+makes an override work: a starter package binds a key in its provider, your app
+binds the same key to its own implementation, and the next `make()` gets yours
+even if something resolved the key in between.
+
+```dart
+Magic.singleton('svc', () => StarterService());
+Magic.make<Service>('svc'); // StarterService
+
+Magic.singleton('svc', () => AppService());
+Magic.make<Service>('svc'); // AppService
+```
+
+> [!WARNING]
+> The same rule applies to a value placed with `setInstance`, which is how
+> `Log.setDriver`, `Auth.setDriver`, `Cache.setDriver`, `Http.setDriver`,
+> `Vault.setDriver` and `Echo.setManager` install a driver or a fake. A later
+> `bind` or `singleton` on that key evicts it. Install fakes AFTER
+> `Magic.init()` and after your providers have registered, never before.
+
 ### Binding in Service Providers
 
 The recommended way to register services is in a service provider:

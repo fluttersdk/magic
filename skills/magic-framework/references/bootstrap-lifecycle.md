@@ -134,6 +134,22 @@ if (Magic.bound('cache')) {
 | `Magic.bound()` | `bool bound(String key)` | Check if a service is registered. |
 | `Magic.flush()` | `void flush()` | Clear all bindings and instances (for testing). |
 | `MagicApp.reset()` | `static void reset()` | Destroy the entire `MagicApp` singleton (for test teardown). |
+| `Magic.app.register()` | `Future<void> register(ServiceProvider p)` | Register a provider. After the boot phase it also boots it; await the future when the next line needs it wired. |
+
+**Rebinding evicts.** `bind` / `singleton` on a key that already has a
+resolved instance discards that instance, so an override takes effect at
+once. This includes a value placed by `setInstance`, which is how every
+`Facade.setDriver` and fake installs itself: install fakes AFTER
+`Magic.init()` and after provider registration, never before.
+
+**Late registration boots.** A provider registered once `boot()` has run is
+booted immediately rather than silently skipped. Registering the same
+provider INSTANCE twice is a no-op the second time; two instances of the
+same class both run, since a provider parameterised per plugin is valid.
+
+**Flushing clears listeners.** `flush()` and `reset()` also clear
+`EventDispatcher`, so a re-bootstrap does not end up with two of every
+listener.
 
 ### Resolution Order
 

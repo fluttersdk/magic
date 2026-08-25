@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:web/web.dart' as web;
+import 'package:flutter/foundation.dart';
+
 import '../cache_store.dart';
 import '../../facades/config.dart';
 
@@ -28,6 +30,8 @@ class FileStore implements CacheStore {
       try {
         _memory = json.decode(stored) as Map<String, dynamic>;
       } catch (e) {
+        // See the IO store: recoverable by design, but not silently.
+        debugPrint('FileStore: cache entry unreadable, starting fresh ($e)');
         _memory = {};
       }
     } else {
@@ -44,8 +48,13 @@ class FileStore implements CacheStore {
     final data = _memory[key];
 
     if (data is! Map) {
+      // Evicted from memory only. `get` is synchronous, so the write this used
+      // to fire could not be awaited: a failure had nowhere to go and became
+      // an unhandled async error, and reading N stale keys rewrote the whole
+      // file N times. Correctness does not need it, because expiry and shape
+      // are re-checked on every read, so a row left on disk is inert. The next
+      // write persists the map without it.
       _memory.remove(key);
-      _persist();
       return defaultValue;
     }
 
@@ -53,7 +62,6 @@ class FileStore implements CacheStore {
     if (expireAt != null) {
       if (DateTime.now().millisecondsSinceEpoch > expireAt) {
         _memory.remove(key);
-        _persist();
         return defaultValue; // Expired
       }
     }
