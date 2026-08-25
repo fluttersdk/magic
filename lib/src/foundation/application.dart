@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../config/app.dart';
 import '../../config/auth.dart';
 import '../../config/cache.dart';
@@ -189,6 +191,15 @@ class MagicApp {
   /// - [closure]: A factory function that creates the service.
   /// - [shared]: If true, resolves to the same instance (singleton).
   void bind(String key, Function closure, {bool shared = false}) {
+    // Whatever was resolved from the previous binding describes a factory that
+    // no longer exists, and [make] reads the instance cache first, so leaving
+    // it would make this call a no-op. That is the override path: a starter
+    // package binds a key in its provider, the app rebinds it to its own
+    // implementation, and anything that resolved the key in between used to
+    // pin the starter's instance forever with no error to say so.
+    // `Container::bind` drops stale instances for the same reason
+    // (`laravel-framework/src/Illuminate/Container/Container.php:366`).
+    _instances.remove(key);
     _bindings[key] = _Binding(closure, shared);
   }
 
@@ -302,8 +313,31 @@ class MagicApp {
   /// app.boot(); // Boots all providers
   /// ```
   void register(ServiceProvider provider) {
+    // Registering the SAME INSTANCE twice runs its `register()` twice and its
+    // `boot()` twice, and for a provider that starts a poller or attaches a
+    // listener that is two of them with no handle on the first.
+    //
+    // Laravel guards by class instead
+    // (`laravel-framework/src/Illuminate/Foundation/Application.php:885`), and
+    // this deliberately does not: a provider class parameterised per plugin
+    // and registered once per plugin is a legitimate shape here, and a
+    // by-class guard would silently drop all but the first. Identity is the
+    // subset that is unambiguously a mistake.
+    if (_providers.any((p) => identical(p, provider))) return;
+
     _providers.add(provider);
     provider.register();
+
+    // Registering after the boot phase used to run `register()` and silently
+    // skip `boot()`, because [boot] early-returns once `_booted` is set. That
+    // leaves a provider half initialised, which is the state a plugin
+    // installing itself lazily lands in. Laravel boots the late provider on
+    // the spot (same file, line 919); the future is deliberately not awaited
+    // because `register` is synchronous by contract, and a boot that throws
+    // must surface rather than be swallowed.
+    if (_booted) {
+      unawaited(provider.boot());
+    }
   }
 
   /// Boot all registered service providers.
