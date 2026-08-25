@@ -7,11 +7,33 @@ import 'exceptions.dart';
 
 /// The Magic Encrypter Service.
 ///
-/// This service provides a simple, convenient interface for encrypting and
-/// decrypting text via OpenSSL using AES-256 encryption. All of Magic's
-/// encrypted values are signed using a message authentication code (MAC)
-/// so that their underlying value can not be modified or tampered with
-/// once encrypted.
+/// A convenient interface for encrypting and decrypting text with AES-256-CBC.
+///
+/// ## What this does NOT give you
+///
+/// Ciphertexts produced here are **not authenticated**. There is no MAC, and
+/// this is where Magic diverges from Laravel's `Encrypter`, which appends an
+/// HMAC-SHA256 over the IV and the ciphertext and refuses a payload whose MAC
+/// does not verify.
+///
+/// Two consequences to design around, rather than assume away:
+///
+/// - **CBC is malleable.** Someone who can modify a stored payload can flip
+///   bits in the IV and flip the corresponding bits of the first plaintext
+///   block, predictably. Decryption will succeed and hand back a value the
+///   attacker chose part of.
+/// - **A decryption failure is observable**, so a caller that reports it back
+///   to whoever supplied the payload builds a padding oracle.
+///
+/// So: use this to keep a value opaque at rest on the device, and do not use
+/// it as evidence that a value has not been tampered with. Anything whose
+/// integrity matters (a token, an amount, an identity) has to be verified by
+/// the server that issued it, which is the layer that can hold a secret this
+/// one cannot.
+///
+/// The docstring here used to claim the MAC that Laravel has and this class
+/// does not, which is worse than saying nothing: a caller could reasonably
+/// have trusted it.
 class MagicEncrypter {
   /// The underlying encrypter instance.
   final Encrypter _encrypter;
@@ -78,9 +100,14 @@ class MagicEncrypter {
 
   /// Decrypt the given payload.
   ///
-  /// The [payload] must be in the format `base64(iv):base64(value)`. If the
-  /// payload is invalid or the MAC signature check fails (handled internally),
-  /// a [MagicDecryptException] will be thrown.
+  /// The [payload] must be in the format `base64(iv):base64(value)`. A
+  /// malformed payload, or one that does not decrypt under this key, throws
+  /// [MagicDecryptException].
+  ///
+  /// There is no MAC check, so a payload that decrypts is NOT thereby proven
+  /// untampered; see the class docs. Do not surface the failure to whoever
+  /// supplied the payload, since distinguishable failures are what a padding
+  /// oracle is built from.
   String decrypt(String payload) {
     try {
       final parts = payload.split(':');
