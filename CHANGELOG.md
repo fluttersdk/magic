@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+---
+
+## [0.0.7] - 2026-08-25
+
 ### Fixed
 
 - **A validation error arriving after its controller was disposed threw.** The five `notifyListeners()` calls in `ValidatesRequests` sat outside `refreshUI()`'s `if (!_disposed)` guard, and `notifyListeners()` on a disposed `ChangeNotifier` raises a `FlutterError`. A late API failure resolving onto a torn-down form controller, which is ordinary on a slow network, hit it. Routing those five through `refreshUI()` puts them behind the guard they never had. (`lib/src/concerns/validates_requests.dart`)
