@@ -137,12 +137,34 @@ abstract class BaseGuard implements Guard {
   }
 
   /// Clear all tokens.
+  ///
+  /// Both deletes are attempted even when the first one fails, and the first
+  /// failure is rethrown once both have been tried. A vault delete throws
+  /// [MagicVaultException] on a platform error (a locked keychain, a lost
+  /// entitlement), and stopping at the first would leave the refresh token
+  /// behind, which is a live session on the next launch.
   Future<void> clearTokens() async {
-    await Vault.delete(tokenKey);
-    _cachedToken = null;
-    if (refreshTokenKey != null) {
-      await Vault.delete(refreshTokenKey!);
+    Object? failure;
+    StackTrace? failureStack;
+
+    try {
+      await Vault.delete(tokenKey);
+    } catch (e, stack) {
+      failure = e;
+      failureStack = stack;
     }
+    _cachedToken = null;
+
+    if (refreshTokenKey != null) {
+      try {
+        await Vault.delete(refreshTokenKey!);
+      } catch (e, stack) {
+        failure ??= e;
+        failureStack ??= stack;
+      }
+    }
+
+    if (failure != null) Error.throwWithStackTrace(failure, failureStack!);
   }
 
   // ---------------------------------------------------------------------------
@@ -234,12 +256,43 @@ abstract class BaseGuard implements Guard {
   // Session
   // ---------------------------------------------------------------------------
 
+  /// End the session.
+  ///
+  /// Every step is attempted, whatever the earlier ones did, and the first
+  /// failure is rethrown at the end. Vault deletes throw on a platform error,
+  /// and running these in sequence without that meant a locked keychain on the
+  /// first delete left the cached user on disk, left the user in memory, and
+  /// never bumped [stateNotifier], so the app went on rendering a signed-in
+  /// session while the caller was told the logout had failed.
+  ///
+  /// The in-memory clear is last and unconditional on purpose: it is the part
+  /// that cannot fail, so it is the part that must not be skipped. The throw
+  /// still reaches the caller, because a logout that could not remove a
+  /// credential is not a logout, and only the caller can decide what to say
+  /// about it.
   @override
   Future<void> logout() async {
-    await clearTokens();
-    await clearUserCache();
+    Object? failure;
+    StackTrace? failureStack;
+
+    try {
+      await clearTokens();
+    } catch (e, stack) {
+      failure = e;
+      failureStack = stack;
+    }
+
+    try {
+      await clearUserCache();
+    } catch (e, stack) {
+      failure ??= e;
+      failureStack ??= stack;
+    }
+
     _user = null;
     stateNotifier.value++;
+
+    if (failure != null) Error.throwWithStackTrace(failure, failureStack!);
   }
 
   @override
