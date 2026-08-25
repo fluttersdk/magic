@@ -63,6 +63,24 @@ await Auth.logout();
 MagicRoute.to('/login');
 ```
 
+> [!WARNING]
+> `logout()` can throw. Secure storage is a platform service and a delete can
+> fail (a locked keychain, a lost entitlement). When it does, every step is
+> still attempted and the in-memory session is still cleared and announced, so
+> your UI is correct either way, but the throw reaches you because a credential
+> may have survived on the device. Navigate away and surface it; do not swallow
+> it:
+>
+> ```dart
+> try {
+>   await Auth.logout();
+> } catch (e) {
+>   Log.warning('Logout could not clear stored credentials: $e');
+> } finally {
+>   MagicRoute.to('/login');
+> }
+> ```
+
 <a name="configuration"></a>
 ## Configuration
 

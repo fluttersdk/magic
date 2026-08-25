@@ -30,7 +30,7 @@ await Auth.login({'token': response.data['token']}, user);
 Route.to('/dashboard');
 
 // Logout
-await Auth.logout();
+await Auth.logout(); // can throw: see below
 ```
 
 ### Check Authentication State
@@ -118,6 +118,8 @@ Ensure `AppServiceProvider` is listed **before** `AuthServiceProvider` in your a
 ```
 
 ### Reactive State
+
+`logout()` attempts every step whatever the earlier ones did, always clears the in-memory session and bumps `stateNotifier`, then rethrows the first failure. So the UI is correct even when secure storage refused a delete, and the caller still learns a credential may have survived on the device. Catch it, log it, and navigate anyway.
 
 `Auth.stateNotifier` is a `ValueNotifier<int>` that bumps on every auth state change (login, logout, restore). Use it to reactively rebuild UI:
 
