@@ -25,7 +25,7 @@ class _Employee extends Model {
   String get resource => 'employees';
 
   @override
-  List<String> get fillable => ['name', 'joined_at', 'settings'];
+  List<String> get fillable => ['name', 'joined_at', 'settings', 'company'];
 
   @override
   Map<String, String> get casts => {
@@ -120,6 +120,60 @@ void main() {
     });
   });
 
+  group('the fill() path keeps storage values in the dirty map', () {
+    test('a relation read on a filled model does not leak a Model into '
+        'getDirty', () async {
+      // A model built with fill() has an empty original snapshot, so it is
+      // legitimately dirty. What must not happen is the dirty map carrying a
+      // materialised `_Company` where every other value is a storage
+      // primitive: that is what a save would try to send.
+      final e = _Employee();
+      e.fill(<String, dynamic>{
+        'name': 'Ada',
+        'company': <String, dynamic>{'id': 9, 'name': 'Uptizm'},
+      });
+
+      expect(e.company?.name, 'Uptizm');
+
+      expect(e.isDirty('company'), isTrue, reason: 'nothing was ever synced');
+      expect(
+        e.getDirty()['company'],
+        isA<Map<String, dynamic>>(),
+        reason: 'the dirty map holds storage values, not model instances',
+      );
+      expect(e.getDirty()['company'], isNot(isA<Model>()));
+    });
+
+    test('reading a relation twice returns the same instance', () {
+      final e = _loaded();
+      expect(identical(e.company, e.company), isTrue);
+    });
+
+    test('toMap still serialises a read relation through its model', () {
+      final e = _loaded();
+      e.company;
+
+      final map = e.toMap();
+      expect(map['company'], isA<Map<String, dynamic>>());
+      expect((map['company'] as Map)['name'], 'Uptizm');
+    });
+
+    test('replacing the raw value drops the materialised relation', () {
+      final e = _loaded();
+      expect(e.company?.name, 'Uptizm');
+
+      e.setAttribute('company', <String, dynamic>{'id': 10, 'name': 'Other'});
+
+      expect(
+        e.company?.name,
+        'Other',
+        reason:
+            'a stale relation is worse '
+            'than none: the getter would keep answering with the old company',
+      );
+    });
+  });
+
   group('a cast is computed once per raw value', () {
     test('datetime reads return the identical instance', () {
       // `Carbon.parse` on every read is the cost this memo removes. Identity
@@ -136,13 +190,21 @@ void main() {
       );
     });
 
-    test('json reads return the identical decoded map', () {
+    test('json reads return a FRESH map every time, on purpose', () {
+      // `json` is deliberately not memoised. A decoded Map is mutable, so
+      // handing out the same instance would make
+      // `u.settings['theme'] = 'light'` stick for every later read while the
+      // raw attribute still held the old JSON, so `isDirty()` stayed false and
+      // a save sent the pre-mutation value. The mutation was always lost; the
+      // memo would only have made losing it silent instead of visible on the
+      // next read.
       final e = _loaded();
-      final first = e.getAttribute('settings');
-      final second = e.getAttribute('settings');
+      final first = e.getAttribute('settings') as Map<String, dynamic>;
+      first['theme'] = 'light';
+      final second = e.getAttribute('settings') as Map<String, dynamic>;
 
-      expect(first, isA<Map<String, dynamic>>());
-      expect(identical(first, second), isTrue);
+      expect(identical(first, second), isFalse);
+      expect(second['theme'], 'dark', reason: 'the mutation is visibly lost');
     });
 
     test('the memo is dropped when the raw value is replaced', () {
@@ -161,14 +223,15 @@ void main() {
 
     test('the memo is dropped when raw attributes are replaced wholesale', () {
       final e = _loaded();
-      expect((e.getAttribute('settings') as Map)['theme'], 'dark');
+      final before = e.getAttribute('joined_at') as Carbon;
+      expect(before.year, 2026);
 
       e.setRawAttributes(<String, dynamic>{
         'id': 1,
-        'settings': '{"theme":"light"}',
+        'joined_at': '2020-01-02T03:04:05',
       }, sync: true);
 
-      expect((e.getAttribute('settings') as Map)['theme'], 'light');
+      expect((e.getAttribute('joined_at') as Carbon).year, 2020);
     });
 
     test('memoising a cast does not make the model dirty', () {

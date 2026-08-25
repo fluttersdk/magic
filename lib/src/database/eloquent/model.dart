@@ -50,9 +50,9 @@ abstract class Model {
   /// Cast results, keyed by attribute, computed once per raw value.
   ///
   /// [getAttribute] applies the cast on every call, so a `datetime` attribute
-  /// re-ran `Carbon.parse` and a `json` one re-ran `jsonDecode` for each read.
-  /// A widget that reads `incident.startedAt` while building a row pays that
-  /// per row per frame.
+  /// re-ran `Carbon.parse` for each read. A widget that reads
+  /// `incident.startedAt` while building a row pays that per row per frame.
+  /// `json` is excluded on purpose; see [getAttribute].
   ///
   /// This is deliberately NOT stored in [_attributes], which is the raw
   /// storage map that dirty tracking and [toMap] both read: a `Carbon` sitting
@@ -61,6 +61,16 @@ abstract class Model {
   /// which is [setAttribute] (that key) and [setRawAttributes] and [fill]
   /// (all keys).
   final Map<String, dynamic> _castCache = {};
+
+  /// Materialised relations, keyed by attribute.
+  ///
+  /// Kept out of [_attributes] for the same reason as [_castCache]: that map is
+  /// the raw storage dirty tracking compares and a save reads, so a `Model`
+  /// sitting where a nested Map belongs made a pure READ look like a write and
+  /// put a model object into `getDirty()` among storage primitives. Caching it
+  /// here means the comparison is always raw against raw, on a model hydrated
+  /// with `sync: true` and on one built with `fill()` alike.
+  final Map<String, Object> _relationCache = {};
 
   /// Runtime hidden attributes.
   final Set<String> _hidden = {};
@@ -178,16 +188,27 @@ abstract class Model {
       return castType.get(this, key, value);
     }
 
-    // Only the four built-in string casts are memoised. A `CastsAttributes`
-    // instance is consumer code returning whatever it likes, including a value
-    // derived from something other than this attribute, so caching its answer
-    // would be caching a decision that is not ours to make.
+    // Memoised: the casts whose result is immutable, so handing the same
+    // instance to two readers cannot let one of them observe the other.
+    //
+    // `json` is deliberately NOT among them, and that exclusion is the whole
+    // reason this is a list rather than "every built-in cast". A decoded Map
+    // is mutable, so a shared instance would make
+    // `user.settings['theme'] = 'light'` stick for every later read while
+    // `_attributes['settings']` still held the original JSON string: dirty
+    // tracking would stay false and a save would send the pre-mutation value.
+    // The mutation is lost either way, since nothing writes it back, but
+    // without the memo it is lost visibly on the very next read instead of
+    // silently at save time.
+    //
+    // A `CastsAttributes` instance is excluded too: it is consumer code that
+    // may derive its answer from something other than this attribute, so
+    // caching it would cache a decision that is not ours to make.
     final cached = _castCache[key];
     if (cached != null) return cached;
 
     switch (castType) {
       case 'datetime':
-      case 'json':
       case 'bool':
       case 'int':
       case 'double':
@@ -196,13 +217,17 @@ abstract class Model {
         // it would make every plain attribute pay for the cache.
         if (!identical(computed, value)) _castCache[key] = computed;
         return computed;
+      case 'json':
+        // Cast on every read, cached never. See the note above.
+        return _applyBuiltInCast('json', value);
       default:
         return value;
     }
   }
 
   /// The five built-in string casts, split out so [getAttribute] can memoise
-  /// the result without the switch appearing twice.
+  /// the memoisable ones without the switch appearing twice. `json` routes
+  /// here too but its result is never cached; see [getAttribute].
   dynamic _applyBuiltInCast(String castType, dynamic value) {
     switch (castType) {
       case 'datetime':
@@ -243,10 +268,11 @@ abstract class Model {
   void setAttribute(String key, dynamic value) {
     final castType = casts[key];
 
-    // The raw value is about to change, so any memoised cast of it is stale.
-    // Dropping it here rather than recomputing keeps the write path free of
-    // work a reader may never ask for.
+    // The raw value is about to change, so any memoised cast or materialised
+    // relation built from it is stale. Dropping them here rather than
+    // recomputing keeps the write path free of work a reader may never ask for.
     _castCache.remove(key);
+    _relationCache.remove(key);
 
     if (castType is CastsAttributes) {
       _attributes[key] = castType.set(this, key, value);
@@ -313,16 +339,19 @@ abstract class Model {
   /// print(post?.user?.name); // "John Doe"
   /// ```
   T? getRelation<T extends Model>(String key) {
+    final cached = _relationCache[key];
+    if (cached is T) return cached;
+
     final data = _attributes[key];
     if (data == null) return null;
-    if (data is T) return data; // Already cast
+    if (data is T) return data; // Already a model, assigned rather than loaded
     if (data is Map<String, dynamic>) {
       final factory = relations[key];
       if (factory != null) {
         final model = factory() as T;
         model.setRawAttributes(data, sync: true);
         model.exists = true;
-        _cacheMaterialisedRelation(key, model);
+        _relationCache[key] = model;
         return model;
       }
     }
@@ -348,9 +377,12 @@ abstract class Model {
   /// }
   /// ```
   List<T> getRelations<T extends Model>(String key) {
+    final cached = _relationCache[key];
+    if (cached is List<T>) return cached;
+
     final data = _attributes[key];
     if (data == null) return [];
-    if (data is List<T>) return data; // Already cast
+    if (data is List<T>) return data; // Already models, assigned not loaded
     if (data is List) {
       final factory = relations[key];
       if (factory != null) {
@@ -366,33 +398,11 @@ abstract class Model {
             })
             .whereType<T>()
             .toList();
-        _cacheMaterialisedRelation(key, models);
+        _relationCache[key] = models;
         return models;
       }
     }
     return [];
-  }
-
-  /// Stores a materialised relation back into the attribute map, keeping the
-  /// dirty snapshot in step with it.
-  ///
-  /// The attribute map is where [toMap] reads from, and it knows how to
-  /// serialise a nested [Model], so the instance belongs there. But it is also
-  /// what [isDirty] and [getDirty] compare against [_original], which still
-  /// holds the raw Map the instance was built from. Without this, merely
-  /// READING `post.author` reported the model as modified and put a `Model`
-  /// object into `getDirty()`, where every other value is a storage primitive.
-  ///
-  /// The original is only moved forward when the attribute was clean, so a
-  /// relation the caller had genuinely reassigned before reading it stays
-  /// dirty, and a later reassignment still registers.
-  void _cacheMaterialisedRelation(String key, Object materialised) {
-    // Identity, and only identity: `Map` and `List` do not override `==`, so
-    // comparing the snapshot against the raw value would be this same check
-    // written a second way.
-    final bool wasClean = identical(_original[key], _attributes[key]);
-    _attributes[key] = materialised;
-    if (wasClean) _original[key] = materialised;
   }
 
   /// Set an attribute value.
@@ -519,7 +529,11 @@ abstract class Model {
     // 4. Serialize values (handle nested models and Carbon)
     final serialized = <String, dynamic>{};
     for (final entry in result.entries) {
-      final value = entry.value;
+      // A relation that has been read serialises through its model, so the
+      // related model's own `hidden` rules apply. One that has not been read
+      // is still the raw nested Map, which is what it was before the relation
+      // cache existed.
+      final value = _relationCache[entry.key] ?? entry.value;
       if (value is Model) {
         serialized[entry.key] = value.toMap();
       } else if (value is List && value.isNotEmpty && value.first is Model) {
@@ -649,6 +663,7 @@ abstract class Model {
     // line. `fill` needs no equivalent because it writes through
     // [setAttribute], which drops one key at a time.
     _castCache.clear();
+    _relationCache.clear();
     _attributes.addAll(attributes);
 
     if (sync) {
