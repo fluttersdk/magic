@@ -47,6 +47,21 @@ abstract class Model {
   /// The model's original attributes (for dirty checking).
   final Map<String, dynamic> _original = {};
 
+  /// Cast results, keyed by attribute, computed once per raw value.
+  ///
+  /// [getAttribute] applies the cast on every call, so a `datetime` attribute
+  /// re-ran `Carbon.parse` and a `json` one re-ran `jsonDecode` for each read.
+  /// A widget that reads `incident.startedAt` while building a row pays that
+  /// per row per frame.
+  ///
+  /// This is deliberately NOT stored in [_attributes], which is the raw
+  /// storage map that dirty tracking and [toMap] both read: a `Carbon` sitting
+  /// where a String belongs would report a read as a modification and change
+  /// what a save sends. It is invalidated wherever the raw value can change,
+  /// which is [setAttribute] (that key) and [setRawAttributes] and [fill]
+  /// (all keys).
+  final Map<String, dynamic> _castCache = {};
+
   /// Runtime hidden attributes.
   final Set<String> _hidden = {};
 
@@ -163,6 +178,32 @@ abstract class Model {
       return castType.get(this, key, value);
     }
 
+    // Only the four built-in string casts are memoised. A `CastsAttributes`
+    // instance is consumer code returning whatever it likes, including a value
+    // derived from something other than this attribute, so caching its answer
+    // would be caching a decision that is not ours to make.
+    final cached = _castCache[key];
+    if (cached != null) return cached;
+
+    switch (castType) {
+      case 'datetime':
+      case 'json':
+      case 'bool':
+      case 'int':
+      case 'double':
+        final computed = _applyBuiltInCast(castType!, value);
+        // A cast that changed nothing is not worth a map entry, and storing
+        // it would make every plain attribute pay for the cache.
+        if (!identical(computed, value)) _castCache[key] = computed;
+        return computed;
+      default:
+        return value;
+    }
+  }
+
+  /// The five built-in string casts, split out so [getAttribute] can memoise
+  /// the result without the switch appearing twice.
+  dynamic _applyBuiltInCast(String castType, dynamic value) {
     switch (castType) {
       case 'datetime':
         if (value is Carbon) return value;
@@ -201,6 +242,11 @@ abstract class Model {
   /// - [Map] values for json casts are encoded to strings
   void setAttribute(String key, dynamic value) {
     final castType = casts[key];
+
+    // The raw value is about to change, so any memoised cast of it is stale.
+    // Dropping it here rather than recomputing keeps the write path free of
+    // work a reader may never ask for.
+    _castCache.remove(key);
 
     if (castType is CastsAttributes) {
       _attributes[key] = castType.set(this, key, value);
@@ -276,7 +322,7 @@ abstract class Model {
         final model = factory() as T;
         model.setRawAttributes(data, sync: true);
         model.exists = true;
-        _attributes[key] = model; // Cache the cast result
+        _cacheMaterialisedRelation(key, model, data);
         return model;
       }
     }
@@ -320,11 +366,31 @@ abstract class Model {
             })
             .whereType<T>()
             .toList();
-        _attributes[key] = models; // Cache
+        _cacheMaterialisedRelation(key, models, data);
         return models;
       }
     }
     return [];
+  }
+
+  /// Stores a materialised relation back into the attribute map, keeping the
+  /// dirty snapshot in step with it.
+  ///
+  /// The attribute map is where [toMap] reads from, and it knows how to
+  /// serialise a nested [Model], so the instance belongs there. But it is also
+  /// what [isDirty] and [getDirty] compare against [_original], which still
+  /// holds the raw Map the instance was built from. Without this, merely
+  /// READING `post.author` reported the model as modified and put a `Model`
+  /// object into `getDirty()`, where every other value is a storage primitive.
+  ///
+  /// The original is only moved forward when the attribute was clean, so a
+  /// relation the caller had genuinely reassigned before reading it stays
+  /// dirty, and a later reassignment still registers.
+  void _cacheMaterialisedRelation(String key, Object materialised, Object raw) {
+    final bool wasClean =
+        identical(_original[key], _attributes[key]) || _original[key] == raw;
+    _attributes[key] = materialised;
+    if (wasClean) _original[key] = materialised;
   }
 
   /// Set an attribute value.
@@ -577,6 +643,10 @@ abstract class Model {
   /// Used internally when hydrating from database/API.
   void setRawAttributes(Map<String, dynamic> attributes, {bool sync = false}) {
     _attributes.clear();
+    // Every memo describes a raw value that is being discarded on the next
+    // line. `fill` needs no equivalent because it writes through
+    // [setAttribute], which drops one key at a time.
+    _castCache.clear();
     _attributes.addAll(attributes);
 
     if (sync) {
