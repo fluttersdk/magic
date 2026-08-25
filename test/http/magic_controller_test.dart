@@ -351,6 +351,33 @@ void main() {
     });
   });
 
+  group('MagicController.onRefreshUI hook', () {
+    tearDown(() {
+      // Restore the static so later tests never see a leaked hook.
+      MagicController.onRefreshUI = null;
+    });
+
+    test('fires once per notifyListeners, but not after dispose', () {
+      var hookCalls = 0;
+      MagicController.onRefreshUI = (controller) => hookCalls++;
+
+      final controller = TestController();
+      var listenerCalls = 0;
+      controller.addListener(() => listenerCalls++);
+
+      controller.setState('a');
+      controller.setState('b');
+
+      expect(hookCalls, equals(2));
+      expect(listenerCalls, equals(2));
+
+      controller.dispose();
+      controller.refreshUI();
+
+      expect(hookCalls, equals(2));
+    });
+  });
+
   group('MagicStateMixin.fetchList — defensive', () {
     late _ListController controller;
 

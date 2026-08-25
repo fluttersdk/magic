@@ -61,9 +61,15 @@ abstract class MagicController extends ChangeNotifier {
     super.dispose();
   }
 
+  /// Observes every [refreshUI] call across every [MagicController] in the
+  /// app. Defaults to null so the cost when unset is one null check and the
+  /// branch tree-shakes away entirely for consumers who never set it.
+  static void Function(MagicController controller)? onRefreshUI;
+
   /// Refresh the UI by notifying listeners.
   void refreshUI() {
     if (!_disposed) {
+      onRefreshUI?.call(this);
       notifyListeners();
     }
   }

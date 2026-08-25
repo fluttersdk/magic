@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Improvements
+
+- **`MagicController` exposes a static `onRefreshUI` hook.** `refreshUI()` is the only `notifyListeners()` call site in the controller, so this one hook observes every state change in every magic app without magic depending on anything. It defaults to null and is invoked inside the existing disposed guard, before `notifyListeners()`, so it never fires on a disposed controller and its cost when unset is a single null check. (`lib/src/http/magic_controller.dart`, `test/http/magic_controller_test.dart`)
+
 ### Fixed
 
 - **A cold start with no working backend showed a blank window for as long as the client timeout, because `restore()` waited for a call whose answer the cache had already given.** `AuthServiceProvider.boot()` awaits `Auth.restore()`, which holds `Magic.init()`, which holds `runApp`, so everything `restore()` awaited was time the user spent looking at nothing. It awaited `_syncUserFromApi()` even after `loadCachedUser()` had produced a user and `setUser` had put it in place. Against a backend that accepts the connection and then says nothing (a captive portal, a dead mobile link, a hung server) that is the entire timeout: measured on an iPhone 17 simulator against an app configured for 120s as roughly two minutes of white screen, with the console stopping dead on `Auth: Cached user restored` and the theme's own boot logging not appearing until it let go. The class docblock has described the intent as "2. Sync from API in background" since it was written. The sync is now awaited only when the cache had nothing to show, because then there is nothing to render and no honest way to route; with a cached user the screen renders now and corrects itself when the sync lands, which is what `AuthRestored` already exists to announce. (`lib/src/auth/guards/base_guard.dart`, `test/auth/auth_test.dart`)
