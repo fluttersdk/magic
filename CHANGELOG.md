@@ -4,10 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Improvements
-
-- **`MagicController` exposes a static `onRefreshUI` hook, and every controller notification now goes through `refreshUI()`.** One nullable static at the single `notifyListeners()` call site lets debug tooling observe controller activity without magic depending on anything. The hook alone was not enough to make that true: `ValidatesRequests`, a mixin `on MagicController`, called `notifyListeners()` directly at five sites, so a controller setting validation errors repainted without the hook firing and a diagnostic built on it under-counted exactly the form-validation rebuilds it is most likely to be pointed at. Those five now call `refreshUI()`. The hook itself is contained rather than swallowed: it is set by tooling outside this package and runs BEFORE `notifyListeners()`, so an unguarded throw would stop the screen repainting for every later `setSuccess` and `setError` on that path. A broken observer costs its own numbers, never the app's frames. (`lib/src/http/magic_controller.dart`, `lib/src/concerns/validates_requests.dart`, `test/http/magic_controller_test.dart`, `skills/magic-framework/`)
-
 ### Fixed
 
 - **A validation error arriving after its controller was disposed threw.** The five `notifyListeners()` calls in `ValidatesRequests` sat outside `refreshUI()`'s `if (!_disposed)` guard, and `notifyListeners()` on a disposed `ChangeNotifier` raises a `FlutterError`. A late API failure resolving onto a torn-down form controller, which is ordinary on a slow network, hit it. Routing those five through `refreshUI()` puts them behind the guard they never had. (`lib/src/concerns/validates_requests.dart`)
@@ -28,6 +24,8 @@ All notable changes to this project will be documented in this file.
 - **`Magic.seed(List<Seeder>)` is documented.** `make:seeder` scaffolds a seeder and the skill never said how to run one; there is no `db:seed` command, seeders run from Dart after `Magic.init()`. (`skills/magic-framework/references/cli-commands.md`)
 - The `magic:install` post-install message pinned `magic_devtools: ^0.0.1` and `fluttersdk_dusk: ^0.0.8`. Under Dart's caret rules for `0.0.x` both exclude the current releases (0.0.2 and 0.0.9), so a consumer copying the snippet resolved to superseded versions. It also still described the pre-umbrella four-block wiring. (`install.yaml`)
 - `plugin-notifications.md` claimed version `v0.0.1-alpha.1`, a pre-release that never shipped, and documented none of the seven `notifications:*` commands or the two read-only MCP tools (`notifications_doctor`, `notifications_channels`). `plugin-social-auth.md` had no installation section at all. Both carry a version stamp now. (`skills/magic-framework/references/plugin-{notifications,social-auth}.md`)
+
+- **`MagicController` exposes a static `onRefreshUI` hook, and every controller notification now goes through `refreshUI()`.** One nullable static at the single `notifyListeners()` call site lets debug tooling observe controller activity without magic depending on anything. The hook alone was not enough to make that true: `ValidatesRequests`, a mixin `on MagicController`, called `notifyListeners()` directly at five sites, so a controller setting validation errors repainted without the hook firing and a diagnostic built on it under-counted exactly the form-validation rebuilds it is most likely to be pointed at. Those five now call `refreshUI()`. The hook itself is contained rather than swallowed: it is set by tooling outside this package and runs BEFORE `notifyListeners()`, so an unguarded throw would stop the screen repainting for every later `setSuccess` and `setError` on that path. A broken observer costs its own numbers, never the app's frames. (`lib/src/http/magic_controller.dart`, `lib/src/concerns/validates_requests.dart`, `test/http/magic_controller_test.dart`, `skills/magic-framework/`)
 
 ### Removed
 
