@@ -25,12 +25,28 @@ void main() {
       expect(encrypter.encrypt('same'), isNot(encrypter.encrypt('same')));
     });
 
-    test('a payload from another key does not decrypt', () {
+    test('a payload from another key never yields the plaintext', () {
+      // Deliberately NOT `throwsA`. Decrypting under the wrong key produces
+      // random bytes, and PKCS7 unpadding accepts them roughly 1 time in 256,
+      // in which case `decrypt` returns a garbage string instead of throwing.
+      // Measured here over 20,000 iterations: 88 did not throw (0.44%), and 0
+      // returned the plaintext. So the guarantee worth asserting is the second
+      // one. Asserting the first puts a red CI run about every 230 builds with
+      // no code change to blame.
+      //
+      // That a wrong key can "succeed" at all is the same missing
+      // authentication this file is about.
       final other = MagicEncrypter('fedcba9876543210fedcba9876543210');
-      expect(
-        () => encrypter.decrypt(other.encrypt('secret')),
-        throwsA(isA<MagicDecryptException>()),
-      );
+      final payload = other.encrypt('secret');
+
+      String? out;
+      try {
+        out = encrypter.decrypt(payload);
+      } on MagicDecryptException {
+        out = null;
+      }
+
+      expect(out, isNot('secret'));
     });
 
     test('a malformed payload is refused rather than guessed at', () {

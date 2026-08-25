@@ -30,10 +30,6 @@ import 'exceptions.dart';
 /// integrity matters (a token, an amount, an identity) has to be verified by
 /// the server that issued it, which is the layer that can hold a secret this
 /// one cannot.
-///
-/// The docstring here used to claim the MAC that Laravel has and this class
-/// does not, which is worse than saying nothing: a caller could reasonably
-/// have trusted it.
 class MagicEncrypter {
   /// The underlying encrypter instance.
   final Encrypter _encrypter;
