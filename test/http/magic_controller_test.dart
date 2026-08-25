@@ -2,6 +2,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
 // Test controller with MagicStateMixin
+/// A controller with the validation mixin, so the five sites that used to call
+/// notifyListeners() directly can be exercised through their real entry point.
+class _ValidatingController extends MagicController with ValidatesRequests {}
+
 class TestController extends MagicController with MagicStateMixin<String> {
   TestController() {
     onInit();
@@ -375,6 +379,56 @@ void main() {
       controller.refreshUI();
 
       expect(hookCalls, equals(2));
+    });
+
+    test('a validation notification fires the hook too', () {
+      // ValidatesRequests is a mixin ON MagicController and used to call
+      // notifyListeners() directly at five sites, so a controller that set
+      // validation errors repainted without the hook ever firing and a
+      // diagnostic built on it under-counted exactly the form-validation
+      // rebuilds it was most likely to be pointed at. Routing those sites
+      // through refreshUI() also put them behind the disposed guard, which
+      // they never had: notifyListeners() on a disposed ChangeNotifier
+      // throws.
+      var hookCalls = 0;
+      MagicController.onRefreshUI = (controller) => hookCalls++;
+
+      final controller = _ValidatingController();
+
+      expect(
+        () => controller.validate(
+          <String, dynamic>{'email': ''},
+          <String, List<Rule>>{
+            'email': <Rule>[Required()],
+          },
+        ),
+        throwsA(isA<ValidationException>()),
+      );
+
+      // Once to clear the previous errors, once to publish the new ones.
+      expect(hookCalls, equals(2));
+
+      controller.clearErrors();
+      expect(hookCalls, equals(3));
+    });
+
+    test('a hook that throws does not stop the repaint', () {
+      // The hook is set by tooling outside this package and runs BEFORE
+      // notifyListeners(). Unguarded, a diagnostic bug would freeze the view
+      // for every later setSuccess and setError on that path. A broken
+      // observer costs its own numbers, never the app's frames.
+      MagicController.onRefreshUI = (_) =>
+          throw StateError('observer is broken');
+
+      final controller = TestController();
+      var listenerCalls = 0;
+      controller.addListener(() => listenerCalls++);
+
+      expect(() => controller.setState('a'), returnsNormally);
+      expect(listenerCalls, equals(1));
+
+      expect(() => controller.setState('b'), returnsNormally);
+      expect(listenerCalls, equals(2));
     });
   });
 

@@ -64,12 +64,28 @@ abstract class MagicController extends ChangeNotifier {
   /// Observes every [refreshUI] call across every [MagicController] in the
   /// app. Defaults to null so the cost when unset is one null check and the
   /// branch tree-shakes away entirely for consumers who never set it.
+  ///
+  /// This is the single seam a diagnostic reads controller activity through,
+  /// which is why [ValidatesRequests] routes its own notifications back
+  /// through [refreshUI] rather than calling `notifyListeners()` directly.
   static void Function(MagicController controller)? onRefreshUI;
 
   /// Refresh the UI by notifying listeners.
   void refreshUI() {
     if (!_disposed) {
-      onRefreshUI?.call(this);
+      // Contained deliberately, not swallowed. The hook is set by tooling
+      // outside this package, and an unguarded call would let a diagnostic
+      // bug take the UI with it: a throw here happens BEFORE
+      // notifyListeners(), so the screen stops repainting for every later
+      // setSuccess and setError on that path. A broken observer should cost
+      // its own numbers, never the app's frames.
+      try {
+        onRefreshUI?.call(this);
+      } catch (e, stack) {
+        debugPrint(
+          'MagicController.onRefreshUI threw and was ignored: $e\n$stack',
+        );
+      }
       notifyListeners();
     }
   }
