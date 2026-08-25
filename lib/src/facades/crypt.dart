@@ -10,6 +10,10 @@ import 'vault.dart';
 /// using the AES-256-CBC cipher. It proxies calls to the underlying
 /// [MagicEncrypter] service resolved from the container.
 ///
+/// > Ciphertexts are **not authenticated**: there is no MAC, unlike Laravel's
+/// > `Crypt`. A payload that decrypts is not thereby proven untampered. See
+/// > [MagicEncrypter] for what that rules out.
+///
 /// ## Config-Based Encryption
 ///
 /// Uses the `app.key` from your configuration:
