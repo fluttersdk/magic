@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-08-25
+
 ### Fixed
 
 - **A `logout()` that could not clear one thing cleared nothing after it.** The steps ran in sequence, and `Vault.delete` throws `MagicVaultException` on a platform error (a locked keychain, a lost entitlement), so a failure on the very first delete left the cached user on disk, left the user in memory, and never bumped `stateNotifier`: the app went on rendering a signed-in session while the caller was told the logout had failed. Every step is now attempted whatever the earlier ones did, the in-memory clear and the notify happen unconditionally because they are the parts that cannot fail, and the first failure is rethrown at the end so the caller still learns a credential may have survived. `clearTokens()` had the same shape one level down and left the refresh token behind, which is a live session on the next launch. (`lib/src/auth/guards/base_guard.dart`)
