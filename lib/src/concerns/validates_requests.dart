@@ -117,7 +117,7 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
   ) {
     // Clear previous errors and notify UI
     validationErrors = {};
-    notifyListeners();
+    refreshUI();
 
     final validator = Validator.make(data, rules);
 
@@ -126,7 +126,7 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
     } on ValidationException catch (e) {
       // Populate errors and notify UI
       validationErrors = Map.from(e.errors);
-      notifyListeners();
+      refreshUI();
       rethrow;
     }
   }
@@ -156,7 +156,7 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
         validationErrors[entry.key] = entry.value.first;
       }
     }
-    notifyListeners();
+    refreshUI();
   }
 
   /// Handle API error response automatically.
@@ -260,7 +260,7 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
   void clearErrors() {
     if (validationErrors.isNotEmpty) {
       validationErrors = {};
-      notifyListeners();
+      refreshUI();
     }
   }
 
@@ -278,7 +278,7 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
   void clearFieldError(String field) {
     if (validationErrors.containsKey(field)) {
       validationErrors.remove(field);
-      notifyListeners();
+      refreshUI();
     }
   }
 }

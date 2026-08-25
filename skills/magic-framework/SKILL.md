@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.4
+version: 0.1.5
 ---
 
-<!-- magic 0.0.6 | Skill v0.1.4 (2026-08-03). API surface verified against lib/src. -->
+<!-- magic 0.0.6 | Skill v0.1.5 (2026-08-25). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -30,7 +30,7 @@ Hard constraints for every line of magic code.
 3. **Controllers are singletons.** `static X get instance => Magic.findOrPut(X.new);` is the canonical accessor. Views resolve controllers via `Magic.find<T>()` (automatic in `MagicView`), never through constructors.
 4. **IoC over `new` for services.** Bind in a provider's `register()`, resolve via the facade or `Magic.make<T>('key')`. Do not scatter `Service()` construction across the app.
 5. **Provider discipline.** `register()` is synchronous and is where routes and bindings go. `boot()` is async and may resolve other services; set `Auth.manager.setUserFactory(...)` here.
-6. **Reactive state, not setState.** Controllers extend `MagicController` (a `ChangeNotifier`); state flows through `MagicStateMixin` + `RxStatus`. Use `refreshUI()` (guarded `notifyListeners`), `setLoading/setSuccess/setError/setEmpty`, and `MagicBuilder` for sections. Local `setState` belongs only to genuine widget-local UI state inside a `MagicStatefulView`.
+6. **Reactive state, not setState.** Controllers extend `MagicController` (a `ChangeNotifier`); state flows through `MagicStateMixin` + `RxStatus`. Use `refreshUI()` (guarded `notifyListeners`, and the single seam every controller notification goes through, including validation), `setLoading/setSuccess/setError/setEmpty`, and `MagicBuilder` for sections. `MagicController.onRefreshUI` is a null-by-default static debug tooling sets to observe those notifications. Local `setState` belongs only to genuine widget-local UI state inside a `MagicStatefulView`.
 7. **Typed attribute access.** Models use `get<T>('key')` and `set('key', v)`, never raw `getAttribute`. Declare `fillable`; use `fill(validated, strict: true)` after validation so schema drift throws `MassAssignmentException`.
 8. **Context-free navigation and feedback.** `MagicRoute.to/back/replace`, `Magic.snackbar/toast/dialog/confirm/loading`. Never depend on a `BuildContext` for navigation or feedback. Never navigate or fetch inside `build()`.
 9. **Validate at the boundary.** `MagicFormData` for forms, `FormRequest` for complex payloads, `Validator` for ad hoc checks. Surface server errors with `handleApiError(response)` (from the `ValidatesRequests` mixin).
