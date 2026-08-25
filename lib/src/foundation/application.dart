@@ -311,7 +311,7 @@ class MagicApp {
   /// app.register(RouteServiceProvider());
   /// app.boot(); // Boots all providers
   /// ```
-  Future<void> register(ServiceProvider provider) async {
+  Future<void> register(ServiceProvider provider) {
     // Registering the SAME INSTANCE twice runs its `register()` twice and its
     // `boot()` twice, and for a provider that starts a poller or attaches a
     // listener that is two of them with no handle on the first.
@@ -322,9 +322,16 @@ class MagicApp {
     // and registered once per plugin is a legitimate shape here, and a
     // by-class guard would silently drop all but the first. Identity is the
     // subset that is unambiguously a mistake.
-    if (_providers.any((p) => identical(p, provider))) return;
+    if (_providers.any((p) => identical(p, provider))) return Future.value();
 
     _providers.add(provider);
+    // Deliberately NOT inside an `async` body. The register phase is
+    // synchronous by contract and `Magic.init` calls it through a facade, so a
+    // provider that throws here (a missing env key, a dependency that will not
+    // resolve) has to fail where the caller stands. An `async` body would
+    // capture that throw into the returned future, and bootstrap would walk on
+    // to `boot()` with a half-built provider while the real error arrived later
+    // as an unhandled zone error.
     provider.register();
 
     // Registering after the boot phase used to run `register()` and silently
@@ -339,9 +346,7 @@ class MagicApp {
     // unhandled async error that a try/catch around the call cannot see. A
     // caller that does not care can still ignore the future; before the boot
     // phase it completes immediately, because nothing async has happened.
-    if (_booted) {
-      await provider.boot();
-    }
+    return _booted ? provider.boot() : Future<void>.value();
   }
 
   /// Boot all registered service providers.
@@ -384,7 +389,8 @@ class MagicApp {
   // Testing & Reset
   // ---------------------------------------------------------------------------
 
-  /// Flush the container, clearing all bindings and instances.
+  /// Flush the container, clearing all bindings, instances and providers, and
+  /// the event listeners those providers registered.
   ///
   /// Primarily useful for testing to reset the container between tests:
   ///

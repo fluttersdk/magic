@@ -30,6 +30,7 @@ void main() {
     _Counter.runs = 0;
     magic_events.EventDispatcher.instance.clear();
     MagicApp.reset();
+    Magic.flush();
   });
 
   test('resetting the app clears registered event listeners', () async {

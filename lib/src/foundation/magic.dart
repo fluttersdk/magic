@@ -181,8 +181,8 @@ class Magic {
   /// ```dart
   /// Magic.register(AuthServiceProvider(Magic.app));
   /// ```
-  static void register(ServiceProvider provider) {
-    app.register(provider);
+  static Future<void> register(ServiceProvider provider) {
+    return app.register(provider);
   }
 
   /// Boot all registered service providers.

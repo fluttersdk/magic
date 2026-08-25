@@ -20,7 +20,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- **`MagicApp.register()` returns `Future<void>`.** It used to return `void`. Callers that ignore it are unaffected and it completes immediately before the boot phase; after boot it completes when the newly registered provider has finished booting, so `await app.register(p)` no longer races the wiring it just asked for. (`lib/src/foundation/application.dart`)
+- **`MagicApp.register()` and `Magic.register()` return `Future<void>`.** They used to return `void`. Callers that ignore the future are unaffected and it completes immediately before the boot phase; after boot it completes when the newly registered provider has finished booting, so `await Magic.register(p)` no longer races the wiring it just asked for. The body stays synchronous on purpose: an `async` body would capture a throw from the provider's own `register()` into the future, and since `Magic.init()` does not await, a bootstrap failure would stop being loud and arrive later as an unhandled zone error instead. (`lib/src/foundation/application.dart`, `lib/src/foundation/magic.dart`)
 
 - **`EventDispatcher.dispatch` documents its divergence honestly.** A listener that throws is caught and logged and the rest still run, which is deliberate (on a client, one bad listener must not take down the frame) and differs from Laravel, whose dispatcher lets it propagate. The docstring claimed rethrowing "can be configured"; nothing configures it, and it now says so. (`lib/src/events/event_dispatcher.dart`)
 

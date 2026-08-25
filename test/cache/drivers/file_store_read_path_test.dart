@@ -2,8 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:magic/src/cache/drivers/file_store.dart';
-import 'package:magic/src/facades/config.dart';
+import 'package:magic/magic.dart';
 
 /// `get()` is synchronous, so the `_persist()` it used to fire on an eviction
 /// could not be awaited. That left two problems on the READ path of a cache:
@@ -37,6 +36,8 @@ void main() {
     late File file;
 
     setUp(() async {
+      MagicApp.reset();
+      Magic.flush();
       Config.set('cache.ttl', 3600);
       store = FileStore(fileName: 'read_path_cache');
       await store.init();
