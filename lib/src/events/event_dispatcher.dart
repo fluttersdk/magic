@@ -60,8 +60,18 @@ class EventDispatcher {
 
   /// Dispatch an event to all registered listeners.
   ///
-  /// Listeners are executed sequentially to ensure stability and predictable order.
-  /// If a listener throws an error, it is caught and logged (rethrowing can be configured).
+  /// Listeners are executed sequentially to ensure stability and predictable
+  /// order.
+  ///
+  /// A listener that throws is caught and logged, and the remaining listeners
+  /// still run. This is a deliberate divergence from Laravel, whose dispatcher
+  /// lets the exception propagate: on a client, one failing listener must not
+  /// take down the frame that dispatched the event. The trade is that a broken
+  /// listener is only visible in the log, so check there when an event looks
+  /// like it did nothing.
+  ///
+  /// There is no switch to make it rethrow. This docstring used to say the
+  /// behaviour "can be configured", which was never true.
   Future<void> dispatch(MagicEvent event) async {
     final eventType = event.runtimeType;
 

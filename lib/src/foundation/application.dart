@@ -10,6 +10,7 @@ import '../../config/logging.dart';
 import '../../config/network.dart';
 import '../../config/routing.dart';
 import '../../config/view.dart';
+import '../events/event_dispatcher.dart';
 import '../support/service_provider.dart';
 import 'config_repository.dart';
 import 'env.dart';
@@ -394,6 +395,15 @@ class MagicApp {
     _instances.clear();
     _providers.clear();
     _booted = false;
+
+    // The dispatcher is its own static singleton, so without this a flush
+    // left every listener a provider had registered still attached. In a test
+    // run that leaks listeners into the next file unless each one remembers to
+    // clear it by hand; in an app that tears the container down and builds it
+    // again, it means two of every listener, so one event sends two emails.
+    // Providers are the thing that registers listeners and they are being
+    // dropped on the line above, so their registrations go with them.
+    EventDispatcher.instance.clear();
   }
 
   /// Reset the singleton instance.
