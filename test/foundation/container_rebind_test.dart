@@ -27,7 +27,10 @@ class _RecordingProvider extends ServiceProvider {
 }
 
 void main() {
-  setUp(MagicApp.reset);
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+  });
 
   group('rebinding a key drops the instance resolved from the old binding', () {
     test('a singleton rebound after resolution serves the new factory', () {
@@ -100,10 +103,9 @@ void main() {
       expect(app.isBooted, isTrue);
 
       final late = _RecordingProvider(app, 'late');
-      app.register(late);
-
-      // register() is synchronous but the boot it triggers is not.
-      await Future<void>.delayed(Duration.zero);
+      // The future is the point: a caller that needs the provider wired
+      // before its next line can await it, instead of racing the boot.
+      await app.register(late);
 
       expect(late.registerCalls, 1);
       expect(late.bootCalls, 1, reason: 'a late provider still needs booting');

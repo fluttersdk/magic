@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import '../../config/app.dart';
 import '../../config/auth.dart';
 import '../../config/cache.dart';
@@ -313,7 +311,7 @@ class MagicApp {
   /// app.register(RouteServiceProvider());
   /// app.boot(); // Boots all providers
   /// ```
-  void register(ServiceProvider provider) {
+  Future<void> register(ServiceProvider provider) async {
     // Registering the SAME INSTANCE twice runs its `register()` twice and its
     // `boot()` twice, and for a provider that starts a poller or attaches a
     // listener that is two of them with no handle on the first.
@@ -333,11 +331,16 @@ class MagicApp {
     // skip `boot()`, because [boot] early-returns once `_booted` is set. That
     // leaves a provider half initialised, which is the state a plugin
     // installing itself lazily lands in. Laravel boots the late provider on
-    // the spot (same file, line 919); the future is deliberately not awaited
-    // because `register` is synchronous by contract, and a boot that throws
-    // must surface rather than be swallowed.
+    // the spot (same file, line 919).
+    //
+    // The returned future is what makes that boot observable. Firing it and
+    // walking away would put `app.register(FooProvider()); Foo.doThing();` in
+    // a race with its own wiring, and a boot that threw would surface as an
+    // unhandled async error that a try/catch around the call cannot see. A
+    // caller that does not care can still ignore the future; before the boot
+    // phase it completes immediately, because nothing async has happened.
     if (_booted) {
-      unawaited(provider.boot());
+      await provider.boot();
     }
   }
 

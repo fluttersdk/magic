@@ -125,6 +125,17 @@ class Monitor extends Model with HasTimestamps, InteractsWithPersistence {
 | `int` | `int` | Safe parse via `int.tryParse` |
 | `double` | `double` | Safe parse via `double.tryParse` |
 
+A built-in cast is computed once per raw value and memoised, so repeated
+reads of the same attribute return the identical instance rather than
+re-parsing. The memo is dropped by `setAttribute` for that key and by
+`setRawAttributes` for all of them. A `CastsAttributes` instance is NOT
+memoised, because it may derive its answer from something other than the
+attribute it is registered against.
+
+Reading a relation with `getRelation` / `getRelations` does not make the
+model dirty: the materialised instance replaces the raw Map in the
+original snapshot too, so `isDirty()` still answers about writes only.
+
 ### Class-based casts (`CastsAttributes<T>`)
 
 Implement `CastsAttributes<T>` for reusable, typed, custom casts. Two built-in implementations ship in `package:magic/magic.dart`:

@@ -322,7 +322,7 @@ abstract class Model {
         final model = factory() as T;
         model.setRawAttributes(data, sync: true);
         model.exists = true;
-        _cacheMaterialisedRelation(key, model, data);
+        _cacheMaterialisedRelation(key, model);
         return model;
       }
     }
@@ -366,7 +366,7 @@ abstract class Model {
             })
             .whereType<T>()
             .toList();
-        _cacheMaterialisedRelation(key, models, data);
+        _cacheMaterialisedRelation(key, models);
         return models;
       }
     }
@@ -386,9 +386,11 @@ abstract class Model {
   /// The original is only moved forward when the attribute was clean, so a
   /// relation the caller had genuinely reassigned before reading it stays
   /// dirty, and a later reassignment still registers.
-  void _cacheMaterialisedRelation(String key, Object materialised, Object raw) {
-    final bool wasClean =
-        identical(_original[key], _attributes[key]) || _original[key] == raw;
+  void _cacheMaterialisedRelation(String key, Object materialised) {
+    // Identity, and only identity: `Map` and `List` do not override `==`, so
+    // comparing the snapshot against the raw value would be this same check
+    // written a second way.
+    final bool wasClean = identical(_original[key], _attributes[key]);
     _attributes[key] = materialised;
     if (wasClean) _original[key] = materialised;
   }

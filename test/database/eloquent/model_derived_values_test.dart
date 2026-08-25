@@ -61,6 +61,13 @@ _Employee _loaded() {
 }
 
 void main() {
+  // Required by .claude/rules/tests.md: MagicApp.reset() alone leaves
+  // Magic._controllers populated.
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+  });
+
   group('reading a relation does not make the model dirty', () {
     test('a freshly loaded model is clean', () {
       expect(_loaded().isDirty(), isFalse);

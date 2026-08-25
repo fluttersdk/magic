@@ -140,6 +140,27 @@ class AppServiceProvider extends ServiceProvider {
 }
 ```
 
+### Registering a provider after boot
+
+A provider registered once the app has already booted is booted on the spot,
+rather than waiting for a boot phase that has been and gone. `register()`
+returns a `Future` so a caller that needs the provider wired before its next
+line can wait for it:
+
+```dart
+// A plugin installing itself lazily, after the app is running.
+await Magic.app.register(NotificationsServiceProvider(Magic.app));
+Notify.startPolling(); // the provider has finished booting
+```
+
+Ignoring the future is fine when you do not need that guarantee. Before the boot
+phase it completes immediately, since nothing asynchronous has happened yet.
+
+Registering the same provider **instance** twice is a no-op the second time, so
+its `register()` and `boot()` each run once. Two different instances of the same
+provider class both run, which is deliberate: a provider parameterised per
+plugin is a legitimate shape.
+
 <a name="routing"></a>
 ## Routing
 

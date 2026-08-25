@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Reading a relation marked the model dirty.** `getRelation` / `getRelations` materialise a nested Map into a `Model` and cache it back into the attribute map, but dirty tracking compares that map against the original snapshot, which still held the raw Map. So `post.author` reported the model as modified and `getDirty()` returned a `Model` object where every other value is a storage primitive. The materialised instance now moves the snapshot forward with it, and only when the attribute was clean, so a genuine reassignment either side of the read still registers. (`lib/src/database/eloquent/model.dart`)
+
+- **A cast ran on every read.** `getAttribute` re-ran `Carbon.parse` or `jsonDecode` per call and stored nothing, so a widget reading `incident.startedAt` while building a row paid for it per row per frame. Measured over 18,000 reads across 50 models: 5,895ns per read before, 2,228ns after. Results are memoised in a separate map rather than in the attribute map, deliberately, so the defect above is not recreated: a `Carbon` sitting where a String belongs would report a read as a modification and change what a save sends. Only the five built-in string casts are memoised; a `CastsAttributes` instance is consumer code that may derive its answer from something other than the attribute. Invalidated by `setAttribute` for one key and `setRawAttributes` for all. (`lib/src/database/eloquent/model.dart`)
+
+- **Rebinding a key that had already been resolved did nothing.** `make()` reads the instance cache before the bindings and `bind()` never cleared it, so overriding a key a starter package had resolved kept serving the first instance with nothing to say the override was ignored. **Ordering rule this introduces:** a driver or fake installed with `setInstance` (which is how `Log.setDriver`, `Auth.setDriver`, `Cache.setDriver`, `Http.setDriver`, `Vault.setDriver` and `Echo.setManager` all work) is now evicted by a later `bind`/`singleton` on the same key. Install fakes AFTER `Magic.init()` and after provider registration, not before. (`lib/src/foundation/application.dart`)
+
+- **A service provider registered after `boot()` never booted.** `boot()` early-returns once the app is booted, so a late registration ran `register()` and silently skipped `boot()`, leaving the provider half initialised. That is the state a plugin installing itself lazily lands in. Registering the same provider INSTANCE twice also ran both hooks twice, which for a provider that starts a poller means two of them. The guard is identity rather than class, deliberately: a provider class parameterised per plugin and registered once per plugin is a legitimate shape here. (`lib/src/foundation/application.dart`)
+
+- **The cache wrote to disk on the read path.** `get()` is synchronous, so the `_persist()` it fired on an eviction could not be awaited: a failure had nowhere to go and surfaced as an unhandled async error rather than a cache miss, and reading N stale keys rewrote the whole file N times. Expiry and entry shape are re-checked on every read, so a row left on disk is inert and the next write drops it. Both the IO and web stores are fixed. An unparseable cache file now prints why it is being discarded instead of resetting silently. (`lib/src/cache/drivers/file_store_io.dart`, `lib/src/cache/drivers/file_store_web.dart`)
+
+- **Flushing the container left every event listener attached.** `EventDispatcher` is its own static singleton, so `MagicApp.flush()` and `MagicApp.reset()` dropped the providers but not the listeners they had registered, even though `reset()` documents itself as destroying the entire application instance. A re-bootstrap ended up with two of every listener, so one event sent two emails, and a test file that forgot to clear the dispatcher by hand leaked into the next. (`lib/src/foundation/application.dart`)
+
+### Changed
+
+- **`MagicApp.register()` returns `Future<void>`.** It used to return `void`. Callers that ignore it are unaffected and it completes immediately before the boot phase; after boot it completes when the newly registered provider has finished booting, so `await app.register(p)` no longer races the wiring it just asked for. (`lib/src/foundation/application.dart`)
+
+- **`EventDispatcher.dispatch` documents its divergence honestly.** A listener that throws is caught and logged and the rest still run, which is deliberate (on a client, one bad listener must not take down the frame) and differs from Laravel, whose dispatcher lets it propagate. The docstring claimed rethrowing "can be configured"; nothing configures it, and it now says so. (`lib/src/events/event_dispatcher.dart`)
+
 ---
 
 ## [0.0.7] - 2026-08-25
