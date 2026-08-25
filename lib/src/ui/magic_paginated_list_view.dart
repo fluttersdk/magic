@@ -78,6 +78,8 @@ class MagicPaginatedListView<E> extends StatefulWidget {
 }
 
 class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
+  final ScrollController _controller = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -96,11 +98,30 @@ class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
   @override
   void dispose() {
     widget.paginator.removeListener(_onPaginatorChanged);
+    _controller.dispose();
     super.dispose();
   }
 
   void _onPaginatorChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// Fetches again when the rows in hand do not fill the viewport.
+  ///
+  /// [_onScroll] cannot cover this: a list shorter than its own viewport does
+  /// not scroll, so no notification is ever posted and the next page is never
+  /// asked for. The reader is left with a truncated list and no way to extend
+  /// it, which any `perPage` smaller than a tall viewport reaches.
+  ///
+  /// Runs after the frame, because a viewport measures itself during layout and
+  /// `maxScrollExtent` is not known before then. It cannot spin: each pass
+  /// either fetches a page (and the paginator refuses while that is in flight)
+  /// or finds `hasMore` false.
+  void _fillViewport(Duration _) {
+    if (!mounted || !_controller.hasClients) return;
+    if (_controller.position.maxScrollExtent > 0) return;
+
+    widget.paginator.loadMore();
   }
 
   /// Asks for the next page when the tail is within [loadMoreExtent].
@@ -137,15 +158,21 @@ class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
       return widget.itemBuilder(context, items[index], index);
     }
 
+    if (paginator.hasMore) {
+      WidgetsBinding.instance.addPostFrameCallback(_fillViewport);
+    }
+
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: widget.separatorBuilder == null
           ? ListView.builder(
+              controller: _controller,
               padding: widget.padding,
               itemCount: itemCount,
               itemBuilder: rowAt,
             )
           : ListView.separated(
+              controller: _controller,
               padding: widget.padding,
               itemCount: itemCount,
               itemBuilder: rowAt,

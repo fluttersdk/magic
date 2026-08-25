@@ -518,6 +518,10 @@ Builds only what the viewport shows and calls `loadMore()` as the tail approache
 - **It needs a bounded height.** Unbounded throws; `shrinkWrap: true` "fixes" that by measuring every row, which builds all of them and saves nothing. Bound it, or move the page to a sliver scaffold.
 - **`loadMore()` is safe to call every frame.** It refuses while a request is in flight and when `hasMore` is false. Without that guard a scroll callback fetches the same page repeatedly and appends each row two or three times.
 - **A failed page does not clear the list.** Rows stay, `error` is set, `hasMore` is untouched so a retry has a target.
+- **A transport failure is a failure.** statusCode 0 (timeout, dead link) is neither `failed` nor `successful`, so the check is `!response.successful`; an offline first page sets `error` instead of reporting the collection empty.
+- **A short first page still loads the next.** Scroll notifications need a scroll, so the widget also checks `maxScrollExtent` after the frame. A small `perPage` cannot strand the reader.
+- **`refresh()` during an in-flight `loadMore()` really refreshes.** It waits for that page, then starts over, so pull-to-refresh cannot retract having done nothing.
+- **Disposing mid-request is safe.** Every notify is guarded, the way `MagicController.refreshUI` is.
 - **`items` is a live view.** Reading it does not copy, and it cannot be written through.
 
 ## Common Patterns

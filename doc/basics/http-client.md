@@ -180,7 +180,9 @@ It is a `ChangeNotifier`, so a widget can listen to it directly and a controller
 > [!NOTE]
 > `loadMore()` is a no-op while a request is in flight and when there is nothing more to fetch, so it is safe to call from a scroll callback that fires every frame.
 
-A failed `loadMore()` keeps the rows already on screen and leaves `hasMore` alone, so the reader does not lose page one because page two timed out, and a retry still has a target.
+A failed `loadMore()` keeps the rows already on screen and leaves `hasMore` alone, so the reader does not lose page one because page two timed out, and a retry still has a target. A **transport** failure counts as a failure here: a timeout or a dead link arrives as statusCode 0, and `error` is set rather than the collection reporting itself empty, because "no rows" and "nobody answered" are different screens.
+
+`refresh()` issued while the tail is auto-fetching waits for that page to land and then starts over, so a pull-to-refresh cannot retract over stale rows having done nothing. Disposing the paginator while a request is in flight is safe.
 
 <a name="cursor-or-offset"></a>
 ### Cursor or Offset
@@ -223,6 +225,8 @@ WDiv(
   ),
 )
 ```
+
+A first page too short to fill the viewport still fetches its successor: the widget checks after the frame whether there is anything to scroll, so a small `perPage` cannot strand the reader on a truncated list.
 
 > [!WARNING]
 > It is a `ListView`, so it needs a **bounded height**. Dropping it into a page that already scrolls without a bound throws, and reaching for `shrinkWrap: true` to make that work defeats the whole thing: shrink-wrapping measures every row, so all of them get built and nothing is saved. Give it a height, or give the page a sliver-based scaffold.

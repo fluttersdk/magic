@@ -295,6 +295,72 @@ void main() {
       fake.assertSent((MagicRequest r) => r.queryParameters?['cursor'] == null);
     });
 
+    test('disposing while a page is in flight does not throw', () async {
+      // A controller that owns a paginator disposes it in onClose, so any
+      // navigate-away during a fetch lands here. `notifyListeners` after the
+      // await would throw "used after being disposed" and take the navigation
+      // with it.
+      Http.fake((_) => Http.response(_cursorPage(<int>[1]), 200));
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      final Future<void> inFlight = paginator.loadFirst();
+      paginator.dispose();
+
+      await expectLater(inFlight, completes);
+    });
+
+    test('a transport failure is an error, not an empty collection', () async {
+      // `DioNetworkDriver._handleError` reports a timeout or a dead link as
+      // statusCode 0, which is neither `failed` (>= 400) nor `successful`. Read
+      // through `failed` it takes the SUCCESS path, so an offline first page
+      // renders the empty state and says nothing went wrong.
+      Http.fake((_) => Http.response(<String, dynamic>{}, 0));
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.error, isNotNull, reason: 'nobody answered');
+      expect(
+        paginator.isEmpty,
+        isFalse,
+        reason: '"no rows" and "no answer" are different screens',
+      );
+    });
+
+    test('refresh during an in-flight loadMore still refreshes', () async {
+      // Pull-to-refresh while the tail is auto-fetching used to return
+      // immediately and do nothing, so the indicator retracted over stale rows.
+      int firstPages = 0;
+      Http.fake((MagicRequest request) {
+        if (request.queryParameters?['cursor'] == null) firstPages++;
+
+        return request.queryParameters?['cursor'] == null
+            ? Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200)
+            : Http.response(_cursorPage(<int>[2], next: 'cur-3'), 200);
+      });
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+      await paginator.loadFirst();
+      expect(firstPages, 1);
+
+      final Future<void> more = paginator.loadMore();
+      final Future<void> again = paginator.refresh();
+      await Future.wait(<Future<void>>[more, again]);
+
+      expect(firstPages, 2, reason: 'the refresh actually went out');
+      expect(paginator.items.map((_Row r) => r.id), <int>[
+        1,
+      ], reason: 'and it replaced the rows rather than appending to them');
+    });
+
     test('reading items twice does not copy the collection', () async {
       // The widget reads `items` once per build, so a copy here is a full copy
       // of the collection on every frame the reader scrolls, in the one class

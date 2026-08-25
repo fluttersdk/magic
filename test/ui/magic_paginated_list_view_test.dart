@@ -170,6 +170,53 @@ void main() {
     expect(requests, 1);
   });
 
+  testWidgets('a first page shorter than the viewport still fetches the next', (
+    WidgetTester tester,
+  ) async {
+    // Scroll notifications only fire when the list actually scrolls. A first
+    // page that does not fill the viewport is not scrollable, so nothing ever
+    // asked for page two and the reader saw a truncated list with no way to
+    // extend it. Any perPage smaller than a tall viewport reaches this.
+    int requests = 0;
+    Http.fake((MagicRequest request) {
+      requests++;
+
+      return request.queryParameters?['cursor'] == null
+          ? Http.response(_page(<int>[1, 2, 3], next: 'cur-2'), 200)
+          : Http.response(
+              _page(List<int>.generate(30, (int i) => 100 + i)),
+              200,
+            );
+    });
+    final MagicPaginator<_Row> paginator = MagicPaginator<_Row>(
+      url: 'rows',
+      fromMap: _Row.fromMap,
+    );
+    await paginator.loadFirst();
+    expect(requests, 1);
+
+    await tester.pumpWidget(
+      _host(
+        MagicPaginatedListView<_Row>(
+          paginator: paginator,
+          itemBuilder: (_, _Row row, _) =>
+              SizedBox(height: 50, child: Text('row ${row.id}')),
+        ),
+        height: 600,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      requests,
+      greaterThan(1),
+      reason:
+          '150px of rows in a 600px box cannot scroll, so nothing would '
+          'have triggered the fetch',
+    );
+    expect(paginator.items.length, 33);
+  });
+
   testWidgets('an empty result renders the empty state', (
     WidgetTester tester,
   ) async {

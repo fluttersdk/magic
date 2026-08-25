@@ -91,6 +91,8 @@ class MagicPaginator<E> extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _loaded = false;
+  bool _disposed = false;
+  Future<void>? _inFlight;
 
   /// Every row fetched so far, oldest page first.
   ///
@@ -139,22 +141,64 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// Rereads the collection from its first page.
   Future<void> refresh() => _load(reset: true);
 
-  Future<void> _load({required bool reset}) async {
-    if (_isLoading) return;
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
+  /// Notifies unless this paginator is already gone.
+  ///
+  /// Every notify here happens after an `await`, and a controller that owns a
+  /// paginator disposes it in `onClose`, so any navigate-away mid-request lands
+  /// on a disposed notifier. This is the house rule `MagicController.refreshUI`
+  /// implements for the same reason.
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Starts a load, or defers it behind the one already running.
+  ///
+  /// A `loadMore` during a request is dropped: it is fired from a scroll
+  /// callback and the page it wants is already on its way. A RESET is not
+  /// dropped, because the caller asked for fresh data and a pull-to-refresh
+  /// that silently did nothing would retract its indicator over stale rows. It
+  /// waits for the in-flight page to land and then starts over.
+  Future<void> _load({required bool reset}) {
+    if (_isLoading) {
+      if (!reset) return Future<void>.value();
+
+      return _inFlight!.then((_) => _disposed ? null : _load(reset: true));
+    }
+
+    final Future<void> run = _run(reset: reset);
+    _inFlight = run;
+
+    return run;
+  }
+
+  Future<void> _run({required bool reset}) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _notify();
 
     final response = await Http.get(url, query: _queryFor(reset: reset));
 
-    if (response.failed) {
+    if (_disposed) return;
+
+    // NOT `response.failed`, which is `statusCode >= 400`. A transport failure
+    // (a timeout, a dead link, no connectivity) reaches here as statusCode 0
+    // from `DioNetworkDriver._handleError`, so it is neither failed nor
+    // successful; read through `failed` it took the success path, and a first
+    // page that never arrived rendered as an empty collection. "No rows" and
+    // "nobody answered" are different screens.
+    if (!response.successful) {
       // The rows already on screen stay there. A page that failed to arrive is
       // a reason to offer a retry, not a reason to empty the list the reader
       // was looking at, and `hasMore` is left alone so the retry has a target.
       _error = response.errorMessage ?? 'Failed to load';
       _isLoading = false;
-      notifyListeners();
+      _notify();
 
       return;
     }
@@ -173,7 +217,7 @@ class MagicPaginator<E> extends ChangeNotifier {
 
     _loaded = true;
     _isLoading = false;
-    notifyListeners();
+    _notify();
   }
 
   /// Appends the rows in [payload] and reads where the next page lives.
