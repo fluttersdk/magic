@@ -37,7 +37,7 @@ dependencies:
   magic:
     path: ..
     version: 0.0.8
-  fluttersdk_artisan: ^0.0.8
+  fluttersdk_artisan: ^0.0.13
 
 dev_dependencies:
   flutter_test:
