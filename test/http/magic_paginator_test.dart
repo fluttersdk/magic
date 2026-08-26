@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -208,6 +210,346 @@ void main() {
       expect(paginator.items, isEmpty);
       expect(paginator.isEmpty, isTrue);
       expect(paginator.hasMore, isFalse);
+    });
+  });
+
+  group('MagicPaginator over a fetcher', () {
+    test('pages a source that is not a bare url', () async {
+      // Not every collection arrives from `Http.get(url)`. A billing history
+      // comes through a swappable rail service whose store build throws rather
+      // than answering, so pointing a url-based paginator at the endpoint would
+      // walk around the abstraction that exists to keep that build honest.
+      final List<String?> cursorsSeen = <String?>[];
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          cursorsSeen.add(request.cursor);
+
+          return request.isFirst
+              ? MagicPage<_Row>(
+                  items: <_Row>[const _Row(1), const _Row(2)],
+                  nextCursor: 'cur-2',
+                )
+              : MagicPage<_Row>(items: <_Row>[const _Row(3)]);
+        },
+      );
+
+      await paginator.loadFirst();
+      expect(paginator.hasMore, isTrue);
+
+      await paginator.loadMore();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[1, 2, 3]);
+      expect(paginator.hasMore, isFalse);
+      expect(cursorsSeen, <String?>[null, 'cur-2']);
+    });
+
+    test('a fetcher that throws is an error, not an empty collection', () async {
+      // Same rule the url mode follows: the rows in hand stay, and "no answer"
+      // is not "no rows". A rail that refuses on this platform throws rather
+      // than returning a status code, so the catch is what turns it into state.
+      bool broken = false;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          // An Exception, deliberately: a rail refusing is a condition, and the
+          // Errors (a bad cast, a failed assertion) are this code being wrong
+          // and are meant to propagate rather than land in `error`.
+          if (broken) throw Exception('rail unavailable');
+
+          return MagicPage<_Row>(
+            items: <_Row>[const _Row(1)],
+            nextCursor: 'cur-2',
+          );
+        },
+      );
+      await paginator.loadFirst();
+
+      broken = true;
+      await paginator.loadMore();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[1]);
+      expect(paginator.error, isNotNull);
+      expect(paginator.isEmpty, isFalse);
+      expect(
+        paginator.hasMore,
+        isTrue,
+        reason: 'the page is still out there, so a retry needs its target',
+      );
+    });
+
+    test('hasMore can be reported without a cursor', () async {
+      // A source that pages by something the paginator never sees (an offset it
+      // keeps itself, a page number) still has to be able to say "there is
+      // more", so `hasMore` is settable independently of `nextCursor`.
+      int calls = 0;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          calls++;
+
+          return MagicPage<_Row>(
+            items: <_Row>[_Row(calls)],
+            hasMore: calls < 3,
+          );
+        },
+      );
+
+      await paginator.loadFirst();
+      await paginator.loadMore();
+      expect(paginator.hasMore, isTrue);
+      await paginator.loadMore();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[1, 2, 3]);
+      expect(paginator.hasMore, isFalse);
+      expect(calls, 3);
+    });
+
+    test('refresh restarts a fetcher that keeps its own page number', () async {
+      // The defect: `reset` was collapsed into the cursor, so a cursorless
+      // fetcher received null for BOTH "first page" and "next page" and had no
+      // way to tell a refresh from a continuation. Following the pattern this
+      // package's own docs recommend (`hasMore: page < last`), a pull-to-refresh
+      // therefore cleared the rows and rendered page THREE as the whole list.
+      int page = 0;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          if (request.isFirst) page = 0;
+          page++;
+
+          return MagicPage<_Row>(items: <_Row>[_Row(page)], hasMore: page < 3);
+        },
+      );
+
+      await paginator.loadFirst();
+      await paginator.loadMore();
+      expect(paginator.items.map((_Row r) => r.id), <int>[1, 2]);
+
+      await paginator.refresh();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[
+        1,
+      ], reason: 'a refresh is the first page again, not the next one');
+      expect(paginator.hasMore, isTrue);
+    });
+
+    test('a fetcher source reports its own mode, not a borrowed one', () async {
+      // `mode` documents how the SERVER addressed the next page. A fetcher
+      // paginator does not know: its source might page by token, by number, or
+      // not at all. Reporting `cursor` for all of them is the same untruth the
+      // url path is careful to avoid.
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async =>
+            MagicPage<_Row>(items: <_Row>[const _Row(1)]),
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.mode, PaginationMode.fetcher);
+    });
+
+    test('disposing mid-fetch on the fetcher path does not throw', () async {
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          await Future<void>.delayed(Duration.zero);
+
+          return MagicPage<_Row>(items: <_Row>[const _Row(1)]);
+        },
+      );
+
+      final Future<void> inFlight = paginator.loadFirst();
+      paginator.dispose();
+
+      await expectLater(inFlight, completes);
+    });
+
+    test('an escaping Error still unwinds the loading state', () async {
+      // The wedge this closes. `on Exception` lets an Error propagate, which is
+      // the point, but the loading flag was cleared AFTER the try/catch, so it
+      // stayed true: `loadMore` then returned immediately on it, `refresh` took
+      // the deferred branch and chained onto an already-rejected future whose
+      // callback never runs, and the paginator was unusable for the rest of its
+      // life while the list view showed a footer that never stopped.
+      bool broken = true;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          if (broken) throw TypeError();
+
+          return MagicPage<_Row>(items: <_Row>[const _Row(7)]);
+        },
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+      expect(
+        paginator.isLoading,
+        isFalse,
+        reason: 'the object has to be usable again',
+      );
+
+      broken = false;
+      await paginator.refresh();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[7]);
+    });
+
+    test('a mapper that throws does not wedge the url path either', () async {
+      // Same shape one path over, and not named in review: a consumer `fromMap`
+      // that hits an unexpected payload throws out of `_absorb`, which had no
+      // handler at all, so the loading flag stayed true there too.
+      Http.fake(
+        (_) => Http.response(<String, dynamic>{
+          'data': <Map<String, dynamic>>[
+            <String, dynamic>{'id': 'not-an-int'},
+          ],
+        }, 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+      expect(paginator.isLoading, isFalse);
+    });
+
+    test(
+      'a reset queued behind a failing page does not poison later ones',
+      () async {
+        // `_pendingReset` was cleared only on the success continuation, so an
+        // in-flight run that REJECTED left a rejected future in the field for
+        // good. Every later reset-during-flight then hit the `??=` on that stale
+        // value: the deferred reload was never scheduled, and whoever awaited it
+        // (a RefreshIndicator, say) got the old error back instead.
+        int calls = 0;
+        final paginator = MagicPaginator<_Row>.fetcher(
+          fetch: (MagicPageRequest request) async {
+            calls++;
+            await Future<void>.delayed(Duration.zero);
+            if (calls == 1) throw TypeError();
+
+            return MagicPage<_Row>(items: <_Row>[_Row(calls)], hasMore: true);
+          },
+        );
+
+        // The failing first page, with a reset arriving while it is in flight.
+        final Future<void> first = paginator.loadFirst();
+        final Future<void> queued = paginator.refresh();
+        await expectLater(first, throwsA(isA<TypeError>()));
+        await queued;
+
+        expect(paginator.items, isNotEmpty, reason: 'the queued reset ran');
+
+        // And the field is usable again: another overlapping reset has to land.
+        final int before = calls;
+        final Future<void> more = paginator.loadMore();
+        final Future<void> again = paginator.refresh();
+        await Future.wait(<Future<void>>[more, again]);
+
+        expect(
+          calls,
+          greaterThan(before + 1),
+          reason:
+              'the second reset was scheduled, not dropped on a stale future',
+        );
+      },
+    );
+
+    test('a mapper that throws mid-page appends nothing', () async {
+      // `_absorb` appended through a LAZY map, so a `fromMap` that threw on row
+      // three left rows one and two in the collection with `_nextCursor` unset
+      // and `_hasMore` true. The next `loadMore` therefore refetched page one
+      // and appended those two a second time: duplicate rows on top of the
+      // mapper bug. All or nothing is the only honest answer for a page.
+      Http.fake(
+        (_) => Http.response(<String, dynamic>{
+          'data': <Map<String, dynamic>>[
+            <String, dynamic>{'id': 1},
+            <String, dynamic>{'id': 2},
+            <String, dynamic>{'id': 'not-an-int'},
+          ],
+          'meta': <String, dynamic>{'next_cursor': 'cur-2'},
+        }, 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+
+      expect(
+        paginator.items,
+        isEmpty,
+        reason: 'a half-mapped page is not a page',
+      );
+    });
+
+    test('a reset asked for during the deferred restart is not swallowed', () async {
+      // Clearing `_pendingReset` at the END of the chain kept the slot occupied
+      // for the whole of the restart's own load, so a refresh arriving in that
+      // window hit the `??=` and resolved against a request issued BEFORE it was
+      // asked for. Silent: no error, and the indicator retracts over the earlier
+      // request's rows. It contradicts this class's own "a reset is not dropped"
+      // rule, so the slot is cleared at the top of the restart instead.
+      final List<int> observed = <int>[];
+      late final MagicPaginator<_Row> paginator;
+      int calls = 0;
+      paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          calls++;
+          final int call = calls;
+          observed.add(call);
+          await Future<void>.delayed(Duration.zero);
+
+          // Ask for a reset from inside the restart's own page.
+          if (call == 2) unawaited(paginator.refresh());
+
+          return MagicPage<_Row>(items: <_Row>[_Row(call)], hasMore: true);
+        },
+      );
+
+      final Future<void> first = paginator.loadFirst();
+      final Future<void> queued = paginator.refresh();
+      await Future.wait(<Future<void>>[first, queued]);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        observed,
+        containsAllInOrder(<int>[1, 2, 3]),
+        reason: 'the reset asked for during the restart has to run',
+      );
+    });
+
+    test('a programming error is not reported as a failed page', () async {
+      // A bad cast inside a fetcher is this code being wrong, not the rail
+      // refusing. Swallowing it into `error` puts a TypeError message on screen
+      // and throws the stack away, so an Error propagates and an Exception is
+      // state.
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async => throw TypeError(),
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+      expect(paginator.error, isNull);
+    });
+
+    test('the guards hold in fetcher mode too', () async {
+      int calls = 0;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          calls++;
+          await Future<void>.delayed(Duration.zero);
+
+          return MagicPage<_Row>(items: <_Row>[_Row(calls)], hasMore: true);
+        },
+      );
+      await paginator.loadFirst();
+
+      await Future.wait(<Future<void>>[
+        paginator.loadMore(),
+        paginator.loadMore(),
+        paginator.loadMore(),
+      ]);
+
+      expect(calls, 2, reason: 'one first page and one overlapping loadMore');
     });
   });
 

@@ -479,10 +479,26 @@ await checks.refresh();
 | `isLoading` | a request is in flight |
 | `error` | last failure message, cleared by the next success |
 | `isEmpty` | a first page arrived and held nothing (false before the first load) |
-| `mode` | `PaginationMode.cursor` / `.offset` / `.single`, read from the response |
+| `mode` | `PaginationMode.cursor` / `.offset` / `.single` read from the response, or `.fetcher` on the fetcher path, where the source is behind a callback and the paginator does not know |
 | `generation` | increments on every landed reset. Lets a view tell "the same rows again" from "a fresh first page of the same length" |
 
 It is a `ChangeNotifier`; listen to it directly.
+
+### A source that is not a url
+
+`MagicPaginator.fetcher` pages anything: a rail or driver behind a swappable contract, a store, an assembled query. Reach for it instead of pointing the url constructor at the endpoint a service wraps.
+
+```dart
+MagicPaginator<Invoice>.fetcher(
+  fetch: (MagicPageRequest request) async {
+    final page = await Payments.getInvoices(cursor: request.cursor);
+
+    return MagicPage<Invoice>(items: page.invoices, nextCursor: page.nextCursor);
+  },
+)
+```
+
+`MagicPage` carries the rows plus either `nextCursor` (paged by token) or `hasMore` (paged by something the paginator never sees). The request carries `cursor` AND `isFirst`; a source keeping its own page number MUST branch on `isFirst`, or a `refresh()` is indistinguishable from a `loadMore()` and renders whatever page it was up to as the whole list. A fetcher signals failure by THROWING: an `Exception` becomes `error` with the rows kept and `hasMore` untouched, an `Error` propagates because it is the fetcher being wrong. `mode` reports `PaginationMode.fetcher`.
 
 ### Mode is read, not configured
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui show TextDirection;
 
 import 'package:flutter/widgets.dart';
@@ -408,6 +409,54 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(second.items.length, 33);
+  });
+
+  testWidgets('the loading footer renders while a page is in flight', (
+    WidgetTester tester,
+  ) async {
+    // A fetcher paginator, because the window has to be HELD open to be seen.
+    // With `Http.fake` it cannot be: the handler must return a MagicResponse
+    // synchronously, and `tester.pump()` drains pending microtasks before it
+    // builds, so a faked response has already landed by the time the frame
+    // renders.
+    final Completer<void> secondPage = Completer<void>();
+    int calls = 0;
+    final MagicPaginator<_Row> paginator = MagicPaginator<_Row>.fetcher(
+      fetch: (MagicPageRequest request) async {
+        calls++;
+        if (calls > 1) await secondPage.future;
+
+        return MagicPage<_Row>(
+          items: <_Row>[for (int i = 0; i < 3; i++) _Row(i)],
+          nextCursor: 'page-2',
+        );
+      },
+    );
+    await paginator.loadFirst();
+
+    await tester.pumpWidget(
+      _host(
+        MagicPaginatedListView<_Row>(
+          paginator: paginator,
+          itemBuilder: (_, _Row row, _) =>
+              SizedBox(height: 50, child: Text('row ${row.id}')),
+          loadingFooter: const Text('loading more'),
+        ),
+        height: 600,
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.text('loading more'),
+      findsOneWidget,
+      reason: 'three 50px rows do not fill 600px, so page two is in flight',
+    );
+
+    secondPage.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('loading more'), findsNothing);
   });
 
   testWidgets('an empty result renders the empty state', (
