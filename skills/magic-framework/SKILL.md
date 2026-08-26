@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.8
+version: 0.1.9
 ---
 
-<!-- magic 0.0.8 | Skill v0.1.8 (2026-08-26). API surface verified against lib/src. -->
+<!-- magic 0.0.8 | Skill v0.1.9 (2026-08-26). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -383,7 +383,7 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `references/controllers-views.md` | controllers, `MagicStateMixin`, `RxStatus`, views, `MagicBuilder`, `MagicCan` |
 | `references/forms-validation.md` | `MagicFormData`, `FormRequest`, `ValidatesRequests`, rules, async validation, `Session` flash |
 | `references/routing-navigation.md` | routes, `resource()`, middleware, params, URL strategy, page titles, `Session.tick` wiring |
-| `references/http-network.md` | `Http`, `MagicResponse`, `MagicNetworkInterceptor`, `configureDriver`, network config, `MagicPaginator` + `MagicPaginatedListView` |
+| `references/http-network.md` | `Http`, `MagicResponse`, `MagicNetworkInterceptor`, `configureDriver`, network config, `MagicPaginator` (url + fetcher) + `MagicPage` + `MagicPaginatedListView` |
 | `references/auth-system.md` | `Auth`, guards, `Gate`, policies, `authorize()`, `Vault`, `Crypt` |
 | `references/secondary-systems.md` | `Cache`, `Event`, `Log`, `Lang`, `Storage`, `Launch`, `Pick`, `Carbon`, `Echo` |
 | `references/testing-patterns.md` | tests: `MagicTest`, facade fakes, fetch helpers, controller/model/middleware testing |

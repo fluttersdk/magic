@@ -10,6 +10,7 @@ Magic provides a powerful HTTP client through the `Http` facade, built on top of
     - [PUT & DELETE](#put--delete)
 - [RESTful Resources](#restful-resources)
 - [Paginated Collections](#paginated-collections)
+    - [A Source That Is Not a URL](#a-source-that-is-not-a-url)
     - [Cursor or Offset](#cursor-or-offset)
     - [Rendering It Lazily](#rendering-it-lazily)
 - [Handling Responses](#handling-responses)
@@ -187,6 +188,37 @@ It is a `ChangeNotifier`, so a widget can listen to it directly and a controller
 A failed `loadMore()` keeps the rows already on screen and leaves `hasMore` alone, so the reader does not lose page one because page two timed out, and a retry still has a target. A **transport** failure counts as a failure here: a timeout or a dead link arrives as statusCode 0, and `error` is set rather than the collection reporting itself empty, because "no rows" and "nobody answered" are different screens.
 
 `refresh()` issued while the tail is auto-fetching waits for that page to land and then starts over, so a pull-to-refresh cannot retract over stale rows having done nothing. Disposing the paginator while a request is in flight is safe.
+
+<a name="a-source-that-is-not-a-url"></a>
+### A Source That Is Not a URL
+
+Some collections do not arrive from `Http.get`. A billing history reaches the client through a payments service whose store build refuses rather than answering; a search result needs its query assembled; a list comes from a local store. Pointing the url constructor at the endpoint such a service wraps walks around the abstraction, and the abstraction is usually there for a reason.
+
+`MagicPaginator.fetcher` pages anything:
+
+```dart
+final invoices = MagicPaginator<Invoice>.fetcher(
+  fetch: (String? cursor) async {
+    final BillingInvoicesPage page = await Payments.getInvoices(cursor: cursor);
+
+    return MagicPage<Invoice>(
+      items: page.invoices,
+      nextCursor: page.nextCursor,
+    );
+  },
+);
+```
+
+`fetch` receives the cursor the previous page reported, null on the first. Report `nextCursor` when the source pages by token, or `hasMore` when it pages by something the paginator never sees (an offset it keeps itself, a page number):
+
+```dart
+return MagicPage<Row>(items: rows, hasMore: page < lastPage);
+```
+
+> [!NOTE]
+> A fetcher reports failure by **throwing**, where an endpoint reports it with a status code. Either way the rows already in hand stay, `error` is set, and `hasMore` is untouched so a retry has a target.
+
+Everything else (accumulation, the in-flight and disposal guards, the lazy list) is the same as the url mode.
 
 <a name="cursor-or-offset"></a>
 ### Cursor or Offset

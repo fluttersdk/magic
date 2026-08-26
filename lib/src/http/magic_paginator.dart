@@ -20,6 +20,36 @@ enum PaginationMode {
   single,
 }
 
+/// One page, as a [MagicPageFetcher] reports it.
+///
+/// The fetcher has already decoded its own response, so this says only what the
+/// paginator cannot work out for itself: the rows, and whether anything follows
+/// them. Supply [nextCursor] when the source pages by token, or [hasMore] when
+/// it pages by something the paginator never sees (an offset the source keeps,
+/// a page number, a "has_more" flag). A non-null [nextCursor] implies more.
+@immutable
+class MagicPage<E> {
+  /// Creates a page of [items].
+  const MagicPage({required this.items, this.nextCursor, bool? hasMore})
+    : _hasMore = hasMore;
+
+  /// The rows on this page.
+  final List<E> items;
+
+  /// The token that fetches the page after this one, or null when there is none.
+  final String? nextCursor;
+
+  final bool? _hasMore;
+
+  /// Whether the source reported a page after this one.
+  bool get hasMore => _hasMore ?? nextCursor != null;
+}
+
+/// Fetches one page, given the cursor the previous page reported.
+///
+/// Null on the first page.
+typedef MagicPageFetcher<E> = Future<MagicPage<E>> Function(String? cursor);
+
 /// Accumulates a paginated collection one page at a time.
 ///
 /// Built for the list that is too long to render at once: it holds the rows
@@ -57,18 +87,54 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// left off entirely when null so the server's own default applies rather
   /// than a number this class invented.
   MagicPaginator({
-    required this.url,
-    required this.fromMap,
+    required String this.url,
+    required E Function(Map<String, dynamic>) this.fromMap,
     this.perPage,
     this.query,
     this.dataKey = 'data',
-  });
+  }) : fetch = null;
 
-  /// The collection endpoint, without any pagination parameter.
-  final String url;
+  /// Creates a paginator over a source that is not a bare endpoint.
+  ///
+  /// Reach for this when the collection arrives through something other than a
+  /// url: a rail or driver behind a swappable contract, a local store, a
+  /// query that needs assembling. Pointing the url constructor at the endpoint
+  /// such a service wraps walks around the abstraction, and the abstraction is
+  /// usually there for a reason (a platform where the service refuses, a fake
+  /// the tests install).
+  ///
+  /// [fetch] receives the cursor the previous page reported, null on the first,
+  /// and reports its own rows. Everything else (the accumulation, the
+  /// in-flight and disposal guards, keeping the rows when a page fails) is the
+  /// same as the url mode.
+  ///
+  /// ```dart
+  /// MagicPaginator<Invoice>.fetcher(
+  ///   fetch: (String? cursor) async {
+  ///     final page = await Payments.getInvoices(cursor: cursor);
+  ///
+  ///     return MagicPage<Invoice>(
+  ///       items: page.invoices,
+  ///       nextCursor: page.nextCursor,
+  ///     );
+  ///   },
+  /// )
+  /// ```
+  MagicPaginator.fetcher({required MagicPageFetcher<E> this.fetch})
+    : url = null,
+      fromMap = null,
+      perPage = null,
+      query = null,
+      dataKey = 'data';
 
-  /// Maps one row of [dataKey] into the consumer's own type.
-  final E Function(Map<String, dynamic>) fromMap;
+  /// The collection endpoint, or null in fetcher mode.
+  final String? url;
+
+  /// Maps one row of [dataKey], or null in fetcher mode.
+  final E Function(Map<String, dynamic>)? fromMap;
+
+  /// Reads one page, or null in url mode.
+  final MagicPageFetcher<E>? fetch;
 
   /// Rows per page, sent as `per_page`. Null leaves the choice to the server.
   final int? perPage;
@@ -202,7 +268,13 @@ class MagicPaginator<E> extends ChangeNotifier {
     _error = null;
     _notify();
 
-    final response = await Http.get(url, query: _queryFor(reset: reset));
+    if (fetch != null) {
+      await _runFetcher(reset: reset);
+
+      return;
+    }
+
+    final response = await Http.get(url!, query: _queryFor(reset: reset));
 
     if (_disposed) return;
 
@@ -241,11 +313,44 @@ class MagicPaginator<E> extends ChangeNotifier {
     _notify();
   }
 
+  /// Runs one page through [fetch].
+  ///
+  /// A fetcher reports failure by THROWING, where an endpoint reports it with a
+  /// status code, so the catch here is what the `!response.successful` branch
+  /// is in url mode: the rows already in hand stay, `hasMore` is left alone so
+  /// a retry has a target, and the reader is told rather than shown an empty
+  /// collection.
+  Future<void> _runFetcher({required bool reset}) async {
+    try {
+      final MagicPage<E> page = await fetch!(reset ? null : _nextCursor);
+
+      if (_disposed) return;
+
+      if (reset) {
+        _items.clear();
+        _resetCursorState();
+        _generation++;
+      }
+
+      _items.addAll(page.items);
+      _mode = PaginationMode.cursor;
+      _nextCursor = page.nextCursor;
+      _hasMore = page.hasMore;
+      _loaded = true;
+    } catch (error) {
+      if (_disposed) return;
+      _error = error.toString();
+    }
+
+    _isLoading = false;
+    _notify();
+  }
+
   /// Appends the rows in [payload] and reads where the next page lives.
   void _absorb(Map<String, dynamic> payload) {
     final Object? rows = payload[dataKey];
     if (rows is List) {
-      _items.addAll(rows.whereType<Map<String, dynamic>>().map(fromMap));
+      _items.addAll(rows.whereType<Map<String, dynamic>>().map(fromMap!));
     }
 
     final Object? meta = payload['meta'];

@@ -484,6 +484,22 @@ await checks.refresh();
 
 It is a `ChangeNotifier`; listen to it directly.
 
+### A source that is not a url
+
+`MagicPaginator.fetcher` pages anything: a rail or driver behind a swappable contract, a store, an assembled query. Reach for it instead of pointing the url constructor at the endpoint a service wraps.
+
+```dart
+MagicPaginator<Invoice>.fetcher(
+  fetch: (String? cursor) async {
+    final page = await Payments.getInvoices(cursor: cursor);
+
+    return MagicPage<Invoice>(items: page.invoices, nextCursor: page.nextCursor);
+  },
+)
+```
+
+`MagicPage` carries the rows plus either `nextCursor` (paged by token) or `hasMore` (paged by something the paginator never sees). A fetcher signals failure by THROWING; the rows in hand stay, `error` is set, `hasMore` is untouched.
+
 ### Mode is read, not configured
 
 | Response `meta` | Mode | Next request |

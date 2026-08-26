@@ -211,6 +211,114 @@ void main() {
     });
   });
 
+  group('MagicPaginator over a fetcher', () {
+    test('pages a source that is not a bare url', () async {
+      // Not every collection arrives from `Http.get(url)`. A billing history
+      // comes through a swappable rail service whose store build throws rather
+      // than answering, so pointing a url-based paginator at the endpoint would
+      // walk around the abstraction that exists to keep that build honest.
+      final List<String?> cursorsSeen = <String?>[];
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (String? cursor) async {
+          cursorsSeen.add(cursor);
+
+          return cursor == null
+              ? MagicPage<_Row>(
+                  items: <_Row>[const _Row(1), const _Row(2)],
+                  nextCursor: 'cur-2',
+                )
+              : MagicPage<_Row>(items: <_Row>[const _Row(3)]);
+        },
+      );
+
+      await paginator.loadFirst();
+      expect(paginator.hasMore, isTrue);
+
+      await paginator.loadMore();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[1, 2, 3]);
+      expect(paginator.hasMore, isFalse);
+      expect(cursorsSeen, <String?>[null, 'cur-2']);
+    });
+
+    test('a fetcher that throws is an error, not an empty collection', () async {
+      // Same rule the url mode follows: the rows in hand stay, and "no answer"
+      // is not "no rows". A rail that refuses on this platform throws rather
+      // than returning a status code, so the catch is what turns it into state.
+      bool broken = false;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (String? cursor) async {
+          if (broken) throw StateError('rail unavailable');
+
+          return MagicPage<_Row>(
+            items: <_Row>[const _Row(1)],
+            nextCursor: 'cur-2',
+          );
+        },
+      );
+      await paginator.loadFirst();
+
+      broken = true;
+      await paginator.loadMore();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[1]);
+      expect(paginator.error, isNotNull);
+      expect(paginator.isEmpty, isFalse);
+      expect(
+        paginator.hasMore,
+        isTrue,
+        reason: 'the page is still out there, so a retry needs its target',
+      );
+    });
+
+    test('hasMore can be reported without a cursor', () async {
+      // A source that pages by something the paginator never sees (an offset it
+      // keeps itself, a page number) still has to be able to say "there is
+      // more", so `hasMore` is settable independently of `nextCursor`.
+      int calls = 0;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (String? cursor) async {
+          calls++;
+
+          return MagicPage<_Row>(
+            items: <_Row>[_Row(calls)],
+            hasMore: calls < 3,
+          );
+        },
+      );
+
+      await paginator.loadFirst();
+      await paginator.loadMore();
+      expect(paginator.hasMore, isTrue);
+      await paginator.loadMore();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[1, 2, 3]);
+      expect(paginator.hasMore, isFalse);
+      expect(calls, 3);
+    });
+
+    test('the guards hold in fetcher mode too', () async {
+      int calls = 0;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (String? cursor) async {
+          calls++;
+          await Future<void>.delayed(Duration.zero);
+
+          return MagicPage<_Row>(items: <_Row>[_Row(calls)], hasMore: true);
+        },
+      );
+      await paginator.loadFirst();
+
+      await Future.wait(<Future<void>>[
+        paginator.loadMore(),
+        paginator.loadMore(),
+        paginator.loadMore(),
+      ]);
+
+      expect(calls, 2, reason: 'one first page and one overlapping loadMore');
+    });
+  });
+
   group('MagicPaginator guards', () {
     test('two overlapping loadMore calls fetch one page', () async {
       // The defect this pins: an infinite-scroll list fires loadMore from a
