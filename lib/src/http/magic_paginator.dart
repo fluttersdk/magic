@@ -218,7 +218,11 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// empty state over a list that has not been asked for yet.
   bool get isEmpty => _loaded && _items.isEmpty;
 
-  /// How the server addressed the page after the last one read.
+  /// How the page after the last one read is addressed.
+  ///
+  /// On the url path that is the server's decision, read from its envelope.
+  /// On the fetcher path it is [PaginationMode.fetcher], because the source
+  /// is behind a callback and this class does not know.
   PaginationMode get mode => _mode;
 
   /// Increments each time the collection is rebuilt from its first page.
@@ -297,12 +301,31 @@ class MagicPaginator<E> extends ChangeNotifier {
     _error = null;
     _notify();
 
-    if (fetch != null) {
-      await _runFetcher(reset: reset);
+    try {
+      if (fetch != null) {
+        await _runFetcher(reset: reset);
 
-      return;
+        return;
+      }
+
+      await _runUrl(reset: reset);
+    } finally {
+      // Unwound HERE rather than at each exit, so nothing thrown past this point
+      // can leave the paginator loading for the rest of its life. Two throws
+      // reach it: an Error out of a fetcher, which `_runFetcher` deliberately
+      // does not catch, and a consumer `fromMap` that meets an unexpected
+      // payload, which had no handler on the url path at all. Wedged, the object
+      // refuses every later `loadMore` on the flag and chains every later
+      // `refresh` onto an already-rejected future, while the list view shows a
+      // footer that never stops and no error to retry from.
+      if (!_disposed) {
+        _isLoading = false;
+        _notify();
+      }
     }
+  }
 
+  Future<void> _runUrl({required bool reset}) async {
     final response = await Http.get(url!, query: _queryFor(reset: reset));
 
     if (_disposed) return;
@@ -318,8 +341,6 @@ class MagicPaginator<E> extends ChangeNotifier {
       // a reason to offer a retry, not a reason to empty the list the reader
       // was looking at, and `hasMore` is left alone so the retry has a target.
       _error = response.errorMessage ?? 'Failed to load';
-      _isLoading = false;
-      _notify();
 
       return;
     }
@@ -338,8 +359,6 @@ class MagicPaginator<E> extends ChangeNotifier {
     }
 
     _loaded = true;
-    _isLoading = false;
-    _notify();
   }
 
   /// Runs one page through [fetch].
@@ -381,9 +400,6 @@ class MagicPaginator<E> extends ChangeNotifier {
       if (_disposed) return;
       _error = error.toString();
     }
-
-    _isLoading = false;
-    _notify();
   }
 
   /// Appends the rows in [payload] and reads where the next page lives.

@@ -358,6 +358,55 @@ void main() {
       await expectLater(inFlight, completes);
     });
 
+    test('an escaping Error still unwinds the loading state', () async {
+      // The wedge this closes. `on Exception` lets an Error propagate, which is
+      // the point, but the loading flag was cleared AFTER the try/catch, so it
+      // stayed true: `loadMore` then returned immediately on it, `refresh` took
+      // the deferred branch and chained onto an already-rejected future whose
+      // callback never runs, and the paginator was unusable for the rest of its
+      // life while the list view showed a footer that never stopped.
+      bool broken = true;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          if (broken) throw TypeError();
+
+          return MagicPage<_Row>(items: <_Row>[const _Row(7)]);
+        },
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+      expect(
+        paginator.isLoading,
+        isFalse,
+        reason: 'the object has to be usable again',
+      );
+
+      broken = false;
+      await paginator.refresh();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[7]);
+    });
+
+    test('a mapper that throws does not wedge the url path either', () async {
+      // Same shape one path over, and not named in review: a consumer `fromMap`
+      // that hits an unexpected payload throws out of `_absorb`, which had no
+      // handler at all, so the loading flag stayed true there too.
+      Http.fake(
+        (_) => Http.response(<String, dynamic>{
+          'data': <Map<String, dynamic>>[
+            <String, dynamic>{'id': 'not-an-int'},
+          ],
+        }, 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+      expect(paginator.isLoading, isFalse);
+    });
+
     test('a programming error is not reported as a failed page', () async {
       // A bad cast inside a fetcher is this code being wrong, not the rail
       // refusing. Swallowing it into `error` puts a TypeError message on screen

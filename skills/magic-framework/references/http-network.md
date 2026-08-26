@@ -479,7 +479,7 @@ await checks.refresh();
 | `isLoading` | a request is in flight |
 | `error` | last failure message, cleared by the next success |
 | `isEmpty` | a first page arrived and held nothing (false before the first load) |
-| `mode` | `PaginationMode.cursor` / `.offset` / `.single`, read from the response |
+| `mode` | `PaginationMode.cursor` / `.offset` / `.single` read from the response, or `.fetcher` on the fetcher path, where the source is behind a callback and the paginator does not know |
 | `generation` | increments on every landed reset. Lets a view tell "the same rows again" from "a fresh first page of the same length" |
 
 It is a `ChangeNotifier`; listen to it directly.
