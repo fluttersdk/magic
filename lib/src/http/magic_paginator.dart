@@ -94,6 +94,7 @@ class MagicPaginator<E> extends ChangeNotifier {
   bool _disposed = false;
   Future<void>? _inFlight;
   Future<void>? _pendingReset;
+  int _generation = 0;
 
   /// Every row fetched so far, oldest page first.
   ///
@@ -124,6 +125,16 @@ class MagicPaginator<E> extends ChangeNotifier {
 
   /// How the server addressed the page after the last one read.
   PaginationMode get mode => _mode;
+
+  /// Increments each time the collection is rebuilt from its first page.
+  ///
+  /// A view that throttles itself on "the page I asked for added no rows" needs
+  /// to tell that apart from "a fresh first page that happens to be the same
+  /// length", and a row count alone cannot: [refresh] clears the rows and
+  /// refills them, so the count can land exactly where the previous attempt
+  /// stopped. Compare this beside the count and a reset re-arms whatever the
+  /// count had disarmed. [MagicPaginatedListView] does precisely that.
+  int get generation => _generation;
 
   /// Reads the first page, discarding anything already held.
   Future<void> loadFirst() => _load(reset: true);
@@ -215,6 +226,7 @@ class MagicPaginator<E> extends ChangeNotifier {
     if (reset) {
       _items.clear();
       _resetCursorState();
+      _generation++;
     }
 
     final Object? payload = response.data;

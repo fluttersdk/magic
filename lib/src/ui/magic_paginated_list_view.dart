@@ -80,11 +80,15 @@ class MagicPaginatedListView<E> extends StatefulWidget {
 class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
   final ScrollController _controller = ScrollController();
 
-  /// The row count the last viewport-fill attempt was made at.
+  /// The collection the last viewport-fill attempt was made against.
   ///
-  /// Guards the fill against asking again for a page that arrived and added
-  /// nothing. See [_fillViewport].
+  /// A row count alone is not enough: a refresh rebuilds page one, so the count
+  /// can land exactly where a failed attempt stopped, and the brake would then
+  /// outlive the collection it was measured on. Paired with the paginator's
+  /// generation it means "this many rows, of this collection". See
+  /// [_fillViewport].
   int? _lastFilledCount;
+  int? _lastFilledGeneration;
 
   @override
   void initState() {
@@ -98,6 +102,11 @@ class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
     if (!identical(oldWidget.paginator, widget.paginator)) {
       oldWidget.paginator.removeListener(_onPaginatorChanged);
       widget.paginator.addListener(_onPaginatorChanged);
+      // The brake belongs to the collection it was measured against, and this
+      // is a different collection. A replacement sitting at the same row count
+      // would otherwise start life with the fill already disarmed.
+      _lastFilledCount = null;
+      _lastFilledGeneration = null;
     }
   }
 
@@ -143,7 +152,11 @@ class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
     if (paginator.error != null) return;
 
     final int count = paginator.items.length;
-    if (_lastFilledCount == count) return;
+    final int generation = paginator.generation;
+    if (_lastFilledGeneration == generation && _lastFilledCount == count) {
+      return;
+    }
+    _lastFilledGeneration = generation;
     _lastFilledCount = count;
 
     paginator.loadMore();

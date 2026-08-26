@@ -301,6 +301,115 @@ void main() {
     );
   });
 
+  testWidgets('a refresh after a failed fill resumes fetching', (
+    WidgetTester tester,
+  ) async {
+    // The gate that stops the retry loop must not outlive the collection it was
+    // measured against. A refresh rebuilds page one, so the row count can land
+    // back where the failed attempt left it; read as "that page added nothing"
+    // it disarms the fill for good and strands the reader on a short list with
+    // hasMore true, which is the defect the fill exists to prevent, reached
+    // through the retry path instead of the first load.
+    int requests = 0;
+    bool serverBroken = true;
+    Http.fake((MagicRequest request) {
+      requests++;
+      if (request.queryParameters?['cursor'] == null) {
+        return Http.response(_page(<int>[1, 2, 3], next: 'cur-2'), 200);
+      }
+
+      return serverBroken
+          ? Http.response(<String, dynamic>{'message': 'boom'}, 500)
+          : Http.response(
+              _page(List<int>.generate(30, (int i) => 100 + i)),
+              200,
+            );
+    });
+    final MagicPaginator<_Row> paginator = MagicPaginator<_Row>(
+      url: 'rows',
+      fromMap: _Row.fromMap,
+    );
+    await paginator.loadFirst();
+
+    await tester.pumpWidget(
+      _host(
+        MagicPaginatedListView<_Row>(
+          paginator: paginator,
+          itemBuilder: (_, _Row row, _) =>
+              SizedBox(height: 50, child: Text('row ${row.id}')),
+        ),
+        height: 600,
+      ),
+    );
+    for (int frame = 0; frame < 5; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(paginator.error, isNotNull);
+    expect(paginator.items.length, 3);
+
+    serverBroken = false;
+    await paginator.refresh();
+    for (int frame = 0; frame < 5; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(
+      paginator.items.length,
+      33,
+      reason: 'the refresh has to re-arm the fill, not inherit its brake',
+    );
+    expect(
+      requests,
+      greaterThan(3),
+      reason: 'and the rows arrived by asking, not from anywhere else',
+    );
+  });
+
+  testWidgets('swapping the paginator re-arms the fill', (
+    WidgetTester tester,
+  ) async {
+    // Same brake, different way of outliving its subject: a replacement
+    // paginator sitting at the row count the old one stopped at would start
+    // life already disarmed.
+    Http.fake(
+      (MagicRequest request) => request.queryParameters?['cursor'] == null
+          ? Http.response(_page(<int>[1, 2, 3], next: 'cur-2'), 200)
+          : Http.response(
+              _page(List<int>.generate(30, (int i) => 100 + i)),
+              200,
+            ),
+    );
+    final MagicPaginator<_Row> first = MagicPaginator<_Row>(
+      url: 'rows',
+      fromMap: _Row.fromMap,
+    );
+    await first.loadFirst();
+
+    Widget listFor(MagicPaginator<_Row> paginator) => _host(
+      MagicPaginatedListView<_Row>(
+        paginator: paginator,
+        itemBuilder: (_, _Row row, _) =>
+            SizedBox(height: 50, child: Text('row ${row.id}')),
+      ),
+      height: 600,
+    );
+
+    await tester.pumpWidget(listFor(first));
+    await tester.pumpAndSettle();
+
+    final MagicPaginator<_Row> second = MagicPaginator<_Row>(
+      url: 'rows',
+      fromMap: _Row.fromMap,
+    );
+    await second.loadFirst();
+    expect(second.items.length, 3);
+
+    await tester.pumpWidget(listFor(second));
+    await tester.pumpAndSettle();
+
+    expect(second.items.length, 33);
+  });
+
   testWidgets('an empty result renders the empty state', (
     WidgetTester tester,
   ) async {
