@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -476,6 +478,43 @@ void main() {
         paginator.items,
         isEmpty,
         reason: 'a half-mapped page is not a page',
+      );
+    });
+
+    test('a reset asked for during the deferred restart is not swallowed', () async {
+      // Clearing `_pendingReset` at the END of the chain kept the slot occupied
+      // for the whole of the restart's own load, so a refresh arriving in that
+      // window hit the `??=` and resolved against a request issued BEFORE it was
+      // asked for. Silent: no error, and the indicator retracts over the earlier
+      // request's rows. It contradicts this class's own "a reset is not dropped"
+      // rule, so the slot is cleared at the top of the restart instead.
+      final List<int> observed = <int>[];
+      late final MagicPaginator<_Row> paginator;
+      int calls = 0;
+      paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          calls++;
+          final int call = calls;
+          observed.add(call);
+          await Future<void>.delayed(Duration.zero);
+
+          // Ask for a reset from inside the restart's own page.
+          if (call == 2) unawaited(paginator.refresh());
+
+          return MagicPage<_Row>(items: <_Row>[_Row(call)], hasMore: true);
+        },
+      );
+
+      final Future<void> first = paginator.loadFirst();
+      final Future<void> queued = paginator.refresh();
+      await Future.wait(<Future<void>>[first, queued]);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        observed,
+        containsAllInOrder(<int>[1, 2, 3]),
+        reason: 'the reset asked for during the restart has to run',
       );
     });
 

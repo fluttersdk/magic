@@ -291,12 +291,20 @@ class MagicPaginator<E> extends ChangeNotifier {
       // error back. The error itself is not swallowed, it is simply not
       // re-reported here: it already reached the caller whose page failed, and
       // this is a different call asking for fresh data.
-      Future<void> restart(Object? _) =>
-          _disposed ? Future<void>.value() : _load(reset: true);
+      Future<void> restart(Object? _) {
+        // Cleared HERE, at the top, and not at the end of the chain. Held for
+        // the whole chain it stayed occupied for the restart's own load too, so
+        // a reset arriving in that window hit the `??=` and resolved against a
+        // request issued BEFORE it was asked for: silent, no error, and the
+        // indicator retracts over the earlier request's rows. That contradicts
+        // the rule above. Cleared here it covers both arms, since `restart` runs
+        // on either outcome, and the window closes.
+        _pendingReset = null;
 
-      return _pendingReset ??= _inFlight!
-          .then<void>(restart, onError: restart)
-          .whenComplete(() => _pendingReset = null);
+        return _disposed ? Future<void>.value() : _load(reset: true);
+      }
+
+      return _pendingReset ??= _inFlight!.then<void>(restart, onError: restart);
     }
 
     final Future<void> run = _run(reset: reset);
