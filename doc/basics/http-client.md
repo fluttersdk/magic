@@ -198,8 +198,8 @@ Some collections do not arrive from `Http.get`. A billing history reaches the cl
 
 ```dart
 final invoices = MagicPaginator<Invoice>.fetcher(
-  fetch: (String? cursor) async {
-    final BillingInvoicesPage page = await Payments.getInvoices(cursor: cursor);
+  fetch: (MagicPageRequest request) async {
+    final page = await Payments.getInvoices(cursor: request.cursor);
 
     return MagicPage<Invoice>(
       items: page.invoices,
@@ -209,14 +209,24 @@ final invoices = MagicPaginator<Invoice>.fetcher(
 );
 ```
 
-`fetch` receives the cursor the previous page reported, null on the first. Report `nextCursor` when the source pages by token, or `hasMore` when it pages by something the paginator never sees (an offset it keeps itself, a page number):
+`fetch` receives a `MagicPageRequest`: the `cursor` the previous page reported, plus `isFirst`. Report `nextCursor` when the source pages by token, or `hasMore` when it pages by something the paginator never sees:
 
 ```dart
-return MagicPage<Row>(items: rows, hasMore: page < lastPage);
+fetch: (MagicPageRequest request) async {
+  final int page = request.isFirst ? 1 : _page + 1;
+  ...
+
+  return MagicPage<Row>(items: rows, hasMore: page < lastPage);
+}
 ```
 
+> [!WARNING]
+> A source that keeps its own position MUST branch on `isFirst`. The cursor is null for every page of such a source, so without it a `refresh()` is indistinguishable from a `loadMore()` and renders whatever page it was up to as the whole list.
+
 > [!NOTE]
-> A fetcher reports failure by **throwing**, where an endpoint reports it with a status code. Either way the rows already in hand stay, `error` is set, and `hasMore` is untouched so a retry has a target.
+> A fetcher reports failure by **throwing**, where an endpoint reports it with a status code. Either way the rows already in hand stay, `error` is set, and `hasMore` is untouched so a retry has a target. Only an `Exception` becomes state: an `Error` (a bad cast, a failed assertion) is the fetcher itself being wrong and propagates instead of landing in `error`.
+
+`mode` reports `PaginationMode.fetcher` on this path, because how the pages are addressed is the fetcher's business and the paginator does not know.
 
 Everything else (accumulation, the in-flight and disposal guards, the lazy list) is the same as the url mode.
 

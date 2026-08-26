@@ -219,10 +219,10 @@ void main() {
       // walk around the abstraction that exists to keep that build honest.
       final List<String?> cursorsSeen = <String?>[];
       final paginator = MagicPaginator<_Row>.fetcher(
-        fetch: (String? cursor) async {
-          cursorsSeen.add(cursor);
+        fetch: (MagicPageRequest request) async {
+          cursorsSeen.add(request.cursor);
 
-          return cursor == null
+          return request.isFirst
               ? MagicPage<_Row>(
                   items: <_Row>[const _Row(1), const _Row(2)],
                   nextCursor: 'cur-2',
@@ -247,8 +247,11 @@ void main() {
       // than returning a status code, so the catch is what turns it into state.
       bool broken = false;
       final paginator = MagicPaginator<_Row>.fetcher(
-        fetch: (String? cursor) async {
-          if (broken) throw StateError('rail unavailable');
+        fetch: (MagicPageRequest request) async {
+          // An Exception, deliberately: a rail refusing is a condition, and the
+          // Errors (a bad cast, a failed assertion) are this code being wrong
+          // and are meant to propagate rather than land in `error`.
+          if (broken) throw Exception('rail unavailable');
 
           return MagicPage<_Row>(
             items: <_Row>[const _Row(1)],
@@ -277,7 +280,7 @@ void main() {
       // more", so `hasMore` is settable independently of `nextCursor`.
       int calls = 0;
       final paginator = MagicPaginator<_Row>.fetcher(
-        fetch: (String? cursor) async {
+        fetch: (MagicPageRequest request) async {
           calls++;
 
           return MagicPage<_Row>(
@@ -297,10 +300,81 @@ void main() {
       expect(calls, 3);
     });
 
+    test('refresh restarts a fetcher that keeps its own page number', () async {
+      // The defect: `reset` was collapsed into the cursor, so a cursorless
+      // fetcher received null for BOTH "first page" and "next page" and had no
+      // way to tell a refresh from a continuation. Following the pattern this
+      // package's own docs recommend (`hasMore: page < last`), a pull-to-refresh
+      // therefore cleared the rows and rendered page THREE as the whole list.
+      int page = 0;
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          if (request.isFirst) page = 0;
+          page++;
+
+          return MagicPage<_Row>(items: <_Row>[_Row(page)], hasMore: page < 3);
+        },
+      );
+
+      await paginator.loadFirst();
+      await paginator.loadMore();
+      expect(paginator.items.map((_Row r) => r.id), <int>[1, 2]);
+
+      await paginator.refresh();
+
+      expect(paginator.items.map((_Row r) => r.id), <int>[
+        1,
+      ], reason: 'a refresh is the first page again, not the next one');
+      expect(paginator.hasMore, isTrue);
+    });
+
+    test('a fetcher source reports its own mode, not a borrowed one', () async {
+      // `mode` documents how the SERVER addressed the next page. A fetcher
+      // paginator does not know: its source might page by token, by number, or
+      // not at all. Reporting `cursor` for all of them is the same untruth the
+      // url path is careful to avoid.
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async =>
+            MagicPage<_Row>(items: <_Row>[const _Row(1)]),
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.mode, PaginationMode.fetcher);
+    });
+
+    test('disposing mid-fetch on the fetcher path does not throw', () async {
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async {
+          await Future<void>.delayed(Duration.zero);
+
+          return MagicPage<_Row>(items: <_Row>[const _Row(1)]);
+        },
+      );
+
+      final Future<void> inFlight = paginator.loadFirst();
+      paginator.dispose();
+
+      await expectLater(inFlight, completes);
+    });
+
+    test('a programming error is not reported as a failed page', () async {
+      // A bad cast inside a fetcher is this code being wrong, not the rail
+      // refusing. Swallowing it into `error` puts a TypeError message on screen
+      // and throws the stack away, so an Error propagates and an Exception is
+      // state.
+      final paginator = MagicPaginator<_Row>.fetcher(
+        fetch: (MagicPageRequest request) async => throw TypeError(),
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+      expect(paginator.error, isNull);
+    });
+
     test('the guards hold in fetcher mode too', () async {
       int calls = 0;
       final paginator = MagicPaginator<_Row>.fetcher(
-        fetch: (String? cursor) async {
+        fetch: (MagicPageRequest request) async {
           calls++;
           await Future<void>.delayed(Duration.zero);
 

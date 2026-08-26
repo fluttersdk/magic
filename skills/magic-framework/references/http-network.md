@@ -490,15 +490,15 @@ It is a `ChangeNotifier`; listen to it directly.
 
 ```dart
 MagicPaginator<Invoice>.fetcher(
-  fetch: (String? cursor) async {
-    final page = await Payments.getInvoices(cursor: cursor);
+  fetch: (MagicPageRequest request) async {
+    final page = await Payments.getInvoices(cursor: request.cursor);
 
     return MagicPage<Invoice>(items: page.invoices, nextCursor: page.nextCursor);
   },
 )
 ```
 
-`MagicPage` carries the rows plus either `nextCursor` (paged by token) or `hasMore` (paged by something the paginator never sees). A fetcher signals failure by THROWING; the rows in hand stay, `error` is set, `hasMore` is untouched.
+`MagicPage` carries the rows plus either `nextCursor` (paged by token) or `hasMore` (paged by something the paginator never sees). The request carries `cursor` AND `isFirst`; a source keeping its own page number MUST branch on `isFirst`, or a `refresh()` is indistinguishable from a `loadMore()` and renders whatever page it was up to as the whole list. A fetcher signals failure by THROWING: an `Exception` becomes `error` with the rows kept and `hasMore` untouched, an `Error` propagates because it is the fetcher being wrong. `mode` reports `PaginationMode.fetcher`.
 
 ### Mode is read, not configured
 

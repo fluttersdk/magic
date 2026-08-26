@@ -18,6 +18,35 @@ enum PaginationMode {
 
   /// A bare collection with no meta block. One page, and it has arrived.
   single,
+
+  /// The pages come from a [MagicPageFetcher], so how they are addressed is the
+  /// fetcher's business and this paginator does not know.
+  ///
+  /// Reported instead of guessing one of the three above: a fetcher's source
+  /// might page by token, by number, or not at all, and claiming `cursor` for
+  /// all of them would make [MagicPaginator.mode] say something untrue.
+  fetcher,
+}
+
+/// What a [MagicPageFetcher] is being asked for.
+@immutable
+class MagicPageRequest {
+  /// Describes one page request.
+  const MagicPageRequest({required this.cursor, required this.isFirst});
+
+  /// The cursor the previous page reported, or null when there is none.
+  ///
+  /// Null on the first page AND on every page of a source that pages by
+  /// something else, which is why [isFirst] exists separately.
+  final String? cursor;
+
+  /// Whether this is the collection's first page.
+  ///
+  /// A source that keeps its own position (a page number, an offset) needs this
+  /// to tell a refresh from a continuation. Without it, a cursorless fetcher
+  /// sees the same request for both and a pull-to-refresh renders whatever page
+  /// it happened to be up to as the whole list.
+  final bool isFirst;
 }
 
 /// One page, as a [MagicPageFetcher] reports it.
@@ -45,10 +74,9 @@ class MagicPage<E> {
   bool get hasMore => _hasMore ?? nextCursor != null;
 }
 
-/// Fetches one page, given the cursor the previous page reported.
-///
-/// Null on the first page.
-typedef MagicPageFetcher<E> = Future<MagicPage<E>> Function(String? cursor);
+/// Fetches one page.
+typedef MagicPageFetcher<E> =
+    Future<MagicPage<E>> Function(MagicPageRequest request);
 
 /// Accumulates a paginated collection one page at a time.
 ///
@@ -103,15 +131,16 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// usually there for a reason (a platform where the service refuses, a fake
   /// the tests install).
   ///
-  /// [fetch] receives the cursor the previous page reported, null on the first,
-  /// and reports its own rows. Everything else (the accumulation, the
+  /// [fetch] receives a [MagicPageRequest]: the cursor the previous page
+  /// reported, plus `isFirst`, which a source keeping its own position needs to
+  /// tell a refresh from a continuation. Everything else (the accumulation, the
   /// in-flight and disposal guards, keeping the rows when a page fails) is the
   /// same as the url mode.
   ///
   /// ```dart
   /// MagicPaginator<Invoice>.fetcher(
-  ///   fetch: (String? cursor) async {
-  ///     final page = await Payments.getInvoices(cursor: cursor);
+  ///   fetch: (MagicPageRequest request) async {
+  ///     final page = await Payments.getInvoices(cursor: request.cursor);
   ///
   ///     return MagicPage<Invoice>(
   ///       items: page.invoices,
@@ -322,7 +351,9 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// collection.
   Future<void> _runFetcher({required bool reset}) async {
     try {
-      final MagicPage<E> page = await fetch!(reset ? null : _nextCursor);
+      final MagicPage<E> page = await fetch!(
+        MagicPageRequest(cursor: reset ? null : _nextCursor, isFirst: reset),
+      );
 
       if (_disposed) return;
 
@@ -333,11 +364,20 @@ class MagicPaginator<E> extends ChangeNotifier {
       }
 
       _items.addAll(page.items);
-      _mode = PaginationMode.cursor;
+      _mode = PaginationMode.fetcher;
       _nextCursor = page.nextCursor;
       _hasMore = page.hasMore;
       _loaded = true;
-    } catch (error) {
+    } on Exception catch (error) {
+      // `on Exception`, not a bare catch. An Error out of a fetcher (a bad cast,
+      // a failed assertion) is THIS CODE being wrong rather than the source
+      // refusing, and turning it into a user-facing `error` string would put a
+      // TypeError message on screen and lose the stack. It propagates instead.
+      //
+      // Nothing is logged here, which matches the layer: neither this file's
+      // url path nor `MagicController.fetchList` logs a failed read either. The
+      // failure becomes state, and the caller that renders it is the one with
+      // the context to decide whether it is worth a log line.
       if (_disposed) return;
       _error = error.toString();
     }
@@ -401,6 +441,10 @@ class MagicPaginator<E> extends ChangeNotifier {
         case PaginationMode.offset:
           parameters['page'] = _currentPage + 1;
         case PaginationMode.single:
+        // Unreachable: this builds a query for the url mode, and only
+        // `_runFetcher` ever sets `fetcher`. Listed because the switch is
+        // exhaustive, and a query parameter would mean nothing to a fetcher.
+        case PaginationMode.fetcher:
           break;
       }
     }
