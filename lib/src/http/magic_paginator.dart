@@ -415,7 +415,17 @@ class MagicPaginator<E> extends ChangeNotifier {
   void _absorb(Map<String, dynamic> payload) {
     final Object? rows = payload[dataKey];
     if (rows is List) {
-      _items.addAll(rows.whereType<Map<String, dynamic>>().map(fromMap!));
+      // Mapped to a list BEFORE appending, so a `fromMap` that throws part way
+      // through appends nothing rather than half a page. Appending the lazy
+      // iterable left the rows before the throw in place with the cursor unset,
+      // so the next `loadMore` refetched page one and appended them again:
+      // duplicate rows on top of the mapper bug.
+      final List<E> mapped = rows
+          .whereType<Map<String, dynamic>>()
+          .map(fromMap!)
+          .toList(growable: false);
+
+      _items.addAll(mapped);
     }
 
     final Object? meta = payload['meta'];

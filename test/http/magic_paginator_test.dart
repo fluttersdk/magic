@@ -449,6 +449,36 @@ void main() {
       },
     );
 
+    test('a mapper that throws mid-page appends nothing', () async {
+      // `_absorb` appended through a LAZY map, so a `fromMap` that threw on row
+      // three left rows one and two in the collection with `_nextCursor` unset
+      // and `_hasMore` true. The next `loadMore` therefore refetched page one
+      // and appended those two a second time: duplicate rows on top of the
+      // mapper bug. All or nothing is the only honest answer for a page.
+      Http.fake(
+        (_) => Http.response(<String, dynamic>{
+          'data': <Map<String, dynamic>>[
+            <String, dynamic>{'id': 1},
+            <String, dynamic>{'id': 2},
+            <String, dynamic>{'id': 'not-an-int'},
+          ],
+          'meta': <String, dynamic>{'next_cursor': 'cur-2'},
+        }, 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await expectLater(paginator.loadFirst(), throwsA(isA<TypeError>()));
+
+      expect(
+        paginator.items,
+        isEmpty,
+        reason: 'a half-mapped page is not a page',
+      );
+    });
+
     test('a programming error is not reported as a failed page', () async {
       // A bad cast inside a fetcher is this code being wrong, not the rail
       // refusing. Swallowing it into `error` puts a TypeError message on screen
