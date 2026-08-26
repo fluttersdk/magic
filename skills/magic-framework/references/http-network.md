@@ -480,6 +480,7 @@ await checks.refresh();
 | `error` | last failure message, cleared by the next success |
 | `isEmpty` | a first page arrived and held nothing (false before the first load) |
 | `mode` | `PaginationMode.cursor` / `.offset` / `.single`, read from the response |
+| `generation` | increments on every landed reset. Lets a view tell "the same rows again" from "a fresh first page of the same length" |
 
 It is a `ChangeNotifier`; listen to it directly.
 
@@ -519,7 +520,7 @@ Builds only what the viewport shows and calls `loadMore()` as the tail approache
 - **`loadMore()` is safe to call every frame.** It refuses while a request is in flight and when `hasMore` is false. Without that guard a scroll callback fetches the same page repeatedly and appends each row two or three times.
 - **A failed page does not clear the list.** Rows stay, `error` is set, `hasMore` is untouched so a retry has a target.
 - **A transport failure is a failure.** statusCode 0 (timeout, dead link) is neither `failed` nor `successful`, so the check is `!response.successful`; an offline first page sets `error` instead of reporting the collection empty.
-- **A short first page still loads the next, and knows when to stop.** Scroll notifications need a scroll, so the widget also checks `maxScrollExtent` after the frame; a small `perPage` cannot strand the reader. The fill stops on an `error` (a failure is not a reason to retry every frame) and on a page that added no rows (a cursor beside an empty `data` array never fills the viewport). Without both, the check re-arms per build and fetches per frame.
+- **A short first page still loads the next, and knows when to stop.** Scroll notifications need a scroll, so the widget also checks `maxScrollExtent` after the frame; a small `perPage` cannot strand the reader. The fill stops on an `error` (a failure is not a reason to retry every frame) and on a page that added no rows **to that collection** (a cursor beside an empty `data` array never fills the viewport). Without both, the check re-arms per build and fetches per frame. The second brake is keyed on `(generation, count)`, not on the count alone: a `refresh()` rebuilds page one at the same length, and a brake keyed on length would read that as "nothing was added" and strand the reader on the retry path.
 - **`refresh()` during an in-flight `loadMore()` really refreshes.** It waits for that page, then starts over, so pull-to-refresh cannot retract having done nothing.
 - **Disposing mid-request is safe.** Every notify is guarded, the way `MagicController.refreshUI` is.
 - **`items` is a live view.** Reading it does not copy, and it cannot be written through.

@@ -173,7 +173,11 @@ checks.hasMore;    // is there another page
 checks.isLoading;  // a request is in flight
 checks.error;      // the last failure, cleared by the next success
 checks.isEmpty;    // a first page arrived and held nothing
+checks.mode;       // cursor, offset or single, read from the response
+checks.generation; // bumps on every landed reset
 ```
+
+`generation` exists for views that throttle themselves. A list that stops asking once a page adds no rows has to tell that from a fresh first page of the same length, and a row count alone cannot; compare the generation beside it and a `refresh()` re-arms whatever the count had disarmed.
 
 It is a `ChangeNotifier`, so a widget can listen to it directly and a controller can hold several without inventing a state enum per list.
 
