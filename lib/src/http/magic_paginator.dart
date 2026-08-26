@@ -283,11 +283,20 @@ class MagicPaginator<E> extends ChangeNotifier {
     if (_isLoading) {
       if (!reset) return Future<void>.value();
 
-      return _pendingReset ??= _inFlight!.then((_) {
-        _pendingReset = null;
+      // `onError` as well as the success arm, and the field cleared in
+      // `whenComplete` rather than inside either. Cleared only on success it
+      // kept a rejected future for good once an in-flight page had thrown, so
+      // every later reset-during-flight hit the `??=` on that stale value: the
+      // deferred reload was never scheduled and whoever awaited it got the old
+      // error back. The error itself is not swallowed, it is simply not
+      // re-reported here: it already reached the caller whose page failed, and
+      // this is a different call asking for fresh data.
+      Future<void> restart(Object? _) =>
+          _disposed ? Future<void>.value() : _load(reset: true);
 
-        return _disposed ? null : _load(reset: true);
-      });
+      return _pendingReset ??= _inFlight!
+          .then<void>(restart, onError: restart)
+          .whenComplete(() => _pendingReset = null);
     }
 
     final Future<void> run = _run(reset: reset);

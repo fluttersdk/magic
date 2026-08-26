@@ -407,6 +407,48 @@ void main() {
       expect(paginator.isLoading, isFalse);
     });
 
+    test(
+      'a reset queued behind a failing page does not poison later ones',
+      () async {
+        // `_pendingReset` was cleared only on the success continuation, so an
+        // in-flight run that REJECTED left a rejected future in the field for
+        // good. Every later reset-during-flight then hit the `??=` on that stale
+        // value: the deferred reload was never scheduled, and whoever awaited it
+        // (a RefreshIndicator, say) got the old error back instead.
+        int calls = 0;
+        final paginator = MagicPaginator<_Row>.fetcher(
+          fetch: (MagicPageRequest request) async {
+            calls++;
+            await Future<void>.delayed(Duration.zero);
+            if (calls == 1) throw TypeError();
+
+            return MagicPage<_Row>(items: <_Row>[_Row(calls)], hasMore: true);
+          },
+        );
+
+        // The failing first page, with a reset arriving while it is in flight.
+        final Future<void> first = paginator.loadFirst();
+        final Future<void> queued = paginator.refresh();
+        await expectLater(first, throwsA(isA<TypeError>()));
+        await queued;
+
+        expect(paginator.items, isNotEmpty, reason: 'the queued reset ran');
+
+        // And the field is usable again: another overlapping reset has to land.
+        final int before = calls;
+        final Future<void> more = paginator.loadMore();
+        final Future<void> again = paginator.refresh();
+        await Future.wait(<Future<void>>[more, again]);
+
+        expect(
+          calls,
+          greaterThan(before + 1),
+          reason:
+              'the second reset was scheduled, not dropped on a stale future',
+        );
+      },
+    );
+
     test('a programming error is not reported as a failed page', () async {
       // A bad cast inside a fetcher is this code being wrong, not the rail
       // refusing. Swallowing it into `error` puts a TypeError message on screen
