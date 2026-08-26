@@ -226,7 +226,7 @@ WDiv(
 )
 ```
 
-A first page too short to fill the viewport still fetches its successor: the widget checks after the frame whether there is anything to scroll, so a small `perPage` cannot strand the reader on a truncated list.
+A first page too short to fill the viewport still fetches its successor: the widget checks after the frame whether there is anything to scroll, so a small `perPage` cannot strand the reader on a truncated list. That fill stops on an error and on a page that added no rows, so a failing endpoint is asked once rather than once per frame.
 
 > [!WARNING]
 > It is a `ListView`, so it needs a **bounded height**. Dropping it into a page that already scrolls without a bound throws, and reaching for `shrinkWrap: true` to make that work defeats the whole thing: shrink-wrapping measures every row, so all of them get built and nothing is saved. Give it a height, or give the page a sliver-based scaffold.

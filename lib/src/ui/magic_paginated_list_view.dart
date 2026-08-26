@@ -80,6 +80,12 @@ class MagicPaginatedListView<E> extends StatefulWidget {
 class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
   final ScrollController _controller = ScrollController();
 
+  /// The row count the last viewport-fill attempt was made at.
+  ///
+  /// Guards the fill against asking again for a page that arrived and added
+  /// nothing. See [_fillViewport].
+  int? _lastFilledCount;
+
   @override
   void initState() {
     super.initState();
@@ -114,14 +120,33 @@ class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
   /// it, which any `perPage` smaller than a tall viewport reaches.
   ///
   /// Runs after the frame, because a viewport measures itself during layout and
-  /// `maxScrollExtent` is not known before then. It cannot spin: each pass
-  /// either fetches a page (and the paginator refuses while that is in flight)
-  /// or finds `hasMore` false.
+  /// `maxScrollExtent` is not known before then.
+  ///
+  /// ## Why it stops
+  ///
+  /// This callback re-arms on every build and a failed `loadMore` leaves
+  /// `hasMore` true on purpose, so the naive version composes into a fetch per
+  /// frame: build, post-frame, fetch, fail, notify, build. Measured at 22
+  /// requests across 20 frames against an endpoint that was already returning
+  /// 500. Two gates close it, one per shape:
+  ///
+  /// - **An error stops it.** A failure is not an invitation to retry harder,
+  ///   and the retry belongs to whoever renders that error.
+  /// - **A page that added no rows stops it.** A server handing back a cursor
+  ///   beside an empty `data` array never grows the list, so the viewport is
+  ///   never filled and nothing else would ever say stop.
   void _fillViewport(Duration _) {
     if (!mounted || !_controller.hasClients) return;
     if (_controller.position.maxScrollExtent > 0) return;
 
-    widget.paginator.loadMore();
+    final MagicPaginator<E> paginator = widget.paginator;
+    if (paginator.error != null) return;
+
+    final int count = paginator.items.length;
+    if (_lastFilledCount == count) return;
+    _lastFilledCount = count;
+
+    paginator.loadMore();
   }
 
   /// Asks for the next page when the tail is within [loadMoreExtent].

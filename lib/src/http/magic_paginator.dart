@@ -93,6 +93,7 @@ class MagicPaginator<E> extends ChangeNotifier {
   bool _loaded = false;
   bool _disposed = false;
   Future<void>? _inFlight;
+  Future<void>? _pendingReset;
 
   /// Every row fetched so far, oldest page first.
   ///
@@ -164,11 +165,19 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// dropped, because the caller asked for fresh data and a pull-to-refresh
   /// that silently did nothing would retract its indicator over stale rows. It
   /// waits for the in-flight page to land and then starts over.
+  ///
+  /// Overlapping resets share one deferred reload rather than queueing one
+  /// each. Without that they chained, so three taps on a retry button became
+  /// three sequential first-page fetches.
   Future<void> _load({required bool reset}) {
     if (_isLoading) {
       if (!reset) return Future<void>.value();
 
-      return _inFlight!.then((_) => _disposed ? null : _load(reset: true));
+      return _pendingReset ??= _inFlight!.then((_) {
+        _pendingReset = null;
+
+        return _disposed ? null : _load(reset: true);
+      });
     }
 
     final Future<void> run = _run(reset: reset);

@@ -361,6 +361,39 @@ void main() {
       ], reason: 'and it replaced the rows rather than appending to them');
     });
 
+    test('overlapping refreshes collapse into one first page', () async {
+      // Each queued reset used to chain onto whatever was in flight when its
+      // callback ran, so N refreshes became N sequential first-page fetches. A
+      // double-tapped retry button paid for it twice.
+      int firstPages = 0;
+      Http.fake((MagicRequest request) {
+        if (request.queryParameters?['cursor'] == null) firstPages++;
+
+        return request.queryParameters?['cursor'] == null
+            ? Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200)
+            : Http.response(_cursorPage(<int>[2], next: 'cur-3'), 200);
+      });
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+      await paginator.loadFirst();
+      expect(firstPages, 1);
+
+      await Future.wait(<Future<void>>[
+        paginator.loadMore(),
+        paginator.refresh(),
+        paginator.refresh(),
+        paginator.refresh(),
+      ]);
+
+      expect(
+        firstPages,
+        2,
+        reason: 'the three refreshes are one reload, not three',
+      );
+    });
+
     test('reading items twice does not copy the collection', () async {
       // The widget reads `items` once per build, so a copy here is a full copy
       // of the collection on every frame the reader scrolls, in the one class

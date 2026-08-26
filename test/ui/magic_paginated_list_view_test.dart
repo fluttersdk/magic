@@ -217,6 +217,90 @@ void main() {
     expect(paginator.items.length, 33);
   });
 
+  testWidgets('a failed page does not retry once per frame', (
+    WidgetTester tester,
+  ) async {
+    // The viewport fill re-arms on every build and a failed loadMore leaves
+    // hasMore true on purpose, so the two compose into a fetch per frame
+    // against an endpoint that is already failing: build, post-frame, fetch,
+    // fail, notify, build. A failure is not an invitation to retry harder.
+    int requests = 0;
+    Http.fake((MagicRequest request) {
+      requests++;
+
+      return request.queryParameters?['cursor'] == null
+          ? Http.response(_page(<int>[1, 2, 3], next: 'cur-2'), 200)
+          : Http.response(<String, dynamic>{'message': 'Server error'}, 500);
+    });
+    final MagicPaginator<_Row> paginator = MagicPaginator<_Row>(
+      url: 'rows',
+      fromMap: _Row.fromMap,
+    );
+    await paginator.loadFirst();
+
+    await tester.pumpWidget(
+      _host(
+        MagicPaginatedListView<_Row>(
+          paginator: paginator,
+          itemBuilder: (_, _Row row, _) =>
+              SizedBox(height: 50, child: Text('row ${row.id}')),
+        ),
+        height: 600,
+      ),
+    );
+    for (int frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(
+      requests,
+      lessThanOrEqualTo(2),
+      reason: 'one first page and at most one attempt at the second',
+    );
+    expect(paginator.error, isNotNull);
+  });
+
+  testWidgets('a page that adds no rows does not retry once per frame', (
+    WidgetTester tester,
+  ) async {
+    // The other shape of the same loop: the server keeps handing back a cursor
+    // beside an empty data array, so the rows never grow, the viewport is never
+    // filled, and nothing ever says stop.
+    int requests = 0;
+    Http.fake((MagicRequest request) {
+      requests++;
+
+      return request.queryParameters?['cursor'] == null
+          ? Http.response(_page(<int>[1, 2, 3], next: 'cur-2'), 200)
+          : Http.response(_page(<int>[], next: 'cur-3'), 200);
+    });
+    final MagicPaginator<_Row> paginator = MagicPaginator<_Row>(
+      url: 'rows',
+      fromMap: _Row.fromMap,
+    );
+    await paginator.loadFirst();
+
+    await tester.pumpWidget(
+      _host(
+        MagicPaginatedListView<_Row>(
+          paginator: paginator,
+          itemBuilder: (_, _Row row, _) =>
+              SizedBox(height: 50, child: Text('row ${row.id}')),
+        ),
+        height: 600,
+      ),
+    );
+    for (int frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(
+      requests,
+      lessThanOrEqualTo(2),
+      reason: 'a page that added nothing is not worth asking for again',
+    );
+  });
+
   testWidgets('an empty result renders the empty state', (
     WidgetTester tester,
   ) async {
