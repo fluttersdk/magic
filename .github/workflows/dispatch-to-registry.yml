@@ -1,8 +1,14 @@
 # Auto-sync the FlutterSDK AI registry when a magic release is published.
 #
-# Fires repository_dispatch at fluttersdk/ai on a published GitHub release, or
-# on a manual run. The registry's sync.yml receives the event, pulls the
-# skills/magic-framework/ subtree, bumps the version triplet, and pushes to main.
+# Called by publish.yml after its github-release job, so the dispatch happens
+# only once pub.dev has actually accepted the release. It is NOT triggered by
+# `release: [published]`, which is what it used to declare: the release is
+# created under the default GITHUB_TOKEN, and GitHub does not start workflow
+# runs from events raised by that token, so the trigger could never fire and
+# never did. Between 2026-08-03 and 2026-08-30 every skill change reached the
+# registry by hand or not at all. The registry's sync.yml receives the event,
+# pulls the skills/magic-framework/ subtree, bumps the version triplet, and
+# pushes to main.
 #
 # Deliberately NOT on every push. A skill edit that lands on master between
 # releases waits for the release that carries it, so the registry version
@@ -18,8 +24,12 @@
 name: Dispatch skill update to registry
 
 on:
-    release:
-        types: [published]
+    workflow_call:
+        secrets:
+            REGISTRY_BOT_APP_ID:
+                required: true
+            REGISTRY_BOT_PRIVATE_KEY:
+                required: true
     workflow_dispatch:
 
 permissions:
