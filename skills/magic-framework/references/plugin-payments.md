@@ -59,7 +59,7 @@ Billing is split into three contracts, and the split is the API. `BillingService
 | Contract | Methods |
 |:---------|:--------|
 | `BillingService` | `currentEntitlement()`, `getPlans()`, `getUsage()`, `getInvoices({cursor})`, `getPaymentMethod()` |
-| `WebBillingService` | `checkout({...})`, `swap({plan, cycle})`, `cancel()`, `openPortal({returnUrl})` |
+| `WebBillingService` | `checkout({plan, cycle, successUrl, cancelUrl})`, `swap({plan, cycle})`, `cancel()`, `openPortal({returnUrl})` |
 | `StoreBillingService` | `identify(appUserId)`, `purchase({plan})`, `restore()`, `openStoreManagement()` |
 
 ## Payments Facade API
