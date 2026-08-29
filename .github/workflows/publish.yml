@@ -35,3 +35,45 @@ jobs:
     permissions:
       id-token: write # Required for authentication using OIDC
     uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1.8.0
+
+  github-release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Extract release notes from CHANGELOG
+        id: extract
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "No CHANGELOG section found for [$VERSION]; falling back to a stub." >&2
+            echo "Release $VERSION. See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md) for details." > /tmp/release-notes.md
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ steps.extract.outputs.version }}
+          body_path: /tmp/release-notes.md
+
+  # Called here rather than triggered by `release: [published]`, which is what
+  # dispatch-to-registry.yml used to declare. The release above is created by
+  # softprops/action-gh-release under the default GITHUB_TOKEN, and GitHub does
+  # not start workflow runs from events raised by that token, so that trigger
+  # could never fire: this repo's last GitHub release was v0.0.3 in June, six
+  # pub.dev releases ago, and the registry only ever moved when someone ran the
+  # dispatch by hand. Sequencing it after github-release also keeps the registry
+  # version tracking releases pub.dev has actually accepted.
+  registry:
+    name: Sync skill to registry
+    needs: github-release
+    uses: ./.github/workflows/dispatch-to-registry.yml
+    secrets:
+      REGISTRY_BOT_APP_ID: ${{ secrets.REGISTRY_BOT_APP_ID }}
+      REGISTRY_BOT_PRIVATE_KEY: ${{ secrets.REGISTRY_BOT_PRIVATE_KEY }}

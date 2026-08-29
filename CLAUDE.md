@@ -33,7 +33,7 @@ Update each in the same change set, before reporting work done:
 1. **`CHANGELOG.md`** — entry under `## [Unreleased]` (BREAKING / Added / Changed / Removed / Fixed / Improvements).
 2. **`doc/`**: when a facade/feature changes, (1) update the matching `doc/**` page, (2) verify every documented method exists in the facade/source, (3) keep TOC entries and anchors consistent, (4) for brand-new features add the section to its canonical home. See `doc/contributing/documentation.md` for the authoring guide.
 3. **`README.md`** — only when overview-worthy (new facade, public API surface, top-level feature).
-4. **`skills/magic-framework/`** — `SKILL.md` + the matching `references/<topic>.md` when facades/APIs/patterns change; bump the `SKILL.md` version line. Downstream mirror to `fluttersdk/ai` is automated (dispatch-to-registry on tag / `skills/**` push); no manual mirror step.
+4. **`skills/magic-framework/`** — `SKILL.md` + the matching `references/<topic>.md` when facades/APIs/patterns change; bump the `SKILL.md` version line. The downstream mirror to `fluttersdk/ai` rides the RELEASE, not the push: `publish.yml` calls `dispatch-to-registry.yml` after its github-release job, so a skill edit that lands on master reaches the registry when the release carrying it does. A fix that cannot wait gets a manual `gh workflow run dispatch-to-registry.yml`.
 5. **`example/`** — update or add usage for changed/new features.
 
 Scaffolding caveat: changes to facade APIs, config domains, base classes, or core providers also touch the `make:*` stubs + `install.yaml`. The stub-sync matrix lives in `CLAUDE.local.md`.
@@ -99,5 +99,5 @@ GitHub Flow, one long-lived `master`. Task branches (`feat/* | fix/* | chore/* |
 ## CI
 
 - `ci.yml` (push/PR): `flutter pub get` → `flutter analyze --no-fatal-infos` → `dart format --set-exit-if-changed .` → `flutter test --coverage`.
-- `publish.yml` (tag `[0-9]+.[0-9]+.[0-9]+*`): validate (analyze + format + test) → OIDC publish to pub.dev.
-- `dispatch-to-registry.yml`: on tag / `skills/magic-framework/**` change, dispatches the skill sync to `fluttersdk/ai`.
+- `publish.yml` (tag `[0-9]+.[0-9]+.[0-9]+*`): validate (analyze + format + test) → OIDC publish to pub.dev → GitHub release from the CHANGELOG section → registry sync.
+- `dispatch-to-registry.yml`: `workflow_call` from `publish.yml` (after `github-release`) plus `workflow_dispatch`, dispatches the skill sync to `fluttersdk/ai`. It used to declare `release: [published]`, which could never fire: the release is created under the default `GITHUB_TOKEN` and GitHub does not start workflow runs from events that token raises. Six pub.dev releases went out between the last GitHub release and the discovery.
