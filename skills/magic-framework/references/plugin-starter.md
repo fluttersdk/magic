@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.1-alpha.22 | Updated: 2026-08-29 -->
+<!-- magic_starter v0.0.1-alpha.23 | Updated: 2026-08-29 -->
 
 # magic_starter Plugin
 
@@ -248,7 +248,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'social_login': true,
     'notifications': true,
     'timezones': false,
-    'billing': false,          // gates `teams.billing`; absent from the generated stub, add it by hand
+    'billing': false,          // gates `teams.billing` (alpha.23+ ships it in the generated stub)
   },
   'auth': {
     'email': true,    // Email-based login/register
@@ -266,6 +266,10 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'teams_prefix': '/teams',
     'profile_prefix': '/settings',
     'notifications_prefix': '/notifications',
+    'billing': '/teams/billing',
+  },
+  'billing': {
+    'web_origin': null,   // REQUIRED once billing is on, and no default exists
   },
   'legal': {
     'terms_url': null,    // Shows ToS link on register page when set
@@ -274,7 +278,12 @@ Copy from `lib/config/magic_starter.dart` into your app config:
 },
 ```
 
-All 13 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+All 14 features default to `false` in code. The template above has some enabled as a reasonable starting point.
+
+`billing.web_origin` carries no default on purpose, and its absence fails SILENTLY. The billing view
+concatenates it into Stripe's `successUrl`, `cancelUrl` and the portal `returnUrl`, Stripe rejects a
+relative url, and the resulting `BillingException` is logged rather than shown, so the customer sees a
+checkout button that does nothing. `starter:doctor` reports the missing key (alpha.23+).
 
 ## View Registry
 
