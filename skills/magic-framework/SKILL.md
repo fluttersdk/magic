@@ -1,11 +1,11 @@
 ---
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
-when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.9
+when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
+version: 0.1.10
 ---
 
-<!-- magic 0.0.9 | Skill v0.1.9 (2026-08-26). API surface verified against lib/src. -->
+<!-- magic 0.0.9 | Skill v0.1.10 (2026-08-29). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -360,6 +360,7 @@ Official plugins, each its own package + service provider + config. When a user 
 | Push + in-app notifications | `magic_notifications` | `Notify` facade | `references/plugin-notifications.md` |
 | Social login (Google/Microsoft/GitHub) | `magic_social_auth` | `SocialAuth` facade | `references/plugin-social-auth.md` |
 | Pre-built auth/profile/team screens | `magic_starter` | `MagicStarter` facade | `references/plugin-starter.md` |
+| Subscriptions + billing (Stripe on web, store IAP on mobile) | `magic_payments` | `Payments` facade | `references/plugin-payments.md` |
 | E2E (dusk) + runtime inspection (telescope) + component previews | `magic_devtools` | `MagicDevtools`, `MagicPreview` | `references/plugin-devtools.md` |
 
 `magic_devtools` is a REGULAR dependency loaded under `kDebugMode` so it tree-shakes out of release builds. Two calls straddle the bootstrap: `MagicDevtools.installPre()` before `Magic.init()` (boots the dusk + telescope plugins and telescope's `ExceptionWatcher` + `DumpWatcher`), `MagicDevtools.installPost()` after it (wires `MagicTelescopeIntegration` + `MagicDuskIntegration`, which resolve through the container). Keep `kDebugMode` at the call site, never inside the methods, or the release tree-shake breaks. `dart run magic:artisan magic:install --with-devtools` wires all of it in one step. Use it to drive and inspect a running app when verifying your work.
@@ -389,5 +390,5 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `references/testing-patterns.md` | tests: `MagicTest`, facade fakes, fetch helpers, controller/model/middleware testing |
 | `references/cli-commands.md` | the artisan `make:*` generators, `magic:install`, `make:component`, `previews:refresh`, `design:sync`, `design:lint` |
 | `references/community.md` | the star / issue CTA flow (load before surfacing either) |
-| `references/plugin-deeplink.md` / `-notifications.md` / `-social-auth.md` / `-starter.md` / `-devtools.md` | the matching ecosystem plugin |
+| `references/plugin-deeplink.md` / `-notifications.md` / `-social-auth.md` / `-starter.md` / `-payments.md` / `-devtools.md` | the matching ecosystem plugin |
 | `references/templates.md` | full copy-paste templates: Model, Controller, View, FormData, Provider, Middleware |
