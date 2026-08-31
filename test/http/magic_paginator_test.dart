@@ -786,4 +786,254 @@ void main() {
       );
     });
   });
+
+  group('MagicPaginator loading states', () {
+    /// Records what the three flags said on every notification that arrived
+    /// while a request was in flight.
+    ///
+    /// The distinction only exists DURING a request, so awaiting the future and
+    /// then reading the flags can only ever observe the resting state. A
+    /// listener is what sees the middle.
+    List<(bool refreshing, bool loadingMore)> watchInFlight(
+      MagicPaginator<_Row> paginator,
+    ) {
+      final states = <(bool, bool)>[];
+
+      paginator.addListener(() {
+        if (paginator.isLoading) {
+          states.add((paginator.isRefreshing, paginator.isLoadingMore));
+        }
+      });
+
+      return states;
+    }
+
+    test('a first load is neither a refresh nor a load more', () async {
+      Http.fake(
+        (_) => Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+      final states = watchInFlight(paginator);
+
+      await paginator.loadFirst();
+
+      expect(states, isNotEmpty, reason: 'the in-flight notify has to arrive');
+      expect(
+        states.every(((bool, bool) s) => !s.$1 && !s.$2),
+        isTrue,
+        reason:
+            'there are no rows to keep and no page to append, so a list shows '
+            'its skeleton here rather than a footer',
+      );
+    });
+
+    test('a refresh over rows already held is a refresh', () async {
+      Http.fake(
+        (_) => Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+      await paginator.loadFirst();
+      final states = watchInFlight(paginator);
+
+      await paginator.refresh();
+
+      expect(states, isNotEmpty);
+      expect(
+        states.every(((bool, bool) s) => s.$1 && !s.$2),
+        isTrue,
+        reason:
+            'the rows on screen are still true until the answer lands, so this '
+            'is the state that must NOT blank them out',
+      );
+    });
+
+    test('the page after the first is a load more', () async {
+      Http.fake((MagicRequest request) {
+        return request.queryParameters?['cursor'] == null
+            ? Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200)
+            : Http.response(_cursorPage(<int>[2]), 200);
+      });
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+      await paginator.loadFirst();
+      final states = watchInFlight(paginator);
+
+      await paginator.loadMore();
+
+      expect(states, isNotEmpty);
+      expect(
+        states.every(((bool, bool) s) => !s.$1 && s.$2),
+        isTrue,
+        reason: 'this is the one that earns a footer under the last row',
+      );
+    });
+
+    test('nothing is loading once the page has landed', () async {
+      Http.fake(
+        (_) => Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.isLoading, isFalse);
+      expect(paginator.isRefreshing, isFalse);
+      expect(paginator.isLoadingMore, isFalse);
+    });
+
+    test('a failed page leaves none of the three set', () async {
+      Http.fake((_) => Http.response(<String, dynamic>{}, 500));
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.error, isNotNull);
+      expect(paginator.isLoading, isFalse);
+      expect(paginator.isRefreshing, isFalse);
+      expect(paginator.isLoadingMore, isFalse);
+    });
+  });
+
+  group('MagicPaginator total', () {
+    test('reads the total the server sent', () async {
+      Http.fake(
+        (_) => Http.response(
+          _offsetPage(<int>[1, 2], currentPage: 1, lastPage: 3),
+          200,
+        ),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+
+      expect(
+        paginator.total,
+        6,
+        reason:
+            'how many rows MATCH, which is what a header counts; `items.length` '
+            'is only how many have been fetched',
+      );
+    });
+
+    test('is null when the envelope carries none', () async {
+      // Laravel's `cursorPaginate()` deliberately does not count, so a cursor
+      // collection has no total and must not invent one from the page in hand.
+      Http.fake(
+        (_) => Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200),
+      );
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.total, isNull);
+    });
+
+    test('a later page that omits the total does not erase it', () async {
+      Http.fake((MagicRequest request) {
+        return request.queryParameters?['page'] == null
+            ? Http.response(
+                _offsetPage(<int>[1], currentPage: 1, lastPage: 2),
+                200,
+              )
+            : Http.response(<String, dynamic>{
+                'data': <Map<String, dynamic>>[
+                  <String, dynamic>{'id': 2},
+                ],
+                'meta': <String, dynamic>{'current_page': 2, 'last_page': 2},
+              }, 200);
+      });
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+      await paginator.loadFirst();
+
+      await paginator.loadMore();
+
+      expect(
+        paginator.total,
+        2,
+        reason: 'a page that says nothing about the count changes nothing',
+      );
+    });
+  });
+
+  group('MagicPaginator loadedPages', () {
+    test('counts the pages in hand', () async {
+      Http.fake((MagicRequest request) {
+        return request.queryParameters?['cursor'] == null
+            ? Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200)
+            : Http.response(_cursorPage(<int>[2], next: 'cur-3'), 200);
+      });
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+      expect(paginator.loadedPages, 1);
+
+      await paginator.loadMore();
+      expect(paginator.loadedPages, 2);
+    });
+
+    test(
+      'is zero before the first page and one again after a refresh',
+      () async {
+        Http.fake(
+          (_) => Http.response(_cursorPage(<int>[1], next: 'cur-2'), 200),
+        );
+        final paginator = MagicPaginator<_Row>(
+          url: 'checks',
+          fromMap: _Row.fromMap,
+        );
+
+        expect(paginator.loadedPages, 0);
+
+        await paginator.loadFirst();
+        await paginator.loadMore();
+        await paginator.refresh();
+
+        expect(
+          paginator.loadedPages,
+          1,
+          reason:
+              'a refresh rebuilds the collection from its first page, so the '
+              'count is of what is HELD rather than of requests made',
+        );
+      },
+    );
+
+    test('a failed first page counts nothing', () async {
+      Http.fake((_) => Http.response(<String, dynamic>{}, 500));
+      final paginator = MagicPaginator<_Row>(
+        url: 'checks',
+        fromMap: _Row.fromMap,
+      );
+
+      await paginator.loadFirst();
+
+      expect(paginator.loadedPages, 0);
+    });
+  });
 }
