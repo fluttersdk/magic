@@ -459,6 +459,56 @@ void main() {
     expect(find.text('loading more'), findsNothing);
   });
 
+  testWidgets('a refresh does not wear the loading-more footer', (
+    WidgetTester tester,
+  ) async {
+    // The footer says "there is more, and it is on its way". A refresh is the
+    // opposite statement: the rows are being REPLACED, and nothing is being
+    // appended under them. Read off `isLoading` alone the two are the same
+    // fact, so every filter change grew a footer promising a page that was
+    // never requested.
+    //
+    // `nextCursor: null` keeps the viewport-fill out of this: with nothing more
+    // to fetch it never runs, so the only request in flight is the refresh.
+    final Completer<void> refreshed = Completer<void>();
+    int calls = 0;
+    final MagicPaginator<_Row> paginator = MagicPaginator<_Row>.fetcher(
+      fetch: (MagicPageRequest request) async {
+        calls++;
+        if (calls > 1) await refreshed.future;
+
+        return const MagicPage<_Row>(items: <_Row>[_Row(0)]);
+      },
+    );
+    await paginator.loadFirst();
+
+    await tester.pumpWidget(
+      _host(
+        MagicPaginatedListView<_Row>(
+          paginator: paginator,
+          itemBuilder: (_, _Row row, _) =>
+              SizedBox(height: 50, child: Text('row ${row.id}')),
+          loadingFooter: const Text('loading more'),
+        ),
+        height: 600,
+      ),
+    );
+    await tester.pump();
+
+    unawaited(paginator.refresh());
+    await tester.pump();
+
+    expect(find.text('loading more'), findsNothing);
+    expect(
+      find.text('row 0'),
+      findsOneWidget,
+      reason: 'and the rows the reader is looking at stay while it happens',
+    );
+
+    refreshed.complete();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('an empty result renders the empty state', (
     WidgetTester tester,
   ) async {

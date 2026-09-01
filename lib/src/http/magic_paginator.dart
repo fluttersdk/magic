@@ -182,8 +182,11 @@ class MagicPaginator<E> extends ChangeNotifier {
   String? _nextCursor;
   int _currentPage = 0;
   int? _lastPage;
+  int? _total;
+  int _loadedPages = 0;
   bool _hasMore = false;
   bool _isLoading = false;
+  bool _isReset = true;
   String? _error;
   bool _loaded = false;
   bool _disposed = false;
@@ -209,6 +212,37 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// Whether a request is in flight.
   bool get isLoading => _isLoading;
 
+  /// Whether the collection is being rebuilt from its first page UNDER rows it
+  /// is already holding.
+  ///
+  /// A list has three loading states and one flag cannot carry them: a first
+  /// load shows a skeleton, a refresh keeps the rows the reader is looking at
+  /// and says more is coming, and a next page puts a footer under the last row.
+  /// Read [isLoading] alone and the second and third are indistinguishable, so
+  /// a refresh grows a "loading more" footer it has not earned and a screen that
+  /// blanks itself on [isLoading] flashes its skeleton on every filter change.
+  ///
+  /// False on the first load, because there is nothing on screen to preserve.
+  ///
+  /// ## The one window where these describe the REQUEST rather than the ask
+  ///
+  /// A [refresh] arriving while a [loadMore] is in flight is deferred rather than
+  /// started (see [_load]), so until that page lands this still reports
+  /// `isLoadingMore` and not `isRefreshing`: a footer stays up through a
+  /// pull-to-refresh that has been asked for and not yet begun. That is the
+  /// honest reading of what is happening on the wire, since a next page really
+  /// is in flight and really will append, and it is the only path where the two
+  /// flags do not follow the caller's most recent request. A screen that must
+  /// show its refresh indicator immediately owns that state itself; these
+  /// describe the request.
+  bool get isRefreshing => _isLoading && _isReset && _items.isNotEmpty;
+
+  /// Whether the page AFTER the last one read is in flight.
+  ///
+  /// The state a footer belongs to. See [isRefreshing] for why the three are
+  /// separate.
+  bool get isLoadingMore => _isLoading && !_isReset;
+
   /// The message from the last failed request, cleared by the next success.
   String? get error => _error;
 
@@ -224,6 +258,30 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// On the fetcher path it is [PaginationMode.fetcher], because the source
   /// is behind a callback and this class does not know.
   PaginationMode get mode => _mode;
+
+  /// How many rows MATCH on the server, or null when nothing has said.
+  ///
+  /// Read from `meta.total`, so it is the count of the whole collection rather
+  /// than of the pages in hand: `items.length` answers "how much have I
+  /// fetched", and a header saying "11 of 240" needs the other number. Null on
+  /// a cursor collection, because Laravel's `cursorPaginate()` deliberately
+  /// does not count, and null is the honest answer there rather than a total
+  /// invented from the page that happens to be loaded.
+  ///
+  /// A page that omits the key leaves the last known value alone, so a
+  /// paginated endpoint that only sends the count on page one keeps it.
+  int? get total => _total;
+
+  /// How many pages are currently held.
+  ///
+  /// Of what is HELD, not of requests made: a refresh rebuilds the collection
+  /// from its first page and puts this back to one, and a failed page counts
+  /// nothing. A screen that writes its position into a URL wants this rather
+  /// than the cursor, because a cursor names a position in ONE ordered result:
+  /// shared, it drops the reader into the middle of a list with nothing above
+  /// it, and points nowhere once that row is renamed or deleted. A count
+  /// re-fetches pages one to N, which is the same rows with the top intact.
+  int get loadedPages => _loadedPages;
 
   /// Increments each time the collection is rebuilt from its first page.
   ///
@@ -315,6 +373,11 @@ class MagicPaginator<E> extends ChangeNotifier {
 
   Future<void> _run({required bool reset}) async {
     _isLoading = true;
+    // Set with the flag rather than derived afterwards, because `isRefreshing`
+    // and `isLoadingMore` are read from the notification below, while the
+    // request is still in flight. That is the only moment they can be read at
+    // all: by the time a caller can await the future, all three are false.
+    _isReset = reset;
     _error = null;
     _notify();
 
@@ -376,6 +439,7 @@ class MagicPaginator<E> extends ChangeNotifier {
     }
 
     _loaded = true;
+    _loadedPages++;
   }
 
   /// Runs one page through [fetch].
@@ -404,6 +468,7 @@ class MagicPaginator<E> extends ChangeNotifier {
       _nextCursor = page.nextCursor;
       _hasMore = page.hasMore;
       _loaded = true;
+      _loadedPages++;
     } on Exception catch (error) {
       // `on Exception`, not a bare catch. An Error out of a fetcher (a bad cast,
       // a failed assertion) is THIS CODE being wrong rather than the source
@@ -443,6 +508,16 @@ class MagicPaginator<E> extends ChangeNotifier {
       _hasMore = false;
 
       return;
+    }
+
+    // Read before the mode branches, because it is not a property of either
+    // one: `paginate()` sends it, `cursorPaginate()` does not, and a fetcher's
+    // source may or may not. `containsKey` rather than a plain read, so a page
+    // that says nothing about the count leaves the last known one alone instead
+    // of erasing it, which is what an endpoint sending the total on page one
+    // only would otherwise do on page two.
+    if (meta.containsKey('total')) {
+      _total = (meta['total'] as num?)?.toInt();
     }
 
     // `next_cursor` is present and null on the LAST cursor page, so the KEY
@@ -499,6 +574,12 @@ class MagicPaginator<E> extends ChangeNotifier {
     _nextCursor = null;
     _currentPage = 0;
     _lastPage = null;
+    // Cleared with the rows rather than kept: a reset is usually a different
+    // QUESTION (a filter changed, a search narrowed), so the previous count is
+    // about a collection that no longer exists. The next page writes the new
+    // one, and until it lands the honest answer is that nothing has said.
+    _total = null;
+    _loadedPages = 0;
     _hasMore = false;
   }
 }

@@ -186,8 +186,14 @@ class _MagicPaginatedListViewState<E> extends State<MagicPaginatedListView<E>> {
     }
 
     final List<E> items = paginator.items;
+    // `isLoadingMore`, not `isLoading`. The footer means "there is more, and it
+    // is on its way", which a REFRESH is not: those rows are being replaced
+    // rather than added to. Read off the general flag, every refresh over a
+    // non-empty list grew a footer promising a page nothing had asked for.
     final bool showFooter =
-        widget.loadingFooter != null && paginator.isLoading && items.isNotEmpty;
+        widget.loadingFooter != null &&
+        paginator.isLoadingMore &&
+        items.isNotEmpty;
     final int itemCount = items.length + (showFooter ? 1 : 0);
 
     Widget rowAt(BuildContext context, int index) {

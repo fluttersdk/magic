@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`MagicPaginator.isRefreshing` and `.isLoadingMore`, because a list has three loading states and one flag cannot carry them.** A first load shows a skeleton, a refresh keeps the rows the reader is already looking at, and a next page puts a footer under the last row. Read off `isLoading` alone the second and third are indistinguishable, so a screen either blanks itself on every filter change or grows a footer promising a page nothing asked for. Both are false on a first load (nothing on screen to preserve, nothing being appended) and all three are false once the request lands. The distinction only exists DURING a request, which is why `_isReset` is set beside `_isLoading` and before the notification rather than derived afterwards: by the time a caller can await the future there is nothing left to tell apart. One window is documented rather than changed: a `refresh()` deferred behind an in-flight `loadMore()` keeps reporting `isLoadingMore` until that page lands, which is what is happening on the wire and the only path where the flags follow the request rather than the caller's most recent ask. (`lib/src/http/magic_paginator.dart`)
+
+- **`MagicPaginator.total`, read from `meta.total`.** The size of the collection rather than of the pages in hand: `items.length` answers "how much have I fetched", and a header reading "11 of 240" needs the other number, which a consumer previously had to fetch a second time or parse out of a response this class had already parsed. Null on a cursor collection, because Laravel's `cursorPaginate()` deliberately does not count and a total invented from the loaded page would be wrong rather than approximate. Read with `containsKey` before the mode branches, so a page that says nothing about the count leaves the last known value alone: an endpoint sending the total on page one only would otherwise have it erased by page two. Cleared on a reset, since a reset is usually a different question and the previous count describes a collection that no longer exists. (`lib/src/http/magic_paginator.dart`)
+
+- **`MagicPaginator.loadedPages`.** Counts what is HELD, not requests made: a `refresh()` puts it back to one and a failed page counts nothing. A screen that writes its position into a URL wants this rather than the cursor, because a cursor names a position in ONE ordered result: shared, it drops the reader into the middle of a list with nothing above it, and points nowhere once that row is renamed or deleted. A page count re-fetches pages one to N, which is the same rows with the top intact. (`lib/src/http/magic_paginator.dart`)
+
+### Fixed
+
+- **`MagicPaginatedListView` wore its loading footer through a refresh.** The footer means "there is more, and it is on its way", and a refresh is the opposite statement: those rows are being replaced rather than added to. It was gated on `isLoading && items.isNotEmpty`, which a refresh over a non-empty list satisfies, so every pull-to-refresh and every filter change grew a footer promising a page that had not been requested. Now gated on `isLoadingMore`. Covered by `a refresh does not wear the loading-more footer`, which holds the window open with a fetcher `Completer` because `Http.fake` answers synchronously and `tester.pump()` drains microtasks before it builds. (`lib/src/ui/magic_paginated_list_view.dart`)
+
 ## [0.0.9] - 2026-08-26
 
 ### Added

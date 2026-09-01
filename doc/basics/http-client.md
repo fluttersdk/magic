@@ -169,14 +169,46 @@ await checks.loadFirst();   // first page
 await checks.loadMore();    // append the next one
 await checks.refresh();     // start over from page one
 
-checks.items;      // every row so far, oldest page first
-checks.hasMore;    // is there another page
-checks.isLoading;  // a request is in flight
-checks.error;      // the last failure, cleared by the next success
-checks.isEmpty;    // a first page arrived and held nothing
-checks.mode;       // cursor, offset or single, read from the response
-checks.generation; // bumps on every landed reset
+checks.items;         // every row so far, oldest page first
+checks.total;         // how many rows MATCH on the server, or null
+checks.hasMore;       // is there another page
+checks.loadedPages;   // how many pages are held
+checks.isLoading;     // a request is in flight
+checks.isRefreshing;  // ...rebuilding page one under rows already on screen
+checks.isLoadingMore; // ...fetching the page after the last one
+checks.error;         // the last failure, cleared by the next success
+checks.isEmpty;       // a first page arrived and held nothing
+checks.mode;          // cursor, offset or single, read from the response
+checks.generation;    // bumps on every landed reset
 ```
+
+### Three Loading States, Not One
+
+A list renders a loading state three different ways and `isLoading` cannot tell them apart on its own:
+
+| State | What the screen does |
+|---|---|
+| first load, nothing on screen | render a skeleton |
+| `isRefreshing`, rows already held | keep the rows, say more is coming |
+| `isLoadingMore` | put a footer under the last row |
+
+Blanking a list the reader is already looking at on every filter change is a flash for no information: the rows are still true until the answer lands. And a footer during a refresh promises a page nothing asked for. `MagicPaginatedListView` reads `isLoadingMore` for exactly this reason.
+
+Both are false on a first load, since there is nothing on screen to preserve and no page being appended, and all three are false once the request lands.
+
+> [!NOTE]
+> A `refresh()` arriving while a `loadMore()` is in flight is deferred rather than started, so until that page lands the paginator still reports `isLoadingMore` and not `isRefreshing`: a footer stays up through a refresh that has been asked for and not yet begun. That is what is happening on the wire, and it is the only path where the flags follow the REQUEST rather than the caller's most recent ask. A screen that must show its refresh indicator immediately owns that state itself.
+
+### The Total
+
+`total` reads `meta.total`, so it is the size of the whole collection rather than of the pages in hand: `items.length` answers "how much have I fetched", and a header reading "11 of 240" needs the other number.
+
+> [!NOTE]
+> It is null on a cursor collection. Laravel's `cursorPaginate()` deliberately does not count, and null is the honest answer there rather than a total invented from the page that happens to be loaded. A later page that omits the key leaves the last known value alone, so an endpoint that sends the count on page one only keeps it.
+
+### The Page Count
+
+`loadedPages` counts what is HELD rather than requests made: a `refresh()` puts it back to one and a failed page counts nothing. A screen that writes its position into a URL wants this rather than the cursor, because a cursor names a position in one ordered result: shared, it drops the reader into the middle of a list with nothing above it, and points nowhere once that row is renamed or deleted. A page count re-fetches pages one to N, which is the same rows with the top intact.
 
 `generation` exists for views that throttle themselves. A list that stops asking once a page adds no rows has to tell that from a fresh first page of the same length, and a row count alone cannot; compare the generation beside it and a `refresh()` re-arms whatever the count had disarmed.
 
