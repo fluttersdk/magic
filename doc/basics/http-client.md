@@ -196,12 +196,17 @@ Blanking a list the reader is already looking at on every filter change is a fla
 
 Both are false on a first load, since there is nothing on screen to preserve and no page being appended, and all three are false once the request lands.
 
+> [!NOTE]
+> A `refresh()` arriving while a `loadMore()` is in flight is deferred rather than started, so until that page lands the paginator still reports `isLoadingMore` and not `isRefreshing`: a footer stays up through a refresh that has been asked for and not yet begun. That is what is happening on the wire, and it is the only path where the flags follow the REQUEST rather than the caller's most recent ask. A screen that must show its refresh indicator immediately owns that state itself.
+
 ### The Total
 
 `total` reads `meta.total`, so it is the size of the whole collection rather than of the pages in hand: `items.length` answers "how much have I fetched", and a header reading "11 of 240" needs the other number.
 
 > [!NOTE]
 > It is null on a cursor collection. Laravel's `cursorPaginate()` deliberately does not count, and null is the honest answer there rather than a total invented from the page that happens to be loaded. A later page that omits the key leaves the last known value alone, so an endpoint that sends the count on page one only keeps it.
+
+### The Page Count
 
 `loadedPages` counts what is HELD rather than requests made: a `refresh()` puts it back to one and a failed page counts nothing. A screen that writes its position into a URL wants this rather than the cursor, because a cursor names a position in one ordered result: shared, it drops the reader into the middle of a list with nothing above it, and points nowhere once that row is renamed or deleted. A page count re-fetches pages one to N, which is the same rows with the top intact.
 

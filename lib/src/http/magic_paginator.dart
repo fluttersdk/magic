@@ -223,6 +223,18 @@ class MagicPaginator<E> extends ChangeNotifier {
   /// blanks itself on [isLoading] flashes its skeleton on every filter change.
   ///
   /// False on the first load, because there is nothing on screen to preserve.
+  ///
+  /// ## The one window where these describe the REQUEST rather than the ask
+  ///
+  /// A [refresh] arriving while a [loadMore] is in flight is deferred rather than
+  /// started (see [_load]), so until that page lands this still reports
+  /// `isLoadingMore` and not `isRefreshing`: a footer stays up through a
+  /// pull-to-refresh that has been asked for and not yet begun. That is the
+  /// honest reading of what is happening on the wire, since a next page really
+  /// is in flight and really will append, and it is the only path where the two
+  /// flags do not follow the caller's most recent request. A screen that must
+  /// show its refresh indicator immediately owns that state itself; these
+  /// describe the request.
   bool get isRefreshing => _isLoading && _isReset && _items.isNotEmpty;
 
   /// Whether the page AFTER the last one read is in flight.
