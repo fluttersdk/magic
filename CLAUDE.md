@@ -91,6 +91,7 @@ Every `setUp()` MUST call `MagicApp.reset()` + `Magic.flush()` — it clears the
 | `ValidatesRequests` import | From `lib/src/concerns/`, not `http/` |
 | Web vs mobile DB | Web = in-memory SQLite (needs `web/sqlite3.wasm`), mobile = file-based |
 | `MagicResponse.errors` format | Parses Laravel's `{"errors": {"field": ["msg"]}}` |
+| Relative paths in `pubspec_overrides.yaml` | Use ABSOLUTE ones. `.worktreeinclude` copies that file into worktrees under `.claude/worktrees/<slug>`, where `../magic_starter` resolves to `.claude/worktrees/magic_starter` and version solving fails on the first path dependency |
 
 ## Branching & release
 
