@@ -39,8 +39,10 @@ final class FakePlatformFile extends PlatformFile {
   @override
   int? lengthSync() => reportedLength;
 
+  /// Mirrors every shipped platform file: hand back the size the picker
+  /// reported, and fall back to measuring the file when it reported none.
   @override
-  Future<int> length() async => content.length;
+  Future<int> length() async => reportedLength ?? content.length;
 
   @override
   Future<Uint8List> readAsBytes() async => content;
@@ -200,16 +202,18 @@ void main() {
       expect(await file!.readAsBytes(), [7, 8, 9]);
     });
 
-    test('leaves size null when the platform reports no length', () async {
+    test('measures the file when the picker reports no size', () async {
+      // The Windows and Linux pickers return a path and no size, so
+      // lengthSync() is null there and only length() answers.
       platform.singleFile = FakePlatformFile(
-        name: 'stream.bin',
-        uri: Uri.parse('content://downloads/1'),
-        content: Uint8List.fromList([1]),
+        name: 'export.bin',
+        uri: Uri.file('/tmp/export.bin'),
+        content: Uint8List.fromList([1, 2, 3, 4]),
       );
 
       final file = await Pick.file();
 
-      expect(file!.size, isNull);
+      expect(file!.size, 4);
     });
 
     test('leaves path null for a non-file uri', () async {

@@ -139,9 +139,9 @@ All `Pick` methods return `MagicFile` (or `List<MagicFile>`). This class provide
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `path` | `String?` | Original file path (null on Web, and on any pick the platform returned as a `content://` handle) |
+| `path` | `String?` | Original file path (null on Web, and on an Android pick the platform returned as a `content://` handle) |
 | `name` | `String` | File name with extension (e.g., 'photo.jpg') |
-| `size` | `int?` | File size in bytes, when the picker reported one. Null otherwise; `readAsBytes().length` is the fallback |
+| `size` | `int?` | File size in bytes. Filled for every picked file; null only for a `MagicFile` you constructed without one |
 | `mimeType` | `String?` | MIME type (e.g., 'image/jpeg') |
 | `extension` | `String` | Extension without dot (e.g., 'jpg') |
 | `isImage` | `bool` | True for: jpg, jpeg, png, gif, webp, bmp, heic |
@@ -348,4 +348,7 @@ await picker.FilePicker.pickFile(
 
 ### PlatformFile reads lazily
 
-If you call `FilePicker` directly rather than through `Pick`, note that `PlatformFile` is now an abstract class with no `size` and no `bytes` fields. Use `lengthSync()` (null when the picker did not report a size), `length()`, `readAsBytes()` and `readAsByteStream()` instead.
+If you call `FilePicker` directly rather than through `Pick`, note that `PlatformFile` is now an abstract class with no `size` and no `bytes` fields. Use `length()`, `readAsBytes()` and `readAsByteStream()` instead.
+
+> [!WARNING]
+> Prefer `length()` over `lengthSync()`. The synchronous reading only answers when the native picker reported a size, and the Windows dialog and the Linux XDG portal return a path and nothing else, so it is null for every desktop pick. `length()` falls back to measuring the file.

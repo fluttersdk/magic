@@ -304,7 +304,7 @@ class Pick {
       allowedExtensions: extensions,
     );
 
-    return file != null ? _platformFileToMagicFile(file) : null;
+    return file != null ? await _platformFileToMagicFile(file) : null;
   }
 
   /// Pick multiple files with optional extension filtering.
@@ -323,7 +323,7 @@ class Pick {
       allowedExtensions: extensions,
     );
 
-    return files.map(_platformFileToMagicFile).toList();
+    return Future.wait(files.map(_platformFileToMagicFile));
   }
 
   /// Pick a directory.
@@ -393,14 +393,17 @@ class Pick {
 
   /// Convert PlatformFile (from file_picker) to MagicFile.
   ///
-  /// [PlatformFile.lengthSync] reports the size the native picker already
-  /// knew and null when it reported none, which is why [MagicFile.size] can
-  /// come back null for a `content://` or `blob:` pick.
-  static MagicFile _platformFileToMagicFile(PlatformFile file) {
+  /// Size comes from [PlatformFile.length] rather than [PlatformFile.lengthSync]
+  /// because the Windows and Linux pickers return a path and no size, so the
+  /// synchronous reading is null for every desktop pick. `length()` returns the
+  /// size the picker reported when there is one (web and Android always report
+  /// it) and stats the file when there is not, so it costs I/O only where the
+  /// alternative was no answer at all.
+  static Future<MagicFile> _platformFileToMagicFile(PlatformFile file) async {
     return MagicFile(
       path: file.path,
       name: file.name,
-      size: file.lengthSync(),
+      size: await file.length(),
       mimeType: _getMimeType(file.name),
       bytesReader: file.readAsBytes,
     );
