@@ -333,6 +333,15 @@ void main() {
       expect(platform.lastSaveMimeType, 'application/octet-stream');
     });
 
+    test(
+      'falls back to a binary mime type when the name has no extension',
+      () async {
+        await Pick.saveFile(fileName: 'report', bytes: Uint8List.fromList([1]));
+
+        expect(platform.lastSaveMimeType, 'application/octet-stream');
+      },
+    );
+
     test('forwards an explicit mime type unchanged', () async {
       await Pick.saveFile(
         fileName: 'report.bin',
