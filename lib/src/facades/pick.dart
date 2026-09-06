@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 
 import '../storage/magic_file.dart';
 
@@ -286,30 +287,29 @@ class Pick {
 
   /// Pick a single file with optional extension filtering.
   ///
+  /// Bytes are read on demand through [MagicFile.readAsBytes] rather than
+  /// eagerly at pick time, so a large selection costs nothing until it is
+  /// stored or uploaded.
+  ///
   /// **Parameters:**
   /// - [extensions]: List of allowed extensions (without dot).
-  /// - [withData]: Load file bytes immediately (required for Web).
   ///
   /// ```dart
   /// final pdf = await Pick.file(extensions: ['pdf']);
   /// await pdf?.store('documents/report.pdf');
   /// ```
-  static Future<MagicFile?> file({
-    List<String>? extensions,
-    bool withData = true,
-  }) async {
-    final result = await FilePicker.pickFiles(
+  static Future<MagicFile?> file({List<String>? extensions}) async {
+    final file = await FilePicker.pickFile(
       type: extensions != null ? FileType.custom : FileType.any,
       allowedExtensions: extensions,
-      withData: withData,
     );
 
-    if (result == null || result.files.isEmpty) return null;
-
-    return _platformFileToMagicFile(result.files.first);
+    return file != null ? await _platformFileToMagicFile(file) : null;
   }
 
   /// Pick multiple files with optional extension filtering.
+  ///
+  /// Returns an empty list when the user cancels.
   ///
   /// ```dart
   /// final docs = await Pick.files(extensions: ['pdf', 'doc', 'docx']);
@@ -317,20 +317,13 @@ class Pick {
   ///   await doc.storeAs('uploads');
   /// }
   /// ```
-  static Future<List<MagicFile>> files({
-    List<String>? extensions,
-    bool withData = true,
-  }) async {
-    final result = await FilePicker.pickFiles(
-      allowMultiple: true,
+  static Future<List<MagicFile>> files({List<String>? extensions}) async {
+    final files = await FilePicker.pickFiles(
       type: extensions != null ? FileType.custom : FileType.any,
       allowedExtensions: extensions,
-      withData: withData,
     );
 
-    if (result == null) return [];
-
-    return result.files.map(_platformFileToMagicFile).toList();
+    return Future.wait(files.map(_platformFileToMagicFile));
   }
 
   /// Pick a directory.
@@ -349,35 +342,38 @@ class Pick {
 
   /// Open a save file dialog.
   ///
-  /// Returns the path where the user chose to save, or null if cancelled.
+  /// Returns the [Uri] the file was written to, or null if cancelled. The
+  /// scheme is platform-dependent: `file` on desktop and iOS, `content` on
+  /// Android SAF, `blob` on the web. Read [Uri.toFilePath] only after checking
+  /// for a `file` scheme.
   ///
   /// **Parameters:**
+  /// - [fileName]: File name to save as, extension included.
+  /// - [bytes]: Bytes to write to the file.
+  /// - [mimeType]: Content type to register the file under. Derived from
+  ///   [fileName]'s extension when omitted, falling back to
+  ///   `application/octet-stream`. Android SAF and the web browser both key
+  ///   the file association off this value.
   /// - [dialogTitle]: Title of the save dialog.
-  /// - [fileName]: File name to save as. Required; throws [ArgumentError] if null.
-  /// - [bytes]: Bytes to write to the file. Required; throws [ArgumentError] if null.
   ///
   /// ```dart
-  /// final savePath = await Pick.saveFile(
+  /// final savedTo = await Pick.saveFile(
   ///   fileName: 'report.pdf',
   ///   bytes: pdfBytes,
   /// );
   /// ```
-  static Future<String?> saveFile({
+  static Future<Uri?> saveFile({
+    required String fileName,
+    required Uint8List bytes,
+    String? mimeType,
     String? dialogTitle,
-    String? fileName,
-    Uint8List? bytes,
-  }) async {
-    // file_picker 12 made fileName and bytes required and non-null on
-    // FilePicker.saveFile; guard here so the nullable facade surface stays
-    // source-compatible across file_picker 11 and 12 and fails with a clear
-    // error instead of an unhelpful type error.
-    if (fileName == null || bytes == null) {
-      throw ArgumentError('Pick.saveFile requires both fileName and bytes.');
-    }
+  }) {
     return FilePicker.saveFile(
       dialogTitle: dialogTitle,
       fileName: fileName,
       bytes: bytes,
+      mimeType:
+          mimeType ?? _getMimeType(fileName) ?? 'application/octet-stream',
     );
   }
 
@@ -396,20 +392,33 @@ class Pick {
   }
 
   /// Convert PlatformFile (from file_picker) to MagicFile.
-  static MagicFile _platformFileToMagicFile(PlatformFile file) {
+  ///
+  /// Size comes from [PlatformFile.length] rather than [PlatformFile.lengthSync]
+  /// because the Windows and Linux pickers return a path and no size, so the
+  /// synchronous reading is null for every desktop pick. `length()` returns the
+  /// size the picker reported when there is one (web and Android always report
+  /// it) and stats the file when there is not, so it costs I/O only where the
+  /// alternative was no answer at all.
+  ///
+  /// Every shipped `length()` implementation returns 0 when that stat throws,
+  /// so a file removed or made unreadable between the pick and this call maps
+  /// to a size of 0 rather than to null. Callers guarding an upload limit read
+  /// 0 as "well under it"; see the same warning on [MagicFile.size].
+  static Future<MagicFile> _platformFileToMagicFile(PlatformFile file) async {
     return MagicFile(
       path: file.path,
       name: file.name,
-      size: file.size,
-      mimeType: _getMimeType(file.extension),
-      bytes: file.bytes,
-      bytesReader: file.path != null ? null : () async => file.bytes,
+      size: await file.length(),
+      mimeType: _getMimeType(file.name),
+      bytesReader: file.readAsBytes,
     );
   }
 
-  /// Get MIME type from extension.
-  static String? _getMimeType(String? extension) {
-    if (extension == null) return null;
+  /// Get the MIME type for [fileName], or null when its extension is missing
+  /// or unknown to the table below.
+  static String? _getMimeType(String fileName) {
+    final extension = p.extension(fileName);
+    if (extension.isEmpty) return null;
 
     const mimeTypes = {
       'jpg': 'image/jpeg',
@@ -441,6 +450,6 @@ class Pick {
       'rar': 'application/vnd.rar',
     };
 
-    return mimeTypes[extension.toLowerCase()];
+    return mimeTypes[extension.substring(1).toLowerCase()];
   }
 }

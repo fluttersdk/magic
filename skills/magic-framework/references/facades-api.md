@@ -510,10 +510,10 @@ Standalone facade; no container registration needed.
 | `Pick.media({double? maxWidth, double? maxHeight, int? imageQuality})` | `Future<MagicFile?>` | Pick image or video from gallery. |
 | `Pick.video({Duration? maxDuration})` | `Future<MagicFile?>` | Single video from gallery. |
 | `Pick.recordVideo({CameraDevice preferredCamera, Duration? maxDuration, bool fallbackToGallery, void Function(Object)? onError})` | `Future<MagicFile?>` | Record video with camera. |
-| `Pick.file({List<String>? extensions, bool withData = true})` | `Future<MagicFile?>` | Single file with optional extension filter. |
-| `Pick.files({List<String>? extensions, bool withData = true})` | `Future<List<MagicFile>>` | Multiple files with optional extension filter. |
+| `Pick.file({List<String>? extensions})` | `Future<MagicFile?>` | Single file with optional extension filter. Bytes read lazily via `MagicFile.readAsBytes()`. |
+| `Pick.files({List<String>? extensions})` | `Future<List<MagicFile>>` | Multiple files with optional extension filter; empty list if cancelled. |
 | `Pick.directory()` | `Future<String?>` | Pick a directory path (not supported on Web). |
-| `Pick.saveFile({String? dialogTitle, String? fileName, Uint8List? bytes})` | `Future<String?>` | Open save-file dialog; returns chosen path. |
+| `Pick.saveFile({required String fileName, required Uint8List bytes, String? mimeType, String? dialogTitle})` | `Future<Uri?>` | Open save-file dialog. Returns the written `Uri`; scheme may be `file`, `content` or `blob`. MIME type derived from `fileName` when omitted. |
 
 ```dart
 import 'package:magic/magic.dart';

@@ -12,7 +12,19 @@ export 'package:shared_preferences/shared_preferences.dart';
 export 'package:share_plus/share_plus.dart';
 export 'package:timezone/timezone.dart';
 export 'package:logger/logger.dart';
-export 'package:file_picker/file_picker.dart';
+// Named rather than blanket: file_picker 12 re-exports its platform interface,
+// whose AndroidOptions, LinuxOptions, WebOptions and WindowsOptions collide
+// with the flutter_secure_storage names exported above, and whose
+// FilePickerPlatform plumbing is not part of magic's public surface. Reach for
+// package:file_picker/file_picker.dart directly to configure per-platform
+// picker options.
+export 'package:file_picker/file_picker.dart'
+    show
+        FilePicker,
+        FilePickerStatus,
+        FileType,
+        IllegalCharacterInFileNameException,
+        PlatformFile;
 
 // Foundation
 export 'src/foundation/application.dart';

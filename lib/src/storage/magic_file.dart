@@ -39,6 +39,10 @@ class MagicFile {
   final String name;
 
   /// The file size in bytes.
+  ///
+  /// On a file that came from `Pick`, 0 can mean "the size could not be read"
+  /// as well as "empty": the platform pickers swallow a failing stat and answer
+  /// 0. Treat 0 as unknown before letting it pass a maximum-size check.
   final int? size;
 
   /// The MIME type (e.g., 'image/jpeg').

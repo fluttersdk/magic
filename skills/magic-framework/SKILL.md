@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.11
+version: 0.1.12
 ---
 
-<!-- magic 0.0.9 | Skill v0.1.11 (2026-08-31). API surface verified against lib/src. -->
+<!-- magic 0.0.9 | Skill v0.1.12 (2026-09-06). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -308,7 +308,8 @@ Six facades fake without any mock library: `Http.fake` (`FakeNetworkDriver`: `as
 | `Http.get()` or `MagicRoute.to()` in `build()` | call in `onInit()` or callbacks | no I/O or navigation during build |
 | `user.fill(unvalidated)` | `user.fill(validated, strict: true)` | catches schema drift after validation |
 | hand-rolled `if (!Gate.allows(...)) throw` | `authorize('ability')` in the controller | delegates to Gate, throws `AuthorizationException` |
-| `FilePicker.platform.pickFiles()` | `Pick.image()` / `Pick.file()` (or `FilePicker.pickFiles()`) | file_picker v11 is a static API |
+| `FilePicker.platform.pickFiles()` or `result.files` | `Pick.image()` / `Pick.file()` (or `FilePicker.pickFile()`) | file_picker v12 is static and returns `PlatformFile?` / `List<PlatformFile>`, no `FilePickerResult` |
+| `Pick.saveFile(...)` treated as a path | it returns `Uri?`; check `scheme == 'file'` before `toFilePath()` | Android SAF returns `content://`, web returns `blob:` |
 | four `MagicRoute.page()` for CRUD | `MagicRoute.resource(name, ctrl)` | auto-wires canonical routes + titles |
 | `import 'package:fluttersdk_magic/...'` | `import 'package:magic/magic.dart'` | the package is `magic` |
 | skipping reset in tests | `MagicTest.init()` (or `MagicApp.reset()` + `Magic.flush()` in `setUp`) | leaked state, false passes |
