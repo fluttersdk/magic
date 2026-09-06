@@ -10,7 +10,7 @@ The `Pick` facade provides a unified interface for accessing the device camera, 
     - [Properties](#properties)
     - [Methods](#methods)
 - [Complete Examples](#complete-examples)
-- [Upgrading to file_picker v11](#upgrading-to-file-picker-v11)
+- [Upgrading to file_picker v12](#upgrading-to-file-picker-v12)
 
 <a name="introduction"></a>
 ## Introduction
@@ -100,6 +100,35 @@ final List<MagicFile> files = await Pick.files(
 final String? directoryPath = await Pick.directory();
 ```
 
+### Saving a File
+
+`Pick.saveFile()` opens the platform save dialog, writes the bytes you hand it, and returns the location it wrote to.
+
+```dart
+final Uri? savedTo = await Pick.saveFile(
+  fileName: 'report.pdf',
+  bytes: pdfBytes,
+);
+```
+
+The return value is a `Uri` rather than a path because the scheme depends on where the platform put the file: `file` on desktop and iOS, `content` on Android's Storage Access Framework, `blob` on the web. Only a `file` uri can be turned back into a filesystem path.
+
+```dart
+if (savedTo != null && savedTo.scheme == 'file') {
+  print(savedTo.toFilePath()); // '/Users/me/Documents/report.pdf'
+}
+```
+
+The MIME type is derived from the file name's extension, so `report.pdf` is registered as `application/pdf`. Pass `mimeType` when the extension does not describe the content, and remember that Android and the browser both use this value to decide which app opens the file.
+
+```dart
+await Pick.saveFile(
+  fileName: 'export.bin',
+  bytes: exportBytes,
+  mimeType: 'application/json',
+);
+```
+
 <a name="magicfile-reference"></a>
 ## MagicFile Reference
 
@@ -110,9 +139,9 @@ All `Pick` methods return `MagicFile` (or `List<MagicFile>`). This class provide
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `path` | `String?` | Original file path (null on Web) |
+| `path` | `String?` | Original file path (null on Web, and on any pick the platform returned as a `content://` handle) |
 | `name` | `String` | File name with extension (e.g., 'photo.jpg') |
-| `size` | `int?` | File size in bytes |
+| `size` | `int?` | File size in bytes, when the picker reported one. Null otherwise; `readAsBytes().length` is the fallback |
 | `mimeType` | `String?` | MIME type (e.g., 'image/jpeg') |
 | `extension` | `String` | Extension without dot (e.g., 'jpg') |
 | `isImage` | `bool` | True for: jpg, jpeg, png, gif, webp, bmp, heic |
@@ -256,41 +285,67 @@ Future<void> uploadGallery() async {
 }
 ```
 
-<a name="upgrading-to-file-picker-v11"></a>
-## Upgrading to file_picker v11
+<a name="upgrading-to-file-picker-v12"></a>
+## Upgrading to file_picker v12
 
-Magic uses `file_picker ^11.0.2`. If you are migrating a project that pinned an older version, this section describes the breaking changes.
+Magic uses `file_picker ^12.2.0`. v12 splits the plugin into federated platform packages and changes enough of the API that a single call site cannot compile against both majors, so magic targets v12 only. Most of that is absorbed by the `Pick` facade, but three things reach your code.
 
-### Static API (breaking change)
+### Pick.saveFile returns a Uri
 
-`file_picker` v11 removed the `FilePicker.platform` instance accessor. All methods are now called directly on the `FilePicker` class as static methods.
+`Pick.saveFile()` used to return the chosen path as a `String?`. It now returns the `Uri?` the file was written to, because v12 can write to places that have no filesystem path: Android's Storage Access Framework hands back a `content://` handle, and the web hands back a `blob:` url.
 
-**Before (v10 and earlier):**
-
-```dart
-// Old pattern, no longer compiles in v11
-final result = await FilePicker.platform.pickFiles();
-final path = await FilePicker.platform.getDirectoryPath();
-```
-
-**After (v11):**
+**Before:**
 
 ```dart
-// New static API
-final result = await FilePicker.pickFiles();
-final path = await FilePicker.getDirectoryPath();
+final String? path = await Pick.saveFile(
+  fileName: 'report.pdf',
+  bytes: pdfBytes,
+);
 ```
 
-The `Pick` facade wraps `file_picker` entirely behind its own static methods, so if you use `Pick.file()`, `Pick.files()`, `Pick.directory()`, and `Pick.saveFile()` exclusively, this change is transparent and requires no action on your part.
+**After:**
 
-If your code calls `FilePicker.platform` directly (bypassing the `Pick` facade), you must remove `.platform` from every call site.
+```dart
+final Uri? savedTo = await Pick.saveFile(
+  fileName: 'report.pdf',
+  bytes: pdfBytes,
+);
 
-### Android path traversal security fix (CWE-22)
+if (savedTo != null && savedTo.scheme == 'file') {
+  final String path = savedTo.toFilePath();
+}
+```
 
-`file_picker` v11.0.2 patches a path traversal vulnerability (CWE-22) on Android. The vulnerability allowed a malicious file name returned by a document provider to traverse outside the intended directory. Upgrading ensures returned file paths are sanitized before they reach your application code.
+`fileName` and `bytes` are also `required` now. The previous signature accepted both as nullable and threw an `ArgumentError` when either was missing, so the failure moves from run time to compile time.
 
-No API changes are required on your side to benefit from this fix.
+> [!NOTE]
+> `Pick.directory()` still returns a `String?`. A directory pick is always a real path, so there is nothing for a `Uri` to carry there.
 
-### WASM web support
+### withData is gone from Pick.file and Pick.files
 
-`file_picker` v11 adds support for Flutter Web compiled to WebAssembly (WASM). If you target `flutter build web --wasm`, file picking now works in that build mode without additional configuration.
+v12 deprecated the parameter and stopped forwarding it to the platform. Bytes are read on demand instead:
+
+```dart
+final file = await Pick.file(extensions: ['pdf']);
+final bytes = await file?.readAsBytes(); // reads once, then caches
+```
+
+Delete the argument from your call sites. Anything that reads bytes behaves the same; anything that only reads `name` or `size` now avoids pulling the file into memory at all.
+
+### The barrel re-exports five file_picker names
+
+v12 re-exports its platform interface, which declares `AndroidOptions`, `LinuxOptions`, `WebOptions` and `WindowsOptions`. Those names are already taken by `flutter_secure_storage`, which magic also re-exports, so `package:magic/magic.dart` now names what it re-exports: `FilePicker`, `FilePickerStatus`, `FileType`, `IllegalCharacterInFileNameException` and `PlatformFile`.
+
+If you configure per-platform picker options, import the package directly:
+
+```dart
+import 'package:file_picker/file_picker.dart' as picker;
+
+await picker.FilePicker.pickFile(
+  androidOptions: const picker.AndroidOptions(),
+);
+```
+
+### PlatformFile reads lazily
+
+If you call `FilePicker` directly rather than through `Pick`, note that `PlatformFile` is now an abstract class with no `size` and no `bytes` fields. Use `lengthSync()` (null when the picker did not report a size), `length()`, `readAsBytes()` and `readAsByteStream()` instead.

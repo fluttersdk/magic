@@ -264,7 +264,7 @@ await Vault.has('api_key');
 
 ### Pick
 
-Provides `image()`, `images()`, `camera()`, `video()`, `recordVideo()`, `file()`, `files()`, `directory()`, and `saveFile()`. All methods return `MagicFile?` (or `List<MagicFile>`) for seamless integration with the Storage system. See `lib/src/facades/pick.dart` for full parameter details.
+Provides `image()`, `images()`, `camera()`, `video()`, `recordVideo()`, `file()`, `files()`, `directory()`, and `saveFile()`. The picking methods return `MagicFile?` (or `List<MagicFile>`) for seamless integration with the Storage system; `directory()` returns the path as a `String?` and `saveFile()` returns the written location as a `Uri?`. See `lib/src/facades/pick.dart` for full parameter details.
 
 ### Crypt
 
