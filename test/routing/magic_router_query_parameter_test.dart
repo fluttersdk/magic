@@ -74,7 +74,7 @@ void main() {
       expect(MagicRouter.instance.queryParameter('missing'), isNull);
     });
 
-    testWidgets('survives a navigation that carries no query at all', (
+    testWidgets('clears when a later navigation carries no query', (
       tester,
     ) async {
       MagicRoute.page('/', () => const SizedBox()).name('home');
@@ -116,10 +116,29 @@ void main() {
       });
     });
 
-    testWidgets('is empty rather than null before any route resolves', (
-      tester,
-    ) async {
+    test('is empty rather than null before any route resolves', () {
       expect(MagicRouter.instance.queryParameters, isEmpty);
+    });
+  });
+
+  group('Request, which is how a consumer reaches these', () {
+    testWidgets('query and queryParams delegate to the router', (tester) async {
+      MagicRoute.page('/', () => const SizedBox()).name('home');
+
+      await tester.pumpWidget(
+        MaterialApp.router(routerConfig: MagicRouter.instance.routerConfig),
+      );
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to('/?scale=5000&width=1440');
+      await tester.pumpAndSettle();
+
+      // One line each (`request.dart:72` and `:83`), so this is not really
+      // testing logic. It is testing that the facade an app reads through is
+      // wired to the accessor above, which is the pairing the original report
+      // was about and the one nothing covered.
+      expect(Request.query('scale'), '5000');
+      expect(Request.queryParams, {'scale': '5000', 'width': '1440'});
     });
   });
 }
