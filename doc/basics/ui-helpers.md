@@ -12,6 +12,7 @@ Magic provides context-free UI feedback utilities, reactive widget builders, dec
 - [Toast Messages](#toast-messages)
 - [Configuration](#configuration)
 - [MagicBuilder](#magic-builder)
+- [MagicSelector](#magic-selector)
 - [MagicTitle](#magic-title)
 - [MagicResponsiveView](#magic-responsive-view)
     - [Extended Breakpoints](#extended-breakpoints)
@@ -349,6 +350,66 @@ class MonitorShowView extends MagicStatefulView<MonitorController> {
 
 > [!TIP]
 > For E2E drivability, prefer `MagicBuilder` over `setState` on the parent widget. Targeted subtree rebuilds keep interactive element identity stable so dusk agents do not lose their references mid-action.
+
+<a name="magic-selector"></a>
+## MagicSelector
+
+`MagicSelector<C, T>` rebuilds one subtree when one part of a controller changes, and leaves it alone the rest of the time. Reach for it when `MagicBuilder` cannot help, which is whenever the thing you want to watch is a plain field on a `MagicController` rather than a `ValueListenable`.
+
+```dart
+MagicSelector<GuideController, String>(
+  controller: controller,
+  selector: (GuideController c) => c.countLabel,
+  builder: (String label) => Text(label),
+)
+```
+
+### What it is for
+
+`refreshUI()` notifies every listener, and `MagicStatefulViewState` answers by calling `setState` on the whole view. That is the right default: a controller does not know which of its fields a screen reads, and a view that rebuilds is always correct.
+
+It stops being cheap on a screen where one field changes often and most of the screen does not care. A search field is the worked example. Every keystroke is a notification, and one keystroke on a real screen was measured rebuilding 220 styled containers, almost none of which could have looked different.
+
+### How it avoids the rebuild
+
+It caches the widget the builder returned and, while the selected value compares equal, returns that same **instance**. `Element.updateChild` short circuits when the new widget is `==` to the mounted one, so an identical instance ends the descent there and the subtree is never visited.
+
+That is what makes it work under a parent that rebuilds anyway. A widget that merely skipped its own `setState` would still be rebuilt from above, which is the situation inside every `MagicStatefulView`.
+
+### The contract
+
+`builder` must be a pure function of the value it is handed. A cached child cannot see anything else the closure captured:
+
+```dart
+// WRONG: `total` is captured and nothing here watches it, so the line reads
+// a stale total for as long as `count` happens not to move.
+MagicSelector<C, int>(
+  controller: c,
+  selector: (C c) => c.count,
+  builder: (int count) => Text('$count of $total'),
+)
+```
+
+Select both instead. A Dart record has value equality, so it compares by content and the cache still holds:
+
+```dart
+MagicSelector<C, (int, int)>(
+  controller: c,
+  selector: (C c) => (c.count, c.total),
+  builder: ((int, int) v) => Text('${v.$1} of ${v.$2}'),
+)
+```
+
+Reading an `InheritedWidget` inside the cached subtree needs no selection. `Theme.of`, `MediaQuery.of` and `WindTheme.of` register their own dependency, and the framework rebuilds a dependent element directly rather than through its parent.
+
+### Equality
+
+Plain `==`, deliberately. A selector that returns a freshly built `List` or `Map` never matches its own cache, because Dart gives collections identity equality, and the subtree then rebuilds on every notification exactly as it would have without the widget.
+
+Deep comparison was the alternative and is worse where it matters: walking a ten thousand element list on every keystroke costs more than the rebuild it prevents. Select a scalar, a record, or an object whose identity is stable across notifications.
+
+> [!NOTE]
+> `MagicSelector` does not replace `MagicBuilder`. Use `MagicBuilder` when the source already is a `ValueListenable`, such as `MagicFormData.processingListenable`; use `MagicSelector` when the source is the controller itself.
 
 <a name="magic-title"></a>
 ## MagicTitle
