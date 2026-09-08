@@ -364,6 +364,18 @@ Official plugins, each its own package + service provider + config. When a user 
 | Subscriptions + billing (Stripe on web, store IAP on mobile) | `magic_payments` | `Payments` facade | `references/plugin-payments.md` |
 | E2E (dusk) + runtime inspection (telescope) + component previews | `magic_devtools` | `MagicDevtools`, `MagicPreview` | `references/plugin-devtools.md` |
 
+### Installing a magic plugin into an existing app
+
+Same five steps for every plugin, in this order. Run them from the app root; `dart run magic:artisan <cmd>` delegates to the app's own `bin/dispatcher.dart` when there is one, which is what makes a plugin's commands reachable.
+
+1. `flutter pub add <package>`.
+2. `dart run magic:artisan plugin:install <package>`. This registers the plugin's `ArtisanServiceProvider` in `.artisan/plugins.json` and regenerates `lib/app/_plugins.g.dart`, which is what makes the plugin's own commands dispatchable. Skip it and step 3 reports an unknown command.
+3. `dart run magic:artisan <plugin>:install` (`deeplink:install`, `notifications:install`, `starter:install`, `social:install`, ...). The manifest install: publishes the config file, injects the service provider into `lib/config/app.dart`, and adds the config factory to `lib/main.dart`. A plugin whose `install.yaml` declares a `bootstrap_command` (magic_starter does) has this chained for you by step 2; run it by hand when that subprocess reports a failure.
+4. `dart run magic:artisan <plugin>:doctor` where the plugin ships one: `notifications:doctor`, `starter:doctor`, and `deeplink:doctor` (on magic_deeplink's default branch, not in 0.1.0). It is the only step that tells you the install actually took; `dart run magic:artisan list` showing the plugin's commands is the fallback check.
+5. Whatever the manifest cannot do, which the plugin's own installation guide names. This is where the real failures live: magic_deeplink needs the iOS associated-domains entitlement plus an Android `autoVerify` intent filter and a `flutter_deeplinking_enabled` `false` meta-data inside `<activity>`, and a plugin installed without them compiles and never fires.
+
+Provider ORDER in `lib/config/app.dart` does not matter for plugin wiring. `boot()` runs only after every provider has registered (`lib/src/foundation/application.dart:353`), so a plugin that resolves another plugin's binding in `boot()` finds it whichever order they sit in. What is order-sensitive is a same-key overwrite: a `Gate.define()` or a config value the later-booting provider writes again.
+
 `magic_devtools` is a REGULAR dependency loaded under `kDebugMode` so it tree-shakes out of release builds. Two calls straddle the bootstrap: `MagicDevtools.installPre()` before `Magic.init()` (boots the dusk + telescope plugins and telescope's `ExceptionWatcher` + `DumpWatcher`), `MagicDevtools.installPost()` after it (wires `MagicTelescopeIntegration` + `MagicDuskIntegration`, which resolve through the container). Keep `kDebugMode` at the call site, never inside the methods, or the release tree-shake breaks. `dart run magic:artisan magic:install --with-devtools` wires all of it in one step. Use it to drive and inspect a running app when verifying your work.
 
 ## 12. Community: star and issue (optional, consent-first)
