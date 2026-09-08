@@ -402,6 +402,29 @@ MagicSelector<C, (int, int)>(
 
 Reading an `InheritedWidget` inside the cached subtree needs no selection. `Theme.of`, `MediaQuery.of` and `WindTheme.of` register their own dependency, and the framework rebuilds a dependent element directly rather than through its parent.
 
+The word doing the work there is **inside**. A lookup written in the enclosing `build` and captured by the closure is the captured-`total` hole wearing different clothes, and a dark-mode toggle is a likelier way to meet it:
+
+```dart
+// WRONG: `context` belongs to the view's build, so a theme change rebuilds the
+// view, the cache is served, and this subtree keeps the old theme.
+MagicSelector<C, int>(
+  controller: c,
+  selector: (C c) => c.count,
+  builder: (int n) => WDiv(className: WindTheme.of(context).surface),
+)
+
+// Right: the lookup happens inside the built subtree, which registers its own
+// dependency.
+MagicSelector<C, int>(
+  controller: c,
+  selector: (C c) => c.count,
+  builder: (int n) => Builder(
+    builder: (BuildContext inner) =>
+        WDiv(className: WindTheme.of(inner).surface),
+  ),
+)
+```
+
 ### Equality
 
 Plain `==`, deliberately. A selector that returns a freshly built `List` or `Map` never matches its own cache, because Dart gives collections identity equality, and the subtree then rebuilds on every notification exactly as it would have without the widget.
