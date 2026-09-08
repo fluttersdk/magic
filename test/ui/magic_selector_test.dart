@@ -305,6 +305,68 @@ void main() {
     });
   });
 
+  group('the caching contract, pinned rather than fixed', () {
+    testWidgets('a hot reload drops the cache', (tester) async {
+      // Without this, an edit to the builder is invisible until the selected
+      // value happens to move: hot reload marks descendants dirty, but the
+      // cached instance is what they rebuild against.
+      final ProfileController controller = ProfileController();
+      final ValueNotifier<int> builds = ValueNotifier<int>(0);
+
+      await tester.pumpWidget(
+        _wrap(
+          MagicSelector<ProfileController, String>(
+            controller: controller,
+            selector: (ProfileController c) => c.name,
+            builder: (String name) =>
+                WidgetBuildCounter(counter: builds, child: Text(name)),
+          ),
+        ),
+      );
+      expect(builds.value, 1);
+
+      // What `flutter run`'s `r` triggers.
+      tester.binding.reassembleApplication();
+      await tester.pump();
+
+      expect(builds.value, 2);
+    });
+
+    testWidgets('a changed builder is NOT seen while the value holds', (
+      tester,
+    ) async {
+      // The hole the purity contract exists to rule out, written down so the
+      // next reader meets it as a decision rather than as a surprise. Nothing
+      // here is a fix: it documents what the cache costs.
+      final ProfileController controller = ProfileController();
+
+      Future<void> pumpWith(String suffix) {
+        return tester.pumpWidget(
+          _wrap(
+            MagicSelector<ProfileController, String>(
+              controller: controller,
+              selector: (ProfileController c) => c.name,
+              builder: (String name) => Text('$name $suffix'),
+            ),
+          ),
+        );
+      }
+
+      await pumpWith('one');
+      expect(find.text('ada one'), findsOneWidget);
+
+      await pumpWith('two');
+
+      expect(find.text('ada one'), findsOneWidget, reason: 'still cached');
+      expect(find.text('ada two'), findsNothing);
+
+      // And it takes effect the moment the value moves.
+      controller.rename('grace');
+      await tester.pump();
+      expect(find.text('grace two'), findsOneWidget);
+    });
+  });
+
   group('the equality contract', () {
     testWidgets('a record selects several fields at once', (tester) async {
       // The documented way to watch more than one field. A record has value

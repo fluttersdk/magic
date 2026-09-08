@@ -57,10 +57,25 @@ import '../http/magic_controller.dart';
 /// )
 /// ```
 ///
-/// Reading an [InheritedWidget] inside the cached subtree is fine and needs no
+/// Reading an [InheritedWidget] INSIDE the cached subtree is fine and needs no
 /// selection: `Theme.of`, `MediaQuery.of` and `WindTheme.of` register their own
 /// dependency, and the framework rebuilds a dependent element directly rather
 /// than through its parent.
+///
+/// A lookup captured from the ENCLOSING build is the same hole as `total`
+/// above, and a dark-mode toggle is a likelier way to meet it:
+///
+/// ```dart
+/// // WRONG: `context` is the view's, so a theme change rebuilds the view, the
+/// // cache is served, and this subtree keeps the old theme.
+/// builder: (int n) => WDiv(className: WindTheme.of(context).surface),
+///
+/// // Right: the lookup runs inside the built subtree.
+/// builder: (int n) => Builder(
+///   builder: (BuildContext inner) =>
+///       WDiv(className: WindTheme.of(inner).surface),
+/// ),
+/// ```
 ///
 /// ## Equality
 ///
@@ -143,6 +158,19 @@ class _MagicSelectorState<C extends MagicController, T>
   // contract rather than a suggestion.
 
   @override
+  void reassemble() {
+    super.reassemble();
+
+    // Hot reload marks descendants dirty, so an edit INSIDE the cached subtree
+    // shows up on its own. An edit to the builder does not: the cached instance
+    // is what those descendants rebuild against, so changing
+    // `builder: (n) => Text('$n items')` to `Text('$n rows')` kept showing
+    // `items` until the selected value happened to move. Dropping the cache is
+    // free here, because reassemble only runs in debug.
+    _child = null;
+  }
+
+  @override
   void dispose() {
     // `removeListener` during a notification is safe: `ChangeNotifier`
     // tombstones the slot and compacts the list once the outer call finishes.
@@ -165,9 +193,9 @@ class _MagicSelectorState<C extends MagicController, T>
   @override
   Widget build(BuildContext context) {
     // Re-read here as well as in the listener. A parent can rebuild this widget
-    // without any notification having fired (a `setState` higher up, a hot
-    // reload), and the cached child would then outlive the value it was built
-    // from.
+    // without any notification having fired (a `setState` higher up), and the
+    // cached child would then outlive the value it was built from. That covers
+    // a stale VALUE only; a hot-reloaded BUILDER is `reassemble`'s job.
     final T next = widget.selector(widget.controller);
     if (next != _value) {
       _value = next;
