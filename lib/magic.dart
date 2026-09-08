@@ -88,6 +88,7 @@ export 'src/encryption/encryption_service_provider.dart';
 
 // UI
 export 'src/ui/magic_builder.dart';
+export 'src/ui/magic_selector.dart';
 export 'src/ui/magic_feedback.dart';
 export 'src/ui/magic_view_registry.dart';
 export 'src/ui/magic_view.dart';
