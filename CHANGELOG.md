@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`MagicSelector<C, T>` rebuilds one subtree when one part of a controller changes.** `refreshUI()` notifies every listener and `MagicStatefulViewState` answers with `setState` on the whole view, which is the right default and stops being cheap on a screen where one field changes often and most of the screen does not care: a consumer measured one keystroke in a search field rebuilding 220 styled containers. `MagicBuilder` could not help, because it needs a `ValueListenable` and a controller is a `ChangeNotifier`. The selector caches the widget its builder returned and, while the selected value compares equal, returns that same instance, so `Element.updateChild` short circuits on `child.widget == newWidget` and never descends. Returning an identical instance rather than skipping a `setState` is what makes it work under a parent that rebuilds anyway. Two rules follow: `builder` must be a pure function of the selected value (select a record to watch several fields), and equality is plain `==`, so a selector returning a freshly built `List` never matches its own cache. Deep comparison is deliberately not used, because walking a ten thousand element list per keystroke costs more than the rebuild it prevents. (`lib/src/ui/magic_selector.dart`)
+
 ### BREAKING
 
 - **`file_picker` moves from `>=11.0.2 <12.0.0-0` to `^12.2.0`, and the `Pick` facade moves with it.** v12 splits the plugin into federated platform packages and rewrites the surface magic wrapped: `pickFiles` returns a plain `List<PlatformFile>` instead of a nullable `FilePickerResult`, `saveFile` returns a `Uri?` instead of a `String?`, and `PlatformFile` loses its `size` and `bytes` fields in favour of `lengthSync()` and `readAsBytes()`. None of that is expressible in a version range spanning both majors, which is why the constraint moves to `^12` rather than widening. (`pubspec.yaml`, `lib/src/facades/pick.dart`)
