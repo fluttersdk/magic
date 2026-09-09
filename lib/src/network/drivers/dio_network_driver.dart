@@ -26,6 +26,12 @@ class DioNetworkDriver implements NetworkDriver {
         connectTimeout: Duration(milliseconds: timeout),
         receiveTimeout: Duration(milliseconds: timeout),
         headers: defaultHeaders,
+        // Dio defaults this to false, so the IO adapter lowercases every
+        // header key on the wire (e.g. `User-Agent` -> `user-agent`). A
+        // case-sensitive consumer (ExoPlayer's header lookup) silently gets
+        // the wrong value instead of an error, so preserve the caller's
+        // casing rather than let Dio normalise it away.
+        preserveHeaderCase: true,
       ),
     );
   }
