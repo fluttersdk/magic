@@ -227,7 +227,9 @@ Posts `toPush()` to a self-addressed endpoint that makes the platform emit a rea
 
 `PushPermissionState` enum values: `notDetermined`, `denied`, `authorized`, `provisional`. A custom driver written against 0.0.3 does not compile on 0.1.0+ until it implements the three members marked ABSTRACT.
 
-On the manager rather than the driver: `Notify.manager.onPushClicked` and `onPushReceived` republish every driver's events on streams the manager owns from construction, so a listener attached before any driver exists still receives them. That is the stream `magic_deeplink` bridges.
+On the manager rather than the driver: `Notify.manager.onPushClicked` and `onPushReceived` republish every driver's events on streams the manager owns from construction, so a listener attached before any driver exists still receives later events. That is the stream `magic_deeplink` bridges.
+
+Both are BROADCAST streams, which drop what they publish to nobody, so "the stream exists from construction" never meant "the stream remembers". `onPushClicked` alone is now an exception: it holds clicks until the first listener and replays them once, because the tap that COLD-STARTS the app is drained inside `driver.initialize()`, which this package's own provider awaits in `boot()`, and a consumer that lists notifications before `magic_deeplink` subscribes only afterwards. Without the buffer that tap opened the app on its initial route with no exception and no log. The replay is one-shot: a second listener arriving later is not handed the same tap again. `onPushReceived` has no buffer and needs none, since nothing navigates off it.
 
 ### OneSignalDriver
 
