@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.2.0 | Updated: 2026-09-09 -->
+<!-- magic_notifications v0.3.0 | Updated: 2026-09-09 -->
 
 # magic_notifications Plugin
 
