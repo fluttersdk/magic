@@ -106,6 +106,10 @@ No facade. Reach it as the singleton `DeeplinkManager()` or through IoC as `Magi
 | `handleUri(uri, {source, payload})` | `Future<bool>` | Emit `uri` on `onLink`, then delegate to the first matching handler. `source` is required. Returns `true` if a handler handled it. **Does not wait for a frame**: see below. |
 | `getInitialLink()` | `Future<Uri?>` | The URI that cold-launched the app, cached after the first call. The provider does NOT call this; see [ServiceProvider](#serviceprovider). |
 
+| `onLink` | `Stream<Uri>` | Broadcast stream of all incoming links (fired before handler dispatch). |
+| `driver` | `DeeplinkDriver` | Getter. Throws `DeeplinkException(code: 'NO_DRIVER')` if unset. |
+| `reset()` | `void` | `@visibleForTesting`. Forgets handlers and driver, drops the cached initial link, and replaces the `onLink` controller. |
+
 Both in-package callers of `handleUri` wait for the first frame before routing, and it is the CALLER that waits, not the sink. Call `handleUri` or `getInitialLink` yourself during boot and you inherit none of that: magic's router cannot accept a navigation before anything is drawn, so the link goes nowhere and the app finishes booting onto its initial route, with no exception and no log. Measured on a device, that is exactly how the push path failed before it took the same wait. If you drive the chain by hand from boot:
 
 ```dart
@@ -114,9 +118,6 @@ await manager.handleUri(uri, source: DeeplinkSource.manual);
 ```
 
 `endOfFrame` rather than a post-frame callback, because it SCHEDULES a frame when the scheduler is idle; a post-frame callback on an application nobody is drawing waits for a frame that never comes. Capture it once if you route more than one link, or each await queues behind a different frame and the links can arrive out of order.
-| `onLink` | `Stream<Uri>` | Broadcast stream of all incoming links (fired before handler dispatch). |
-| `driver` | `DeeplinkDriver` | Getter. Throws `DeeplinkException(code: 'NO_DRIVER')` if unset. |
-| `reset()` | `void` | `@visibleForTesting`. Forgets handlers and driver, drops the cached initial link, and replaces the `onLink` controller. |
 
 ```dart
 import 'package:magic_deeplink/magic_deeplink.dart';

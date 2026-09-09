@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.13
+version: 0.1.14
 ---
 
-<!-- magic 0.0.9 | Skill v0.1.13 (2026-09-08). API surface verified against lib/src. -->
+<!-- magic 0.0.9 | Skill v0.1.14 (2026-09-10). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -374,7 +374,13 @@ Same five steps for every plugin, in this order. Run them from the app root; `da
 4. `dart run magic:artisan <plugin>:doctor` where the plugin ships one: `notifications:doctor`, `starter:doctor`, and `deeplink:doctor` (on magic_deeplink's default branch, not in 0.1.0). It is the only step that tells you the install actually took; `dart run magic:artisan list` showing the plugin's commands is the fallback check.
 5. Whatever the manifest cannot do, which the plugin's own installation guide names. This is where the real failures live: magic_deeplink needs the iOS associated-domains entitlement plus an Android `autoVerify` intent filter and a `flutter_deeplinking_enabled` `false` meta-data inside `<activity>`, and a plugin installed without them compiles and never fires.
 
-Provider ORDER in `lib/config/app.dart` does not matter for plugin wiring. `boot()` runs only after every provider has registered (`lib/src/foundation/application.dart:353`), so a plugin that resolves another plugin's binding in `boot()` finds it whichever order they sit in. What is order-sensitive is a same-key overwrite: a `Gate.define()` or a config value the later-booting provider writes again.
+Provider ORDER in `lib/config/app.dart` is free for BINDINGS and load-bearing for everything else. Every `register()` runs before any `boot()` (`lib/src/foundation/application.dart:353`), so a plugin that resolves another plugin's binding in `boot()` finds it whichever order they sit in. But `boot()` itself is a sequential await over the list (`application.dart:378-381`), so anything a provider DOES in `boot()` is invisible to a provider that booted before it, and the failure is silent both ways:
+
+- A same-key overwrite, where the later-booting provider's `Gate.define()` or config value wins.
+- A publish nobody is subscribed to yet. `magic_notifications` publishes a cold-start push tap from its `boot()`, and `magic_deeplink` subscribes in its own; with notifications first the tap went into a broadcast stream with no listener and was dropped, so the app opened on its initial route instead of the link's screen. Neither order errors, and artisan's installer appends each provider to the END of the list, so which one an app gets is decided by install order.
+- `AppServiceProvider` before `AuthServiceProvider`, so `setUserFactory` lands before auth restore runs (see the top of this file).
+
+The plugins named above now buffer that tap, so that specific case is closed from `magic_notifications 0.3.0` and `magic_deeplink 0.1.0`. The shape is not: when a provider's `boot()` has to observe what another provider's `boot()` did, order it, do not assume it.
 
 `magic_devtools` is a REGULAR dependency loaded under `kDebugMode` so it tree-shakes out of release builds. Two calls straddle the bootstrap: `MagicDevtools.installPre()` before `Magic.init()` (boots the dusk + telescope plugins and telescope's `ExceptionWatcher` + `DumpWatcher`), `MagicDevtools.installPost()` after it (wires `MagicTelescopeIntegration` + `MagicDuskIntegration`, which resolve through the container). Keep `kDebugMode` at the call site, never inside the methods, or the release tree-shake breaks. `dart run magic:artisan magic:install --with-devtools` wires all of it in one step. Use it to drive and inspect a running app when verifying your work.
 
