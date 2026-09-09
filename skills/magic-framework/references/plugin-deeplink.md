@@ -2,7 +2,7 @@
 
 # magic_deeplink Plugin
 
-Deep link handling plugin for Magic Framework: wraps `app_links` with a handler chain, IoC binding, and CLI tooling for generating the platform association files. Universal Links on iOS and macOS, App Links on Android; the web arm is a deliberate no-op.
+Deep link handling plugin for Magic Framework: wraps `app_links` with a handler chain, IoC binding, and CLI tooling for generating the platform association files. Universal Links on iOS and macOS, App Links on Android. The web DRIVER is a deliberate no-op, which is not the same as no deep links on web: tapped push notifications still route, and address-bar links are GoRouter's half. See [AppLinksDriver](#applinksdriver).
 
 ## Contents
 
@@ -32,7 +32,7 @@ dart run magic:artisan deeplink:install
 
 The order matters: every `deeplink:*` command is contributed by `MagicDeeplinkArtisanProvider`, and the dispatcher only knows about that provider after `plugin:install` has written it into `.artisan/plugins.json` and regenerated `lib/app/_plugins.g.dart`. Run the second command first and the dispatcher reports an unknown command.
 
-**Know it worked**: `dart run magic:artisan list` lists the `deeplink:*` commands, and `dart run magic:artisan deeplink:doctor` (unreleased at 0.1.0, see [CLI Commands](#cli-commands)) reports on the config and both platforms' setup.
+**Know it worked**: `dart run magic:artisan list` lists the `deeplink:*` commands, and `dart run magic:artisan deeplink:doctor` reports on the config, the Dart wiring and both platforms' setup. Run it before reaching for a device; every way of getting this install wrong is silent, and the doctor is the only thing that separates "installed" from "installed and inert".
 
 `deeplink:install` scaffolds `lib/config/deeplink.dart`, injects `DeeplinkServiceProvider` into `lib/config/app.dart`, injects `deeplinkConfig` into `lib/main.dart`'s `configFactories`, and sets `FlutterDeepLinkingEnabled` to `false` in `ios/Runner/Info.plist`. Everything under [Platform setup](#platform-setup) that is not that plist key is manual.
 
@@ -103,8 +103,17 @@ No facade. Reach it as the singleton `DeeplinkManager()` or through IoC as `Magi
 | `registerHandler(handler)` | `void` | Add a handler to the chain. Duplicates are ignored. |
 | `hasHandler(handler)` | `bool` | Check if a handler is registered. |
 | `forgetHandlers()` | `void` | Clear all registered handlers. |
-| `handleUri(uri, {source, payload})` | `Future<bool>` | Emit `uri` on `onLink`, then delegate to the first matching handler. `source` is required. Returns `true` if a handler handled it. |
+| `handleUri(uri, {source, payload})` | `Future<bool>` | Emit `uri` on `onLink`, then delegate to the first matching handler. `source` is required. Returns `true` if a handler handled it. **Does not wait for a frame**: see below. |
 | `getInitialLink()` | `Future<Uri?>` | The URI that cold-launched the app, cached after the first call. The provider does NOT call this; see [ServiceProvider](#serviceprovider). |
+
+Both in-package callers of `handleUri` wait for the first frame before routing, and it is the CALLER that waits, not the sink. Call `handleUri` or `getInitialLink` yourself during boot and you inherit none of that: magic's router cannot accept a navigation before anything is drawn, so the link goes nowhere and the app finishes booting onto its initial route, with no exception and no log. Measured on a device, that is exactly how the push path failed before it took the same wait. If you drive the chain by hand from boot:
+
+```dart
+await WidgetsFlutterBinding.ensureInitialized().endOfFrame;
+await manager.handleUri(uri, source: DeeplinkSource.manual);
+```
+
+`endOfFrame` rather than a post-frame callback, because it SCHEDULES a frame when the scheduler is idle; a post-frame callback on an application nobody is drawing waits for a frame that never comes. Capture it once if you route more than one link, or each await queues behind a different frame and the links can arrive out of order.
 | `onLink` | `Stream<Uri>` | Broadcast stream of all incoming links (fired before handler dispatch). |
 | `driver` | `DeeplinkDriver` | Getter. Throws `DeeplinkException(code: 'NO_DRIVER')` if unset. |
 | `reset()` | `void` | `@visibleForTesting`. Forgets handlers and driver, drops the cached initial link, and replaces the `onLink` controller. |
@@ -207,6 +216,8 @@ export 'app_links_driver_stub.dart'
 - **Driver name**: `'app_links'` on every arm.
 - **io arm**: wraps the `app_links` package; `isSupported` is `Platform.isAndroid || Platform.isIOS || Platform.isMacOS`. It is the only arm that touches a platform channel.
 - **web arm**: inert, not partial. `isSupported` is `false`, `getInitialLink()` is `null`, `onLink` is `const Stream<Uri>.empty()`, `initialize`/`dispose` do nothing. It is NOT wired to `app_links_web`, which reads `location.href` once at boot and never reacts to later navigation, while GoRouter already owns the address bar.
+
+  **An inert driver is not an inert feature, and reading only this line has sent people away from something that works.** The push bridge is wired OUTSIDE the `isSupported` gate, so on web a tapped OneSignal push with the tab open reaches the same handler chain as on mobile, through `OneSignalWebDriver`. Put the link in the notification's `additionalData` under `url`, `deep_link`, `link` or `uri`; a launch URL set on the OneSignal side alone is not read by the bridge. The address-bar half is GoRouter's and needs two things this package does not own and cannot check: `routing.url_strategy: 'path'`, and a host rewrite of unknown paths to `index.html`. Without either, the URL is a 404 or a hash route and the app never sees it. A push clicked with NO tab open runs no Dart at all, so it arrives as an ordinary page load and needs both.
 - **stub arm**: the default when neither guard matches; same inert answers.
 
 The provider registers it automatically when `deeplink.driver` is `'app_links'` and `isSupported` is true.

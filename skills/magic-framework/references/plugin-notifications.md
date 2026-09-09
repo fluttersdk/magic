@@ -36,6 +36,17 @@ dart run magic:artisan notifications:doctor
 
 Requires `magic ^0.0.6` (for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one).
 
+### Two iOS pieces no command can install
+
+Push works without both of these, which is why they are easy to miss and why `notifications:doctor` warns about them: a build with no Notification Service Extension delivers notifications normally and quietly reports no confirmed deliveries, no rich media and no badge counts. The absence looks like the product working.
+
+1. An **App Group** on the Runner target, named `group.<bundle.id>.onesignal`.
+2. A **Notification Service Extension** target carrying that same App Group.
+
+Both add or change an Xcode target, which a pub package cannot do. The steps are in the package's `doc/getting-started/installation.md`. They fail independently: an extension with no shared group gives rich media and still no confirmed delivery, because the container is how the extension hands what it saw back to the app.
+
+**Testing the cold-start path needs a profile or release build.** iOS refuses to launch a debug Flutter build from a link or the home screen, and OneSignal documents that on iOS in Debug a force-closed app opened from a notification never registers the click listener. A cold tap that appears to do nothing in Debug is usually this rather than the wiring.
+
 ## CLI commands and MCP tools
 
 Seven commands, all through the app's artisan dispatcher:
