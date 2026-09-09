@@ -105,7 +105,6 @@ No facade. Reach it as the singleton `DeeplinkManager()` or through IoC as `Magi
 | `forgetHandlers()` | `void` | Clear all registered handlers. |
 | `handleUri(uri, {source, payload})` | `Future<bool>` | Emit `uri` on `onLink`, then delegate to the first matching handler. `source` is required. Returns `true` if a handler handled it. **Does not wait for a frame**: see below. |
 | `getInitialLink()` | `Future<Uri?>` | The URI that cold-launched the app, cached after the first call. The provider does NOT call this; see [ServiceProvider](#serviceprovider). |
-
 | `onLink` | `Stream<Uri>` | Broadcast stream of all incoming links (fired before handler dispatch). |
 | `driver` | `DeeplinkDriver` | Getter. Throws `DeeplinkException(code: 'NO_DRIVER')` if unset. |
 | `reset()` | `void` | `@visibleForTesting`. Forgets handlers and driver, drops the cached initial link, and replaces the `onLink` controller. |
@@ -350,7 +349,7 @@ dart run magic:artisan deeplink:doctor --verbose
 dart run magic:artisan deeplink:doctor --remote   # also fetch both files from the live domain
 ```
 
-Unreleased at v0.1.0: present on the package's default branch, not in the published release. It reads `lib/config/deeplink.dart` (rejecting the scaffold placeholders `example.com`, `YOUR_TEAM_ID`, `com.example.app`, `YOUR_SHA256_FINGERPRINT`), then checks iOS (`applinks:` entitlement host, `FlutterDeepLinkingEnabled`), Android (the manifest's element TREE, so a `flutter_deeplinking_enabled` meta-data sitting on `<application>` instead of `<activity>` is caught where a grep cannot see it, plus the `autoVerify` filter's `http`/`https` schemes and host) and the two generated association files against the config. Everything is local and read-only without `--remote`. The one thing it cannot prove is that a real device matches an incoming link to this app, and the report says so.
+Ships in 0.1.0, the release this file is stamped for. It reads `lib/config/deeplink.dart` (rejecting the scaffold placeholders `example.com`, `YOUR_TEAM_ID`, `com.example.app`, `YOUR_SHA256_FINGERPRINT`), then checks iOS (`applinks:` entitlement host, `FlutterDeepLinkingEnabled`), Android (the manifest's element TREE, so a `flutter_deeplinking_enabled` meta-data sitting on `<application>` instead of `<activity>` is caught where a grep cannot see it, plus the `autoVerify` filter's `http`/`https` schemes and host) and the two generated association files against the config. Everything is local and read-only without `--remote`. The one thing it cannot prove is that a real device matches an incoming link to this app, and the report says so.
 
 ## Usage Patterns
 
