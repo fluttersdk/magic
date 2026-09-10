@@ -4,6 +4,9 @@ Magic provides a powerful HTTP client through the `Http` facade, built on top of
 
 - [Introduction](#introduction)
 - [Configuration](#configuration)
+    - [Network Config](#network-config)
+    - [Register in Config](#register-in-config)
+    - [Header Casing](#header-casing)
 - [Making Requests](#making-requests)
     - [GET Requests](#get-requests)
     - [POST Requests](#post-requests)
@@ -29,6 +32,7 @@ Magic provides a powerful HTTP client through the `Http` facade. Built on top of
 <a name="configuration"></a>
 ## Configuration
 
+<a name="network-config"></a>
 ### Network Config
 
 Create `lib/config/network.dart`:
@@ -51,6 +55,7 @@ Map<String, dynamic> get networkConfig => {
 };
 ```
 
+<a name="register-in-config"></a>
 ### Register in Config
 
 ```dart
@@ -70,6 +75,25 @@ Don't forget to add `NetworkServiceProvider` to your app providers:
   // ...
 ],
 ```
+
+<a name="header-casing"></a>
+### Header Casing
+
+Header names you set, in the config map above or per request, reach the wire exactly as you wrote them. `User-Agent` goes out as `User-Agent`, not as `user-agent`.
+
+HTTP/1.1 treats header names as case-insensitive, so this rarely matters. It matters when the other end reads a header by exact key: ExoPlayer looks its request headers up case-sensitively and finds nothing when the key arrives lowercased, which costs you a user agent on a media request and gets the wrong stream served back without an error.
+
+```dart
+final response = await Http.get('/stream', headers: {
+  'User-Agent': 'MyApp/1.0',
+  'X-Request-Id': requestId,
+});
+```
+
+> [!NOTE]
+> This holds on mobile and desktop, where Dio's IO adapter runs. On the web, header names are still lowercased: `dio_web_adapter` writes them through `XMLHttpRequest.setRequestHeader`, which the browser normalises on its own. Do not build a web feature on a case-sensitive header.
+
+Responses are a separate matter. `MagicResponse.headers` keys are always lowercase, whatever casing the server sent, because `HttpHeaders` lowercases on receipt. Read them with a lowercase key.
 
 <a name="making-requests"></a>
 ## Making Requests
