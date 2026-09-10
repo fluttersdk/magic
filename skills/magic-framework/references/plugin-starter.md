@@ -1,8 +1,10 @@
-<!-- magic_starter v0.0.1-alpha.27 | Updated: 2026-09-09 -->
+<!-- magic_starter v0.0.27 | Updated: 2026-09-11 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.2.0`.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it and requires `magic_notifications ^0.3.0`.
+
+Versions leave the alpha rail at this release: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
 ## Contents
 
@@ -222,6 +224,8 @@ Notify.view.slot(NotificationViewRegistry.typeIconSlotView, 'monitor_down',
 ```
 
 What stays here: `registerMagicStarterNotificationRoutes()` mounts `/notifications` and `/settings/notifications` in the `layout.app` shell and re-registers both screens wrapped in `MSPageContainer`, so they inherit the host's page geometry. The delete row asks first, through this package's `MSConfirmDialog`. See `plugin-notifications.md` for the `Notify` facade API.
+
+Those screens read five `notifications.*` keys no package supplies: `bulk_title` and `bulk_description` (the bulk channel card, `magic_notifications` 0.3.0), `delete` (the row's delete glyph, which a screen reader otherwise announces as "button"), `delete_failed`, and `channel_sms`. `starter:install` scaffolds all five into `en.stub`; an app upgrading with a hand-written catalogue adds them itself, or `Translator.get` renders each key as its own text.
 
 ### Access
 
@@ -514,7 +518,7 @@ Two guards ship ready to register as the `auth` and `guest` aliases in the app's
 
 Both override `redirectTarget` (a pre-build synchronous redirect) rather than `handle` (a post-build remount), so a guarded page never mounts for someone who is about to be sent away. Each one guards its own destination so the redirect cannot loop, which matters because go_router raises after more than five successive redirects.
 
-`EnsureAuthenticated` also records the requested location with `MagicRouter.setIntendedUrl` before bouncing (alpha.27), and the `NavigatesRoutes.navigateHome()` every post-auth path calls reads it back with `pullIntendedUrl`, falling back to `MagicStarterConfig.homeRoute()`. So a deep link that lands on a signed-out device survives the login bounce. Nothing is recorded for the guest-only auth routes themselves, and `redirectTarget` only sees `state.matchedLocation`, so a recorded intent loses the original query string.
+`EnsureAuthenticated` also records the requested location with `MagicRouter.setIntendedUrl` before bouncing (0.0.27), and the `NavigatesRoutes.navigateHome()` every post-auth path calls reads it back with `pullIntendedUrl`, falling back to `MagicStarterConfig.homeRoute()`. So a deep link that lands on a signed-out device survives the login bounce. Nothing is recorded for the guest-only auth routes themselves, and `redirectTarget` only sees `state.matchedLocation`, so a recorded intent loses the original query string.
 
 ## Plan upgrade wall
 
