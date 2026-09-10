@@ -26,6 +26,29 @@ class MagicVaultService {
         // encryptedSharedPreferences: true, // Deprecated in v10
       ),
       iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      // `usesDataProtectionKeychain: false` does not set the underlying
+      // `kSecUseDataProtectionKeychain` flag to false: it OMITS the key from
+      // the query entirely (flutter_secure_storage_darwin
+      // FlutterSecureStorage.swift:227-231, guarded by
+      // `params.usesDataProtectionKeychain`), so the item is written to the
+      // legacy login keychain instead. That keychain needs no
+      // `keychain-access-groups` entitlement, which is what makes it usable
+      // from an unsigned or ad-hoc macOS build: the data protection keychain
+      // returns `errSecMissingEntitlement` (-34018) without one, measured on
+      // this app's own build.
+      //
+      // The cost: there is no migration between the two keychains. A
+      // consumer that starts unsigned, stores a secret, then gains a
+      // signing identity and rebuilds with the default `true` reads from
+      // the data protection keychain and finds nothing, silently, because
+      // the old item is still sitting in the legacy keychain under the same
+      // key. `first_unlock_this_device` (rather than the default
+      // `first_unlock`) keeps the item device-bound, matching the intent of
+      // a credential that should not roam via iCloud Keychain sync.
+      mOptions: MacOsOptions(
+        accessibility: KeychainAccessibility.first_unlock_this_device,
+        usesDataProtectionKeychain: false,
+      ),
     );
   }
 
