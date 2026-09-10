@@ -31,10 +31,24 @@ Point the vault at the legacy login keychain, which needs no entitlement, with o
 // lib/config/security.dart
 final securityConfig = <String, dynamic>{
   'vault': <String, dynamic>{
-    // Only consulted on macOS. Leave it out on a signed build.
+    // Only consulted on macOS. Leave it out on a signed build. A bare
+    // `false` literal, not the string `'false'`: `Config.get<bool>` returns
+    // its default on a type mismatch as well as on a missing key, so a
+    // quoted value reads exactly like no value at all.
     'macos_data_protection_keychain': false,
   },
 };
+```
+
+The file is not loaded by being there. Hand it to `Magic.init` like every other config domain, or the key is absent and the default applies with nothing to say it did:
+
+```dart
+await Magic.init(
+  configFactories: [
+    () => appConfig,
+    () => securityConfig,
+  ],
+);
 ```
 
 Or, when you construct the service yourself:

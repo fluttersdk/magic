@@ -115,5 +115,31 @@ void main() {
         isTrue,
       );
     });
+
+    test(
+      'the config map doc/security/vault.md documents reaches the provider',
+      () {
+        // Byte for byte the snippet on that page, merged the way `Magic.init`
+        // merges a `configFactories` entry, rather than a `Config.set` of the
+        // dotted key. The two are not the same test: the first version of that
+        // page showed the file and never showed handing it to `Magic.init`, so
+        // a consumer following it got no override and no way to tell, because
+        // `Config.get<bool>(...) ?? true` reads an absent key exactly like an
+        // absent file. The four tests above all passed over that.
+        final Map<String, dynamic> securityConfig = <String, dynamic>{
+          'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+        };
+
+        Config.merge(<String, dynamic>{'security': securityConfig});
+        VaultServiceProvider(Magic.app).register();
+
+        expect(
+          Magic.app
+              .make<MagicVaultService>('vault')
+              .macOsUsesDataProtectionKeychain,
+          isFalse,
+        );
+      },
+    );
   });
 }

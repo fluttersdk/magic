@@ -684,8 +684,13 @@ await Vault.flush(); // Danger: clears all secure data
 ```dart
 // lib/config/security.dart, only consulted on macOS
 final securityConfig = <String, dynamic>{
+  // A bare `false`, never `'false'`: `Config.get<bool>` returns its default
+  // on a type mismatch as well as on a missing key.
   'vault': <String, dynamic>{'macos_data_protection_keychain': false},
 };
+
+// The file does nothing until Magic.init is given it.
+await Magic.init(configFactories: [() => appConfig, () => securityConfig]);
 ```
 
 There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so flipping it after the app has stored anything silently orphans every existing item: `Crypt.encryptWithDeviceKey` generates a fresh device key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. Set it once, before first storage.
