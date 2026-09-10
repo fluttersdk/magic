@@ -96,6 +96,21 @@ Pass an optional map of initial values to `Vault.fake()` to pre-seed the store.
 | `fake.assertDeleted(key)` | Fails if `Vault.delete(key)` was never called. |
 | `fake.assertContains(key)` | Fails if `key` is not currently in the store. |
 | `fake.assertMissing(key)` | Fails if `key` is currently in the store. |
-| `fake.reset()` | Clears the in-memory store and operation history. |
+| `fake.reset()` | Clears the in-memory store, the operation history, and any configured throw below. |
 
 Call `Vault.unfake()` in `tearDown()` to restore the real vault binding after each test.
+
+### Simulating a vault failure
+
+`fake.throwOnGet([error])` and `fake.throwOnPut([error])` make the fake throw instead of completing normally, for testing a vault-failure branch a consumer's own code has for `Vault.get` or `Vault.put`. Each defaults to a `MagicVaultException` and only affects its own operation:
+
+```dart
+test('a get failure surfaces as MagicVaultException', () async {
+  final fake = Vault.fake();
+  fake.throwOnGet();
+
+  await expectLater(Vault.get('token'), throwsA(isA<MagicVaultException>()));
+});
+```
+
+Pass a custom error to `throwOnGet`/`throwOnPut` to assert on a specific message. `fake.reset()` clears a configured throw along with the store.

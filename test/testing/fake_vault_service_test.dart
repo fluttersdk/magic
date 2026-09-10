@@ -151,6 +151,63 @@ void main() {
     });
   });
 
+  group('FakeVaultService - simulated failures', () {
+    late FakeVaultService vault;
+
+    setUp(() {
+      vault = FakeVaultService();
+    });
+
+    test('throwOnGet makes get throw MagicVaultException', () async {
+      vault.throwOnGet();
+      await expectLater(vault.get('key'), throwsA(isA<MagicVaultException>()));
+    });
+
+    test('throwOnPut makes put throw MagicVaultException', () async {
+      vault.throwOnPut();
+      await expectLater(
+        vault.put('key', 'value'),
+        throwsA(isA<MagicVaultException>()),
+      );
+    });
+
+    test('throwOnGet accepts a custom error', () async {
+      final error = MagicVaultException('simulated keychain read failure');
+      vault.throwOnGet(error);
+      await expectLater(vault.get('key'), throwsA(same(error)));
+    });
+
+    test('throwOnPut accepts a custom error', () async {
+      final error = MagicVaultException('simulated keychain write failure');
+      vault.throwOnPut(error);
+      await expectLater(vault.put('key', 'value'), throwsA(same(error)));
+    });
+
+    test('a throw on get does not affect put', () async {
+      vault.throwOnGet();
+      await vault.put('key', 'value');
+      vault.assertWritten('key');
+    });
+
+    test('a throw on put does not affect get', () async {
+      vault.throwOnPut();
+      expect(await vault.get('missing'), isNull);
+    });
+
+    test('reset() clears a configured throw on get', () async {
+      vault.throwOnGet();
+      vault.reset();
+      expect(await vault.get('key'), isNull);
+    });
+
+    test('reset() clears a configured throw on put', () async {
+      vault.throwOnPut();
+      vault.reset();
+      await vault.put('key', 'value');
+      expect(await vault.get('key'), equals('value'));
+    });
+  });
+
   group('FakeVaultService - reset()', () {
     test('clears store and recorded list', () async {
       final vault = FakeVaultService();
