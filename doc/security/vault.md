@@ -30,12 +30,19 @@ Point the vault at the legacy login keychain, which needs no entitlement, with o
 ```dart
 // lib/config/security.dart
 final securityConfig = <String, dynamic>{
-  'vault': <String, dynamic>{
-    // Only consulted on macOS. Leave it out on a signed build. A bare
-    // `false` literal, not the string `'false'`: `Config.get<bool>` returns
-    // its default on a type mismatch as well as on a missing key, so a
-    // quoted value reads exactly like no value at all.
-    'macos_data_protection_keychain': false,
+  // The domain key, like every config map in this framework: `appConfig` is
+  // `{'app': {...}}` and `defaultCacheConfig` is `{'cache': {...}}`.
+  // `MagicApp.init` merges each entry verbatim and derives no name from
+  // anywhere, so a map without it lands at the top level and the provider,
+  // which reads `security.vault.macos_data_protection_keychain`, never sees it.
+  'security': <String, dynamic>{
+    'vault': <String, dynamic>{
+      // Only consulted on macOS. Leave it out on a signed build. A bare
+      // `false` literal, not the string `'false'`: `Config.get<bool>` returns
+      // its default on a type mismatch as well as on a missing key, so a
+      // quoted value reads exactly like no value at all.
+      'macos_data_protection_keychain': false,
+    },
   },
 };
 ```

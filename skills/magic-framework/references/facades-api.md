@@ -684,12 +684,20 @@ await Vault.flush(); // Danger: clears all secure data
 ```dart
 // lib/config/security.dart, only consulted on macOS
 final securityConfig = <String, dynamic>{
-  // A bare `false`, never `'false'`: `Config.get<bool>` returns its default
-  // on a type mismatch as well as on a missing key.
-  'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+  // Domain-keyed like every config map here: init merges each entry verbatim
+  // and derives no name, and the provider reads the dotted path
+  // `security.vault.macos_data_protection_keychain`. A bare `false`, never
+  // `'false'`: `Config.get<bool>` returns its default on a type mismatch as
+  // well as on a missing key.
+  'security': <String, dynamic>{
+    'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+  },
 };
+```
 
-// The file does nothing until Magic.init is given it.
+The file does nothing until `Magic.init` is given it:
+
+```dart
 await Magic.init(configFactories: [() => appConfig, () => securityConfig]);
 ```
 

@@ -120,17 +120,24 @@ void main() {
       'the config map doc/security/vault.md documents reaches the provider',
       () {
         // Byte for byte the snippet on that page, merged the way `Magic.init`
-        // merges a `configFactories` entry, rather than a `Config.set` of the
-        // dotted key. The two are not the same test: the first version of that
-        // page showed the file and never showed handing it to `Magic.init`, so
-        // a consumer following it got no override and no way to tell, because
-        // `Config.get<bool>(...) ?? true` reads an absent key exactly like an
-        // absent file. The four tests above all passed over that.
+        // merges a `configFactories` entry: verbatim, deriving no domain name
+        // from anywhere (`application.dart:115-118`). That is the whole point
+        // of this test and the first two versions of it both missed, in the
+        // same way, one level apart. The page first showed the file without
+        // showing it handed to `Magic.init`; then it showed that and the map
+        // was missing its `'security'` domain key, and THIS TEST supplied the
+        // wrapper itself, so it discriminated on the dotted path rather than
+        // on the documented file and could not fail for the documented reason.
+        //
+        // So: no wrapper here, ever. Whatever this map has to be for the test
+        // to pass is exactly what the page has to show.
         final Map<String, dynamic> securityConfig = <String, dynamic>{
-          'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+          'security': <String, dynamic>{
+            'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+          },
         };
 
-        Config.merge(<String, dynamic>{'security': securityConfig});
+        Config.merge(securityConfig);
         VaultServiceProvider(Magic.app).register();
 
         expect(
