@@ -65,4 +65,88 @@ void main() {
       expect(await Vault.get('facade_key'), isNull);
     });
   });
+
+  group('macOS keychain choice', () {
+    tearDown(() {
+      Magic.flush();
+      Config.set('security', <String, dynamic>{});
+    });
+
+    test('defaults to the data protection keychain', () {
+      // The default has to match `flutter_secure_storage`'s own
+      // (`macos_options.dart:24`), because there is no migration between
+      // the two keychains: a default that flipped would leave every item an
+      // existing macOS consumer had already stored unreachable, and a
+      // missing item is indistinguishable from one never written.
+      expect(MagicVaultService().macOsUsesDataProtectionKeychain, isTrue);
+    });
+
+    test('takes the constructor argument when one is given', () {
+      expect(
+        MagicVaultService(
+          macOsUsesDataProtectionKeychain: false,
+        ).macOsUsesDataProtectionKeychain,
+        isFalse,
+      );
+    });
+
+    test('the provider reads the config key', () {
+      Config.set('security', <String, dynamic>{
+        'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+      });
+
+      VaultServiceProvider(Magic.app).register();
+
+      expect(
+        Magic.app
+            .make<MagicVaultService>('vault')
+            .macOsUsesDataProtectionKeychain,
+        isFalse,
+      );
+    });
+
+    test('the provider defaults to true when the config key is absent', () {
+      VaultServiceProvider(Magic.app).register();
+
+      expect(
+        Magic.app
+            .make<MagicVaultService>('vault')
+            .macOsUsesDataProtectionKeychain,
+        isTrue,
+      );
+    });
+
+    test(
+      'the config map doc/security/vault.md documents reaches the provider',
+      () {
+        // Byte for byte the snippet on that page, merged the way `Magic.init`
+        // merges a `configFactories` entry: verbatim, deriving no domain name
+        // from anywhere (`application.dart:115-118`). That is the whole point
+        // of this test and the first two versions of it both missed, in the
+        // same way, one level apart. The page first showed the file without
+        // showing it handed to `Magic.init`; then it showed that and the map
+        // was missing its `'security'` domain key, and THIS TEST supplied the
+        // wrapper itself, so it discriminated on the dotted path rather than
+        // on the documented file and could not fail for the documented reason.
+        //
+        // So: no wrapper here, ever. Whatever this map has to be for the test
+        // to pass is exactly what the page has to show.
+        final Map<String, dynamic> securityConfig = <String, dynamic>{
+          'security': <String, dynamic>{
+            'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+          },
+        };
+
+        Config.merge(securityConfig);
+        VaultServiceProvider(Magic.app).register();
+
+        expect(
+          Magic.app
+              .make<MagicVaultService>('vault')
+              .macOsUsesDataProtectionKeychain,
+          isFalse,
+        );
+      },
+    );
+  });
 }

@@ -151,6 +151,142 @@ void main() {
     });
   });
 
+  group('FakeVaultService - simulated failures', () {
+    late FakeVaultService vault;
+
+    setUp(() {
+      vault = FakeVaultService();
+    });
+
+    test('throwOnGet makes get throw MagicVaultException', () async {
+      vault.throwOnGet();
+      await expectLater(vault.get('key'), throwsA(isA<MagicVaultException>()));
+    });
+
+    test('throwOnPut makes put throw MagicVaultException', () async {
+      vault.throwOnPut();
+      await expectLater(
+        vault.put('key', 'value'),
+        throwsA(isA<MagicVaultException>()),
+      );
+    });
+
+    test('throwOnGet accepts a custom error', () async {
+      final error = MagicVaultException('simulated keychain read failure');
+      vault.throwOnGet(error);
+      await expectLater(vault.get('key'), throwsA(same(error)));
+    });
+
+    test('throwOnPut accepts a custom error', () async {
+      final error = MagicVaultException('simulated keychain write failure');
+      vault.throwOnPut(error);
+      await expectLater(vault.put('key', 'value'), throwsA(same(error)));
+    });
+
+    test('a throw on get does not affect put', () async {
+      vault.throwOnGet();
+      await vault.put('key', 'value');
+      vault.assertWritten('key');
+    });
+
+    test('a throw on put does not affect get', () async {
+      vault.throwOnPut();
+      expect(await vault.get('missing'), isNull);
+    });
+
+    test('reset() clears a configured throw on get', () async {
+      vault.throwOnGet();
+      vault.reset();
+      expect(await vault.get('key'), isNull);
+    });
+
+    test('reset() clears a configured throw on put', () async {
+      vault.throwOnPut();
+      vault.reset();
+      await vault.put('key', 'value');
+      expect(await vault.get('key'), equals('value'));
+    });
+
+    test('throwOnRemove makes remove throw MagicVaultException', () async {
+      vault.throwOnRemove();
+      await expectLater(
+        vault.remove('key'),
+        throwsA(isA<MagicVaultException>()),
+      );
+    });
+
+    test('throwOnFlush makes flush throw MagicVaultException', () async {
+      vault.throwOnFlush();
+      await expectLater(vault.flush(), throwsA(isA<MagicVaultException>()));
+    });
+
+    test('throwOnRemove accepts a custom error', () async {
+      final error = MagicVaultException('simulated keychain delete failure');
+      vault.throwOnRemove(error);
+      await expectLater(vault.remove('key'), throwsA(same(error)));
+    });
+
+    test('throwOnFlush accepts a custom error', () async {
+      final error = MagicVaultException('simulated keychain wipe failure');
+      vault.throwOnFlush(error);
+      await expectLater(vault.flush(), throwsA(same(error)));
+    });
+
+    test('a failed remove leaves the value in place', () async {
+      await vault.put('key', 'value');
+      vault.throwOnRemove();
+
+      await expectLater(
+        vault.remove('key'),
+        throwsA(isA<MagicVaultException>()),
+      );
+      expect(await vault.get('key'), equals('value'));
+    });
+
+    test('a failed flush leaves the store in place', () async {
+      await vault.put('key', 'value');
+      vault.throwOnFlush();
+
+      await expectLater(vault.flush(), throwsA(isA<MagicVaultException>()));
+      expect(await vault.get('key'), equals('value'));
+    });
+
+    test('a throw on remove does not affect flush', () async {
+      await vault.put('key', 'value');
+      vault.throwOnRemove();
+
+      await vault.flush();
+      expect(await vault.get('key'), isNull);
+    });
+
+    test('a throw on flush does not affect remove', () async {
+      await vault.put('key', 'value');
+      vault.throwOnFlush();
+
+      await vault.remove('key');
+      expect(await vault.get('key'), isNull);
+    });
+
+    test('reset() clears a configured throw on remove', () async {
+      await vault.put('key', 'value');
+      vault.throwOnRemove();
+      vault.reset();
+
+      await vault.put('key', 'value');
+      await vault.remove('key');
+      expect(await vault.get('key'), isNull);
+    });
+
+    test('reset() clears a configured throw on flush', () async {
+      vault.throwOnFlush();
+      vault.reset();
+
+      await vault.put('key', 'value');
+      await vault.flush();
+      expect(await vault.get('key'), isNull);
+    });
+  });
+
   group('FakeVaultService - reset()', () {
     test('clears store and recorded list', () async {
       final vault = FakeVaultService();
