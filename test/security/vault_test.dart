@@ -65,4 +65,55 @@ void main() {
       expect(await Vault.get('facade_key'), isNull);
     });
   });
+
+  group('macOS keychain choice', () {
+    tearDown(() {
+      Magic.flush();
+      Config.set('security', <String, dynamic>{});
+    });
+
+    test('defaults to the data protection keychain', () {
+      // The default has to match `flutter_secure_storage`'s own
+      // (`macos_options.dart:24`), because there is no migration between
+      // the two keychains: a default that flipped would leave every item an
+      // existing macOS consumer had already stored unreachable, and a
+      // missing item is indistinguishable from one never written.
+      expect(MagicVaultService().macOsUsesDataProtectionKeychain, isTrue);
+    });
+
+    test('takes the constructor argument when one is given', () {
+      expect(
+        MagicVaultService(
+          macOsUsesDataProtectionKeychain: false,
+        ).macOsUsesDataProtectionKeychain,
+        isFalse,
+      );
+    });
+
+    test('the provider reads the config key', () {
+      Config.set('security', <String, dynamic>{
+        'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+      });
+
+      VaultServiceProvider(Magic.app).register();
+
+      expect(
+        Magic.app
+            .make<MagicVaultService>('vault')
+            .macOsUsesDataProtectionKeychain,
+        isFalse,
+      );
+    });
+
+    test('the provider defaults to true when the config key is absent', () {
+      VaultServiceProvider(Magic.app).register();
+
+      expect(
+        Magic.app
+            .make<MagicVaultService>('vault')
+            .macOsUsesDataProtectionKeychain,
+        isTrue,
+      );
+    });
+  });
 }

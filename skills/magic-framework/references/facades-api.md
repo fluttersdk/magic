@@ -679,6 +679,17 @@ await Vault.delete('refresh_token');
 await Vault.flush(); // Danger: clears all secure data
 ```
 
+**macOS has two keychains and you may have to choose.** The default is the data protection keychain, which requires the restricted `keychain-access-groups` entitlement and therefore a build signed with an App ID: on an unsigned or ad-hoc build every `Vault.put` fails with `PlatformException(-34018, errSecMissingEntitlement)`. One config key moves the items to the legacy login keychain, which needs no entitlement:
+
+```dart
+// lib/config/security.dart, only consulted on macOS
+final securityConfig = <String, dynamic>{
+  'vault': <String, dynamic>{'macos_data_protection_keychain': false},
+};
+```
+
+There is **no migration between the two keychains in either direction**, and a miss reads as "never stored" rather than as an error, so flipping it after the app has stored anything silently orphans every existing item: `Crypt.encryptWithDeviceKey` generates a fresh device key on the null read and everything encrypted under the old one becomes unreadable, and `BaseGuard` loses its token and logs the user out. Set it once, before first storage.
+
 ---
 
 ## Gotchas
