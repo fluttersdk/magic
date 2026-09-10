@@ -56,6 +56,8 @@ Configuration options:
 - `headers`: Default headers sent with every request
 - `interceptors`: List of interceptor class names to register on boot
 
+Outgoing header names keep their casing on mobile and desktop (`preserveHeaderCase: true` on the Dio driver), which is what a case-sensitive reader such as ExoPlayer needs. On the web they are still lowercased by the browser, so never build a web feature on a case-sensitive header. Response headers are the other direction: `MagicResponse.headers` keys are always lowercase, so read them with a lowercase key.
+
 ## Http Facade
 
 The `Http` facade provides static access to the network driver for making requests.
