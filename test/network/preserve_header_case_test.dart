@@ -19,10 +19,15 @@ void main() {
         server.listen((socket) {
           socket.listen((data) {
             buffer.write(utf8.decode(data));
-            if (!rawRequest.isCompleted &&
-                buffer.toString().contains('\r\n\r\n')) {
-              rawRequest.complete(buffer.toString());
+            // 2. Answer once, and only after the head has fully landed. A
+            //    request split across two TCP segments would otherwise write
+            //    to an already closed socket, and that failure would surface
+            //    as a test failure about something other than header casing.
+            if (rawRequest.isCompleted ||
+                !buffer.toString().contains('\r\n\r\n')) {
+              return;
             }
+            rawRequest.complete(buffer.toString());
             socket.write(
               'HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
             );
@@ -35,7 +40,7 @@ void main() {
         );
         final requestHeaders = <String, String>{}
           ..['User-Agent'] = 'Watchools/1.0';
-        // 2. Fire the request; a malformed/short response is fine, only the
+        // 3. Fire the request; a malformed/short response is fine, only the
         //    outgoing bytes captured above matter for this assertion.
         unawaited(
           driver
