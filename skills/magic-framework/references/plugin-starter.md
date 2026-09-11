@@ -278,6 +278,9 @@ Copy from `lib/config/magic_starter.dart` into your app config:
   'billing': {
     'web_origin': null,   // REQUIRED once billing is on, and no default exists
   },
+  'notifications': {
+    'external_id_prefix': 'user_',  // must equal the backend's own prefix (0.0.27+)
+  },
   'legal': {
     'terms_url': null,    // Shows ToS link on register page when set
     'privacy_url': null,  // Shows Privacy link on register page when set
@@ -291,6 +294,18 @@ All 14 features default to `false` in code. The template above has some enabled 
 concatenates it into Stripe's `successUrl`, `cancelUrl` and the portal `returnUrl`, Stripe rejects a
 relative url, and the resulting `BillingException` is logged rather than shown, so the customer sees a
 checkout button that does nothing. `starter:doctor` reports the missing key (alpha.23+).
+
+`notifications.external_id_prefix` is new in 0.0.27 and needs no host code: `MagicStarterServiceProvider`
+listens to `Auth.stateNotifier` and declares `<prefix><user id>` as the push external id when a session
+begins, releases it when one ends, and reads the current state once at boot so a session restored before
+this provider boots is declared too. The default `user_` is what `magic-starter-laravel`'s `HasNotifications`
+composes, and the two must agree EXACTLY: OneSignal accepts a mismatch and delivers to nobody, so the only
+trace is a zero-recipient report on the server. A blank value resolves to `user_` rather than to no prefix.
+`starter:doctor` prints the prefix it resolves to (0.0.27+) and never fails on it, since any value is valid
+as long as the backend uses the same one; three of the four sites that compose the id live in the backend,
+where no check inside this package can reach them. The release also stops `Notify` polling on the two
+sign-outs the auth controller never sees (account deletion, and magic's `AuthInterceptor` failing a token
+refresh); `MagicStarterAppLayout.initState` re-arms it when the shell remounts.
 
 ## View Registry
 
