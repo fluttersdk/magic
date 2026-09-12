@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Improvements
+
+- **`plugin-starter.md` follows `magic_starter` off the alpha rail.** That package's next release is `0.0.27` rather than `0.0.1-alpha.27`, so the reference stamp moves with it and the release markers inside the file now read `0.0.27` where they described that release. The `magic_notifications` requirement it states moves to `^0.3.0`, which is the floor the starter release carries, and the notification section gains the five `notifications.*` keys the mounted screens read and no package supplies (`bulk_title`, `bulk_description`, `delete`, `delete_failed`, `channel_sms`): an adopter upgrading with a hand-written catalogue sees each of them rendered as its own key. The configuration section also gains `notifications.external_id_prefix`, which 0.0.27 introduced: the provider now declares `<prefix><user id>` as the push external id off `Auth.stateNotifier` and the value has to equal the backend's own, since OneSignal accepts a mismatch and delivers to nobody. This file is the only agent-facing document for that package, since `.pubignore` keeps its `CLAUDE.md` out of the published archive, and `magic_starter`'s own `skill_reference_stamp_test.dart` fails against a stale stamp whenever a sibling checkout exists. (`skills/magic-framework/references/plugin-starter.md`, `skills/magic-framework/SKILL.md`)
+
 ## [0.0.10] - 2026-09-11
 
 ### BREAKING
