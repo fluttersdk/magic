@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Improvements
+
+- **`plugin-notifications.md` covers the APNs entitlement the installer now writes.** `magic_notifications` 0.3.1 stops warning about the Release build's `aps-environment` and writes it: `notifications:install` produces `Runner.entitlements` with `development` and `RunnerRelease.entitlements` with `production`, points Release at the second and leaves Debug and Profile on the first, because Apple makes that value a property of the build configuration and one file cannot serve a development and a distribution profile at once. The reference said none of this, and the failure it prevents is invisible before TestFlight: an app exported against the development value registers a sandbox APNs token the production app can never deliver to. Also recorded: configurations are matched by BASE name so a flavoured project is covered rather than declined, a configuration that is none of the three is left untouched and named in a warning, and `notifications:uninstall` reverts neither file by design. The stamp moves to `v0.3.1` and the requirement line now names `fluttersdk_artisan ^0.0.15`, which is the release carrying the `setEntitlementsPaths` op the install depends on. (`skills/magic-framework/references/plugin-notifications.md`, `skills/magic-framework/SKILL.md`)
+
 ## [0.0.11] - 2026-09-12
 
 ### Improvements
