@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.0 | Updated: 2026-09-09 -->
+<!-- magic_notifications v0.3.1 | Updated: 2026-09-13 -->
 
 # magic_notifications Plugin
 
@@ -34,7 +34,15 @@ dart run magic:artisan notifications:install
 dart run magic:artisan notifications:doctor
 ```
 
-Requires `magic ^0.0.6` (for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one).
+Requires `magic ^0.0.6` (for `Echo.connection`, the accessor the realtime path needs to tell an open connection from a closed one) and, since 0.3.1, `fluttersdk_artisan ^0.0.15` (for `XcodeProjectEditor.setEntitlementsPaths`, which the iOS install below cannot do without).
+
+### The APNs entitlement install writes, and why there are two files
+
+Apple makes `aps-environment` a property of the BUILD CONFIGURATION: a development provisioning profile carries only `development`, a distribution one only `production`, so one entitlements file cannot serve both. Since 0.3.1 `notifications:install` writes `ios/Runner/Runner.entitlements` with `development` and `ios/Runner/RunnerRelease.entitlements` with `production`, then points Release at the second and leaves Debug and Profile on the first. Before that it wrote one development file for every configuration, which either failed at export or shipped an app registering a sandbox APNs token the production app can never deliver to (OneSignal records that as `notification_types: -30`), and neither symptom appears before TestFlight.
+
+Configurations are matched by BASE name, so a flavoured project is covered rather than declined: `Release-production` and its siblings all sign with a distribution profile whatever the flavour is called. A configuration that is none of Debug, Profile or Release is left untouched and named in a warning rather than guessed at. `notifications:doctor` reads the same pbxproj walk and judges what each configuration actually signs against, so a fresh install now leaves it with nothing to say; a project whose Release still points at the development file is the one case it reports.
+
+`notifications:uninstall` does not revert either file. An entitlements file is shared ground and the Release build setting may have been pointed by hand, so both are named in its manual-cleanup list instead.
 
 ### Two iOS pieces no command can install
 
