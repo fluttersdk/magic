@@ -125,6 +125,66 @@ void main() {
       expect(MagicRouter.instance.currentLocation, '/monitors');
     });
 
+    testWidgets('a second back() after a stacked pop is not a dead press', (
+      tester,
+    ) async {
+      // The push branch must not also record history, or the same step is
+      // recorded twice: once as a Navigator page and once as a string. The
+      // native pop consumes the page and leaves the string, so the NEXT back
+      // finds `canPop()` false, pops the entry naming the location it is
+      // already on, and goes there. To the reader that is a back press that
+      // did nothing.
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/monitors', () => const SizedBox());
+      MagicRoute.page('/monitors/:id', (id) => const SizedBox()).stacked();
+
+      await pumpRouter(tester);
+
+      MagicRouter.instance.to('/monitors');
+      await tester.pumpAndSettle();
+      MagicRouter.instance.to('/monitors/42');
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.back();
+      await tester.pumpAndSettle();
+      expect(MagicRouter.instance.currentLocation, '/monitors');
+
+      MagicRouter.instance.back();
+      await tester.pumpAndSettle();
+      expect(
+        MagicRouter.instance.currentLocation,
+        '/',
+        reason: 'the second press has to move, not re-enter where it is',
+      );
+    });
+
+    testWidgets('the same-target guard ignores the query string', (
+      tester,
+    ) async {
+      // `currentLocation` carries the query and a bare `to('/monitors/42')`
+      // does not, so comparing them whole makes a re-tap look like a move and
+      // pushes a second copy of the screen already on screen.
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/monitors/:id', (id) => const SizedBox()).stacked();
+
+      await pumpRouter(tester);
+
+      MagicRouter.instance.to('/monitors/42?tab=checks');
+      await tester.pumpAndSettle();
+      MagicRouter.instance.to('/monitors/42');
+      await tester.pumpAndSettle();
+
+      final ctx = tester.element(find.byType(SizedBox).last);
+      Navigator.of(ctx).pop();
+      await tester.pumpAndSettle();
+
+      expect(
+        MagicRouter.instance.currentLocation,
+        '/',
+        reason: 'one push happened, not two',
+      );
+    });
+
     testWidgets('navigating to where you already are does not stack', (
       tester,
     ) async {
@@ -282,6 +342,33 @@ void main() {
         '/home',
         () => const SizedBox(),
       ).stacked().transition(RouteTransition.fade);
+
+      MagicRouter.instance.defaultTransition = RouteTransition.platform;
+
+      await pumpRouter(tester);
+
+      MagicRouter.instance.to('/home');
+      await tester.pumpAndSettle();
+
+      final ctx = tester.element(find.byType(SizedBox).last);
+      expect(
+        ModalRoute.of(ctx),
+        isNot(isA<MaterialRouteTransitionMixin<dynamic>>()),
+      );
+    });
+
+    testWidgets('asking for none explicitly beats the default too', (
+      tester,
+    ) async {
+      // The case a sentinel default cannot express. If "unset" and "none" are
+      // the same value, a route that deliberately asks for no animation is
+      // indistinguishable from one that said nothing, and an app-wide default
+      // silently overrides the one route that opted out of it.
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page(
+        '/home',
+        () => const SizedBox(),
+      ).stacked().transition(RouteTransition.none);
 
       MagicRouter.instance.defaultTransition = RouteTransition.platform;
 

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Breaking
+
+- **`RouteTransition` gains a value, `platform`.** Source-breaking for a consumer with an exhaustive `switch` over the enum: that switch stops compiling until the new case is handled. Nothing else changes, no existing value moves, and the default is untouched. Permitted pre-1.0 and recorded here rather than left to be discovered at the compiler.
+
 ### Added
 
 - **A `User-Agent` that names the app and its platform, sent by default.** Dart's HTTP client sends `Dart/<sdk> (dart:io)`, which says nothing about the app and is identical across every Flutter client a backend has, so anything a server derives from the agent answers WRONGLY rather than partially. Found on a session list: the backend's user-agent parser matched no browser and no platform, defaulted the device to desktop, and a phone's own session rendered as a browser session on an unknown machine beside a laptop icon. `NetworkServiceProvider` now composes `<App Name> (Flutter; <platform>)` from `app.name` and `defaultTargetPlatform`, with the platform in the casing Apple and Google use so a server can match it without normalising. No version: nothing here knows the app's build number, and a config key an adopter has to fill in would leave the useful half empty in most apps. Skipped on WEB, where `User-Agent` is a forbidden header name for `XMLHttpRequest`, so the browser drops it and sends its own, which is the right agent there anyway. A host that already sets one in `network.drivers.api.headers` keeps it, matched case-insensitively, since HTTP header names are case-insensitive and a host writing `user-agent` would otherwise have sent two agents on one request.

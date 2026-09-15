@@ -74,7 +74,12 @@ class RouteDefinition {
   List<dynamic> _middlewares = [];
 
   /// Page transition animation type.
-  RouteTransition _transition = RouteTransition.none;
+  ///
+  /// Null means "follow the router's default". Distinct from an explicit
+  /// [RouteTransition.none], which is a route asking for no animation and has
+  /// to beat an app-wide default rather than be indistinguishable from
+  /// silence.
+  RouteTransition? _transition;
 
   /// Page title for browser tab / app switcher.
   String? _title;
@@ -211,7 +216,10 @@ class RouteDefinition {
   List<dynamic> get middlewares => _middlewares;
 
   /// Get the transition type.
-  RouteTransition get transitionType => _transition;
+  RouteTransition get transitionType => _transition ?? RouteTransition.none;
+
+  /// The transition this route named, or null to take the router's default.
+  RouteTransition? get declaredTransition => _transition;
 
   /// Whether [stacked] was set here, or null to take the router's default.
   bool? get isStacked => _stacked;

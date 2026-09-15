@@ -377,10 +377,12 @@ class MagicRouter {
     // broken as before. The path is always present and already unique.
     final pageName = route.routeName ?? route.fullPath;
 
+    // Null means the route named nothing, which is the only case the default
+    // covers. A route that explicitly asks for `none` is opting OUT of an
+    // app-wide default rather than failing to have an opinion, and a sentinel
+    // value cannot tell those two apart.
     final RouteTransition transition =
-        route.transitionType == RouteTransition.none
-        ? defaultTransition
-        : route.transitionType;
+        route.declaredTransition ?? defaultTransition;
 
     switch (transition) {
       case RouteTransition.platform:
@@ -565,12 +567,20 @@ class MagicRouter {
       // time a nav destination is re-tapped, and falling through to `go()`
       // would replace the page list and throw away the stack the reader
       // built getting here, so the honest answer is neither.
-      if (current == target) return;
-
-      if (current != null) {
-        _recordHistory(current);
+      //
+      // Compared on the PATH: `currentLocation` carries the query and a bare
+      // `to('/monitors/42')` does not, so comparing them whole makes sitting
+      // on `/monitors/42?tab=checks` look like a different place.
+      if (current != null &&
+          Uri.parse(current).path == Uri.parse(target).path) {
+        return;
       }
 
+      // No history entry, deliberately. The push IS the record: `back()`
+      // prefers the native pop, which consumes the page and would leave a
+      // string behind naming the location it just landed on, so the next
+      // press would `go()` there and look like a press that did nothing.
+      // The imperative `push()` records nothing for the same reason.
       _router!.push(target);
       return;
     }
