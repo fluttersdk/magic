@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride, TargetPlatform;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -51,10 +52,7 @@ void main() {
 
     test('keeps the host headers beside it', () {
       expect(_resolveDriver().defaultHeaders['Accept'], 'application/json');
-      expect(
-        _resolveDriver().defaultHeaders.containsKey('User-Agent'),
-        isTrue,
-      );
+      expect(_resolveDriver().defaultHeaders.containsKey('User-Agent'), isTrue);
     });
 
     test('does not overwrite one the host set', () {
