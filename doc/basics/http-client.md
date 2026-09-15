@@ -55,6 +55,20 @@ Map<String, dynamic> get networkConfig => {
 };
 ```
 
+#### The default User-Agent
+
+`NetworkServiceProvider` adds a `User-Agent` of `<App Name> (Flutter; <platform>)`
+unless `headers` already carries one, reading the name from `app.name` and the
+platform from `defaultTargetPlatform`. Without it Dart sends
+`Dart/<sdk> (dart:io)`, which says nothing about the app and is identical across
+every Flutter client a backend has, so anything the server derives from the agent
+answers wrongly rather than partially.
+
+It is skipped on WEB: `User-Agent` is a forbidden header name for
+`XMLHttpRequest`, so the browser drops it and sends its own, which is the right
+agent there anyway. Set your own in `headers` to override it; the match is
+case-insensitive, so writing `user-agent` replaces it rather than adding a second.
+
 <a name="register-in-config"></a>
 ### Register in Config
 
