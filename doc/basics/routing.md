@@ -423,7 +423,15 @@ MagicRoute.page('/monitors/:id', (id) => MonitorPage(id))
     .transition(RouteTransition.platform);
 ```
 
-`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering every route you do not stack. Navigating to the route you are already on does nothing rather than stacking a screen on itself.
+`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering every route you do not stack.
+
+Navigating to the path you are already on depends on whether you name a query:
+
+| From | `to(...)` | Result |
+|---|---|---|
+| `/monitors/42` | `'/monitors/42'` | nothing; a re-tapped destination does not stack a screen on itself |
+| `/monitors/42?tab=checks` | `'/monitors/42'` | nothing; naming no query is asking for the screen, not asking to clear its tab |
+| `/monitors/42?tab=overview` | `'/monitors/42', queryParameters: {'tab': 'checks'}` | the top page is swapped, so the screen remounts with the new tab and the pages under it survive |
 
 Set the default once when a whole app wants it:
 

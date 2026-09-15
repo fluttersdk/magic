@@ -253,7 +253,9 @@ MagicRouter.instance.defaultTransition = RouteTransition.platform;
 
 Leave `defaultStacked` off on web: `go()` already gives a working browser Back.
 
-`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes. Navigating to the route you are already on does nothing.
+`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes.
+
+Navigating to the path you are already on turns on the query: naming none is a re-tapped destination and does nothing, and naming one swaps the top page so the screen remounts with the new query while the stack under it survives. That swap is a `pushReplacement`, not a `replace`, because `replace` reuses the page key and a screen reading `Request.query('tab')` in `initState` would never see the change.
 
 `swipeBack(false)` refuses the gesture ALONE; the route is still popped by Android back, by your own chrome and by `back()`. Use `PopScope` when the route should not be left at all, which Flutter's gesture already honours.
 

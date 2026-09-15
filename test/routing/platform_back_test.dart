@@ -3,6 +3,34 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
+/// Records the query it saw at mount time, the way a real detail page does.
+///
+/// `doc/basics/routing.md` teaches `Request.query('tab')` as a global read, so
+/// a screen reads its query in `initState` rather than taking it as a
+/// constructor argument. That makes the page KEY the thing that decides
+/// whether a same-path navigation is visible at all: reuse it and the `State`
+/// survives, `initState` never re-runs, and the screen keeps rendering the tab
+/// the reader just navigated away from while the location says otherwise.
+class _QueryReadingPage extends StatefulWidget {
+  const _QueryReadingPage();
+
+  static final List<String?> seen = <String?>[];
+
+  @override
+  State<_QueryReadingPage> createState() => _QueryReadingPageState();
+}
+
+class _QueryReadingPageState extends State<_QueryReadingPage> {
+  @override
+  void initState() {
+    super.initState();
+    _QueryReadingPage.seen.add(MagicRouter.instance.queryParameter('tab'));
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
+}
+
 void main() {
   setUpAll(TestWidgetsFlutterBinding.ensureInitialized);
 
@@ -220,6 +248,47 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(MagicRouter.instance.currentLocation, '/monitors');
+    });
+
+    testWidgets('the replaced screen reads the query it moved to', (
+      tester,
+    ) async {
+      // `currentLocation` moving is not the same as the screen moving. A
+      // replace that reuses the page key preserves the State, so the tab the
+      // reader tapped is in the URL and nowhere else.
+      _QueryReadingPage.seen.clear();
+
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page(
+        '/monitors/:id',
+        (id) => const _QueryReadingPage(),
+      ).stacked();
+
+      await pumpRouter(tester);
+
+      MagicRouter.instance.to(
+        '/monitors/42',
+        queryParameters: {'tab': 'overview'},
+      );
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to(
+        '/monitors/42',
+        queryParameters: {'tab': 'checks'},
+      );
+      await tester.pumpAndSettle();
+
+      expect(_QueryReadingPage.seen, [
+        'overview',
+        'checks',
+      ], reason: 'the screen has to see the tab, not just the address bar');
+
+      // Still one page: the stack underneath survives the swap.
+      final ctx = tester.element(find.byType(SizedBox).last);
+      Navigator.of(ctx).pop();
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentLocation, '/');
     });
 
     testWidgets('a bare target after a query change is still a re-tap', (

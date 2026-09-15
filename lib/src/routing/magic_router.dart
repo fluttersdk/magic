@@ -576,15 +576,22 @@ class MagicRouter {
         if (Uri.parse(target).query.isEmpty) return;
 
         // A query the caller DID name is a move: switching a tab on the page
-        // you are on. Replaced rather than pushed, so back leaves the screen
-        // instead of stepping through every tab the reader looked at, and the
-        // pages underneath survive the swap.
+        // you are on. The top page is swapped rather than stacked, so back
+        // leaves the screen instead of stepping through every tab the reader
+        // looked at, and the pages underneath survive.
+        //
+        // `pushReplacement` rather than `replace`, and the difference is the
+        // whole point: go_router's `replace` reuses the page key, which
+        // "will preserve the state and not run any page animation". Preserved
+        // state means `initState` never re-runs, and a screen reads its query
+        // globally (`Request.query('tab')`) rather than through a constructor
+        // argument, so the tab would change in the address and nowhere else.
+        // `pushReplacement` always takes a new key.
         //
         // The identical query lands here too and needs no branch of its own:
-        // a replace with the location already showing changes nothing a
-        // caller can observe, and a guard nothing can observe is a line that
-        // survives its own mutation test.
-        _router!.replace(target);
+        // a guard for it survived its own mutation test, which is the tell
+        // that it was an optimisation wearing the clothes of a behaviour.
+        _router!.pushReplacement(target);
         return;
       }
 
