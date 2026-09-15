@@ -84,10 +84,11 @@ class NetworkServiceProvider extends ServiceProvider {
   ///
   /// Accented Latin letters are folded to their base letter rather than
   /// dropped, because dropping leaves a mangled word where the adopter would
-  /// have picked a plain-ASCII name. The table covers Latin-1 and Latin
-  /// Extended-A, so Turkish, German, French, Spanish, Nordic, Polish and Czech
-  /// names survive legibly. A script with no Latin base (CJK, Arabic, Cyrillic)
-  /// has nothing to fold to and is dropped.
+  /// have picked a plain-ASCII name. The table covers every letter in Latin-1
+  /// Supplement and Latin Extended-A, so Turkish, German, French, Spanish,
+  /// Nordic, Polish, Czech and Dutch names survive legibly, and a test walks
+  /// both ranges so the claim checks itself. A script with no Latin base (CJK,
+  /// Arabic, Cyrillic) has nothing to fold to and is dropped.
   ///
   /// Everything still outside printable ASCII goes, which also closes the
   /// injection shape: a name carrying a carriage return or newline cannot split
@@ -141,17 +142,17 @@ class NetworkServiceProvider extends ServiceProvider {
     'J': 'Ĵ',
     'j': 'ĵ',
     'K': 'Ķ',
-    'k': 'ķ',
+    'k': 'ķĸ',
     'L': 'ĹĻĽĿŁ',
     'l': 'ĺļľŀł',
-    'N': 'ÑŃŅŇ',
-    'n': 'ñńņňŉ',
+    'N': 'ÑŃŅŇŊ',
+    'n': 'ñńņňŉŋ',
     'O': 'ÒÓÔÕÖØŌŎŐ',
     'o': 'òóôõöøōŏő',
     'R': 'ŔŖŘ',
     'r': 'ŕŗř',
     'S': 'ŚŜŞŠ',
-    's': 'śŝşš',
+    's': 'śŝşšſ',
     'T': 'ŢŤŦ',
     't': 'ţťŧ',
     'U': 'ÙÚÛÜŨŪŬŮŰŲ',
@@ -169,6 +170,14 @@ class NetworkServiceProvider extends ServiceProvider {
     'ss': 'ß',
     'TH': 'Þ',
     'th': 'þ',
+    // The two ligatures, the only entries whose base is two letters and so the
+    // only ones that cannot join a group above. The kra, the eng and the long s
+    // were missing for the same reason and are folded into `k`, `N`/`n` and `s`
+    // rather than added here: a repeated key in a Dart map literal takes the
+    // LAST value, so a fresh `'n': 'ŋ'` would have silently replaced the five
+    // accented n's above it.
+    'IJ': 'Ĳ',
+    'ij': 'ĳ',
   });
 
   /// Inverts the grouped folding table into a rune-keyed lookup.

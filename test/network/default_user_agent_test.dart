@@ -143,6 +143,32 @@ void main() {
       expect(agentFor('Łódź Główna'), startsWith('Lodz Glowna (Flutter; '));
     });
 
+    test('every Latin-1 and Latin Extended-A letter survives the fold', () {
+      // The claim the docs make, checked rather than trusted. The table is
+      // grouped by base letter, so a letter that is not an accented form of
+      // one (the IJ ligatures, the kra, the eng, the long s) is invisible to a
+      // reader scanning it and was in fact missing: `Ĳsselmeer` went out as
+      // `sselmeer`, the mangled word folding exists to avoid.
+      //
+      // Walking the range is what makes the claim self-checking. Naming the
+      // four that were missing would pass forever without noticing a fifth.
+      final List<String> dropped = <String>[];
+
+      for (int rune = 0x00C0; rune < 0x0180; rune++) {
+        final String letter = String.fromCharCode(rune);
+
+        // The two multiplication/division signs sit in the Latin-1 block and
+        // are not letters; nothing should fold them.
+        if (letter == '\u00D7' || letter == '\u00F7') continue;
+
+        if (agentFor(letter).startsWith('Magic App (Flutter; ')) {
+          dropped.add('U+${rune.toRadixString(16).toUpperCase()} $letter');
+        }
+      }
+
+      expect(dropped, isEmpty, reason: 'these have no ASCII base to fold to');
+    });
+
     test('falls back when nothing legible survives', () {
       // A script with no Latin base has nothing to fold to. Without the
       // fallback the agent would read `" (Flutter; iOS)"`, naming nothing.

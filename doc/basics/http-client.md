@@ -83,8 +83,10 @@ dropped, since dropping leaves a mangled word:
 | `Café Münster` | `Cafe Munster (Flutter; iOS)` |
 | `日本` | `Magic App (Flutter; iOS)` |
 
-The table covers Latin-1 and Latin Extended-A, which is Turkish, German, French,
-Spanish, Nordic, Polish and Czech. A script with no Latin base has nothing to
+The table covers every letter in Latin-1 Supplement and Latin Extended-A, which
+is Turkish, German, French, Spanish, Nordic, Polish, Czech and Dutch. A test
+walks both ranges and fails on any letter that does not survive, so the claim
+checks itself rather than being maintained by hand. A script with no Latin base has nothing to
 fold to, so it is dropped and the agent falls back to the config default rather
 than opening with a bare space. Set your own `User-Agent` in `headers` if you
 need an exact string; it is passed through untouched.
