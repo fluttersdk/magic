@@ -540,6 +540,20 @@ class MagicRouter {
   /// Route.to('/dashboard');
   /// Route.to('/users/42');
   /// ```
+  ///
+  /// Replaces the page stack, which is what a tab or a nav destination wants.
+  /// A route marked [RouteDefinition.stacked] is pushed instead, so it can be
+  /// popped, swiped back, and reached by the Android back button.
+  ///
+  /// On a stacked route, navigating to the path already showing turns on the
+  /// query rather than the path:
+  ///
+  /// - no [queryParameters]: nothing happens. Asking for the screen you are on
+  ///   is a re-tapped destination, not a request to clear its query.
+  /// - [queryParameters] given: the top page is swapped for a fresh one, so
+  ///   the screen remounts and reads the new query, and the pages under it
+  ///   survive. Back leaves the screen rather than stepping through every
+  ///   query the reader passed through.
   void to(String path, {Map<String, String>? queryParameters}) {
     if (_router == null) {
       throw StateError(
