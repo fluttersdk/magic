@@ -55,6 +55,42 @@ Map<String, dynamic> get networkConfig => {
 };
 ```
 
+#### The default User-Agent
+
+`NetworkServiceProvider` adds a `User-Agent` of `<App Name> (Flutter; <platform>)`
+unless `headers` already carries one, reading the name from `app.name` and the
+platform from `defaultTargetPlatform`. Without it Dart sends
+`Dart/<sdk> (dart:io)`, which says nothing about the app and is identical across
+every Flutter client a backend has, so anything the server derives from the agent
+answers wrongly rather than partially.
+
+It is skipped on WEB: `User-Agent` is a forbidden header name for
+`XMLHttpRequest`, so the browser drops it and sends its own, which is the right
+agent there anyway. Set your own in `headers` to override it; the match is
+case-insensitive, so writing `user-agent` replaces it rather than adding a second.
+
+**The name is folded to ASCII on the way out, so what you see on the wire may
+not be what you wrote.** `dart:io` refuses any header value carrying a byte
+above 127 and throws a `FormatException` from `HttpHeaders.set`, which Dio
+surfaces as a `DioException`, so an unfolded name would lose every request the
+app makes. Accented Latin letters fold to their base letter rather than being
+dropped, since dropping leaves a mangled word:
+
+| `app.name` | sent as |
+|---|---|
+| `Uptizm` | `Uptizm (Flutter; iOS)` |
+| `Şirket Takip` | `Sirket Takip (Flutter; iOS)` |
+| `Café Münster` | `Cafe Munster (Flutter; iOS)` |
+| `日本` | `Magic App (Flutter; iOS)` |
+
+The table covers every letter in Latin-1 Supplement and Latin Extended-A, which
+is Turkish, German, French, Spanish, Nordic, Polish, Czech and Dutch. A test
+walks both ranges and fails on any letter that does not survive, so the claim
+checks itself rather than being maintained by hand. A script with no Latin base has nothing to
+fold to, so it is dropped and the agent falls back to the config default rather
+than opening with a bare space. Set your own `User-Agent` in `headers` if you
+need an exact string; it is passed through untouched.
+
 <a name="register-in-config"></a>
 ### Register in Config
 
