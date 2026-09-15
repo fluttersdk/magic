@@ -563,29 +563,27 @@ class MagicRouter {
     //    pushes instead, and `back()` still prefers the native pop, so the
     //    history fallback keeps covering every route that does not.
     if (_shouldStack(path)) {
-      // Three cases, and the middle one is the reason this is not one
-      // comparison. `currentLocation` always carries the query; the target
-      // carries one only when the caller passed `queryParameters`.
+      // Same screen, and what to do turns on the QUERY rather than the path.
+      // `currentLocation` always carries one; the target carries one only
+      // when the caller passed `queryParameters`.
       if (current != null &&
           Uri.parse(current).path == Uri.parse(target).path) {
-        final String currentQuery = Uri.parse(current).query;
-        final String targetQuery = Uri.parse(target).query;
+        // The caller named no query, so this is a nav destination re-tapped:
+        // asking for the screen you are on, not asking to clear its tab.
+        // Pushing would stack the screen on itself and `go()` would replace
+        // the page list and throw away the stack the reader built getting
+        // here, so the honest answer is neither.
+        if (Uri.parse(target).query.isEmpty) return;
 
-        // Same screen, same state. A nav destination re-tapped. Pushing would
-        // stack the screen on itself and `go()` would replace the page list
-        // and throw away the stack the reader built getting here, so the
-        // honest answer is neither.
-        if (currentQuery == targetQuery) return;
-
-        // A bare `to('/monitors/42')` while sitting on `/monitors/42?tab=x`
-        // is that same re-tap: the caller named no query, so it is asking for
-        // the destination rather than asking to clear the tab.
-        if (targetQuery.isEmpty) return;
-
-        // Same screen, new state: switching a tab on the page you are on.
-        // Replaced rather than pushed, so back leaves the screen instead of
-        // stepping through every tab the reader looked at, and the pages
-        // underneath survive.
+        // A query the caller DID name is a move: switching a tab on the page
+        // you are on. Replaced rather than pushed, so back leaves the screen
+        // instead of stepping through every tab the reader looked at, and the
+        // pages underneath survive the swap.
+        //
+        // The identical query lands here too and needs no branch of its own:
+        // a replace with the location already showing changes nothing a
+        // caller can observe, and a guard nothing can observe is a line that
+        // survives its own mutation test.
         _router!.replace(target);
         return;
       }

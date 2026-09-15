@@ -222,31 +222,41 @@ void main() {
       expect(MagicRouter.instance.currentLocation, '/monitors');
     });
 
-    testWidgets('re-navigating to the same path AND query does nothing', (
+    testWidgets('a bare target after a query change is still a re-tap', (
       tester,
     ) async {
+      // The direction that separates "asking for this screen" from "asking to
+      // clear its tab". Both compare equal on the path, and only the query
+      // tells them apart.
       MagicRoute.page('/', () => const SizedBox());
       MagicRoute.page('/monitors/:id', (id) => const SizedBox()).stacked();
 
       await pumpRouter(tester);
 
-      for (var i = 0; i < 3; i++) {
-        MagicRouter.instance.to(
-          '/monitors/42',
-          queryParameters: {'tab': 'checks'},
-        );
-        await tester.pumpAndSettle();
-      }
+      MagicRouter.instance.to('/monitors/42');
+      await tester.pumpAndSettle();
+      MagicRouter.instance.to(
+        '/monitors/42',
+        queryParameters: {'tab': 'checks'},
+      );
+      await tester.pumpAndSettle();
 
-      final ctx = tester.element(find.byType(SizedBox).last);
-      Navigator.of(ctx).pop();
+      MagicRouter.instance.to('/monitors/42');
       await tester.pumpAndSettle();
 
       expect(
         MagicRouter.instance.currentLocation,
-        '/',
-        reason: 'three identical navigations are one page',
+        '/monitors/42?tab=checks',
+        reason: 'a bare target is the destination, not an empty query',
       );
+
+      // All of it one page: the replace swapped the top rather than stacking,
+      // so a single pop reaches the root.
+      final ctx = tester.element(find.byType(SizedBox).last);
+      Navigator.of(ctx).pop();
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentLocation, '/');
     });
 
     testWidgets('navigating to where you already are does not stack', (
