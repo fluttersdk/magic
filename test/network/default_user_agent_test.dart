@@ -154,8 +154,18 @@ void main() {
       // four that were missing would pass forever without noticing a fifth.
       final List<String> dropped = <String>[];
 
-      for (int rune = 0x00C0; rune < 0x0180; rune++) {
+      // The Latin-1 Supplement block starts at U+0080, not at the accented
+      // letters, and three of the characters below U+00C0 are letters rather
+      // than symbols. They were dropped while the docs claimed the block was
+      // covered: `\u00B5Torrent` went out as `Torrent`.
+      const Set<int> lettersBelowC0 = <int>{0x00AA, 0x00B5, 0x00BA};
+
+      for (int rune = 0x00A0; rune < 0x0180; rune++) {
         final String letter = String.fromCharCode(rune);
+
+        // Everything else under U+00C0 is punctuation, a sign or a fraction,
+        // and a fold that touched those would be mangling rather than folding.
+        if (rune < 0x00C0 && !lettersBelowC0.contains(rune)) continue;
 
         // The two multiplication/division signs sit in the Latin-1 block and
         // are not letters; nothing should fold them.

@@ -126,7 +126,7 @@ class NetworkServiceProvider extends ServiceProvider {
   /// rather than buried in sixty lines of map literal.
   static final Map<int, String> _latinFolding = _buildFolding(<String, String>{
     'A': 'ÀÁÂÃÄÅĀĂĄ',
-    'a': 'àáâãäåāăą',
+    'a': 'àáâãäåāăąª',
     'C': 'ÇĆĈĊČ',
     'c': 'çćĉċč',
     'D': 'ÐĎĐ',
@@ -148,7 +148,7 @@ class NetworkServiceProvider extends ServiceProvider {
     'N': 'ÑŃŅŇŊ',
     'n': 'ñńņňŉŋ',
     'O': 'ÒÓÔÕÖØŌŎŐ',
-    'o': 'òóôõöøōŏő',
+    'o': 'òóôõöøōŏőº',
     'R': 'ŔŖŘ',
     'r': 'ŕŗř',
     'S': 'ŚŜŞŠ',
@@ -156,7 +156,7 @@ class NetworkServiceProvider extends ServiceProvider {
     'T': 'ŢŤŦ',
     't': 'ţťŧ',
     'U': 'ÙÚÛÜŨŪŬŮŰŲ',
-    'u': 'ùúûüũūŭůűų',
+    'u': 'ùúûüũūŭůűųµ',
     'W': 'Ŵ',
     'w': 'ŵ',
     'Y': 'ÝŶŸ',
