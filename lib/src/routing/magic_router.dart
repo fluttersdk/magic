@@ -563,16 +563,30 @@ class MagicRouter {
     //    pushes instead, and `back()` still prefers the native pop, so the
     //    history fallback keeps covering every route that does not.
     if (_shouldStack(path)) {
-      // Already here. Pushing would stack the same screen on itself every
-      // time a nav destination is re-tapped, and falling through to `go()`
-      // would replace the page list and throw away the stack the reader
-      // built getting here, so the honest answer is neither.
-      //
-      // Compared on the PATH: `currentLocation` carries the query and a bare
-      // `to('/monitors/42')` does not, so comparing them whole makes sitting
-      // on `/monitors/42?tab=checks` look like a different place.
+      // Three cases, and the middle one is the reason this is not one
+      // comparison. `currentLocation` always carries the query; the target
+      // carries one only when the caller passed `queryParameters`.
       if (current != null &&
           Uri.parse(current).path == Uri.parse(target).path) {
+        final String currentQuery = Uri.parse(current).query;
+        final String targetQuery = Uri.parse(target).query;
+
+        // Same screen, same state. A nav destination re-tapped. Pushing would
+        // stack the screen on itself and `go()` would replace the page list
+        // and throw away the stack the reader built getting here, so the
+        // honest answer is neither.
+        if (currentQuery == targetQuery) return;
+
+        // A bare `to('/monitors/42')` while sitting on `/monitors/42?tab=x`
+        // is that same re-tap: the caller named no query, so it is asking for
+        // the destination rather than asking to clear the tab.
+        if (targetQuery.isEmpty) return;
+
+        // Same screen, new state: switching a tab on the page you are on.
+        // Replaced rather than pushed, so back leaves the screen instead of
+        // stepping through every tab the reader looked at, and the pages
+        // underneath survive.
+        _router!.replace(target);
         return;
       }
 

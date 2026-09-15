@@ -185,6 +185,70 @@ void main() {
       );
     });
 
+    testWidgets('changing only the query on a stacked route still moves', (
+      tester,
+    ) async {
+      // The other direction, and the one a path-only comparison swallows.
+      // Switching a tab on the page you are on is a real navigation, not a
+      // re-tap of the destination that got you there.
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/monitors', () => const SizedBox());
+      MagicRoute.page('/monitors/:id', (id) => const SizedBox()).stacked();
+
+      await pumpRouter(tester);
+
+      MagicRouter.instance.to('/monitors');
+      await tester.pumpAndSettle();
+      MagicRouter.instance.to('/monitors/42');
+      await tester.pumpAndSettle();
+
+      MagicRouter.instance.to(
+        '/monitors/42',
+        queryParameters: {'tab': 'checks'},
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        MagicRouter.instance.currentLocation,
+        '/monitors/42?tab=checks',
+        reason: 'the tab has to change',
+      );
+
+      // Replaced rather than pushed: the reader is on one screen, so back
+      // leaves it rather than stepping through the tabs they visited.
+      MagicRouter.instance.back();
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentLocation, '/monitors');
+    });
+
+    testWidgets('re-navigating to the same path AND query does nothing', (
+      tester,
+    ) async {
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/monitors/:id', (id) => const SizedBox()).stacked();
+
+      await pumpRouter(tester);
+
+      for (var i = 0; i < 3; i++) {
+        MagicRouter.instance.to(
+          '/monitors/42',
+          queryParameters: {'tab': 'checks'},
+        );
+        await tester.pumpAndSettle();
+      }
+
+      final ctx = tester.element(find.byType(SizedBox).last);
+      Navigator.of(ctx).pop();
+      await tester.pumpAndSettle();
+
+      expect(
+        MagicRouter.instance.currentLocation,
+        '/',
+        reason: 'three identical navigations are one page',
+      );
+    });
+
     testWidgets('navigating to where you already are does not stack', (
       tester,
     ) async {
