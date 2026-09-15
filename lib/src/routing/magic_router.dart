@@ -550,10 +550,11 @@ class MagicRouter {
   ///
   /// - no [queryParameters]: nothing happens. Asking for the screen you are on
   ///   is a re-tapped destination, not a request to clear its query.
-  /// - [queryParameters] given: the top page is swapped for a fresh one, so
-  ///   the screen remounts and reads the new query, and the pages under it
-  ///   survive. Back leaves the screen rather than stepping through every
-  ///   query the reader passed through.
+  /// - [queryParameters] given: the top page is swapped, so the pages under
+  ///   it survive and back leaves the screen rather than stepping through
+  ///   every query the reader passed through. The screen REBUILDS rather
+  ///   than remounting, which is what a query change does everywhere in
+  ///   Magic, so read the query in `build` and never in `initState`.
   void to(String path, {Map<String, String>? queryParameters}) {
     if (_router == null) {
       throw StateError(
@@ -589,23 +590,28 @@ class MagicRouter {
         // here, so the honest answer is neither.
         if (Uri.parse(target).query.isEmpty) return;
 
-        // A query the caller DID name is a move: switching a tab on the page
-        // you are on. The top page is swapped rather than stacked, so back
-        // leaves the screen instead of stepping through every tab the reader
-        // looked at, and the pages underneath survive.
+        // A query the caller DID name is a move: switching a tab on the
+        // page you are on. The top page is swapped rather than stacked, so
+        // back leaves the screen instead of stepping through every tab the
+        // reader looked at, and the pages underneath survive.
         //
-        // `pushReplacement` rather than `replace`, and the difference is the
-        // whole point: go_router's `replace` reuses the page key, which
-        // "will preserve the state and not run any page animation". Preserved
-        // state means `initState` never re-runs, and a screen reads its query
-        // globally (`Request.query('tab')`) rather than through a constructor
-        // argument, so the tab would change in the address and nowhere else.
-        // `pushReplacement` always takes a new key.
+        // `replace` rather than `pushReplacement`, and the reason is
+        // consistency rather than preference. go_router keys a declarative
+        // page on the matched PATH and not the query, so a query change
+        // rebuilds the screen and never remounts it: that is what `go()` does
+        // for every unstacked route in this framework today, measured.
+        // `pushReplacement` would remount instead, and only when something
+        // sits underneath, since it falls back to the declarative list when
+        // the stack would empty. One verb behaving two ways by stack depth is
+        // worse than every verb behaving one way.
+        //
+        // What this costs is that a screen has to read its query where a
+        // rebuild can see it. `doc/basics/routing.md` says so.
         //
         // The identical query lands here too and needs no branch of its own:
         // a guard for it survived its own mutation test, which is the tell
         // that it was an optimisation wearing the clothes of a behaviour.
-        _router!.pushReplacement(target);
+        _router!.replace(target);
         return;
       }
 

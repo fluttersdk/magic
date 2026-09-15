@@ -108,6 +108,11 @@ final page = Request.query('page'); // '2'
 final sort = Request.query('sort'); // null
 ```
 
+> [!IMPORTANT]
+> Read the query where a REBUILD can see it, which means `build()` and not `initState()`. Navigating from `/search?q=a` to `/search?q=b` does not remount the screen: go_router keys a page on the matched path and the query is not part of it, so the same `State` is reused and `initState` never runs a second time. A screen that reads its query once at mount renders the first one forever while the address bar shows the second.
+>
+> The same applies to a `const` page widget. `MagicRoute.page('/search', () => const SearchPage())` hands back one identical instance every time, so the element never updates and nothing rebuilds at all. Take the path parameter (`(id) => SearchPage(id: id)`) or read the query in `build()`.
+
 Use `Request.queryParams` to retrieve all query parameters as a `Map<String, String>`:
 
 ```dart
@@ -431,7 +436,9 @@ Navigating to the path you are already on depends on whether you name a query:
 |---|---|---|
 | `/monitors/42` | `'/monitors/42'` | nothing; a re-tapped destination does not stack a screen on itself |
 | `/monitors/42?tab=checks` | `'/monitors/42'` | nothing; naming no query is asking for the screen, not asking to clear its tab |
-| `/monitors/42?tab=overview` | `'/monitors/42', queryParameters: {'tab': 'checks'}` | the top page is swapped, so the screen remounts with the new tab and the pages under it survive |
+| `/monitors/42?tab=overview` | `'/monitors/42', queryParameters: {'tab': 'checks'}` | the top page is swapped, so the screen rebuilds with the new tab and the pages under it survive |
+
+That swap rebuilds rather than remounts, which is what every other navigation in Magic does with a query change. See [Reading Query Parameters](#query-parameters) for where a screen has to read its query for that to be visible.
 
 Set the default once when a whole app wants it:
 

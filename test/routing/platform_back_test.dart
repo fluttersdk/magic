@@ -3,18 +3,26 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
-/// Records the query it saw at mount time, the way a real detail page does.
+/// Records the query at mount time and at every build.
 ///
-/// `doc/basics/routing.md` teaches `Request.query('tab')` as a global read, so
-/// a screen reads its query in `initState` rather than taking it as a
-/// constructor argument. That makes the page KEY the thing that decides
-/// whether a same-path navigation is visible at all: reuse it and the `State`
-/// survives, `initState` never re-runs, and the screen keeps rendering the tab
-/// the reader just navigated away from while the location says otherwise.
+/// The two lists answer different questions and the difference is the
+/// contract. A query change REBUILDS the screen and does not remount it, in
+/// every navigation verb this framework has, so `mounted` stays put while
+/// `built` grows. A screen that reads its query in `initState` therefore
+/// renders a stale one; the routing doc says to read it where a rebuild can
+/// see it, and this is what pins that.
 class _QueryReadingPage extends StatefulWidget {
-  const _QueryReadingPage();
+  const _QueryReadingPage({required this.id});
 
-  static final List<String?> seen = <String?>[];
+  final String id;
+
+  static final List<String?> mounted = <String?>[];
+  static final List<String?> built = <String?>[];
+
+  static void reset() {
+    mounted.clear();
+    built.clear();
+  }
 
   @override
   State<_QueryReadingPage> createState() => _QueryReadingPageState();
@@ -24,11 +32,14 @@ class _QueryReadingPageState extends State<_QueryReadingPage> {
   @override
   void initState() {
     super.initState();
-    _QueryReadingPage.seen.add(MagicRouter.instance.queryParameter('tab'));
+    _QueryReadingPage.mounted.add(MagicRouter.instance.queryParameter('tab'));
   }
 
   @override
-  Widget build(BuildContext context) => const SizedBox();
+  Widget build(BuildContext context) {
+    _QueryReadingPage.built.add(MagicRouter.instance.queryParameter('tab'));
+    return const SizedBox();
+  }
 }
 
 void main() {
@@ -250,18 +261,23 @@ void main() {
       expect(MagicRouter.instance.currentLocation, '/monitors');
     });
 
-    testWidgets('the replaced screen reads the query it moved to', (
+    testWidgets('a query change rebuilds the screen rather than remounting', (
       tester,
     ) async {
-      // `currentLocation` moving is not the same as the screen moving. A
-      // replace that reuses the page key preserves the State, so the tab the
-      // reader tapped is in the URL and nowhere else.
-      _QueryReadingPage.seen.clear();
+      // The contract, and it is the same one every other navigation in this
+      // framework already has: go_router keys a declarative page on the
+      // matched PATH and not the query, so a query change rebuilds and never
+      // remounts. Measured for an unstacked `go()` too, which behaves
+      // identically; a stacked route deliberately does not diverge from it.
+      _QueryReadingPage.reset();
 
       MagicRoute.page('/', () => const SizedBox());
       MagicRoute.page(
         '/monitors/:id',
-        (id) => const _QueryReadingPage(),
+        // Not const: a const widget is the SAME instance every time, so the
+        // element never updates and nothing rebuilds. A real page takes its
+        // path parameter and is never const.
+        (id) => _QueryReadingPage(id: id),
       ).stacked();
 
       await pumpRouter(tester);
@@ -278,17 +294,55 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(_QueryReadingPage.seen, [
-        'overview',
+      expect(
+        _QueryReadingPage.built.last,
         'checks',
-      ], reason: 'the screen has to see the tab, not just the address bar');
+        reason: 'a build after the change has to see the new tab',
+      );
+      expect(_QueryReadingPage.mounted, [
+        'overview',
+      ], reason: 'and the screen keeps its state rather than being rebuilt');
 
-      // Still one page: the stack underneath survives the swap.
+      // Still one page: the swap kept the stack underneath.
       final ctx = tester.element(find.byType(SizedBox).last);
       Navigator.of(ctx).pop();
       await tester.pumpAndSettle();
 
       expect(MagicRouter.instance.currentLocation, '/');
+    });
+
+    testWidgets('the same holds when the screen is the whole stack', (
+      tester,
+    ) async {
+      // A cold-start deep link: go_router synthesises no parent page under a
+      // detail route, so the detail route IS the stack and the imperative
+      // verbs fall back to the declarative match list. One verb behaving two
+      // ways by stack depth would be worse than every verb behaving one way,
+      // so this pins that it does not.
+      _QueryReadingPage.reset();
+
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page(
+        '/monitors/:id',
+        // Not const: a const widget is the SAME instance every time, so the
+        // element never updates and nothing rebuilds. A real page takes its
+        // path parameter and is never const.
+        (id) => _QueryReadingPage(id: id),
+      ).stacked();
+
+      MagicRouter.instance.setInitialLocation('/monitors/42?tab=overview');
+
+      await pumpRouter(tester);
+
+      MagicRouter.instance.to(
+        '/monitors/42',
+        queryParameters: {'tab': 'checks'},
+      );
+      await tester.pumpAndSettle();
+
+      expect(_QueryReadingPage.built.last, 'checks');
+      expect(_QueryReadingPage.mounted, ['overview']);
+      expect(MagicRouter.instance.currentLocation, '/monitors/42?tab=checks');
     });
 
     testWidgets('a bare target after a query change is still a re-tap', (
