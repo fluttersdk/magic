@@ -56,12 +56,132 @@ class NetworkServiceProvider extends ServiceProvider {
     );
     if (hostSetOne) return headers;
 
-    final String appName = Config.get<String>('app.name', 'Magic')!;
+    final String appName = _headerSafeAppName(
+      Config.get<String>('app.name', _fallbackAppName)!,
+    );
 
     return <String, String>{
       ...headers,
       'User-Agent': '$appName (Flutter; ${_platformName()})',
     };
+  }
+
+  /// The name used when `app.name` is unset or survives sanitising as nothing.
+  ///
+  /// Matches what `lib/config/app.dart` ships, so the value a booted app
+  /// produces and the value this composes when it cannot read one agree.
+  static const String _fallbackAppName = 'Magic App';
+
+  /// [name] reduced to something a header value may legally carry.
+  ///
+  /// This is not cosmetic. `dart:io` refuses any header value with a byte above
+  /// 127 and throws a `FormatException` from `HttpHeaders.set`, which Dio
+  /// surfaces as a `DioException` on EVERY request. So an app called `Cafe`
+  /// with an accent, or `Sirket Takip` with a cedilla, would lose all of its
+  /// HTTP traffic because of its display name, with nothing at build time to
+  /// connect the two. Measured against the same `HttpClient` path Dio's IO
+  /// adapter uses: `Invalid HTTP header field value`.
+  ///
+  /// Accented Latin letters are folded to their base letter rather than
+  /// dropped, because dropping leaves a mangled word where the adopter would
+  /// have picked a plain-ASCII name. The table covers Latin-1 and Latin
+  /// Extended-A, so Turkish, German, French, Spanish, Nordic, Polish and Czech
+  /// names survive legibly. A script with no Latin base (CJK, Arabic, Cyrillic)
+  /// has nothing to fold to and is dropped.
+  ///
+  /// Everything still outside printable ASCII goes, which also closes the
+  /// injection shape: a name carrying a carriage return or newline cannot split
+  /// the header, because both are below 0x20.
+  ///
+  /// Falls back to [_fallbackAppName] when nothing legible survives, so the
+  /// agent still names the platform rather than opening with a bare space.
+  static String _headerSafeAppName(String name) {
+    final StringBuffer folded = StringBuffer();
+
+    for (final int rune in name.runes) {
+      final String? base = _latinFolding[rune];
+
+      if (base != null) {
+        folded.write(base);
+        continue;
+      }
+
+      // Printable ASCII only: 0x20 (space) through 0x7E (tilde).
+      if (rune >= 0x20 && rune <= 0x7E) folded.write(String.fromCharCode(rune));
+    }
+
+    final String cleaned = folded
+        .toString()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    return cleaned.isEmpty ? _fallbackAppName : cleaned;
+  }
+
+  /// Accented Latin letters to their base letter, keyed by rune.
+  ///
+  /// Built from grouped strings rather than entry by entry, so the coverage of
+  /// each base letter is readable at a glance and a missing accent is visible
+  /// rather than buried in sixty lines of map literal.
+  static final Map<int, String> _latinFolding = _buildFolding(<String, String>{
+    'A': 'ÀÁÂÃÄÅĀĂĄ',
+    'a': 'àáâãäåāăą',
+    'C': 'ÇĆĈĊČ',
+    'c': 'çćĉċč',
+    'D': 'ÐĎĐ',
+    'd': 'ðďđ',
+    'E': 'ÈÉÊËĒĔĖĘĚ',
+    'e': 'èéêëēĕėęě',
+    'G': 'ĜĞĠĢ',
+    'g': 'ĝğġģ',
+    'H': 'ĤĦ',
+    'h': 'ĥħ',
+    'I': 'ÌÍÎÏĨĪĬĮİ',
+    'i': 'ìíîïĩīĭįı',
+    'J': 'Ĵ',
+    'j': 'ĵ',
+    'K': 'Ķ',
+    'k': 'ķ',
+    'L': 'ĹĻĽĿŁ',
+    'l': 'ĺļľŀł',
+    'N': 'ÑŃŅŇ',
+    'n': 'ñńņňŉ',
+    'O': 'ÒÓÔÕÖØŌŎŐ',
+    'o': 'òóôõöøōŏő',
+    'R': 'ŔŖŘ',
+    'r': 'ŕŗř',
+    'S': 'ŚŜŞŠ',
+    's': 'śŝşš',
+    'T': 'ŢŤŦ',
+    't': 'ţťŧ',
+    'U': 'ÙÚÛÜŨŪŬŮŰŲ',
+    'u': 'ùúûüũūŭůűų',
+    'W': 'Ŵ',
+    'w': 'ŵ',
+    'Y': 'ÝŶŸ',
+    'y': 'ýÿŷ',
+    'Z': 'ŹŻŽ',
+    'z': 'źżž',
+    'AE': 'ÆǼ',
+    'ae': 'æǽ',
+    'OE': 'Œ',
+    'oe': 'œ',
+    'ss': 'ß',
+    'TH': 'Þ',
+    'th': 'þ',
+  });
+
+  /// Inverts the grouped folding table into a rune-keyed lookup.
+  static Map<int, String> _buildFolding(Map<String, String> groups) {
+    final Map<int, String> table = <int, String>{};
+
+    groups.forEach((String base, String accented) {
+      for (final int rune in accented.runes) {
+        table[rune] = base;
+      }
+    });
+
+    return table;
   }
 
   /// The platform name a server can read, in the casing Apple and Google use.
