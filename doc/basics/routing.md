@@ -395,7 +395,7 @@ MagicRoute.back(fallback: '/dashboard');
 ```
 
 > [!NOTE]
-> The history stack is populated automatically by `MagicRoute.to()` and `MagicRoute.toNamed()`. `replace()` swaps the last entry without growing the stack, so back navigation after a replace lands at the entry before the replace.
+> The history stack is populated automatically by `MagicRoute.to()` and `MagicRoute.toNamed()` on an UNSTACKED route. A stacked one records nothing, deliberately: the push itself is the record, and `back()` prefers the native pop, so an entry there would leave a string naming the location the pop just landed on and make the next press look like a press that did nothing. `replace()` swaps the last entry without growing the stack, so back navigation after a replace lands at the entry before the replace.
 
 ### From Controllers
 
