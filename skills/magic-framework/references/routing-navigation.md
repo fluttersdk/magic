@@ -230,6 +230,24 @@ MagicRoute.page('/details', () => DetailsPage())
 
 Only `platform` carries a gesture. Flutter installs the iOS back-swipe detector inside `CupertinoPageTransition`, so a custom transition on a bare page route never reaches it; `platform` routes through `PageTransitionsTheme` instead and picks up the Cupertino slide plus its swipe on iOS and macOS, predictive back on Android, and the zoom on Windows and Linux.
 
+Override what `platform` looks like on `MagicApplication`, not per route:
+
+```dart
+MagicApplication(
+  pageTransitionsTheme: const PageTransitionsTheme(
+    builders: {
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+      TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+    },
+  ),
+)
+```
+
+Applied with `copyWith`, so the Wind theme is otherwise untouched, and null changes nothing. A per-route value cannot express the case this exists for: the transition is chosen once at registration, and what an app usually wants is the native animation on mobile and none on desktop or web.
+
+A partial map is a partial override. A platform left out of `builders` keeps its own default, so omitting `TargetPlatform.iOS` leaves the Cupertino slide and its swipe in place; what removes the gesture is naming iOS and giving it a different builder.
+
 ## Stacking and the Back Button
 
 `MagicRoute.to()` calls `go()`, which REPLACES the Navigator's page list. With one page there is nothing to pop, so there is no swipe, and on Android there is no back button either: Flutter reports `canHandlePop: false` and the embedder unregisters its back callback, so the system back leaves the app.

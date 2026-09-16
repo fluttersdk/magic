@@ -16,6 +16,12 @@ All notable changes to this project will be documented in this file.
 
   Measured rather than inferred: `Theme.of(context).canvasColor` reads `alpha 0.0` in a running wind app while `scaffoldBackgroundColor` reads opaque, which is why the fix takes the latter. An explicit color also stops `MaterialType.canvas` consulting the theme at all. A host that makes `scaffoldBackgroundColor` transparent is saying its pages are transparent, which is a choice rather than an accident.
 
+  **Two things for an adopter to check, because this is the first release in which the page background is painted at all.**
+
+  Set wind's `background` color if your pages have a canvas colour. `scaffoldBackgroundColor` is what wind fills from it (`wind_theme_data.dart:511`) and it is Flutter's own name for the colour behind a page, but an app that never set the key gets wind's fallback: pure white in light mode, `gray900` in dark. An app whose canvas comes from a `bg-*` className alias instead has been painting that colour on a widget ABOVE the Navigator, so the two can differ and the page now wins. Measured on one consumer: the alias resolved to `#F9FAFB` while `scaffoldBackgroundColor` was `#FFFFFF`.
+
+  A LAYOUT that paints its own background behind the child slot is covered over for the same reason, since the page sits inside the shell. Harmless when the layout paints the same colour, visible when it paints a gradient or an image. Paint it outside the child slot, or set `scaffoldBackgroundColor` transparent to opt the pages back out and accept the transition overlap.
+
 ### Added
 
 - **`MagicApplication.pageTransitionsTheme`, so an app can say what `RouteTransition.platform` looks like.** That transition deliberately has no animation of its own: its page mixes in `MaterialRouteTransitionMixin`, which reads `Theme.of(context).pageTransitionsTheme`, so leaving this unset gives every platform the animation its own operating system uses. That default is the reason to reach for `platform` at all and most apps should keep it. What had no seam was overriding it: the `ThemeData` comes from wind's `WindThemeController.toThemeData()` and `MagicApplication` passes it straight to `MaterialApp`, so an app that wanted a different animation on one surface had nowhere to say so. A per-route `RouteTransition` cannot express it either, because it is chosen once at registration and the common case is exactly the opposite shape: keep the mobile builds' native animation, give the desktop or web build none.
