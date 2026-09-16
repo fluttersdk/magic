@@ -342,7 +342,7 @@ MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 | `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
 | `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
 | `settings.security.two_factor` | `features.two_factor` | `MagicStarterTwoFactorView` |
-| `settings.security.sessions` | `features.sessions` | `MagicStarterSessionsView`. Reads `profile.unknown_device`, one of the keys no package supplies; see [Layouts & Notification Integration](#layouts--notification-integration), where the rest of that list lives. |
+| `settings.security.sessions` | `features.sessions` | `MagicStarterSessionsView`. Reads `profile.unknown_device`, one of the keys no package supplies; see [Notifications](#notifications), where the rest of that list lives. |
 | `teams.create` | `features.teams` | `MagicStarterTeamCreateView` |
 | `teams.settings` | `features.teams` | `MagicStarterTeamSettingsView` |
 | `teams.invitation_accept` | `features.teams` | `MagicStarterTeamInvitationAcceptView` |
