@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Improvements
+
+- **`plugin-starter.md` covers the routes `magic_starter` 0.0.29 starts pushing.** Eleven of them are `.stacked()` now (the eight settings spokes, both team screens, both notification screens) and three groups deliberately are not (the settings hub, the invitation arrival, the six auth routes), which is a distinction an agent registering a route beside them has to be able to make. The entry also records that a stacked route names NO transition, so it takes `MagicRouter.defaultTransition` rather than pinning `none`, and that the `magic` floor is `^0.0.12` there because `RouteDefinition.stacked()` exists in no release below it AND 0.0.12 is where a routed page stopped being transparent, which is the defect stacking exposes. The stamp moves to `v0.0.29`, which that package's own `skill_reference_stamp_test.dart` compares its pubspec against, in CI as well as locally: its release PR was red on exactly this. (`skills/magic-framework/references/plugin-starter.md`, `skills/magic-framework/SKILL.md`)
+
 ## [0.0.12] - 2026-09-16
 
 ### Breaking
