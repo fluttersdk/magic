@@ -143,11 +143,12 @@ class MagicApplication extends StatefulWidget {
   /// )
   /// ```
   ///
-  /// A platform left out of `builders` falls back to Flutter's
-  /// `FadeUpwardsPageTransitionsBuilder` rather than to the platform default,
-  /// which is Flutter's rule and not magic's: name every platform the app
-  /// ships on. Dropping `TargetPlatform.iOS` also drops the back GESTURE,
-  /// since Flutter builds its detector inside the Cupertino transition.
+  /// A platform left out of `builders` keeps its own default rather than
+  /// falling through to a shared one: Flutter answers an unnamed platform with
+  /// `CupertinoPageTransitionsBuilder` on iOS and `ZoomPageTransitionsBuilder`
+  /// everywhere else (`material/page_transitions_theme.dart:881-889`). So a
+  /// partial map is a partial override, and omitting `TargetPlatform.iOS`
+  /// leaves the Cupertino slide AND its back gesture in place.
   ///
   /// Nothing else is affected. [RouteTransition.fade], `slideRight` and the
   /// rest build their own animation explicitly and never consult the theme.
