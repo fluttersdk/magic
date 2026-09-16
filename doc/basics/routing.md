@@ -17,6 +17,7 @@ Magic's routing wraps `go_router` with a Laravel-style fluent API: define routes
 - [Back Gestures and the Stack](#back-gestures-and-the-stack)
     - [Transitions](#transitions)
     - [Turning the Gesture Off](#turning-the-gesture-off)
+    - [Changing What `platform` Looks Like](#changing-what-platform-looks-like)
 - [Route Middleware](#route-middleware)
 - [URL Strategy](#url-strategy)
     - [URL Strategy (Path vs Hash)](#url-strategy-path-vs-hash)
@@ -496,6 +497,34 @@ PopScope(
   child: EditMonitorPage(),
 )
 ```
+
+<a name="changing-what-platform-looks-like"></a>
+### Changing What `platform` Looks Like
+
+`RouteTransition.platform` has no animation of its own. It routes through `Theme.of(context).pageTransitionsTheme`, so leaving it alone gives every platform the animation its own operating system uses, which is the reason to reach for it. Most apps should stop here.
+
+When one surface needs a different answer, `MagicApplication` takes the theme:
+
+```dart
+MagicApplication(
+  pageTransitionsTheme: const PageTransitionsTheme(
+    builders: {
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+      TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+    },
+  ),
+)
+```
+
+It is applied with `copyWith`, so your Wind theme's colors, typography and component defaults are untouched, and leaving it null changes nothing at all.
+
+A per-route `RouteTransition` cannot express this, which is why the knob exists: the transition is chosen once at registration, and the case that comes up is the opposite shape, keep the mobile builds' native animation and give the desktop or web build none.
+
+> [!NOTE]
+> A partial map is a partial override. A platform you leave out of `builders` keeps its OWN default rather than falling through to a shared one, so omitting `TargetPlatform.iOS` leaves the Cupertino slide and its edge swipe exactly where they were. What removes the gesture is naming iOS and giving it a different builder, since Flutter installs the swipe detector inside the Cupertino transition rather than beside it.
+
+Nothing else is affected: `fade`, `slideRight`, `slideUp` and `scale` build their own animation explicitly and never consult the theme.
 
 <a name="route-middleware"></a>
 ## Route Middleware
