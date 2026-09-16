@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 
   Measured rather than inferred: `Theme.of(context).canvasColor` reads `alpha 0.0` in a running wind app while `scaffoldBackgroundColor` reads opaque, which is why the fix takes the latter. An explicit color also stops `MaterialType.canvas` consulting the theme at all. A host that makes `scaffoldBackgroundColor` transparent is saying its pages are transparent, which is a choice rather than an accident.
 
+  **The floor on `fluttersdk_wind` moves to `^1.6.1` with this, and it is a floor for a VALUE rather than for an API.** Painting that field is what makes its value matter, and wind filled it from its own white and gray-900 rather than from the `bg-surface` alias an app paints its canvas with until 1.6.1. On 1.6.0 this release paints `#FFFFFF` over `#F9FAFB` in light and `#111827` over `#07090C` in dark, on every screen, and the dark one is not subtle. Nothing fails to compile below the floor, which is exactly why it is declared rather than left to resolve.
+
   **Two things for an adopter to check, because this is the first release in which the page background is painted at all.**
 
   Set wind's `background` color if your pages have a canvas colour. `scaffoldBackgroundColor` is what wind fills from it (`wind_theme_data.dart:511`) and it is Flutter's own name for the colour behind a page, but an app that never set the key gets wind's fallback: pure white in light mode, `gray900` in dark. An app whose canvas comes from a `bg-*` className alias instead has been painting that colour on a widget ABOVE the Navigator, so the two can differ and the page now wins. Measured on one consumer: the alias resolved to `#F9FAFB` while `scaffoldBackgroundColor` was `#FFFFFF`.
