@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-09-16
+
 ### Breaking
 
 - **`RouteTransition` gains a value, `platform`.** Source-breaking for a consumer with an exhaustive `switch` over the enum: that switch stops compiling until the new case is handled. The value is inserted after `none` rather than appended, so every later value's `index` shifts by one; nothing in the ecosystem persists an enum index and nothing should, since a persisted `index` breaks on any insertion. The default is untouched, and every existing value means what it meant. Permitted pre-1.0 and recorded here rather than left to be discovered at the compiler. `test/routing/router_test.dart` now asserts the whole inventory in order instead of containment, which is why this entry exists at all: the old assertion passed with the new value missing from it. (`lib/src/routing/route_definition.dart`, `test/routing/router_test.dart`)
