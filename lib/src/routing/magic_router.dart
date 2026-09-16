@@ -5,6 +5,7 @@ import '../http/kernel.dart';
 import '../http/middleware/magic_middleware.dart';
 import '../facades/auth.dart';
 import '../facades/log.dart';
+import 'magic_platform_page.dart';
 import 'route_definition.dart';
 import 'title_manager.dart';
 
@@ -96,6 +97,26 @@ class MagicRouter {
 
   /// Maximum number of entries retained in the navigation history.
   static const int _maxHistorySize = 50;
+
+  /// The transition a route takes when it does not name one.
+  ///
+  /// Set once in a service provider rather than on every route:
+  ///
+  /// ```dart
+  /// MagicRouter.instance.defaultTransition = RouteTransition.platform;
+  /// ```
+  ///
+  /// Left at [RouteTransition.none] so nothing changes for an app that does
+  /// not ask. A route's own `.transition()` always wins.
+  RouteTransition defaultTransition = RouteTransition.none;
+
+  /// Whether [to] pushes rather than replaces, for a route that does not say.
+  ///
+  /// Off by default, and worth leaving off on web: `go()` already produces a
+  /// working browser Back, and pushing adds Navigator pages on top of that.
+  /// A route's own `.stacked()` always wins, which is the way to opt in a
+  /// drill-down without opting in the tabs around it.
+  bool defaultStacked = false;
 
   /// active route collector stack for group layouts.
   final List<List<RouteDefinition>> _collectionStack = [];
@@ -356,7 +377,24 @@ class MagicRouter {
     // broken as before. The path is always present and already unique.
     final pageName = route.routeName ?? route.fullPath;
 
-    switch (route.transitionType) {
+    // Null means the route named nothing, which is the only case the default
+    // covers. A route that explicitly asks for `none` is opting OUT of an
+    // app-wide default rather than failing to have an opinion, and a sentinel
+    // value cannot tell those two apart.
+    final RouteTransition transition =
+        route.declaredTransition ?? defaultTransition;
+
+    switch (transition) {
+      case RouteTransition.platform:
+        return MagicPlatformPage<dynamic>(
+          key: state.pageKey,
+          name: pageName,
+          // Only this transition installs a gesture, so it is the only one
+          // where refusing it means anything.
+          swipeBack: route.isSwipeBackAllowed ?? true,
+          child: opaqueChild,
+        );
+
       case RouteTransition.fade:
         return CustomTransitionPage(
           key: state.pageKey,
@@ -502,6 +540,21 @@ class MagicRouter {
   /// Route.to('/dashboard');
   /// Route.to('/users/42');
   /// ```
+  ///
+  /// Replaces the page stack, which is what a tab or a nav destination wants.
+  /// A route marked [RouteDefinition.stacked] is pushed instead, so it can be
+  /// popped, swiped back, and reached by the Android back button.
+  ///
+  /// On a stacked route, navigating to the path already showing turns on the
+  /// query rather than the path:
+  ///
+  /// - no [queryParameters]: nothing happens. Asking for the screen you are on
+  ///   is a re-tapped destination, not a request to clear its query.
+  /// - [queryParameters] given: the top page is swapped, so the pages under
+  ///   it survive and back leaves the screen rather than stepping through
+  ///   every query the reader passed through. The screen REBUILDS rather
+  ///   than remounting, which is what a query change does everywhere in
+  ///   Magic, so read the query in `build` and never in `initState`.
   void to(String path, {Map<String, String>? queryParameters}) {
     if (_router == null) {
       throw StateError(
@@ -509,19 +562,121 @@ class MagicRouter {
       );
     }
 
-    // 1. Record current location before navigating.
     final current = currentLocation;
+    final target = queryParameters != null && queryParameters.isNotEmpty
+        ? Uri(path: path, queryParameters: queryParameters).toString()
+        : path;
+
+    // 1. Decide before recording anything, because one branch navigates
+    //    nowhere and would otherwise leave a history entry for a move that
+    //    never happened.
+    //
+    //    `go()` replaces the whole page list, which is why a `to()`-only app
+    //    never has anything to pop: no back gesture, and Flutter reports
+    //    `canHandlePop: false` to the platform, so Android's system back
+    //    leaves the app instead of going back. A route marked `.stacked()`
+    //    pushes instead, and `back()` still prefers the native pop, so the
+    //    history fallback keeps covering every route that does not.
+    if (_shouldStack(path)) {
+      // Same screen, and what to do turns on the QUERY rather than the path.
+      // `currentLocation` always carries one; the target carries one only
+      // when the caller passed `queryParameters`.
+      if (current != null &&
+          Uri.parse(current).path == Uri.parse(target).path) {
+        // The caller named no query, so this is a nav destination re-tapped:
+        // asking for the screen you are on, not asking to clear its tab.
+        // Pushing would stack the screen on itself and `go()` would replace
+        // the page list and throw away the stack the reader built getting
+        // here, so the honest answer is neither.
+        if (Uri.parse(target).query.isEmpty) return;
+
+        // A query the caller DID name is a move: switching a tab on the
+        // page you are on. The top page is swapped rather than stacked, so
+        // back leaves the screen instead of stepping through every tab the
+        // reader looked at, and the pages underneath survive.
+        //
+        // `replace` rather than `pushReplacement`, and the reason is
+        // consistency rather than preference. go_router keys a declarative
+        // page on the matched PATH and not the query, so a query change
+        // rebuilds the screen and never remounts it: that is what `go()` does
+        // for every unstacked route in this framework today, measured.
+        // `pushReplacement` would remount instead, and only when something
+        // sits underneath, since it falls back to the declarative list when
+        // the stack would empty. One verb behaving two ways by stack depth is
+        // worse than every verb behaving one way.
+        //
+        // What this costs is that a screen has to read its query where a
+        // rebuild can see it. `doc/basics/routing.md` says so.
+        //
+        // The identical query lands here too and needs no branch of its own:
+        // a guard for it survived its own mutation test, which is the tell
+        // that it was an optimisation wearing the clothes of a behaviour.
+        _router!.replace(target);
+        return;
+      }
+
+      // No history entry, deliberately. The push IS the record: `back()`
+      // prefers the native pop, which consumes the page and would leave a
+      // string behind naming the location it just landed on, so the next
+      // press would `go()` there and look like a press that did nothing.
+      // The imperative `push()` records nothing for the same reason.
+      _router!.push(target);
+      return;
+    }
+
+    // 2. Record current location before replacing it.
     if (current != null) {
       _recordHistory(current);
     }
 
-    // 2. Navigate via go() (replaces the entire stack).
-    if (queryParameters != null && queryParameters.isNotEmpty) {
-      final uri = Uri(path: path, queryParameters: queryParameters);
-      _router!.go(uri.toString());
-    } else {
-      _router!.go(path);
+    _router!.go(target);
+  }
+
+  /// Whether navigating to [path] should push rather than replace.
+  ///
+  /// Matches on the route's configured pattern, so `/monitors/:id` answers for
+  /// `/monitors/42`. An unregistered path takes the router default, because a
+  /// path with no definition has nothing better to say.
+  bool _shouldStack(String path) {
+    for (final route in _allRoutes()) {
+      if (_pathMatchesPattern(path, route.fullPath)) {
+        return route.isStacked ?? defaultStacked;
+      }
     }
+
+    return defaultStacked;
+  }
+
+  /// Every registered route, top-level and inside a layout.
+  Iterable<RouteDefinition> _allRoutes() sync* {
+    yield* _routes;
+    for (final layout in _layouts) {
+      yield* layout.children;
+    }
+  }
+
+  /// Whether a concrete [path] is an instance of a route [pattern].
+  ///
+  /// Segment by segment, with a `:param` segment matching any single non-empty
+  /// one. Query and fragment are stripped first, because `to()` is given a
+  /// location and the table holds patterns.
+  static bool _pathMatchesPattern(String path, String pattern) {
+    final String bare = Uri.parse(path).path;
+    if (bare == pattern) return true;
+
+    final List<String> actual = bare.split('/');
+    final List<String> expected = pattern.split('/');
+    if (actual.length != expected.length) return false;
+
+    for (int i = 0; i < expected.length; i++) {
+      if (expected[i].startsWith(':')) {
+        if (actual[i].isEmpty) return false;
+        continue;
+      }
+      if (expected[i] != actual[i]) return false;
+    }
+
+    return true;
   }
 
   /// Navigate to a named route.

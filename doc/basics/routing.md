@@ -14,6 +14,9 @@ Magic's routing wraps `go_router` with a Laravel-style fluent API: define routes
     - [Layouts (Shell Routes)](#layouts-shell-routes)
 - [Standalone Layouts](#standalone-layouts)
 - [Context-Free Navigation](#context-free-navigation)
+- [Back Gestures and the Stack](#back-gestures-and-the-stack)
+    - [Transitions](#transitions)
+    - [Turning the Gesture Off](#turning-the-gesture-off)
 - [Route Middleware](#route-middleware)
 - [URL Strategy](#url-strategy)
     - [URL Strategy (Path vs Hash)](#url-strategy-path-vs-hash)
@@ -104,6 +107,11 @@ final term = Request.query('q');    // 'flutter'
 final page = Request.query('page'); // '2'
 final sort = Request.query('sort'); // null
 ```
+
+> [!IMPORTANT]
+> Read the query where a REBUILD can see it, which means `build()` and not `initState()`. Navigating from `/search?q=a` to `/search?q=b` does not remount the screen: go_router keys a page on the matched path and the query is not part of it, so the same `State` is reused and `initState` never runs a second time. A screen that reads its query once at mount renders the first one forever while the address bar shows the second.
+>
+> The same applies to a `const` page widget. `MagicRoute.page('/search', () => const SearchPage())` hands back one identical instance every time, so the element never updates and nothing rebuilds at all. Take the path parameter (`(id) => SearchPage(id: id)`) or read the query in `build()`.
 
 Use `Request.queryParams` to retrieve all query parameters as a `Map<String, String>`:
 
@@ -398,6 +406,85 @@ class AuthController extends MagicController {
     MagicRoute.to('/login'); // No context needed!
   }
 }
+```
+
+<a name="back-gestures-and-the-stack"></a>
+## Back Gestures and the Stack
+
+`MagicRoute.to()` calls `go()`, which REPLACES the Navigator's page list. That is the right default for a tabbed app and the reason two platform behaviours are off until you ask for them.
+
+On iOS there is no left-edge swipe back, because a swipe pops a page and there is never more than one. On Android it is worse than a missing gesture: Flutter tells the platform whether the app handles back, with one page it answers no, and the embedder then unregisters its callback so the system back button LEAVES THE APP instead of going back.
+
+Mark the routes a reader drills INTO with `stacked()`:
+
+```dart
+// Switched between: leave these alone, or every tap grows the stack.
+MagicRoute.page('/monitors', () => MonitorsPage());
+MagicRoute.page('/incidents', () => IncidentsPage());
+
+// Drilled into: pushed, poppable, and back now means back.
+MagicRoute.page('/monitors/:id', (id) => MonitorPage(id))
+    .stacked()
+    .transition(RouteTransition.platform);
+```
+
+`back()` is unchanged and still prefers the native pop, so the history fallback keeps covering every route you do not stack.
+
+Navigating to the path you are already on depends on whether you name a query:
+
+| From | `to(...)` | Result |
+|---|---|---|
+| `/monitors/42` | `'/monitors/42'` | nothing; a re-tapped destination does not stack a screen on itself |
+| `/monitors/42?tab=checks` | `'/monitors/42'` | nothing; naming no query is asking for the screen, not asking to clear its tab |
+| `/monitors/42?tab=overview` | `'/monitors/42', queryParameters: {'tab': 'checks'}` | the top page is swapped, so the screen rebuilds with the new tab and the pages under it survive |
+
+That swap rebuilds rather than remounts, which is what every other navigation in Magic does with a query change. See [Reading Query Parameters](#query-parameters) for where a screen has to read its query for that to be visible.
+
+Set the default once when a whole app wants it:
+
+```dart
+// In a service provider's boot(), before the router is built.
+MagicRouter.instance.defaultStacked = true;
+MagicRouter.instance.defaultTransition = RouteTransition.platform;
+```
+
+> [!NOTE]
+> Leave `defaultStacked` off on web. `go()` already produces a working browser Back, and pushing adds Navigator pages on top of that.
+
+<a name="transitions"></a>
+### Transitions
+
+`RouteTransition.platform` is the one that carries gestures. It routes through Flutter's `PageTransitionsTheme`, so iOS and macOS get the Cupertino slide plus the edge swipe, Android gets predictive back, and Windows and Linux get the zoom.
+
+The other values build a custom transition on a bare page route, which carries no gesture at all: Flutter installs the back-swipe detector inside the Cupertino transition rather than beside it. `RouteTransition.none`, the default, is an instant switch with no animation.
+
+| Value | Animation | Back gesture |
+|---|---|---|
+| `none` (default) | none | no |
+| `platform` | the running platform's | yes |
+| `fade`, `slideRight`, `slideUp`, `scale` | as named, every platform | no |
+
+A side menu needs no arbitration with the swipe, even though both live on the left edge. Flutter refuses the gesture on a route with nothing under it, so the detector never enters the gesture arena on a drawer's own screen; on a pushed route both are armed and the deeper one wins.
+
+<a name="turning-the-gesture-off"></a>
+### Turning the Gesture Off
+
+```dart
+MagicRoute.page('/checkout/payment', () => PaymentPage())
+    .stacked()
+    .transition(RouteTransition.platform)
+    .swipeBack(false);
+```
+
+`swipeBack(false)` refuses the GESTURE and nothing else: the route is still popped by the Android back button, by a back button in your own chrome, and by `MagicRoute.back()`.
+
+When the answer is "this route should not be left yet at all", use `PopScope` instead. It covers every one of those, and Flutter's gesture already honours it, so you do not need both.
+
+```dart
+PopScope(
+  canPop: !form.isDirty,
+  child: EditMonitorPage(),
+)
 ```
 
 <a name="route-middleware"></a>
