@@ -116,6 +116,43 @@ class MagicApplication extends StatefulWidget {
   /// ```
   final ValueChanged<Brightness>? onThemeChanged;
 
+  /// Override what a [RouteTransition.platform] route animates like.
+  ///
+  /// That transition is deliberately not an animation of magic's own: its page
+  /// mixes in `MaterialRouteTransitionMixin`, which reads
+  /// `Theme.of(context).pageTransitionsTheme`, so an unset value gives each
+  /// platform the animation its own operating system uses (the Cupertino slide
+  /// and its edge swipe on iOS and macOS, predictive back on Android, the zoom
+  /// on Windows and Linux). That default is the reason to reach for
+  /// [RouteTransition.platform] at all, and most apps should leave this null.
+  ///
+  /// Set it when the default is wrong for a surface rather than for a route.
+  /// The common case is a desktop or web build that wants no animation while
+  /// the mobile builds keep theirs, which a per-route transition cannot express
+  /// because [RouteTransition] is chosen once at registration:
+  ///
+  /// ```dart
+  /// MagicApplication(
+  ///   pageTransitionsTheme: const PageTransitionsTheme(
+  ///     builders: {
+  ///       TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+  ///       TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+  ///       TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+  ///     },
+  ///   ),
+  /// )
+  /// ```
+  ///
+  /// A platform left out of `builders` falls back to Flutter's
+  /// `FadeUpwardsPageTransitionsBuilder` rather than to the platform default,
+  /// which is Flutter's rule and not magic's: name every platform the app
+  /// ships on. Dropping `TargetPlatform.iOS` also drops the back GESTURE,
+  /// since Flutter builds its detector inside the Cupertino transition.
+  ///
+  /// Nothing else is affected. [RouteTransition.fade], `slideRight` and the
+  /// rest build their own animation explicitly and never consult the theme.
+  final PageTransitionsTheme? pageTransitionsTheme;
+
   /// Debug banner.
   final bool debugShowCheckedModeBanner;
 
@@ -136,6 +173,7 @@ class MagicApplication extends StatefulWidget {
     this.initialRoute = '/',
     this.locale,
     this.localizationsDelegates,
+    this.pageTransitionsTheme,
     this.debugShowCheckedModeBanner = false,
     this.onInit,
     this.onThemeChanged,
@@ -292,9 +330,21 @@ class _MagicApplicationState extends State<MagicApplication> {
 
   /// Build the [MaterialApp.router] that drives the whole application.
   MaterialApp _buildRouterApp(WindThemeController controller) {
+    // `copyWith` rather than a constructor argument, because the theme is
+    // wind's: it owns the colors, the typography and the component defaults,
+    // and this is the one field an app overrides without touching any of them.
+    // Left null the theme keeps whatever wind produced, which today is
+    // Flutter's per-platform default and is what `RouteTransition.platform`
+    // exists to use.
+    final ThemeData theme = widget.pageTransitionsTheme == null
+        ? controller.toThemeData()
+        : controller.toThemeData().copyWith(
+            pageTransitionsTheme: widget.pageTransitionsTheme,
+          );
+
     return MaterialApp.router(
       onGenerateTitle: (_) => TitleManager.instance.effectiveTitle,
-      theme: controller.toThemeData(),
+      theme: theme,
       themeMode: widget.themeMode,
       locale: widget.locale ?? _resolveRuntimeLocale(),
       supportedLocales: _getSupportedLocalesFromConfig(),
