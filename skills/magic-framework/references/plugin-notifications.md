@@ -1,4 +1,4 @@
-<!-- magic_notifications v0.3.1 | Updated: 2026-09-13 -->
+<!-- magic_notifications v0.3.2 | Updated: 2026-09-16 -->
 
 # magic_notifications Plugin
 
@@ -329,8 +329,8 @@ The package owns the notification UI since 0.1.0. `magic_starter` used to ship i
 | Symbol | Shape |
 |:-------|:------|
 | `NotificationDropdown` | The bell. `{required notificationStream, onMarkAsRead, onMarkAllAsRead, onNotificationTap, onViewAll}` plus five className overrides (`panelClassName`, `triggerClassName`, `triggerIconClassName`, `badgeClassName`, `badgeTextClassName`). |
-| `NotificationsListView` | `{onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate, perPage = 15}`. `onDelete` is `Future<bool> Function(String id)?` (0.2.0): `true` means the row is gone and the page reloads, `false` means the host declined and nothing is re-read. The per-row delete control renders only when it is non-null. |
-| `NotificationPreferencesView` | `{pushProvisioned, backRoute}`. The per-type channel matrix plus a bulk row per channel. |
+| `NotificationsListView` | `{onMarkAsRead, onMarkAllAsRead, onDelete, onNavigate, perPage = 15, contentClassName = 'p-4 lg:p-6'}`. `onDelete` is `Future<bool> Function(String id)?` (0.2.0): `true` means the row is gone and the page reloads, `false` means the host declined and nothing is re-read. The per-row delete control renders only when it is non-null. |
+| `NotificationPreferencesView` | `{pushProvisioned, backRoute, contentClassName = 'p-4 lg:p-6'}`. The per-type channel matrix plus a bulk row per channel. |
 | `NotificationsListController` | `.instance`; owns the page and its rows. `loadPage(int page)`, `refresh()`, `currentPage`. |
 | `NotificationPreferencesController` | `.instance`; `fetchPreferences()`, `updateTypePreference(String type, String channel, bool isEnabled)`, `updateChannelAcrossTypes(String channel, bool isEnabled)`, plus `matrixNotifier`, `pushProvisionedNotifier`, `bulkSavingNotifier`. |
 
@@ -344,6 +344,15 @@ Notify.view.register('notifications.preferences',
 // Say what one of the app's own notification types looks like.
 Notify.view.slot(NotificationViewRegistry.typeIconSlotView, 'monitor_down',
     (context) => WIcon(Icons.error_outline, className: 'text-lg text-red-500'));
+```
+
+**Mounting a screen inside a page container of your own (0.3.2).** Both screens pad their content column with `p-4 lg:p-6`, which is right standalone and wrong inside a host that already owns page geometry: the two apply to the same edge, so the page sits twice as far from the display as its neighbours. Pass `contentClassName: ''` to hand the geometry to the container, or pass your own className to state a different answer. It applies to the content column INSIDE the scroll view, so the page surface stays full bleed behind the scroll and a wrapper around the screen could not have replaced it.
+
+```dart
+// magic_starter mounts both screens inside MSPageContainer and turns this
+// package's padding off.
+Notify.view.register('notifications.list',
+    () => const NotificationsListView(contentClassName: ''));
 ```
 
 Ask `hasOverride(key)`, not `has(key)`, before installing your own default: reading `Notify.view` is what seeds the package's screens, so `has` is true from the first read. Register `'default'` (`NotificationViewRegistry.typeIconFallbackSlot`) as the slot name to answer for every remaining type.
