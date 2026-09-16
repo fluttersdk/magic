@@ -196,17 +196,20 @@ void main() {
   });
 
   group('RouteTransition', () {
-    test('enum contains expected values', () {
-      expect(
-        RouteTransition.values,
-        containsAll([
-          RouteTransition.none,
-          RouteTransition.fade,
-          RouteTransition.slideRight,
-          RouteTransition.slideUp,
-          RouteTransition.scale,
-        ]),
-      );
+    // The whole inventory, in order, rather than `containsAll`: a new value is
+    // source-breaking for a consumer switching exhaustively over the enum, so
+    // adding one should cost a line here and be recorded in the CHANGELOG.
+    // `platform` was added and this test kept passing, which is what a
+    // containment assertion buys.
+    test('enum holds exactly these values, in this order', () {
+      expect(RouteTransition.values, [
+        RouteTransition.none,
+        RouteTransition.platform,
+        RouteTransition.fade,
+        RouteTransition.slideRight,
+        RouteTransition.slideUp,
+        RouteTransition.scale,
+      ]);
     });
   });
 

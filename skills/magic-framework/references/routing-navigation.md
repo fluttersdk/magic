@@ -255,6 +255,8 @@ Leave `defaultStacked` off on web: `go()` already gives a working browser Back.
 
 `back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes.
 
+`toNamed()` resolves the name to a location and hands it to `to()`, so a stacked route pushes whichever verb reaches it. The page type is `MagicPlatformPage`, exported for a type check and never constructed by hand.
+
 Navigating to the path you are already on turns on the query: naming none is a re-tapped destination and does nothing, and naming one swaps the top page while the stack under it survives.
 
 The swap REBUILDS the screen rather than remounting it, which is what a query change does everywhere in Magic: go_router keys a page on the matched path and the query is not part of it. So read the query in `build()`, never in `initState()`, and do not register the page as a `const` widget, or nothing rebuilds at all.
@@ -637,5 +639,5 @@ final title = MagicRoute.currentTitle; // without suffix
 - **Path Parameters:** Parameters are injected by position into the handler function. Ensure the function signature matches the number of parameters in the route.
 - **Named Routes:** Only use named navigation if the route was explicitly named with `.name()`.
 - **Replace vs. To:** `replace()` leaves history untouched — `back()` still returns to the route before the replaced one. Use for login redirects and splash screens where the replaced route should not appear in back navigation.
-- **back() across shells:** `MagicRoute.back()` works across shell (layout) routes. Magic tracks navigation history automatically via `to()` and `toNamed()`. Use `fallback:` for guaranteed behavior when history is empty: `MagicRoute.back(fallback: '/home')`.
+- **back() across shells:** `MagicRoute.back()` works across shell (layout) routes. Magic tracks navigation history automatically via `to()` and `toNamed()` on an unstacked route; a stacked one records nothing, because the pushed page IS the record and `back()` prefers the native pop. Use `fallback:` for guaranteed behavior when history is empty: `MagicRoute.back(fallback: '/home')`.
 - **Intended URL Cleanup:** `pullIntendedUrl()` is a one-time read that clears the stored URL. Call it only once per login flow.

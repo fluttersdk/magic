@@ -215,7 +215,13 @@ class RouteDefinition {
   /// Get the list of middleware (strings or factories).
   List<dynamic> get middlewares => _middlewares;
 
-  /// Get the transition type.
+  /// The transition this route declared, or [RouteTransition.none].
+  ///
+  /// Deliberately ignores [MagicRouter.defaultTransition], because a caller
+  /// asking a definition what IT says has no business being handed the
+  /// router's answer. Use [declaredTransition] where the difference between
+  /// "declared none" and "declared nothing" matters; the router resolves the
+  /// default from that one.
   RouteTransition get transitionType => _transition ?? RouteTransition.none;
 
   /// The transition this route named, or null to take the router's default.

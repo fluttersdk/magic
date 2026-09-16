@@ -23,19 +23,10 @@ class MagicPlatformPage<T> extends Page<T> {
   /// Whether a back gesture may pop this page.
   final bool swipeBack;
 
-  /// Whether the route keeps its state while another page covers it.
-  final bool maintainState;
-
-  /// Whether this page is a full-screen dialog, which changes the transition
-  /// and, on iOS, replaces the edge swipe with a downward one.
-  final bool fullscreenDialog;
-
   /// Creates a page that uses the running platform's page transition.
   const MagicPlatformPage({
     required this.child,
     this.swipeBack = true,
-    this.maintainState = true,
-    this.fullscreenDialog = false,
     super.key,
     super.name,
     super.arguments,
@@ -56,11 +47,11 @@ class _MagicPlatformPageRoute<T> extends PageRoute<T>
   @override
   Widget buildContent(BuildContext context) => _page.child;
 
+  // `ModalRoute` declares this abstract, so an answer is required rather than
+  // optional. Const true, which is what go_router's own pages answer: a page
+  // still in the list keeps its state while another covers it.
   @override
-  bool get maintainState => _page.maintainState;
-
-  @override
-  bool get fullscreenDialog => _page.fullscreenDialog;
+  bool get maintainState => true;
 
   // Narrowing only. `super` already refuses when the route is first in the
   // stack, when a pop would be handled internally, when a `PopScope` vetoes

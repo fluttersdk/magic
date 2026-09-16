@@ -681,8 +681,11 @@ class MagicRouter {
 
   /// Navigate to a named route.
   ///
+  /// Behaves exactly like [to] once the name is resolved, [RouteDefinition
+  /// .stacked] included.
+  ///
   /// ```dart
-  /// Route.toNamed('users.show', params: {'id': '42'});
+  /// MagicRouter.instance.toNamed('users.show', pathParameters: {'id': '42'});
   /// ```
   void toNamed(
     String name, {
@@ -695,16 +698,18 @@ class MagicRouter {
       );
     }
 
-    // Record current location before navigating.
-    final current = currentLocation;
-    if (current != null) {
-      _recordHistory(current);
-    }
-
-    _router!.goNamed(
-      name,
-      pathParameters: pathParameters,
-      queryParameters: queryParameters,
+    // The name is resolved to a location and handed to `to()`, so one route
+    // behaves one way whichever verb reaches it. This used to call `goNamed()`
+    // directly, which meant a route marked `.stacked()` pushed by path and
+    // REPLACED by name: no back gesture, and Flutter reporting
+    // `canHandlePop: false` so Android's system back left the app. Nothing at
+    // the call site said the verb decided that.
+    to(
+      _router!.namedLocation(
+        name,
+        pathParameters: pathParameters,
+        queryParameters: queryParameters,
+      ),
     );
   }
 
