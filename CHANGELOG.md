@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-09-16
+
 ### Breaking
 
 - **`RouteTransition` gains a value, `platform`.** Source-breaking for a consumer with an exhaustive `switch` over the enum: that switch stops compiling until the new case is handled. The value is inserted after `none` rather than appended, so every later value's `index` shifts by one; nothing in the ecosystem persists an enum index and nothing should, since a persisted `index` breaks on any insertion. The default is untouched, and every existing value means what it meant. Permitted pre-1.0 and recorded here rather than left to be discovered at the compiler. `test/routing/router_test.dart` now asserts the whole inventory in order instead of containment, which is why this entry exists at all: the old assertion passed with the new value missing from it. (`lib/src/routing/route_definition.dart`, `test/routing/router_test.dart`)
@@ -15,6 +17,8 @@ All notable changes to this project will be documented in this file.
   Nothing could show it until routes started stacking. `to()` calls `go()`, which replaces the whole page list, so there was never a second page underneath to show through. A `.stacked()` route puts one there, and the outgoing page is then visible THROUGH the incoming one for the length of the push: on iOS it sits at the Cupertino parallax offset with the new page drawn over it, and disappears only when the animation ends and the Navigator offstages the route below an opaque one. Reported off a TestFlight build as the old screen stopping half-way across the display with the new one on top of it.
 
   Measured rather than inferred: `Theme.of(context).canvasColor` reads `alpha 0.0` in a running wind app while `scaffoldBackgroundColor` reads opaque, which is why the fix takes the latter. An explicit color also stops `MaterialType.canvas` consulting the theme at all. A host that makes `scaffoldBackgroundColor` transparent is saying its pages are transparent, which is a choice rather than an accident.
+
+  **The floor on `fluttersdk_wind` moves to `^1.6.1` with this, and it is a floor for a VALUE rather than for an API.** Painting that field is what makes its value matter, and wind filled it from its own white and gray-900 rather than from the `bg-surface` alias an app paints its canvas with until 1.6.1. On 1.6.0 this release paints `#FFFFFF` over `#F9FAFB` in light and `#111827` over `#07090C` in dark, on every screen, and the dark one is not subtle. Nothing fails to compile below the floor, which is exactly why it is declared rather than left to resolve.
 
   **Two things for an adopter to check, because this is the first release in which the page background is painted at all.**
 

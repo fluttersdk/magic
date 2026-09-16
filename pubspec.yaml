@@ -1,6 +1,6 @@
 name: magic
 description: "A Laravel-inspired Flutter framework with Eloquent ORM, routing, and MVC architecture."
-version: 0.0.11
+version: 0.0.12
 homepage: https://magic.fluttersdk.com
 repository: https://github.com/fluttersdk/magic
 issue_tracker: https://github.com/fluttersdk/magic/issues
@@ -23,7 +23,14 @@ dependencies:
     sdk: flutter
   flutter_web_plugins:
     sdk: flutter
-  fluttersdk_wind: ^1.5.3
+  # A FLOOR for a value rather than an API, and this release is what makes it
+  # one: `_buildPage` now paints `scaffoldBackgroundColor`, and wind filled that
+  # field from its own white and gray-900 until 1.6.1 taught it to follow the
+  # `bg-surface` alias an app actually paints its canvas with. On 1.6.0 that is
+  # #FFFFFF over #F9FAFB in light and #111827 over #07090C in dark, on every
+  # screen, and the dark one is not subtle. Nothing fails to compile below it,
+  # which is exactly why the floor has to say so.
+  fluttersdk_wind: ^1.6.1
   meta: ^1.16.0
   more: ^4.7.0
   dio: ^5.9.0
