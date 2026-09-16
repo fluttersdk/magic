@@ -255,6 +255,8 @@ Leave `defaultStacked` off on web: `go()` already gives a working browser Back.
 
 `back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes.
 
+`toNamed()` resolves the name to a location and hands it to `to()`, so a stacked route pushes whichever verb reaches it. The page type is `MagicPlatformPage`, exported for a type check and never constructed by hand.
+
 Navigating to the path you are already on turns on the query: naming none is a re-tapped destination and does nothing, and naming one swaps the top page while the stack under it survives.
 
 The swap REBUILDS the screen rather than remounting it, which is what a query change does everywhere in Magic: go_router keys a page on the matched path and the query is not part of it. So read the query in `build()`, never in `initState()`, and do not register the page as a `const` widget, or nothing rebuilds at all.

@@ -144,6 +144,55 @@ void main() {
       expect(Navigator.of(ctx).canPop(), isTrue);
     });
 
+    testWidgets('a stacked route reached by NAME pushes too', (tester) async {
+      // `toNamed()` went straight to `goNamed()` and never asked whether the
+      // route stacks, so the same screen pushed by path and replaced by name.
+      // What that costs is invisible at the call site: no back gesture, and
+      // Flutter reports `canHandlePop: false`, so Android's system back leaves
+      // the app. Nothing in `stacked()`'s dartdoc or the routing doc says the
+      // verb decides it.
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page(
+        '/monitors/:id',
+        (id) => const SizedBox(),
+      ).name('monitors.show').stacked();
+
+      final calls = watchFrameworkHandlesBack(tester);
+      await pumpRouter(tester);
+
+      MagicRouter.instance.toNamed(
+        'monitors.show',
+        pathParameters: {'id': '42'},
+      );
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentLocation, '/monitors/42');
+      expect(
+        calls.last,
+        true,
+        reason: 'the name resolves to the same route, so it stacks the same',
+      );
+
+      final ctx = tester.element(find.byType(SizedBox).last);
+      expect(Navigator.of(ctx).canPop(), isTrue);
+    });
+
+    testWidgets('an unstacked route reached by name still replaces', (
+      tester,
+    ) async {
+      MagicRoute.page('/', () => const SizedBox());
+      MagicRoute.page('/home', () => const SizedBox()).name('home');
+
+      final calls = watchFrameworkHandlesBack(tester);
+      await pumpRouter(tester);
+
+      MagicRouter.instance.toNamed('home');
+      await tester.pumpAndSettle();
+
+      expect(MagicRouter.instance.currentLocation, '/home');
+      expect(calls.last, false, reason: 'nothing to pop, as before');
+    });
+
     testWidgets('a stacked route still resolves through back()', (
       tester,
     ) async {

@@ -430,6 +430,16 @@ MagicRoute.page('/monitors/:id', (id) => MonitorPage(id))
 
 `back()` is unchanged and still prefers the native pop, so the history fallback keeps covering every route you do not stack.
 
+`toNamed()` answers the same way. It resolves the name to a location and hands it to `to()`, so one route behaves one way whichever verb reaches it:
+
+```dart
+MagicRoute.page('/monitors/:id', (id) => MonitorPage(id)).name('monitors.show').stacked();
+
+MagicRoute.toNamed('monitors.show', params: {'id': '42'}); // pushed, like to()
+```
+
+The page a stacked route builds is `MagicPlatformPage`, exported for a test or a type check that needs the name. Nothing asks you to construct one: the router builds it from the route's own `transition()` and `swipeBack()`.
+
 Navigating to the path you are already on depends on whether you name a query:
 
 | From | `to(...)` | Result |
