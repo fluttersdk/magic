@@ -360,8 +360,39 @@ class MagicRouter {
     RouteDefinition route,
     GoRouterState state,
   ) {
-    // Wrap child with opaque background to prevent overlap during transitions
-    final opaqueChild = Material(type: MaterialType.canvas, child: child);
+    // An opaque background, so a page under a transition does not show through
+    // the page on top of it.
+    //
+    // This used to be `Material(type: MaterialType.canvas)`, which paints
+    // `Theme.canvasColor` (`material.dart:460`), and `fluttersdk_wind` sets
+    // that to `Colors.transparent` on purpose (`wind_theme_data.dart:514`) so
+    // a Material surface never paints over a Wind `bg-*` className. Every page
+    // in every wind app was therefore transparent, and the comment on this line
+    // claimed the opposite for as long as it has existed.
+    //
+    // Nothing showed it until routes started stacking. `to()` calls `go()`,
+    // which replaces the whole page list, so there was never a second page
+    // underneath to show through. A `.stacked()` route puts one there, and the
+    // outgoing page is then visible THROUGH the incoming one for the length of
+    // the push: on iOS it sits at the Cupertino parallax offset with the new
+    // page drawn over it, and only disappears when the animation ends and the
+    // Navigator offstages the route below an opaque one.
+    //
+    // `scaffoldBackgroundColor` rather than `canvasColor`, because it is what
+    // wind fills from its `background` color and is opaque. An explicit color
+    // also stops `MaterialType.canvas` reading the theme at all. A host that
+    // makes this color transparent is saying its pages are transparent, which
+    // is a choice rather than an accident.
+    //
+    // Read through a `Builder` so the theme comes from inside `MaterialApp`.
+    // The `pageBuilder` context go_router hands us sits above the app's own
+    // `Theme`, and reading there would find the default rather than the host's.
+    final Widget opaqueChild = Builder(
+      builder: (context) => Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: child,
+      ),
+    );
 
     // The name a NavigatorObserver will read off this page.
     //
