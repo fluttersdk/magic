@@ -125,22 +125,19 @@ void main() {
       expect(early.bootCalls, 1, reason: 'boot() is idempotent');
     });
 
-    test(
-      'registering the same instance twice registers and boots it once',
-      () async {
-        // Two registrations of one instance ran its boot twice, which for a
-        // provider that starts polling or attaches a listener means two of them.
-        final app = MagicApp.instance;
-        final provider = _RecordingProvider(app, 'dup');
+    test('registering the same instance twice registers and boots it once', () async {
+      // Two registrations of one instance ran its boot twice, which for a
+      // provider that starts polling or attaches a listener means two of them.
+      final app = MagicApp.instance;
+      final provider = _RecordingProvider(app, 'dup');
 
-        app.register(provider);
-        app.register(provider);
-        await app.boot();
+      app.register(provider);
+      app.register(provider);
+      await app.boot();
 
-        expect(provider.registerCalls, 1);
-        expect(provider.bootCalls, 1);
-      },
-    );
+      expect(provider.registerCalls, 1);
+      expect(provider.bootCalls, 1);
+    });
 
     test(
       'two instances of the same provider class both register and boot',

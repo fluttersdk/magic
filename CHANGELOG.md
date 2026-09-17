@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 - **A `FakeNetworkDriver` stub may answer asynchronously.** `FakeRequestHandler` widens from `MagicResponse Function(MagicRequest)` to `FutureOr<MagicResponse> Function(MagicRequest)`, and `_handle` awaits it. Source-compatible: every synchronous stub keeps compiling and behaving.
 
+  **One behaviour change to know about in a consumer test suite.** `recorded.add` is now deferred by at least one microtask, where it used to happen synchronously inside the `get`/`post` call: the old `_handle` was sync and an `async` body runs straight through to its `return` before yielding, while `await` on a non-Future still schedules a microtask. A test that fires an unawaited `driver.get(...)` and asserts `assertSentCount(1)` in the same synchronous block passed before and fails now; `await` the call. Nothing in this repo's suites does it. The no-stub default path is unaffected, since it never awaits.
+
   What it admits is a test that needs a request to stay OUTSTANDING while the caller does something else, which is the only way to script a concurrency case. A consumer app could not test "a sign-out arrives while the panel handshake is still in the air" at all, and had to reach the same guard through a code path that happens to await nothing before its first write. A stub that must answer before it returns cannot open that window. (`lib/src/network/drivers/fake_network_driver.dart`, `test/network/fake_driver_async_stub_test.dart`, `doc/testing/http-tests.md`)
 
 ## [0.0.13] - 2026-09-17

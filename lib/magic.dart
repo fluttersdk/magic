@@ -226,6 +226,7 @@ export 'src/ui/magic_can.dart';
 
 // Launch
 export 'package:url_launcher/url_launcher.dart' show LaunchMode;
+
 export 'src/launch/launch_adapter.dart';
 export 'src/launch/launch_service.dart';
 export 'src/launch/launch_service_provider.dart';

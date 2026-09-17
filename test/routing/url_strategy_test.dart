@@ -91,20 +91,17 @@ void main() {
       },
     );
 
-    test(
-      'unrecognized strategy — Magic.init completes without throwing (silent no-op)',
-      () async {
-        await expectLater(
-          Magic.init(
-            configs: [
-              {
-                'routing': {'url_strategy': 'invalid'},
-              },
-            ],
-          ),
-          completes,
-        );
-      },
-    );
+    test('unrecognized strategy — Magic.init completes without throwing (silent no-op)', () async {
+      await expectLater(
+        Magic.init(
+          configs: [
+            {
+              'routing': {'url_strategy': 'invalid'},
+            },
+          ],
+        ),
+        completes,
+      );
+    });
   });
 }

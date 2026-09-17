@@ -13,8 +13,9 @@ import '../magic_response.dart';
 /// script a concurrency case ("a sign-out arrives while the handshake is still
 /// in the air"). A stub that must answer before it returns cannot open that
 /// window at all.
-typedef FakeRequestHandler =
-    FutureOr<MagicResponse> Function(MagicRequest request);
+typedef FakeRequestHandler = FutureOr<MagicResponse> Function(
+  MagicRequest request,
+);
 
 /// Thrown when a stray request is made while [FakeNetworkDriver.preventStrayRequests] is enabled.
 ///
@@ -48,7 +49,8 @@ class FakeNetworkDriver implements NetworkDriver {
   /// [stubs] accepts:
   /// - `null` — all requests return 200 with empty data
   /// - `Map<String, MagicResponse>` — URL pattern to response mapping
-  /// - `FakeRequestHandler` — callback receiving [MagicRequest], returning [MagicResponse]
+  /// - `FakeRequestHandler` — callback receiving [MagicRequest], returning
+  ///   [MagicResponse] or `Future<MagicResponse>`
   FakeNetworkDriver({dynamic stubs}) {
     if (stubs is Map<String, MagicResponse>) {
       for (final entry in stubs.entries) {

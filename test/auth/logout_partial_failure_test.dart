@@ -59,36 +59,33 @@ void main() {
     return vault;
   }
 
-  test(
-    'a logout that cannot clear the token still clears everything else',
-    () async {
-      // The failure this covers: `logout()` ran clearTokens, then clearUserCache,
-      // then dropped the in-memory user. A keychain error on the very first
-      // delete stopped all three, so the cached user stayed on disk, the app went
-      // on believing it was signed in, and nothing told the caller.
-      final vault = installVault({guard.tokenKey});
-      guard.setUser(_User()..setRawAttributes({'id': 1}, sync: true));
-      final int stateBefore = guard.stateNotifier.value;
+  test('a logout that cannot clear the token still clears everything else', () async {
+    // The failure this covers: `logout()` ran clearTokens, then clearUserCache,
+    // then dropped the in-memory user. A keychain error on the very first
+    // delete stopped all three, so the cached user stayed on disk, the app went
+    // on believing it was signed in, and nothing told the caller.
+    final vault = installVault({guard.tokenKey});
+    guard.setUser(_User()..setRawAttributes({'id': 1}, sync: true));
+    final int stateBefore = guard.stateNotifier.value;
 
-      await expectLater(
-        guard.logout(),
-        throwsA(isA<MagicVaultException>()),
-        reason: 'the caller has to learn the credential may still be there',
-      );
+    await expectLater(
+      guard.logout(),
+      throwsA(isA<MagicVaultException>()),
+      reason: 'the caller has to learn the credential may still be there',
+    );
 
-      expect(
-        vault.removeAttempts,
-        contains(guard.userCacheKey),
-        reason: 'the user cache is still attempted after the token failed',
-      );
-      expect(guard.user(), isNull, reason: 'the session is over in memory');
-      expect(
-        guard.stateNotifier.value,
-        greaterThan(stateBefore),
-        reason: 'and the app is told, so no screen keeps rendering a user',
-      );
-    },
-  );
+    expect(
+      vault.removeAttempts,
+      contains(guard.userCacheKey),
+      reason: 'the user cache is still attempted after the token failed',
+    );
+    expect(guard.user(), isNull, reason: 'the session is over in memory');
+    expect(
+      guard.stateNotifier.value,
+      greaterThan(stateBefore),
+      reason: 'and the app is told, so no screen keeps rendering a user',
+    );
+  });
 
   test(
     'a logout that cannot clear the user cache still clears the token',

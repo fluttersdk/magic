@@ -39,24 +39,19 @@ void main() {
       return provider;
     }
 
-    test(
-      'DateManager is booted so the X-Timezone header has a real value',
-      () async {
-        // Nothing in the framework used to boot DateManager, so the IANA database
-        // stayed uninitialized, `localization.timezone` had no effect, and the
-        // LocalizationInterceptor's X-Timezone header reported the unbooted
-        // default. Every consumer had to call DateManager.boot() by hand.
-        final LocalizationServiceProvider provider = await arrange(
-          'Asia/Tokyo',
-        );
-        expect(DateManager.instance.isBooted, isFalse);
+    test('DateManager is booted so the X-Timezone header has a real value', () async {
+      // Nothing in the framework used to boot DateManager, so the IANA database
+      // stayed uninitialized, `localization.timezone` had no effect, and the
+      // LocalizationInterceptor's X-Timezone header reported the unbooted
+      // default. Every consumer had to call DateManager.boot() by hand.
+      final LocalizationServiceProvider provider = await arrange('Asia/Tokyo');
+      expect(DateManager.instance.isBooted, isFalse);
 
-        await provider.boot();
+      await provider.boot();
 
-        expect(DateManager.instance.isBooted, isTrue);
-        expect(DateManager.instance.timezoneName, 'Asia/Tokyo');
-      },
-    );
+      expect(DateManager.instance.isBooted, isTrue);
+      expect(DateManager.instance.timezoneName, 'Asia/Tokyo');
+    });
 
     test('boot() survives an unresolvable configured timezone', () async {
       // Booting must not be able to fail application startup: an unresolvable

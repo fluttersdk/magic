@@ -30,20 +30,17 @@ void main() {
       },
     );
 
-    test(
-      'register() binds a true singleton — same instance on repeated resolution',
-      () {
-        final app = MagicApp.instance;
-        final provider = BroadcastServiceProvider(app);
+    test('register() binds a true singleton — same instance on repeated resolution', () {
+      final app = MagicApp.instance;
+      final provider = BroadcastServiceProvider(app);
 
-        provider.register();
+      provider.register();
 
-        final first = app.make<BroadcastManager>('broadcasting');
-        final second = app.make<BroadcastManager>('broadcasting');
+      final first = app.make<BroadcastManager>('broadcasting');
+      final second = app.make<BroadcastManager>('broadcasting');
 
-        expect(identical(first, second), isTrue);
-      },
-    );
+      expect(identical(first, second), isTrue);
+    });
   });
 
   group('BroadcastServiceProvider — boot with non-null driver', () {

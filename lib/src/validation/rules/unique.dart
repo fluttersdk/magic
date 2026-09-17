@@ -6,8 +6,11 @@ import '../contracts/async_rule.dart';
 ///
 /// Given the [endpoint], [field], and [value], return `true` if the value is
 /// unique (available) and `false` if it is already taken.
-typedef UniqueResolver =
-    Future<bool> Function(String endpoint, String field, dynamic value);
+typedef UniqueResolver = Future<bool> Function(
+  String endpoint,
+  String field,
+  dynamic value,
+);
 
 /// Asynchronously validates that a value is unique by hitting a backend
 /// endpoint.

@@ -91,9 +91,9 @@ class MagicStubLoader {
     );
     if (!File(pkgConfigPath).existsSync()) return null;
 
-    final json =
-        jsonDecode(File(pkgConfigPath).readAsStringSync())
-            as Map<String, dynamic>;
+    final json = jsonDecode(
+      File(pkgConfigPath).readAsStringSync(),
+    ) as Map<String, dynamic>;
     final packages = json['packages'] as List<dynamic>?;
     if (packages == null) return null;
 

@@ -52,15 +52,12 @@ void main() {
       expect(ch.name, equals('inbox'));
     });
 
-    test(
-      'join() returns a BroadcastPresenceChannel with correct name and empty members',
-      () {
-        final ch = driver.join('room.1');
-        expect(ch, isA<BroadcastPresenceChannel>());
-        expect(ch.name, equals('room.1'));
-        expect(ch.members, isEmpty);
-      },
-    );
+    test('join() returns a BroadcastPresenceChannel with correct name and empty members', () {
+      final ch = driver.join('room.1');
+      expect(ch, isA<BroadcastPresenceChannel>());
+      expect(ch.name, equals('room.1'));
+      expect(ch.members, isEmpty);
+    });
 
     test('leave() does not throw', () {
       expect(() => driver.leave('orders'), returnsNormally);

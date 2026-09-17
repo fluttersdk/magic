@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import '../../events/magic_event.dart';
 
 /// Fired when the application locale changes.

@@ -81,8 +81,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
     parser.addFlag(
       'all',
       abbr: 'a',
-      help:
-          'Generate a migration, seeder, factory, policy, and resource controller for the model',
+      help: 'Generate a migration, seeder, factory, policy, and resource controller for the model',
       negatable: false,
     );
   }
