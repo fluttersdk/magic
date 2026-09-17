@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **A `FakeNetworkDriver` stub may answer asynchronously.** `FakeRequestHandler` widens from `MagicResponse Function(MagicRequest)` to `FutureOr<MagicResponse> Function(MagicRequest)`, and `_handle` awaits it. Source-compatible: every synchronous stub keeps compiling and behaving.
+
+  What it admits is a test that needs a request to stay OUTSTANDING while the caller does something else, which is the only way to script a concurrency case. A consumer app could not test "a sign-out arrives while the panel handshake is still in the air" at all, and had to reach the same guard through a code path that happens to await nothing before its first write. A stub that must answer before it returns cannot open that window. (`lib/src/network/drivers/fake_network_driver.dart`, `test/network/fake_driver_async_stub_test.dart`, `doc/testing/http-tests.md`)
+
 ## [0.0.13] - 2026-09-17
 
 ### Improvements
