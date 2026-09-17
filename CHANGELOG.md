@@ -12,6 +12,10 @@ All notable changes to this project will be documented in this file.
 
   Measured in a consumer app whose `tr.json` carried 12 of the 357 keys its `en.json` had: all 345 others rendered on screen as `magic_starter.auth.login.title` and the like. The app closed it by hand-translating every key, which is the work this makes unnecessary.
 
+  The recovery path guards on `Magic.bound('log')` before it warns. `Log.warning` resolves `log` through the container, which THROWS for an unbound key (`lib/src/foundation/application.dart:269-274`), so an unguarded warning defeated the whole point of the catch: a widget test building `MaterialApp` through `LangDelegate` without a full `Magic.init()`, or a locale switch before `LogServiceProvider` boots, took the exception straight out of `load()`.
+
+  Both catalogue reads start before either is awaited, so a locale with a fallback pays one round trip rather than two. The spread order decides precedence and is unaffected by completion order.
+
   The merge lives in `Translator` rather than in the loader deliberately: this class owns `fallbackLocale`, so every `TranslationLoader` a host app writes gets the behaviour without knowing about it. Loading the fallback locale itself still reads one file. A fallback that will not load logs a warning and answers empty rather than throwing, because it is a courtesy and never a requirement: the locale's own strings must not go down with it. (`lib/src/localization/translator.dart`, `test/localization/translator_key_fallback_test.dart`, `doc/digging-deeper/localization.md`)
 
 ## [0.0.13] - 2026-09-17

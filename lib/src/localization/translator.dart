@@ -6,6 +6,7 @@ import '../support/date_manager.dart';
 import 'contracts/translation_loader.dart';
 import 'loaders/json_asset_loader.dart';
 import '../facades/log.dart';
+import '../foundation/magic.dart';
 import '../facades/event.dart';
 import '../foundation/events/app_events.dart';
 
@@ -117,10 +118,13 @@ class Translator extends ChangeNotifier {
   Future<void> load(Locale locale) async {
     if (_loaded && _locale == locale) return;
 
-    final data = <String, dynamic>{
-      ...await _loadFallbackFor(locale),
-      ...await _loader.load(locale),
-    };
+    // Both reads start before either is awaited, so a locale with a fallback
+    // pays one round trip rather than two. The spread order is what decides
+    // precedence, and it is unaffected by the order they complete in.
+    final fallback = _loadFallbackFor(locale);
+    final own = _loader.load(locale);
+
+    final data = <String, dynamic>{...await fallback, ...await own};
 
     // Convert all values to strings
     _sentences = data.map((key, value) => MapEntry(key, value.toString()));
@@ -151,11 +155,19 @@ class Translator extends ChangeNotifier {
     try {
       return await _loader.load(_fallbackLocale);
     } on Object catch (error) {
-      Log.warning(
-        'Could not load the fallback locale '
-        '[${_fallbackLocale.languageCode}]: $error. Keys missing from '
-        '[${locale.languageCode}] will render as themselves.',
-      );
+      // `Log.warning` resolves `log` through the container, which THROWS for
+      // an unbound key (`foundation/application.dart:269-274`). So logging
+      // here unguarded would defeat the whole point of this catch: a widget
+      // test that builds `MaterialApp` through `LangDelegate` without a full
+      // `Magic.init()`, or a locale switch before `LogServiceProvider` boots,
+      // would take the exception straight out of `load()`.
+      if (Magic.bound('log')) {
+        Log.warning(
+          'Could not load the fallback locale '
+          '[${_fallbackLocale.languageCode}]: $error. Keys missing from '
+          '[${locale.languageCode}] will render as themselves.',
+        );
+      }
 
       return const <String, dynamic>{};
     }
