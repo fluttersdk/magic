@@ -123,17 +123,24 @@ MagicRoute.page('/admin', () => AdminPanel())
     .middleware(['auth', 'admin']);
 ```
 
-An alias nothing registered throws a `StateError` naming it, rather than
-leaving the route ungated:
+An alias nothing registered stops the app at `Magic.init`, rather than leaving
+the route ungated:
 
 ```
-StateError: Route middleware alias "admin" is not registered. Register it
-with Kernel.register('admin', () => ...) before the router is built.
+StateError: Unresolvable route middleware on 1 route:
+  /admin: Route middleware alias "admin" is not registered. Register it with
+  Kernel.register('admin', () => ...) from a service provider.
 ```
 
-Register your aliases from a service provider's `register()`, which runs
-before the router is built. A `boot()` that registers them after the router
-has read its route table is too late.
+The router checks every registered route's middleware when it builds, which is
+step 7 of `Magic.init`, after every provider has booted. So an alias registered
+from `register()` or from `boot()` is equally early, and the usual cause of
+this error is a typo or an alias nobody registered at all.
+
+Bootstrap rather than navigation is deliberate. `Kernel.resolveAll` throws at
+navigation too, but that throw happens inside GoRouter's `redirect` callback,
+which routes it to `onException`: the page renders nothing and the log reports
+a routing failure, which names the wrong problem.
 
 ### Route Group Middleware
 

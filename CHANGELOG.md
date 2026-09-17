@@ -6,11 +6,19 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking
 
-- **`Kernel.resolveAll` throws on a middleware entry it cannot resolve, where it used to drop it silently.** The old body ended in `.whereType<MagicMiddleware>()`, so a route declaring `middleware: ['auth']` against a Kernel that never received an `auth` alias rendered with NO gate on it and reported nothing anywhere. A missing gate lets everybody through, which is the one failure mode that must not be quiet, and the causes are ordinary: a typo in the alias, or an app that registers its aliases from `boot()` after the router has already read its route table.
+- **An unresolvable route middleware stops the app at `Magic.init` instead of silently ungating the route.** Two changes, and the second is the one that does the work.
+
+  `Kernel.resolveAll` ended in `.whereType<MagicMiddleware>()`, so a route declaring `middleware: ['auth']` against a Kernel that never received an `auth` alias rendered with NO gate on it and reported nothing anywhere. A missing gate lets everybody through, which is the one failure mode that must not be quiet. It throws a `StateError` naming the entry now.
+
+  That alone was not enough, and measuring is what showed it. `resolveAll` runs at navigation, from `MagicRouter._handleRedirect`, which is GoRouter's `redirect` callback: GoRouter routes a throw from there to `onException`. Measured against a real `MaterialApp.router`, the page rendered nothing, the log said `Route not found: /`, and `takeException()` returned null. One silent failure traded for another, wearing a misleading message.
+
+  So `MagicRouter._buildRouter` validates every registered route's middleware before it constructs the `GoRouter`, and throws one `StateError` listing every offending route with its path. That lands inside `Magic.init`, where nothing catches it. `Kernel.unresolvable` backs the check and constructs nothing, so validating a whole route table calls no factory and fires no side effect.
+
+  `onException` goes with it: it reported `Route not found` for every exception GoRouter handed it, including one thrown by the redirect callback. It names the underlying error when there is one.
 
   Found by a consumer app, `watchools`, whose every `magic_starter` route was ungated between installing the package and registering the three aliases its installer does not write. Nothing failed, nothing logged, and the screens rendered.
 
-  Breaking for an app that currently relies on an unregistered alias being ignored, which is the behaviour this removes on purpose. `Kernel.resolve` is untouched and still answers null for a single entry, so a caller that wants to test one without committing to it still can. Permitted pre-1.0 and recorded here rather than left to be discovered at runtime. (`lib/src/http/kernel.dart`, `test/http/kernel_resolve_test.dart`, `doc/basics/middleware.md`, `skills/magic-framework/SKILL.md`)
+  Breaking for an app that currently relies on an unregistered alias being ignored, which is the behaviour this removes on purpose; that app now fails to boot until it registers or removes the alias. `Kernel.resolve` is untouched and still answers null for a single entry. Permitted pre-1.0 and recorded here rather than left to be discovered at runtime. (`lib/src/http/kernel.dart`, `lib/src/routing/magic_router.dart`, `test/http/kernel_resolve_test.dart`, `test/routing/middleware_resolvable_at_build_test.dart`, `doc/basics/middleware.md`, `skills/magic-framework/SKILL.md`)
 
 ## [0.0.13] - 2026-09-17
 

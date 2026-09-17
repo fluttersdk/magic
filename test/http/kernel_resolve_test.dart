@@ -8,6 +8,12 @@ class _Allow extends MagicMiddleware {
 
 void main() {
   group('Kernel.resolveAll', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+      Kernel.flush();
+    });
+
     tearDown(Kernel.flush);
 
     test('resolves a registered alias', () {
