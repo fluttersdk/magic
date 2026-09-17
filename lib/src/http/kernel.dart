@@ -111,12 +111,33 @@ class Kernel {
     return null;
   }
 
-  /// Resolve a list of middleware.
+  /// Resolve a list of middleware, throwing on any entry that cannot resolve.
+  ///
+  /// The throw is the point. This used to drop an unresolvable entry with
+  /// `whereType`, so a route declaring `middleware: ['auth']` against a Kernel
+  /// that never received an `auth` alias rendered with NO gate on it and
+  /// reported nothing. A missing gate lets everybody through, which is the one
+  /// failure mode that must not be silent, and the usual cause is ordinary: a
+  /// typo, or an app that registers its aliases after the router is built.
+  ///
+  /// Throws [StateError] naming the offending entry. [resolve] still answers
+  /// null for a caller that wants to test one entry without committing to it.
   static List<MagicMiddleware> resolveAll(List<dynamic> middlewares) {
-    return middlewares
-        .map((m) => resolve(m))
-        .whereType<MagicMiddleware>()
-        .toList();
+    return middlewares.map((m) {
+      final resolved = resolve(m);
+      if (resolved != null) return resolved;
+
+      throw StateError(
+        m is String
+            ? 'Route middleware alias "$m" is not registered. '
+                  'Register it with Kernel.register(\'$m\', () => ...) '
+                  'before the router is built.'
+            : 'Route middleware $m could not be resolved. Pass an alias '
+                  'String registered with Kernel.register, a '
+                  'MagicMiddleware Function() factory, or a MagicMiddleware '
+                  'instance.',
+      );
+    }).toList();
   }
 
   // ---------------------------------------------------------------------------

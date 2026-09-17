@@ -123,6 +123,18 @@ MagicRoute.page('/admin', () => AdminPanel())
     .middleware(['auth', 'admin']);
 ```
 
+An alias nothing registered throws a `StateError` naming it, rather than
+leaving the route ungated:
+
+```
+StateError: Route middleware alias "admin" is not registered. Register it
+with Kernel.register('admin', () => ...) before the router is built.
+```
+
+Register your aliases from a service provider's `register()`, which runs
+before the router is built. A `boot()` that registers them after the router
+has read its route table is too late.
+
 ### Route Group Middleware
 
 You can apply middleware to all routes within a group:

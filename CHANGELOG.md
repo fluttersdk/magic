@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Breaking
+
+- **`Kernel.resolveAll` throws on a middleware entry it cannot resolve, where it used to drop it silently.** The old body ended in `.whereType<MagicMiddleware>()`, so a route declaring `middleware: ['auth']` against a Kernel that never received an `auth` alias rendered with NO gate on it and reported nothing anywhere. A missing gate lets everybody through, which is the one failure mode that must not be quiet, and the causes are ordinary: a typo in the alias, or an app that registers its aliases from `boot()` after the router has already read its route table.
+
+  Found by a consumer app, `watchools`, whose every `magic_starter` route was ungated between installing the package and registering the three aliases its installer does not write. Nothing failed, nothing logged, and the screens rendered.
+
+  Breaking for an app that currently relies on an unregistered alias being ignored, which is the behaviour this removes on purpose. `Kernel.resolve` is untouched and still answers null for a single entry, so a caller that wants to test one without committing to it still can. Permitted pre-1.0 and recorded here rather than left to be discovered at runtime. (`lib/src/http/kernel.dart`, `test/http/kernel_resolve_test.dart`, `doc/basics/middleware.md`, `skills/magic-framework/SKILL.md`)
+
 ## [0.0.13] - 2026-09-17
 
 ### Improvements
