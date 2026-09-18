@@ -415,10 +415,13 @@ void main() {
     WidgetTester tester,
   ) async {
     // A fetcher paginator, because the window has to be HELD open to be seen.
-    // With `Http.fake` it cannot be: the handler must return a MagicResponse
-    // synchronously, and `tester.pump()` drains pending microtasks before it
-    // builds, so a faked response has already landed by the time the frame
-    // renders.
+    //
+    // `Http.fake` could do it now: `FakeRequestHandler` takes an `async`
+    // handler, so a `Completer` inside the stub holds the request open the
+    // same way this fetcher does. This stays a fetcher because it is the
+    // shorter route to the same window, not because the faked one is
+    // impossible. It was impossible when this was written, and the comment
+    // saying so outlived the constraint.
     final Completer<void> secondPage = Completer<void>();
     int calls = 0;
     final MagicPaginator<_Row> paginator = MagicPaginator<_Row>.fetcher(

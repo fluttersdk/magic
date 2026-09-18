@@ -68,7 +68,7 @@ Pattern matching is done after stripping the leading `/` so both `/users/42` and
 <a name="callback-stubs"></a>
 ### Callback Stubs
 
-Pass a `FakeRequestHandler` — a function that receives a `MagicRequest` and returns a `MagicResponse` — for dynamic stubbing logic.
+Pass a `FakeRequestHandler` — a function that receives a `MagicRequest` and returns a `MagicResponse`, or a `Future<MagicResponse>` — for dynamic stubbing logic.
 
 ```dart
 final fake = Http.fake((request) {
@@ -84,6 +84,28 @@ expect(adminResponse.forbidden, isTrue);
 
 final publicResponse = await Http.get('/users');
 expect(publicResponse.successful, isTrue);
+```
+
+#### Holding a request in flight
+
+An `async` handler lets a test keep a request OUTSTANDING while it does
+something else, which is the only way to script a concurrency case: what
+happens when a sign-out, a navigation or a second call arrives before the
+first response lands.
+
+```dart
+final gate = Completer<void>();
+
+Http.fake((request) async {
+  await gate.future;
+  return Http.response({'ok': true}, 200);
+});
+
+final inFlight = controller.submit();   // outstanding, not finished
+
+await controller.signOut();             // arrives mid-request
+gate.complete();
+await inFlight;
 ```
 
 <a name="making-assertions"></a>

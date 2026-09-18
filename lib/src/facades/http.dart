@@ -134,7 +134,8 @@ class Http {
   /// [stubs] can be:
   /// - `null` → all requests return 200 empty response
   /// - `Map<String, MagicResponse>` → URL pattern to response mapping
-  /// - `FakeRequestHandler` → callback invoked for every request
+  /// - `FakeRequestHandler` → callback invoked for every request; may answer
+  ///   synchronously or return a `Future<MagicResponse>`
   static FakeNetworkDriver fake([dynamic stubs]) {
     final driver = FakeNetworkDriver(stubs: stubs);
     Magic.app.setInstance('network', driver);

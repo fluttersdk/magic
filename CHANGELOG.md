@@ -22,6 +22,14 @@ All notable changes to this project will be documented in this file.
 
   Breaking for an app that currently relies on an unregistered alias being ignored, which is the behaviour this removes on purpose; that app now fails to boot until it registers or removes the alias. `Kernel.resolve` is untouched and still answers null for a single entry. Permitted pre-1.0 and recorded here rather than left to be discovered at runtime. (`lib/src/http/kernel.dart`, `lib/src/routing/magic_router.dart`, `test/http/kernel_resolve_test.dart`, `test/routing/middleware_resolvable_at_build_test.dart`, `doc/basics/middleware.md`, `skills/magic-framework/SKILL.md`)
 
+### Added
+
+- **A `FakeNetworkDriver` stub may answer asynchronously.** `FakeRequestHandler` widens from `MagicResponse Function(MagicRequest)` to `FutureOr<MagicResponse> Function(MagicRequest)`, and `_handle` awaits it. Source-compatible: every synchronous stub keeps compiling and behaving.
+
+  **One behaviour change to know about in a consumer test suite.** `recorded.add` is now deferred by at least one microtask, where it used to happen synchronously inside the `get`/`post` call: the old `_handle` was sync and an `async` body runs straight through to its `return` before yielding, while `await` on a non-Future still schedules a microtask. A test that fires an unawaited `driver.get(...)` and asserts `assertSentCount(1)` in the same synchronous block passed before and fails now; `await` the call. Nothing in this repo's suites does it. The no-stub default path is unaffected, since it never awaits.
+
+  What it admits is a test that needs a request to stay OUTSTANDING while the caller does something else, which is the only way to script a concurrency case. A consumer app could not test "a sign-out arrives while the panel handshake is still in the air" at all, and had to reach the same guard through a code path that happens to await nothing before its first write. A stub that must answer before it returns cannot open that window. (`lib/src/network/drivers/fake_network_driver.dart`, `test/network/fake_driver_async_stub_test.dart`, `doc/testing/http-tests.md`)
+
 ### Fixed
 
 - A navigation issued before the `Router` widget has parsed a location no
