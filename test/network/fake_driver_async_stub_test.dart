@@ -31,31 +31,34 @@ void main() {
       expect((await driver.get('/ping')).statusCode, 201);
     });
 
-    test('a handler can hold a request in flight while the caller acts', () async {
-      // This is the capability the sync-only typedef made impossible, and the
-      // reason for the change. A concurrency test needs a window in which a
-      // request is outstanding: "a sign-out arrives while the panel handshake
-      // is still in the air" cannot be scripted at all when every stub answers
-      // before returning.
-      final gate = Completer<void>();
-      var released = false;
+    test(
+      'a handler can hold a request in flight while the caller acts',
+      () async {
+        // This is the capability the sync-only typedef made impossible, and the
+        // reason for the change. A concurrency test needs a window in which a
+        // request is outstanding: "a sign-out arrives while the panel handshake
+        // is still in the air" cannot be scripted at all when every stub answers
+        // before returning.
+        final gate = Completer<void>();
+        var released = false;
 
-      final driver = FakeNetworkDriver(
-        stubs: (MagicRequest request) async {
-          await gate.future;
-          return MagicResponse(data: {'released': released}, statusCode: 200);
-        },
-      );
+        final driver = FakeNetworkDriver(
+          stubs: (MagicRequest request) async {
+            await gate.future;
+            return MagicResponse(data: {'released': released}, statusCode: 200);
+          },
+        );
 
-      final inFlight = driver.get('/slow');
+        final inFlight = driver.get('/slow');
 
-      // The request is outstanding here, which is the whole point: the caller
-      // gets to change the world before the response lands.
-      released = true;
-      gate.complete();
+        // The request is outstanding here, which is the whole point: the caller
+        // gets to change the world before the response lands.
+        released = true;
+        gate.complete();
 
-      expect((await inFlight).data, {'released': true});
-    });
+        expect((await inFlight).data, {'released': true});
+      },
+    );
 
     test('records the awaited response, not the Future', () async {
       final driver = FakeNetworkDriver(

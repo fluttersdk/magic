@@ -1225,9 +1225,9 @@ class MagicInstallCommand extends ArtisanInstallCommand {
 
     Map<String, dynamic> registry;
     if (installContext.fs.exists(registryPath)) {
-      registry = jsonDecode(
-        installContext.fs.readAsString(registryPath),
-      ) as Map<String, dynamic>;
+      registry =
+          jsonDecode(installContext.fs.readAsString(registryPath))
+              as Map<String, dynamic>;
     } else {
       registry = <String, dynamic>{'version': 1, 'plugins': <dynamic>[]};
     }

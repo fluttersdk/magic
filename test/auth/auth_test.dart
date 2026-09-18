@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-
 import 'dart:async';
 import 'dart:convert';
 
@@ -476,46 +475,49 @@ void main() {
       Magic.flush();
     });
 
-    test('returns once the cached user is in place, without waiting for the API', () async {
-      // `AuthServiceProvider.boot()` awaits `restore()`, so anything `restore()`
-      // awaits holds `Magic.init()`, and nothing renders until it lets go. With
-      // a backend that accepts the connection and never answers (a captive
-      // portal, a dead mobile link), that is the whole client timeout: measured
-      // on an iPhone as roughly two minutes of blank white screen on a cold
-      // start, with the console stopping dead on "Auth: Cached user restored".
-      //
-      // The class docblock has always said "2. Sync from API in background".
-      Log.fake();
-      Vault.fake({
-        'auth_token': 'stored-token',
-        'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
-      });
+    test(
+      'returns once the cached user is in place, without waiting for the API',
+      () async {
+        // `AuthServiceProvider.boot()` awaits `restore()`, so anything `restore()`
+        // awaits holds `Magic.init()`, and nothing renders until it lets go. With
+        // a backend that accepts the connection and never answers (a captive
+        // portal, a dead mobile link), that is the whole client timeout: measured
+        // on an iPhone as roughly two minutes of blank white screen on a cold
+        // start, with the console stopping dead on "Auth: Cached user restored".
+        //
+        // The class docblock has always said "2. Sync from API in background".
+        Log.fake();
+        Vault.fake({
+          'auth_token': 'stored-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
 
-      final gate = Completer<void>();
-      Magic.singleton('network', () => _GatedDriver(gate));
+        final gate = Completer<void>();
+        Magic.singleton('network', () => _GatedDriver(gate));
 
-      final guard = _CacheFirstGuard();
+        final guard = _CacheFirstGuard();
 
-      // No timeout wrapper on purpose: if `restore()` waits for the gate this
-      // never completes and the case fails as a hang, which is exactly the
-      // shape of the defect.
-      await guard.restore();
+        // No timeout wrapper on purpose: if `restore()` waits for the gate this
+        // never completes and the case fails as a hang, which is exactly the
+        // shape of the defect.
+        await guard.restore();
 
-      expect(
-        guard.check(),
-        isTrue,
-        reason: 'the cached user is what makes the app renderable',
-      );
-      expect(guard.user<MockUser>()?.name, 'Cached User');
-      expect(
-        gate.isCompleted,
-        isFalse,
-        reason:
-            'the API has not answered yet, and must not have been waited on',
-      );
+        expect(
+          guard.check(),
+          isTrue,
+          reason: 'the cached user is what makes the app renderable',
+        );
+        expect(guard.user<MockUser>()?.name, 'Cached User');
+        expect(
+          gate.isCompleted,
+          isFalse,
+          reason:
+              'the API has not answered yet, and must not have been waited on',
+        );
 
-      gate.complete();
-    });
+        gate.complete();
+      },
+    );
 
     test(
       'a transport failure keeps the session, only the server may end it',

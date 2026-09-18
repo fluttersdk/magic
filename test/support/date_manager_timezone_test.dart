@@ -82,26 +82,29 @@ void main() {
       expect(await DateManager.instance.detectPlatformTimezone(), isNull);
     });
 
-    test('a later failed lookup does not leave the previous zone cached', () async {
-      // The cache is what the synchronous detectTimezone() reads, so a failed
-      // re-detection that left the old value behind would keep reporting a zone
-      // this device could no longer confirm.
-      _mockPlatformTimezone('Pacific/Auckland');
-      expect(
-        await DateManager.instance.detectPlatformTimezone(),
-        'Pacific/Auckland',
-      );
-      expect(DateManager.instance.detectTimezone(), 'Pacific/Auckland');
+    test(
+      'a later failed lookup does not leave the previous zone cached',
+      () async {
+        // The cache is what the synchronous detectTimezone() reads, so a failed
+        // re-detection that left the old value behind would keep reporting a zone
+        // this device could no longer confirm.
+        _mockPlatformTimezone('Pacific/Auckland');
+        expect(
+          await DateManager.instance.detectPlatformTimezone(),
+          'Pacific/Auckland',
+        );
+        expect(DateManager.instance.detectTimezone(), 'Pacific/Auckland');
 
-      _mockPlatformTimezone('Mars/Olympus_Mons');
+        _mockPlatformTimezone('Mars/Olympus_Mons');
 
-      expect(await DateManager.instance.detectPlatformTimezone(), isNull);
-      expect(
-        DateManager.instance.detectTimezone(),
-        anyOf(isNull, equals(DateTime.now().timeZoneName)),
-        reason: 'the stale Pacific/Auckland must not survive a failed lookup',
-      );
-    });
+        expect(await DateManager.instance.detectPlatformTimezone(), isNull);
+        expect(
+          DateManager.instance.detectTimezone(),
+          anyOf(isNull, equals(DateTime.now().timeZoneName)),
+          reason: 'the stale Pacific/Auckland must not survive a failed lookup',
+        );
+      },
+    );
   });
 
   group('DateManager.detectTimezone', () {
@@ -166,30 +169,33 @@ void main() {
   });
 
   group('DateManager UTC resolution', () {
-    test('boot() does not throw when detection fails and the default is UTC', () async {
-      // The regression: `timezone/data/latest.dart` has no database entry named
-      // "UTC" (it ships `Etc/UTC`), so the UTC fallback inside
-      // _setTimezoneInternal threw and escaped boot(). Detection now correctly
-      // returns null when no platform answers, which makes that fallback the
-      // path every such app takes, so a failed detection took application
-      // startup down with it.
-      _clearPlatformTimezone();
-      Config.set('localization.auto_detect_timezone', true);
-      Config.set('localization.timezone', 'UTC');
+    test(
+      'boot() does not throw when detection fails and the default is UTC',
+      () async {
+        // The regression: `timezone/data/latest.dart` has no database entry named
+        // "UTC" (it ships `Etc/UTC`), so the UTC fallback inside
+        // _setTimezoneInternal threw and escaped boot(). Detection now correctly
+        // returns null when no platform answers, which makes that fallback the
+        // path every such app takes, so a failed detection took application
+        // startup down with it.
+        _clearPlatformTimezone();
+        Config.set('localization.auto_detect_timezone', true);
+        Config.set('localization.timezone', 'UTC');
 
-      await expectLater(DateManager.instance.boot(), completes);
+        await expectLater(DateManager.instance.boot(), completes);
 
-      // The claim is that booting SURVIVES, not that the zone is spelled a
-      // particular way. With no platform answer, detection legitimately falls
-      // through to the host's own zone name when that happens to be a real
-      // identifier, which on a UTC CI runner is `Etc/UTC`, so pinning the
-      // literal here would assert the runner's locale rather than the fix.
-      expect(
-        DateManager.instance.timezoneName,
-        anyOf('UTC', 'Etc/UTC', DateTime.now().timeZoneName),
-      );
-      expect(DateManager.instance.isBooted, isTrue);
-    });
+        // The claim is that booting SURVIVES, not that the zone is spelled a
+        // particular way. With no platform answer, detection legitimately falls
+        // through to the host's own zone name when that happens to be a real
+        // identifier, which on a UTC CI runner is `Etc/UTC`, so pinning the
+        // literal here would assert the runner's locale rather than the fix.
+        expect(
+          DateManager.instance.timezoneName,
+          anyOf('UTC', 'Etc/UTC', DateTime.now().timeZoneName),
+        );
+        expect(DateManager.instance.isBooted, isTrue);
+      },
+    );
 
     test('UTC is accepted as a valid timezone', () async {
       _clearPlatformTimezone();

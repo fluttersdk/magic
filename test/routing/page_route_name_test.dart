@@ -96,7 +96,8 @@ void main() {
       expect(
         observer.names.contains(null),
         isFalse,
-        reason: 'A null name is what silently disables every screen-aware observer.',
+        reason:
+            'A null name is what silently disables every screen-aware observer.',
       );
     });
 

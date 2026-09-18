@@ -83,8 +83,9 @@ void main() {
 
     test('takes the constructor argument when one is given', () {
       expect(
-        MagicVaultService(macOsUsesDataProtectionKeychain: false)
-            .macOsUsesDataProtectionKeychain,
+        MagicVaultService(
+          macOsUsesDataProtectionKeychain: false,
+        ).macOsUsesDataProtectionKeychain,
         isFalse,
       );
     });

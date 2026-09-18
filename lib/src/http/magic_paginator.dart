@@ -75,9 +75,8 @@ class MagicPage<E> {
 }
 
 /// Fetches one page.
-typedef MagicPageFetcher<E> = Future<MagicPage<E>> Function(
-  MagicPageRequest request,
-);
+typedef MagicPageFetcher<E> =
+    Future<MagicPage<E>> Function(MagicPageRequest request);
 
 /// Accumulates a paginated collection one page at a time.
 ///

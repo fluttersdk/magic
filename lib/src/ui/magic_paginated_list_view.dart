@@ -3,11 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../http/magic_paginator.dart';
 
 /// Builds one row of a [MagicPaginatedListView].
-typedef MagicPaginatedItemBuilder<E> = Widget Function(
-  BuildContext context,
-  E item,
-  int index,
-);
+typedef MagicPaginatedItemBuilder<E> =
+    Widget Function(BuildContext context, E item, int index);
 
 /// A lazily built list over a [MagicPaginator], fetching the next page as the
 /// end of the current one comes into view.

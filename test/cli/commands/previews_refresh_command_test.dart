@@ -77,8 +77,9 @@ void main() {
 
     test('ignores files that are not *.preview.dart', () {
       _seedPreview(tempDir, 'button.preview.dart', 'ButtonPreview');
-      File(p.join(tempDir.path, 'button.dart'))
-          .writeAsStringSync('class Button {}');
+      File(
+        p.join(tempDir.path, 'button.dart'),
+      ).writeAsStringSync('class Button {}');
 
       final discovered = discoverPreviews(tempDir);
 
@@ -224,8 +225,9 @@ class TwoPreview extends StatelessWidget {
       final code = await cmd.handle(_ctx(const <String>[]));
 
       expect(code, 0);
-      final generated = File(p.join(previewsDir.path, '_previews.g.dart'))
-          .readAsStringSync();
+      final generated = File(
+        p.join(previewsDir.path, '_previews.g.dart'),
+      ).readAsStringSync();
       expect(generated, contains('previewEntries()'));
       expect(generated, contains('ButtonPreview'));
     });
@@ -236,12 +238,14 @@ class TwoPreview extends StatelessWidget {
 
       final outputPath = p.join(previewsDir.path, '_previews.g.dart');
 
-      await PreviewsRefreshCommand(projectRoot: projectRoot.path)
-          .handle(_ctx(const <String>[]));
+      await PreviewsRefreshCommand(
+        projectRoot: projectRoot.path,
+      ).handle(_ctx(const <String>[]));
       final first = File(outputPath).readAsStringSync();
 
-      await PreviewsRefreshCommand(projectRoot: projectRoot.path)
-          .handle(_ctx(const <String>[]));
+      await PreviewsRefreshCommand(
+        projectRoot: projectRoot.path,
+      ).handle(_ctx(const <String>[]));
       final second = File(outputPath).readAsStringSync();
 
       expect(second, first);
@@ -250,8 +254,9 @@ class TwoPreview extends StatelessWidget {
     test('writes atomically with no .tmp leftover', () async {
       _seedPreview(previewsDir, 'button.preview.dart', 'ButtonPreview');
 
-      await PreviewsRefreshCommand(projectRoot: projectRoot.path)
-          .handle(_ctx(const <String>[]));
+      await PreviewsRefreshCommand(
+        projectRoot: projectRoot.path,
+      ).handle(_ctx(const <String>[]));
 
       expect(
         File(p.join(previewsDir.path, '_previews.g.dart.tmp')).existsSync(),
@@ -268,8 +273,9 @@ class TwoPreview extends StatelessWidget {
       final code = await cmd.handle(_ctx(const <String>['--path=lib/ui']));
 
       expect(code, 0);
-      final generated = File(p.join(components.path, '_previews.g.dart'))
-          .readAsStringSync();
+      final generated = File(
+        p.join(components.path, '_previews.g.dart'),
+      ).readAsStringSync();
       expect(generated, contains('BadgePreview'));
     });
 
@@ -278,11 +284,13 @@ class TwoPreview extends StatelessWidget {
         ..createSync(recursive: true);
       _seedPreview(nested, 'button.preview.dart', 'ButtonPreview');
 
-      await PreviewsRefreshCommand(projectRoot: projectRoot.path)
-          .handle(_ctx(const <String>[]));
+      await PreviewsRefreshCommand(
+        projectRoot: projectRoot.path,
+      ).handle(_ctx(const <String>[]));
 
-      final generated = File(p.join(previewsDir.path, '_previews.g.dart'))
-          .readAsStringSync();
+      final generated = File(
+        p.join(previewsDir.path, '_previews.g.dart'),
+      ).readAsStringSync();
       expect(
         generated,
         contains("import 'components/button/button.preview.dart';"),

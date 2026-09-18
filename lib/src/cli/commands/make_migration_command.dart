@@ -1,7 +1,6 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
 import '../helpers/magic_stub_loader.dart';
-
 import 'package:path/path.dart' as path;
 
 /// The Make Migration Command.
