@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-09-19
+
 ### Breaking
 
 - **An unresolvable route middleware stops the app at `Magic.init` instead of silently ungating the route.** Two changes, and the second is the one that does the work.
@@ -29,6 +31,10 @@ All notable changes to this project will be documented in this file.
   **One behaviour change to know about in a consumer test suite.** `recorded.add` is now deferred by at least one microtask, where it used to happen synchronously inside the `get`/`post` call: the old `_handle` was sync and an `async` body runs straight through to its `return` before yielding, while `await` on a non-Future still schedules a microtask. A test that fires an unawaited `driver.get(...)` and asserts `assertSentCount(1)` in the same synchronous block passed before and fails now; `await` the call. Nothing in this repo's suites does it. The no-stub default path is unaffected, since it never awaits.
 
   What it admits is a test that needs a request to stay OUTSTANDING while the caller does something else, which is the only way to script a concurrency case. A consumer app could not test "a sign-out arrives while the panel handshake is still in the air" at all, and had to reach the same guard through a code path that happens to await nothing before its first write. A stub that must answer before it returns cannot open that window. (`lib/src/network/drivers/fake_network_driver.dart`, `test/network/fake_driver_async_stub_test.dart`, `doc/testing/http-tests.md`)
+
+### Changed
+
+- **The sibling floors name this batch's releases.** `fluttersdk_wind` goes `^1.6.1` to `^1.6.2` and `fluttersdk_artisan` `^0.0.9` to `^0.0.16`. Both old ranges admitted the new versions, so nothing resolves differently on a fresh `pub get`; what changes is that the floors say which releases magic is verified against. `CLAUDE.md`'s stack line was quoting `^1.5.3` and `^0.0.9`, the first of those already two minors stale before this bump, and it is corrected here. (`pubspec.yaml`, `CLAUDE.md`)
 
 ### Fixed
 
