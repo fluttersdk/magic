@@ -254,7 +254,7 @@ MagicRoute.resource('users', UserRoutes());                 // index/create/show
 MagicRoute.resource('posts', PostRoutes(), only: ['index', 'show']);
 ```
 
-`ResourceController` supplies `index()`, `create()`, `show(id)`, `edit(id)`; `resource()` wires `GET /name`, `/name/create`, `/name/:id`, `/name/:id/edit` with auto names `{name}.{method}`. Middleware extends `MagicMiddleware` (`handle(next)`, call `next()` to allow), registered with `Kernel.register('name', () => Mw())`. Read path/query params via `Request.route('id')` / `Request.query('q')`.
+`ResourceController` supplies `index()`, `create()`, `show(id)`, `edit(id)`; `resource()` wires `GET /name`, `/name/create`, `/name/:id`, `/name/:id/edit` with auto names `{name}.{method}`. Middleware extends `MagicMiddleware` (`handle(next)`, call `next()` to allow), registered with `Kernel.register('name', () => Mw())` from a provider's `register()` or `boot()`, both of which run before the router pre-builds; an alias nothing registered throws a `StateError` out of `Magic.init` naming every offending route, rather than leaving the route ungated. Read path/query params via `Request.route('id')` / `Request.query('q')`.
 
 Session flash survives one navigation but `Session.tick()` is NOT automatic: wire it once at bootstrap on a router-delegate listener gated to actual location changes (see `${CLAUDE_SKILL_DIR}/references/routing-navigation.md`).
 
