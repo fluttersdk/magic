@@ -11,6 +11,19 @@ All notable changes to this project will be documented in this file.
   **One behaviour change to know about in a consumer test suite.** `recorded.add` is now deferred by at least one microtask, where it used to happen synchronously inside the `get`/`post` call: the old `_handle` was sync and an `async` body runs straight through to its `return` before yielding, while `await` on a non-Future still schedules a microtask. A test that fires an unawaited `driver.get(...)` and asserts `assertSentCount(1)` in the same synchronous block passed before and fails now; `await` the call. Nothing in this repo's suites does it. The no-stub default path is unaffected, since it never awaits.
 
   What it admits is a test that needs a request to stay OUTSTANDING while the caller does something else, which is the only way to script a concurrency case. A consumer app could not test "a sign-out arrives while the panel handshake is still in the air" at all, and had to reach the same guard through a code path that happens to await nothing before its first write. A stub that must answer before it returns cannot open that window. (`lib/src/network/drivers/fake_network_driver.dart`, `test/network/fake_driver_async_stub_test.dart`, `doc/testing/http-tests.md`)
+### Fixed
+
+- **A translation key missing from the current locale is served from the fallback, instead of rendering as its own dotted path.** `Translator.load` now reads the fallback catalogue alongside the locale's own and layers the locale over it, so the merge happens once at load rather than on every lookup.
+
+  This is a defect against this package's own documentation rather than a missing feature: `doc/digging-deeper/localization.md:155` has always said `trans()` "falls back to `fallback_locale` if not found". It did not. `get` answered `_sentences[key] ?? key`, and the only fallback anywhere was `JsonAssetLoader`'s, which is whole-FILE (`lib/src/localization/loaders/json_asset_loader.dart:58-75`): it reads the fallback catalogue when the requested one fails to load at all, and never when the requested one loads and is simply incomplete.
+
+  Measured in a consumer app whose `tr.json` carried 12 of the 357 keys its `en.json` had: all 345 others rendered on screen as `magic_starter.auth.login.title` and the like. The app closed it by hand-translating every key, which is the work this makes unnecessary.
+
+  The recovery path guards on `Magic.bound('log')` before it warns. `Log.warning` resolves `log` through the container, which THROWS for an unbound key (`lib/src/foundation/application.dart:269-274`), so an unguarded warning defeated the whole point of the catch: a widget test building `MaterialApp` through `LangDelegate` without a full `Magic.init()`, or a locale switch before `LogServiceProvider` boots, took the exception straight out of `load()`.
+
+  Both catalogue reads start before either is awaited, so a locale with a fallback pays one round trip rather than two. The spread order decides precedence and is unaffected by completion order.
+
+  The merge lives in `Translator` rather than in the loader deliberately: this class owns `fallbackLocale`, so every `TranslationLoader` a host app writes gets the behaviour without knowing about it. Loading the fallback locale itself still reads one file. A fallback that will not load logs a warning and answers empty rather than throwing, because it is a courtesy and never a requirement: the locale's own strings must not go down with it. (`lib/src/localization/translator.dart`, `test/localization/translator_key_fallback_test.dart`, `doc/digging-deeper/localization.md`)
 
 ## [0.0.13] - 2026-09-17
 

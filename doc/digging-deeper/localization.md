@@ -152,9 +152,15 @@ String trans(String key, [Map<String, dynamic>? replace])
 ```
 
 - Returns the translation for the current locale
-- Falls back to `fallback_locale` if not found
-- Returns the key itself if no translation exists
+- Falls back to `fallback_locale` **per key**, so a key missing from the
+  current locale's catalogue is served from the fallback's rather than
+  rendering raw
+- Returns the key itself if neither catalogue defines it
 - Replaces `:param` placeholders with provided values
+
+The fallback catalogue is loaded once, alongside the locale's own, and the
+locale's strings are layered over it. A fallback that will not load is a
+logged warning rather than a failure: the locale's own strings still render.
 
 You can also call `Lang.get` directly, which is equivalent:
 
