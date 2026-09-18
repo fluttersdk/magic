@@ -646,6 +646,32 @@ class MagicRouter {
         return;
       }
 
+      // NOTHING IS MOUNTED YET, so there is nothing to push ONTO, and pushing
+      // anyway poisons every later match. go_router pushes onto
+      // `routerDelegate.currentConfiguration` (`router.dart:459`), and before
+      // the `Router` widget has parsed a location that is `RouteMatchList.empty`,
+      // whose `uri` is a bare `Uri()` with an EMPTY path (`match.dart:531`).
+      // `RouteMatchList.copyWith` keeps it (`match.dart:847`), the delegate
+      // reports it back as `location: ''`, and the next dependency change
+      // decodes that and calls `findMatch` on an empty path. There the matcher
+      // runs `''.substring(1)` (`match.dart:259`) and throws a `RangeError`,
+      // which in a release build replaces the whole `Router` subtree with an
+      // `ErrorWidget`: a flat grey page with no layout.
+      //
+      // MEASURED on an iPhone on 2026-09-18, release, from a tapped push
+      // notification on a cold start: the page rendered, then a rebuild one
+      // second later turned the app grey. In debug it never gets that far,
+      // because `match.dart:256` asserts first.
+      //
+      // `go()` rather than `push()`, and it costs nothing a reader can feel: a
+      // push this early has nothing underneath it to pop back to, and a link
+      // arriving from outside the app is where the reader arrives rather than
+      // somewhere they stepped to.
+      if (_router!.routerDelegate.currentConfiguration.isEmpty) {
+        _router!.go(target);
+        return;
+      }
+
       // No history entry, deliberately. The push IS the record: `back()`
       // prefers the native pop, which consumes the page and would leave a
       // string behind naming the location it just landed on, so the next
