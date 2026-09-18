@@ -32,6 +32,10 @@ All notable changes to this project will be documented in this file.
 
   What it admits is a test that needs a request to stay OUTSTANDING while the caller does something else, which is the only way to script a concurrency case. A consumer app could not test "a sign-out arrives while the panel handshake is still in the air" at all, and had to reach the same guard through a code path that happens to await nothing before its first write. A stub that must answer before it returns cannot open that window. (`lib/src/network/drivers/fake_network_driver.dart`, `test/network/fake_driver_async_stub_test.dart`, `doc/testing/http-tests.md`)
 
+### Changed
+
+- **The sibling floors name this batch's releases.** `fluttersdk_wind` goes `^1.6.1` to `^1.6.2` and `fluttersdk_artisan` `^0.0.9` to `^0.0.16`. Both old ranges admitted the new versions, so nothing resolves differently on a fresh `pub get`; what changes is that the floors say which releases magic is verified against. `CLAUDE.md`'s stack line was quoting `^1.5.3` and `^0.0.9`, the first of those already two minors stale before this bump, and it is corrected here. (`pubspec.yaml`, `CLAUDE.md`)
+
 ### Fixed
 
 - A navigation issued before the `Router` widget has parsed a location no
