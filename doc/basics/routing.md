@@ -431,6 +431,8 @@ MagicRoute.page('/monitors/:id', (id) => MonitorPage(id))
 
 `back()` is unchanged and still prefers the native pop, so the history fallback keeps covering every route you do not stack.
 
+One exception, and it is not one you can trigger by hand. A navigation issued before the `Router` widget has parsed a location replaces rather than pushes, whichever verb asked: `to()` on a `stacked()` route and `MagicRoute.push()` alike. go_router pushes onto `routerDelegate.currentConfiguration`, which is empty until the widget mounts, so pushing there leaves the delegate reporting an empty location that `currentLocation`, `pathParameter` and `queryParameter` all read afterwards. The realistic way in is a deeplink or a tapped push notification on a cold start, and there is nothing underneath to pop back to at that point anyway: a link arriving from outside the app is where the reader arrives, not somewhere they stepped to.
+
 `toNamed()` answers the same way. It resolves the name to a location and hands it to `to()`, so one route behaves one way whichever verb reaches it:
 
 ```dart
