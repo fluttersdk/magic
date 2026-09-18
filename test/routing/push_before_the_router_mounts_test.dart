@@ -68,7 +68,8 @@ void main() {
     expect(
       router.routerDelegate.currentConfiguration.uri.path,
       '/incidents/inc-1',
-      reason: 'a push onto an empty base keeps that empty uri, and every '
+      reason:
+          'a push onto an empty base keeps that empty uri, and every '
           'later match on it throws inside go_router',
     );
   });
