@@ -98,6 +98,25 @@ void main() {
     );
   });
 
+  test('push before routerConfig is read names the cause', () {
+    // The other cold-start state, and the one the four sibling verbs already
+    // report. Without this `push` died on `_router!` with a null-check message
+    // naming nothing, which is the same "the error points at the wrong thing"
+    // failure the rest of this change exists to remove.
+    MagicRoute.page('/', () => const SizedBox()).name('home');
+
+    expect(
+      () => MagicRouter.instance.push('/incidents/inc-1'),
+      throwsA(
+        isA<StateError>().having(
+          (StateError e) => e.message,
+          'message',
+          contains('Router not initialized'),
+        ),
+      ),
+    );
+  });
+
   testWidgets('a push after the router mounts still stacks', (tester) async {
     // The other half, so the fix cannot be "always go". A stacked route
     // reached from a live router must still push, or back leaves the app.

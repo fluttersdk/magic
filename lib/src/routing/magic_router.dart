@@ -790,6 +790,18 @@ class MagicRouter {
   /// Route.push('/details');
   /// ```
   void push(String path) {
+    // The four sibling verbs all open with this and `push` did not, so a call
+    // before `routerConfig` was ever read died on the `_router!` below with a
+    // null-check message naming nothing. Review flagged it as pre-existing and
+    // it is; it is fixed here because this method is being given a cold-start
+    // guard in the same change, and the two states it can be in at cold start
+    // should not report differently.
+    if (_router == null) {
+      throw StateError(
+        'Router not initialized. Make sure to use routerConfig with MaterialApp.router first.',
+      );
+    }
+
     // The same empty-base hazard `to()` guards against, through the public
     // door. A cold-start deeplink routed through `MagicRoute.push` instead of
     // `MagicRoute.to` lands in the identical state, and this verb's whole
