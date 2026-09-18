@@ -234,10 +234,25 @@ class MagicRouter {
   ///
   /// [Kernel.unresolvable] constructs nothing, so this costs one map lookup
   /// per declared middleware and fires no factory.
+  ///
+  /// It walks [_allRoutes], not `_routes`. A route declared inside
+  /// `MagicRoute.group(layout: ...)` is diverted into the layout's children by
+  /// [startCollection] and never reaches `_routes`, while `_resolveRoute`
+  /// still finds it at navigation: so checking `_routes` alone left every
+  /// route under a tab or shell layout ungated, which is where a gated screen
+  /// usually lives.
+  ///
+  /// The identity set is not defensive. `MagicRoute.layout(routes: [...])`
+  /// builds its list by calling `MagicRoute.page` with no collection open, so
+  /// those routes land in `_routes` AND in the layout's children, and the same
+  /// instance would otherwise be reported twice and counted twice.
   void _assertMiddlewareResolvable() {
     final problems = <String>[];
+    final seen = <RouteDefinition>{};
 
-    for (final route in _routes) {
+    for (final route in _allRoutes()) {
+      if (!seen.add(route)) continue;
+
       for (final entry in Kernel.unresolvable(route.middlewares)) {
         problems.add('${route.path}: ${Kernel.unresolvableMessage(entry)}');
       }
@@ -1073,6 +1088,11 @@ class _MiddlewareGuardState extends State<_MiddlewareGuard> {
     // at `Magic.init` and never reaches a navigation. A `try` here would be
     // handling a case that cannot occur, and a first version of this change
     // shipped one before the bootstrap check existed.
+    //
+    // "Every" is load-bearing and was briefly untrue: the check walked
+    // `_routes`, and a route inside `MagicRoute.group(layout: ...)` lives in
+    // the layout's children instead, so exactly the routes a shell or tab
+    // layout holds could still arrive here unresolvable.
     middlewares.addAll(Kernel.resolveAll(widget.route.middlewares));
 
     // If no middleware, allow immediately

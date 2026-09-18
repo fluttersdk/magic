@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
 
   So `MagicRouter._buildRouter` validates every registered route's middleware before it constructs the `GoRouter`, and throws one `StateError` listing every offending route with its path. That lands inside `Magic.init`, where nothing catches it. `Kernel.unresolvable` backs the check and constructs nothing, so validating a whole route table calls no factory and fires no side effect.
 
+  Every registered route means the ones inside a layout too, which took a second pass to get right. A route declared in `MagicRoute.group(layout: ...)` is diverted into the layout's child list and never reaches the top-level table, so a check that walked only that table left every route under a shell or tab layout exactly as ungated as before: `_resolveRoute` still finds it at navigation, so the throw still landed in `onException` and still said nothing useful. A shell layout is where a gated screen usually lives, which made it the wrong half to miss. The check walks both lists now, deduplicated by identity because `MagicRoute.layout(routes: [...])` registers its pages in both.
+
   `onException` goes with it: it reported `Route not found` for every exception GoRouter handed it, including one thrown by the redirect callback. It names the underlying error when there is one.
 
   Found by a consumer app, `watchools`, whose every `magic_starter` route was ungated between installing the package and registering the three aliases its installer does not write. Nothing failed, nothing logged, and the screens rendered.

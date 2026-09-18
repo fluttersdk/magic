@@ -101,6 +101,67 @@ void main() {
       expect(() => MagicRouter.instance.routerConfig, returnsNormally);
     });
 
+    test('a route declared inside a layout group is checked too', () {
+      // `MagicRoute.group(layout: ...)` collects its routes into
+      // `_layouts[].children` rather than `_routes`, so a check that walks
+      // `_routes` alone leaves a whole class of routes ungated: at navigation
+      // `_resolveRoute` DOES find them, so `Kernel.resolveAll` throws inside
+      // GoRouter's `redirect` and `onException` swallows it. Tab and shell
+      // layouts are where gated screens usually live.
+      MagicRoute.group(
+        layout: (Widget child) => child,
+        routes: () {
+          MagicRoute.page(
+            '/admin',
+            () => const SizedBox(),
+          ).middleware(['nobody-registered-this']);
+        },
+      );
+
+      expect(
+        () => MagicRouter.instance.routerConfig,
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('/admin'), contains('nobody-registered-this')),
+          ),
+        ),
+      );
+    });
+
+    test('and one declared through MagicRoute.layout, reported once', () {
+      // The other door onto the same list, and the reason the check dedupes
+      // by identity. `MagicRoute.layout(routes: [...])` builds its list by
+      // calling `MagicRoute.page` with no collection open, so each route
+      // lands in `_routes` AND in the layout's children. Walking both lists
+      // without the set would name this route twice and count two.
+      MagicRoute.layout(
+        builder: (Widget child) => child,
+        routes: [
+          MagicRoute.page(
+            '/reports',
+            () => const SizedBox(),
+          ).middleware(['nobody-registered-this']),
+        ],
+      );
+
+      expect(
+        () => MagicRouter.instance.routerConfig,
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('/reports'),
+              contains('nobody-registered-this'),
+              contains('1 route:'),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('the check constructs nothing, so a factory does not fire', () {
       // A factory with a side effect would otherwise run once per route at
       // bootstrap, which is why `Kernel.unresolvable` reads the registry
