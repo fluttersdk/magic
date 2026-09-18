@@ -24,6 +24,26 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- A navigation issued before the `Router` widget has parsed a location no
+  longer pushes onto an empty base. go_router pushes onto
+  `routerDelegate.currentConfiguration`, which is `RouteMatchList.empty` until
+  the widget mounts, and its `uri` is a bare `Uri()` with an empty path that
+  every later match then reads. On go_router 17.3.0 the matcher throws a
+  `RangeError` on it and a release build replaces the whole `Router` subtree
+  with an `ErrorWidget`; on 18.0.1 there is no crash, but `currentLocation`,
+  `pathParameter` and `queryParameter` all answer from an empty uri. Both
+  `MagicRoute.to()` and `MagicRoute.push()` now `go` in that window.
+
+  A `.stacked()` route navigated to before the router mounts therefore replaces
+  rather than pushes. Nothing is lost: there is no page underneath to pop back
+  to yet, and a link arriving from outside the app is where the reader arrives.
+
+  `MagicRoute.push()` also gains the `StateError` its four sibling verbs
+  already throw when the router has never been built. It died on a null-check
+  with a message naming nothing, which is the same "the error points at the
+  wrong thing" failure the rest of this entry is about, and the two states
+  `push` can be in at cold start should not report differently.
+
 - **A translation key missing from the current locale is served from the fallback, instead of rendering as its own dotted path.** `Translator.load` now reads the fallback catalogue alongside the locale's own and layers the locale over it, so the merge happens once at load rather than on every lookup.
 
   This is a defect against this package's own documentation rather than a missing feature: `doc/digging-deeper/localization.md:155` has always said `trans()` "falls back to `fallback_locale` if not found". It did not. `get` answered `_sentences[key] ?? key`, and the only fallback anywhere was `JsonAssetLoader`'s, which is whole-FILE (`lib/src/localization/loaders/json_asset_loader.dart:58-75`): it reads the fallback catalogue when the requested one fails to load at all, and never when the requested one loads and is simply incomplete.
