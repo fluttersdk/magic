@@ -123,6 +123,30 @@ MagicRoute.page('/admin', () => AdminPanel())
     .middleware(['auth', 'admin']);
 ```
 
+An alias nothing registered stops the app at `Magic.init`, rather than leaving
+the route ungated:
+
+```
+StateError: Unresolvable route middleware on 1 route:
+  /admin: Route middleware alias "admin" is not registered. Register it with
+  Kernel.register('admin', () => ...) from a service provider.
+```
+
+The router checks every registered route's middleware when it builds, which is
+step 7 of `Magic.init`, after every provider has booted. So an alias registered
+from `register()` or from `boot()` is equally early, and the usual cause of
+this error is a typo or an alias nobody registered at all.
+
+Every registered route includes the ones declared inside a layout. A route in
+`MagicRoute.group(layout: ...)` or `MagicRoute.layout(...)` is held in the
+layout's own child list rather than the top-level table, and a shell or tab
+layout is where a gated screen usually lives, so the check walks both.
+
+Bootstrap rather than navigation is deliberate. `Kernel.resolveAll` throws at
+navigation too, but that throw happens inside GoRouter's `redirect` callback,
+which routes it to `onException`: the page renders nothing and the log reports
+a routing failure, which names the wrong problem.
+
 ### Route Group Middleware
 
 You can apply middleware to all routes within a group:

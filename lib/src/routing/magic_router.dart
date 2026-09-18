@@ -222,8 +222,68 @@ class MagicRouter {
     _initialLocation = location;
   }
 
+  /// Every registered route whose middleware list names something the
+  /// [Kernel] cannot resolve, checked once when the router builds.
+  ///
+  /// This is where an unresolvable alias actually reaches a developer.
+  /// `Kernel.resolveAll` throws at navigation too, but that throw happens
+  /// inside GoRouter's `redirect` callback, which routes it to `onException`:
+  /// measured, the app renders nothing and the log says `Route not found`,
+  /// naming the wrong problem. Here the throw escapes `Magic.init` and stops
+  /// the app at bootstrap, before a build ships with an ungated route.
+  ///
+  /// [Kernel.unresolvable] constructs nothing, so this costs one map lookup
+  /// per declared middleware and fires no factory.
+  ///
+  /// It walks [_allRoutes], not `_routes`. A route declared inside
+  /// `MagicRoute.group(layout: ...)` is diverted into the layout's children by
+  /// [startCollection] and never reaches `_routes`, while `_resolveRoute`
+  /// still finds it at navigation: so checking `_routes` alone left every
+  /// route under a tab or shell layout ungated, which is where a gated screen
+  /// usually lives.
+  ///
+  /// The identity set is not defensive. `MagicRoute.layout(routes: [...])`
+  /// builds its list by calling `MagicRoute.page` with no collection open, so
+  /// those routes land in `_routes` AND in the layout's children, and the same
+  /// instance would otherwise be reported twice and counted twice.
+  void _assertMiddlewareResolvable() {
+    final problems = <String>[];
+    final seen = <RouteDefinition>{};
+    var offending = 0;
+
+    for (final route in _allRoutes()) {
+      if (!seen.add(route)) continue;
+
+      final entries = Kernel.unresolvable(route.middlewares);
+      if (entries.isEmpty) continue;
+
+      // Counted per route rather than per problem: one route naming two
+      // unregistered aliases is one route with two lines under it, and a
+      // header saying "2 routes" over a single path is the same miscount the
+      // identity set removes from the other direction.
+      offending++;
+
+      for (final entry in entries) {
+        // `fullPath`, not `path`: a route inside `MagicRoute.group(prefix:)`
+        // carries the bare `/users` in `path` while the app answers at
+        // `/admin/users`. The error exists to be searched for, so it has to
+        // name the address that exists.
+        problems.add('${route.fullPath}: ${Kernel.unresolvableMessage(entry)}');
+      }
+    }
+
+    if (problems.isEmpty) return;
+
+    throw StateError(
+      'Unresolvable route middleware on $offending '
+      'route${offending == 1 ? '' : 's'}:\n  ${problems.join('\n  ')}',
+    );
+  }
+
   /// Build the GoRouter from registered definitions.
   GoRouter _buildRouter() {
+    _assertMiddlewareResolvable();
+
     return GoRouter(
       navigatorKey: navigatorKey,
       initialLocation: _initialLocation,
@@ -231,8 +291,18 @@ class MagicRouter {
       routes: _buildRoutes(),
       redirect: _handleRedirect,
       refreshListenable: _resolveAuthRefreshListenable(),
+      // GoRouter sends EVERY exception here, not only a missed match: a throw
+      // from the `redirect` callback above lands in this callback too. Saying
+      // `Route not found` for all of them named the wrong problem, and was
+      // measured doing exactly that for an unresolvable middleware alias.
       onException: (context, state, router) {
-        Log.warning('Route not found: ${state.uri}');
+        final error = state.error;
+
+        Log.warning(
+          error == null
+              ? 'Route not found: ${state.uri}'
+              : 'Route ${state.uri} failed: $error',
+        );
       },
     );
   }
@@ -1084,7 +1154,19 @@ class _MiddlewareGuardState extends State<_MiddlewareGuard> {
     // Add global middleware
     middlewares.addAll(Kernel.globalMiddleware);
 
-    // Add route-specific middleware
+    // Add route-specific middleware.
+    //
+    // No guard against `resolveAll` throwing here, deliberately. The router
+    // validates every registered route's middleware when it builds
+    // (`_assertMiddlewareResolvable`), so an unresolvable entry stops the app
+    // at `Magic.init` and never reaches a navigation. A `try` here would be
+    // handling a case that cannot occur, and a first version of this change
+    // shipped one before the bootstrap check existed.
+    //
+    // "Every" is load-bearing and was briefly untrue: the check walked
+    // `_routes`, and a route inside `MagicRoute.group(layout: ...)` lives in
+    // the layout's children instead, so exactly the routes a shell or tab
+    // layout holds could still arrive here unresolvable.
     middlewares.addAll(Kernel.resolveAll(widget.route.middlewares));
 
     // If no middleware, allow immediately
