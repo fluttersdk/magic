@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
   Found by a consumer app, `watchools`, whose every `magic_starter` route was ungated between installing the package and registering the three aliases its installer does not write. Nothing failed, nothing logged, and the screens rendered.
 
   Breaking for an app that currently relies on an unregistered alias being ignored, which is the behaviour this removes on purpose; that app now fails to boot until it registers or removes the alias. `Kernel.resolve` is untouched and still answers null for a single entry. Permitted pre-1.0 and recorded here rather than left to be discovered at runtime. (`lib/src/http/kernel.dart`, `lib/src/routing/magic_router.dart`, `test/http/kernel_resolve_test.dart`, `test/routing/middleware_resolvable_at_build_test.dart`, `doc/basics/middleware.md`, `skills/magic-framework/SKILL.md`)
+
 ### Fixed
 
 - **A translation key missing from the current locale is served from the fallback, instead of rendering as its own dotted path.** `Translator.load` now reads the fallback catalogue alongside the locale's own and layers the locale over it, so the merge happens once at load rather than on every lookup.
