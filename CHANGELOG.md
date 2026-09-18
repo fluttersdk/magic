@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-09-19
+
 ### Breaking
 
 - **An unresolvable route middleware stops the app at `Magic.init` instead of silently ungating the route.** Two changes, and the second is the one that does the work.

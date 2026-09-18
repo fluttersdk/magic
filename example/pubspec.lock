@@ -384,26 +384,23 @@ packages:
   fluttersdk_artisan:
     dependency: "direct main"
     description:
-      name: fluttersdk_artisan
-      sha256: "15f77c2e57663c75358d4ae6e6b72c74b53a8340478522d75449141bbcef3385"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.14"
+      path: "/Users/anilcan/Code/fluttersdk/artisan"
+      relative: false
+    source: path
+    version: "0.0.16"
   fluttersdk_wind:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: fluttersdk_wind
-      sha256: "07d2551365485ff1ef8f4ed9b58fc0cf7bcf27815be256227191bfc4a1dc06ef"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.6.1"
+      path: "/Users/anilcan/Code/fluttersdk/wind"
+      relative: false
+    source: path
+    version: "1.6.2"
   fluttersdk_wind_diagnostics_contracts:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: fluttersdk_wind_diagnostics_contracts
-      sha256: "3c302f7504c9e8037072b4d2be2c266fb5488aa907eda1ce9321f1ee8556c972"
-      url: "https://pub.dev"
-    source: hosted
+      path: "/Users/anilcan/Code/fluttersdk/wind_diagnostics_contracts"
+      relative: false
+    source: path
     version: "1.1.0"
   glob:
     dependency: transitive
@@ -595,7 +592,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.0.13"
+    version: "0.0.14"
   matcher:
     dependency: transitive
     description:
