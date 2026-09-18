@@ -111,12 +111,58 @@ class Kernel {
     return null;
   }
 
-  /// Resolve a list of middleware.
+  /// The entries of [middlewares] that [resolveAll] would throw on.
+  ///
+  /// Checks WITHOUT constructing anything: a registered factory is not called,
+  /// so validating a whole route table costs nothing and fires no factory's
+  /// side effects. That is what lets [MagicRouter] check every route once at
+  /// bootstrap rather than discovering the problem at navigation, where
+  /// GoRouter's `onException` swallows a redirect throw.
+  static List<Object?> unresolvable(List<dynamic> middlewares) {
+    return middlewares.where((m) {
+      if (m is MagicMiddleware || m is MagicMiddleware Function()) return false;
+
+      return !(m is String && _routeMiddleware.containsKey(m));
+    }).toList();
+  }
+
+  /// The message [resolveAll] and [MagicRouter] both report for [entry].
+  static String unresolvableMessage(Object? entry) {
+    return entry is String
+        ? 'Route middleware alias "$entry" is not registered. '
+              'Register it with Kernel.register(\'$entry\', () => ...) '
+              'from a service provider.'
+        : 'Route middleware $entry could not be resolved. Pass an alias '
+              'String registered with Kernel.register, a '
+              'MagicMiddleware Function() factory, or a MagicMiddleware '
+              'instance.';
+  }
+
+  /// Resolve a list of middleware, throwing on any entry that cannot resolve.
+  ///
+  /// The throw is the point. This used to drop an unresolvable entry with
+  /// `whereType`, so a route declaring `middleware: ['auth']` against a Kernel
+  /// that never received an `auth` alias rendered with NO gate on it and
+  /// reported nothing. A missing gate lets everybody through, which is the one
+  /// failure mode that must not be silent, and the usual cause is ordinary: a
+  /// typo, or an app that registers its aliases after the router is built.
+  ///
+  /// Throws [StateError] naming the offending entry. [resolve] still answers
+  /// null for a caller that wants to test one entry without committing to it.
+  ///
+  /// This runs at NAVIGATION time, from [MagicRouter]'s redirect callback and
+  /// its middleware guard. It is the second line of defence rather than the
+  /// first: a throw from inside GoRouter's `redirect` is routed to
+  /// `onException` and never reaches the app, so [MagicRouter] validates every
+  /// registered route's middleware through [unresolvable] when it builds,
+  /// where the throw lands in `Magic.init` and is loud.
   static List<MagicMiddleware> resolveAll(List<dynamic> middlewares) {
-    return middlewares
-        .map((m) => resolve(m))
-        .whereType<MagicMiddleware>()
-        .toList();
+    return middlewares.map((m) {
+      final resolved = resolve(m);
+      if (resolved != null) return resolved;
+
+      throw StateError(unresolvableMessage(m));
+    }).toList();
   }
 
   // ---------------------------------------------------------------------------
