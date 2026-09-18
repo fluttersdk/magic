@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../support/date_manager.dart';
 import 'contracts/translation_loader.dart';
 import 'loaders/json_asset_loader.dart';
+import '../facades/log.dart';
+import '../foundation/magic.dart';
 import '../facades/event.dart';
 import '../foundation/events/app_events.dart';
 
@@ -94,14 +96,35 @@ class Translator extends ChangeNotifier {
   /// Load translations for the given locale.
   ///
   /// This method:
-  /// 1. Loads translations using the configured loader
+  /// 1. Loads the fallback catalogue, then [locale]'s, and layers the second
+  ///    over the first so a key missing from [locale] is served by the
+  ///    fallback
   /// 2. Flattens and caches the sentences
   /// 3. Syncs DateManager locale for date formatting
   /// 4. Notifies listeners of the locale change
+  ///
+  /// ### Why the fallback is merged rather than chosen
+  ///
+  /// [get] answers `_sentences[key] ?? key`, and the only fallback that
+  /// existed was `JsonAssetLoader`'s, which is whole-FILE: it reads the
+  /// fallback catalogue when the requested one fails to load at all, and never
+  /// when the requested one loads and is simply incomplete. A half-translated
+  /// app therefore rendered raw dotted keys on screen rather than the English
+  /// sentence sitting in its own `en.json`.
+  ///
+  /// Merging here rather than in the loader is deliberate: this class owns
+  /// [fallbackLocale], and every [TranslationLoader] a host writes gets the
+  /// behaviour without knowing about it.
   Future<void> load(Locale locale) async {
     if (_loaded && _locale == locale) return;
 
-    final data = await _loader.load(locale);
+    // Both reads start before either is awaited, so a locale with a fallback
+    // pays one round trip rather than two. The spread order is what decides
+    // precedence, and it is unaffected by the order they complete in.
+    final fallback = _loadFallbackFor(locale);
+    final own = _loader.load(locale);
+
+    final data = <String, dynamic>{...await fallback, ...await own};
 
     // Convert all values to strings
     _sentences = data.map((key, value) => MapEntry(key, value.toString()));
@@ -113,6 +136,41 @@ class Translator extends ChangeNotifier {
     _loaded = true;
     notifyListeners();
     await Event.dispatch(LocaleChanged(locale));
+  }
+
+  /// The fallback catalogue to layer [locale]'s own strings over.
+  ///
+  /// Empty when [locale] IS the fallback, so that case reads its file once
+  /// rather than twice and never merges a map with itself.
+  ///
+  /// A fallback that will not load answers empty rather than throwing. It is a
+  /// courtesy and never a requirement: a missing or broken fallback catalogue
+  /// must not take the locale's own strings down with it, which is the one
+  /// thing worse than a raw key on screen.
+  Future<Map<String, dynamic>> _loadFallbackFor(Locale locale) async {
+    if (locale.languageCode == _fallbackLocale.languageCode) {
+      return const <String, dynamic>{};
+    }
+
+    try {
+      return await _loader.load(_fallbackLocale);
+    } on Object catch (error) {
+      // `Log.warning` resolves `log` through the container, which THROWS for
+      // an unbound key (`foundation/application.dart:269-274`). So logging
+      // here unguarded would defeat the whole point of this catch: a widget
+      // test that builds `MaterialApp` through `LangDelegate` without a full
+      // `Magic.init()`, or a locale switch before `LogServiceProvider` boots,
+      // would take the exception straight out of `load()`.
+      if (Magic.bound('log')) {
+        Log.warning(
+          'Could not load the fallback locale '
+          '[${_fallbackLocale.languageCode}]: $error. Keys missing from '
+          '[${locale.languageCode}] will render as themselves.',
+        );
+      }
+
+      return const <String, dynamic>{};
+    }
   }
 
   /// Switch to a new locale at runtime.
