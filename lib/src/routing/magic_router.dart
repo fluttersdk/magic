@@ -249,20 +249,34 @@ class MagicRouter {
   void _assertMiddlewareResolvable() {
     final problems = <String>[];
     final seen = <RouteDefinition>{};
+    var offending = 0;
 
     for (final route in _allRoutes()) {
       if (!seen.add(route)) continue;
 
-      for (final entry in Kernel.unresolvable(route.middlewares)) {
-        problems.add('${route.path}: ${Kernel.unresolvableMessage(entry)}');
+      final entries = Kernel.unresolvable(route.middlewares);
+      if (entries.isEmpty) continue;
+
+      // Counted per route rather than per problem: one route naming two
+      // unregistered aliases is one route with two lines under it, and a
+      // header saying "2 routes" over a single path is the same miscount the
+      // identity set removes from the other direction.
+      offending++;
+
+      for (final entry in entries) {
+        // `fullPath`, not `path`: a route inside `MagicRoute.group(prefix:)`
+        // carries the bare `/users` in `path` while the app answers at
+        // `/admin/users`. The error exists to be searched for, so it has to
+        // name the address that exists.
+        problems.add('${route.fullPath}: ${Kernel.unresolvableMessage(entry)}');
       }
     }
 
     if (problems.isEmpty) return;
 
     throw StateError(
-      'Unresolvable route middleware on ${problems.length} '
-      'route${problems.length == 1 ? '' : 's'}:\n  ${problems.join('\n  ')}',
+      'Unresolvable route middleware on $offending '
+      'route${offending == 1 ? '' : 's'}:\n  ${problems.join('\n  ')}',
     );
   }
 

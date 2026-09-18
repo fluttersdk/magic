@@ -162,6 +162,56 @@ void main() {
       );
     });
 
+    test('two bad aliases on one route are one route, listed twice', () {
+      // The header counts routes, the list counts problems. Counting the list
+      // reported `2 routes` over a single path, which is the same miscount the
+      // identity set removes from the other direction.
+      MagicRoute.page(
+        '/admin',
+        () => const SizedBox(),
+      ).middleware(['missing-a', 'missing-b']);
+
+      expect(
+        () => MagicRouter.instance.routerConfig,
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('1 route:'),
+              contains('missing-a'),
+              contains('missing-b'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('a prefixed route is named by the address the app answers at', () {
+      // `path` is the bare `/users` inside a group; the app answers at
+      // `/admin/users`. The error exists to be searched for.
+      MagicRoute.group(
+        prefix: '/admin',
+        routes: () {
+          MagicRoute.page(
+            '/users',
+            () => const SizedBox(),
+          ).middleware(['nobody-registered-this']);
+        },
+      );
+
+      expect(
+        () => MagicRouter.instance.routerConfig,
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('/admin/users'),
+          ),
+        ),
+      );
+    });
+
     test('the check constructs nothing, so a factory does not fire', () {
       // A factory with a side effect would otherwise run once per route at
       // bootstrap, which is why `Kernel.unresolvable` reads the registry
