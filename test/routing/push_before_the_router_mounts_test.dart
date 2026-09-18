@@ -74,6 +74,30 @@ void main() {
     );
   });
 
+  testWidgets('MagicRoute.push carries the same guard as to()', (tester) async {
+    // The same hazard through the public door. Review flagged it: a cold-start
+    // deeplink routed through `MagicRoute.push` instead of `MagicRoute.to`
+    // lands in the identical empty-base state, and this verb's whole promise is
+    // to preserve a stack that does not exist yet.
+    MagicRoute.page('/', () => const SizedBox()).name('home');
+    MagicRoute.page(
+      '/incidents/:id',
+      (String id) => const SizedBox(),
+    ).name('incident').stacked();
+
+    final RouterConfig<Object> config = MagicRouter.instance.routerConfig;
+
+    MagicRouter.instance.push('/incidents/inc-1');
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: config));
+    await tester.pumpAndSettle();
+
+    expect(
+      (config as GoRouter).routerDelegate.currentConfiguration.uri.path,
+      '/incidents/inc-1',
+    );
+  });
+
   testWidgets('a push after the router mounts still stacks', (tester) async {
     // The other half, so the fix cannot be "always go". A stacked route
     // reached from a live router must still push, or back leaves the app.

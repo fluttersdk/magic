@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixes
+
+- A navigation issued before the `Router` widget has parsed a location no
+  longer pushes onto an empty base. go_router pushes onto
+  `routerDelegate.currentConfiguration`, which is `RouteMatchList.empty` until
+  the widget mounts, and its `uri` is a bare `Uri()` with an empty path that
+  every later match then reads. On go_router 17.3.0 the matcher throws a
+  `RangeError` on it and a release build replaces the whole `Router` subtree
+  with an `ErrorWidget`; on 18.0.1 there is no crash, but `currentLocation`,
+  `pathParameter` and `queryParameter` all answer from an empty uri. Both
+  `MagicRoute.to()` and `MagicRoute.push()` now `go` in that window.
+
+  A `.stacked()` route navigated to before the router mounts therefore replaces
+  rather than pushes. Nothing is lost: there is no page underneath to pop back
+  to yet, and a link arriving from outside the app is where the reader arrives.
+
 ## [0.0.13] - 2026-09-17
 
 ### Improvements

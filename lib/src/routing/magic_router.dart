@@ -648,20 +648,32 @@ class MagicRouter {
 
       // NOTHING IS MOUNTED YET, so there is nothing to push ONTO, and pushing
       // anyway poisons every later match. go_router pushes onto
-      // `routerDelegate.currentConfiguration` (`router.dart:459`), and before
-      // the `Router` widget has parsed a location that is `RouteMatchList.empty`,
-      // whose `uri` is a bare `Uri()` with an EMPTY path (`match.dart:531`).
-      // `RouteMatchList.copyWith` keeps it (`match.dart:847`), the delegate
-      // reports it back as `location: ''`, and the next dependency change
-      // decodes that and calls `findMatch` on an empty path. There the matcher
-      // runs `''.substring(1)` (`match.dart:259`) and throws a `RangeError`,
-      // which in a release build replaces the whole `Router` subtree with an
-      // `ErrorWidget`: a flat grey page with no layout.
+      // `routerDelegate.currentConfiguration`, and before the `Router` widget
+      // has parsed a location that is `RouteMatchList.empty`, whose `uri` is a
+      // bare `Uri()` with an EMPTY path. `RouteMatchList.copyWith` keeps it, so
+      // the delegate reports `location: ''` back to Flutter.
       //
-      // MEASURED on an iPhone on 2026-09-18, release, from a tapped push
-      // notification on a cold start: the page rendered, then a rebuild one
-      // second later turned the app grey. In debug it never gets that far,
-      // because `match.dart:256` asserts first.
+      // go_router guards its other two verbs against exactly this and not this
+      // one: `pushReplacement` and `replace` both open with
+      // `if (baseRouteMatchList.isEmpty) return newMatchList;`. `push` is the
+      // single verb with no such bail-out, which is why this guard belongs at
+      // the caller.
+      //
+      // WHAT THE EMPTY URI COSTS DEPENDS ON THE go_router VERSION, so no line
+      // numbers here: this package allows `>=17.1.0 <19.0.0`.
+      //
+      //   - On 17.3.0 the decode path calls `findMatch` WITHOUT
+      //     `RouteConfiguration.normalizeUri`, so the matcher runs
+      //     `''.substring(1)` and throws a `RangeError`. In a release build
+      //     that replaces the whole `Router` subtree with an `ErrorWidget`: a
+      //     flat grey page with no layout. MEASURED on an iPhone on 2026-09-18
+      //     from a tapped push notification on a cold start. Debug never gets
+      //     there, because an assert one line earlier fires first, which is why
+      //     no test and no simulator run had ever seen it.
+      //   - On 18.0.1 that path normalises an empty uri to `/` first, so there
+      //     is no crash. The empty `currentConfiguration.uri` is still real and
+      //     still wrong: `currentLocation`, `pathParameter` and
+      //     `queryParameter` all read it.
       //
       // `go()` rather than `push()`, and it costs nothing a reader can feel: a
       // push this early has nothing underneath it to pop back to, and a link
@@ -778,6 +790,16 @@ class MagicRouter {
   /// Route.push('/details');
   /// ```
   void push(String path) {
+    // The same empty-base hazard `to()` guards against, through the public
+    // door. A cold-start deeplink routed through `MagicRoute.push` instead of
+    // `MagicRoute.to` lands in the identical state, and this verb's whole
+    // promise is to preserve a stack that does not exist yet.
+    if (_router!.routerDelegate.currentConfiguration.isEmpty) {
+      _router!.go(path);
+
+      return;
+    }
+
     _router!.push(path);
   }
 
