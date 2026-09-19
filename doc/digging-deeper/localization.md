@@ -86,6 +86,15 @@ flutter:
     - assets/lang/es.json
 ```
 
+> [!NOTE]
+> A catalogue that does not load is not an error: every key then renders as
+> itself, because `Lang.get` answers the key when it has no sentence. That is
+> deliberate, so a broken file never blanks an interface, but it means the
+> symptom of a missing asset and the symptom of a missing key look identical.
+> `JsonAssetLoader` logs a warning naming the path when it gives up, which is
+> the difference between the two; the warning is skipped when no `log` service
+> is bound, so it is silent in a widget test that never calls `Magic.init`.
+
 <a name="defining-translation-strings"></a>
 ## Defining Translation Strings
 
