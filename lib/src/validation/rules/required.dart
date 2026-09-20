@@ -23,6 +23,9 @@ import '../contracts/rule.dart';
 /// - An empty Map (`{}`)
 /// - A boolean `false` (useful for checkboxes like "I agree to terms")
 class Required extends Rule {
+  /// Creates a [Required] rule. Const, because it carries no state.
+  const Required();
+
   @override
   bool passes(String attribute, dynamic value, Map<String, dynamic> data) {
     if (value == null) return false;

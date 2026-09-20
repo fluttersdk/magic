@@ -26,6 +26,9 @@ import '../contracts/rule.dart';
 /// - `"on"` (case-insensitive)
 /// - `"true"` (case-insensitive)
 class Accepted extends Rule {
+  /// Creates an [Accepted] rule. Const, because it carries no state.
+  const Accepted();
+
   /// Values considered as "accepted".
   static const List<dynamic> _acceptedValues = [
     true,

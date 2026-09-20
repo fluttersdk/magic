@@ -96,11 +96,21 @@ class FormValidator {
   ///   ),
   /// )
   /// ```
+  /// [messages] overrides a rule's own message key, keyed by [Rule.name]:
+  /// `{'required': 'fields.panel_address'}`. Laravel's third `Validator::make`
+  /// argument, which had no equivalent here, so a screen wanting its own
+  /// wording had to abandon the rules and hand-roll a closure.
+  ///
+  /// The value is a KEY rather than a finished sentence, deliberately. An
+  /// override taking a sentence would make every consumer using it
+  /// monolingual, which is the opposite of what the rules are for. A key with
+  /// no sentence renders as itself, which is `trans`'s own contract.
   static String? Function(T?) rules<T>(
     List<Rule> rules, {
     String field = 'field',
     Map<String, dynamic>? extraData,
     MagicController? controller,
+    Map<String, String>? messages,
   }) {
     return (T? value) {
       // 1. Check server-side errors if controller is provided
@@ -117,7 +127,7 @@ class FormValidator {
       // 3. Run each client-side rule
       for (final rule in rules) {
         if (!rule.passes(field, value, data)) {
-          return _resolveMessage(rule, field);
+          return _resolveMessage(rule, field, messages?[rule.name]);
         }
       }
 
@@ -126,8 +136,12 @@ class FormValidator {
   }
 
   /// Resolve error message from rule.
-  static String _resolveMessage(Rule rule, String attribute) {
-    final messageKey = rule.message();
+  static String _resolveMessage(
+    Rule rule,
+    String attribute, [
+    String? override,
+  ]) {
+    final messageKey = override ?? rule.message();
 
     // Build params with :attribute replacement
     final params = <String, dynamic>{

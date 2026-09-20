@@ -42,6 +42,40 @@
 /// // Result:  "The name must be at least 3 characters."
 /// ```
 abstract class Rule {
+  /// Lets a rule that carries no mutable state declare a const constructor.
+  ///
+  /// Additive: a rule with its own non-const constructor is unaffected. It is
+  /// here because a stateless rule like `Required()` or `Url()` is written
+  /// inline in a widget's `build`, where a const instance is one allocation
+  /// that never happens again.
+  const Rule();
+
+  /// The short name this rule is known by in a `messages` override map.
+  ///
+  /// Derived from [message] rather than from `runtimeType`, and that is the
+  /// whole reason it exists as a getter: `runtimeType.toString()` is not a
+  /// dependable identifier in a release build, so a messages map keyed on it
+  /// would match in development and silently stop matching in production. A
+  /// message key is a literal in the source and survives.
+  ///
+  /// Two first-party sources say so. dart2js minifies class names and has a
+  /// branch for reporting them, `if (JS_GET_FLAG('MINIFIED')) return
+  /// 'minified:$rawClassName'` (`dart-sdk/lib/_internal/js_runtime/lib/
+  /// js_helper.dart:107`). And Flutter's framework declines to use it at all
+  /// outside asserts: `objectRuntimeType`
+  /// (`foundation/object.dart`) returns `runtimeType.toString()` only when
+  /// asserts are enabled and a caller-supplied constant otherwise, because
+  /// "calling `toString` on a runtime type is a non-trivial operation".
+  ///
+  /// `validation.required` gives `required`. A rule whose [message] is a raw
+  /// sentence rather than a key has no useful name and should override this.
+  String get name {
+    final String key = message();
+    final int dot = key.lastIndexOf('.');
+
+    return dot == -1 ? key : key.substring(dot + 1);
+  }
+
   /// Determine if the validation rule passes.
   ///
   /// - [attribute] The name of the field being validated (e.g., 'email')

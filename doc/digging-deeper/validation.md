@@ -6,6 +6,8 @@ Magic provides a client-side validation system that integrates with Flutter form
 - [Quick Start](#quick-start)
 - [Defining Validation Rules](#defining-validation-rules)
 - [Available Rules](#available-rules)
+    - [The Url Rule](#the-url-rule)
+    - [Custom Messages](#custom-messages)
 - [Form Requests](#form-request)
 - [Server-Side Validation](#server-side-validation)
 - [Async Validation](#async-rules)
@@ -147,6 +149,7 @@ Rules are evaluated in order. If any rule fails, validation stops and the error 
 |------|-------------|---------|
 | `Required()` | Field must not be empty | `[Required()]` |
 | `Email()` | Valid email format | `[Email()]` |
+| `Url()` | Valid http(s) address with a host | `[Url()]`, `[Url(schemes: ['https'])]` |
 | `Min(n)` | Minimum length/value | `[Min(8)]` |
 | `Max(n)` | Maximum length/value | `[Max(255)]` |
 | `Confirmed()` | Must match `{field}_confirmation` | `[Confirmed()]` |
@@ -154,6 +157,47 @@ Rules are evaluated in order. If any rule fails, validation stops and the error 
 | `Accepted()` | Must be true/1/"yes"/"on" | `[Accepted()]` |
 | `In<T>(values)` | Value must appear in whitelist | `[In<String>(['public', 'private'])]` |
 | `InList<T extends Enum>(values)` | Value must match an enum (name or instance) | `[InList(Severity.values)]` |
+
+<a name="the-url-rule"></a>
+### The Url Rule
+
+`Url()` accepts an address a request could actually be built from: a scheme from its allowlist and a non-empty host.
+
+```dart
+'website': [Required(), Url()],                    // http or https
+'webhook': [Required(), Url(schemes: ['https'])],  // https only
+'socket':  [Url(schemes: ['ws', 'wss'])],
+```
+
+It is not an RFC 3986 parser and does not try to be. It reaches no network, resolves no host and takes no view on whether the path exists, because a rule answering a form field synchronously cannot know any of that.
+
+**The scheme allowlist is the part that matters.** `Uri.parse` accepts `javascript:alert(1)` and `file:///etc/passwd` without complaint; both have a scheme and parse cleanly. Nothing but the allowlist keeps them out of a field whose value becomes a request or a link. Narrow it to `['https']` for anything carrying a credential.
+
+Whitespace is rejected before parsing, because `Uri` does not treat it as an error: `Uri.tryParse('http://exa mple.com')` succeeds and percent-encodes the space into the host as `exa%20mple.com`, which no DNS lookup can resolve. Laravel's `url` rejects it too.
+
+<a name="custom-messages"></a>
+### Custom Messages
+
+A rule's message comes from its own catalogue key, which is generic by design: `validation.required` is `The :attribute field is required.` for every field in the app. When one screen wants its own wording, pass `messages`, keyed by rule name:
+
+```dart
+WFormInput(
+  validator: FormValidator.rules(
+    [Required(), Url()],
+    field: 'address',
+    messages: {
+      'required': 'provider.error.address_required',
+      'url': 'provider.error.address_scheme',
+    },
+  ),
+)
+```
+
+This is Laravel's third `Validator::make` argument. Without it, a screen wanting specific copy had to abandon the rules and hand-roll a closure, which is exactly what the rules exist to prevent.
+
+The value is a **key**, not a finished sentence. An override taking a sentence would make every consumer using it monolingual. A key with no sentence renders as itself, which is `trans`'s own contract, and the rule's parameters still reach it, so `:attribute` and `:schemes` work in an override too.
+
+The map key is `Rule.name`, derived from the rule's message key (`validation.required` gives `required`) rather than from `runtimeType`, which is not a dependable identifier in a release build: dart2js minifies class names, and Flutter's own `objectRuntimeType` declines to call `toString` on a runtime type outside asserts.
 
 ### Whitelist Rules (`In` / `InList`)
 

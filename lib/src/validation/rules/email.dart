@@ -19,6 +19,9 @@ import '../contracts/rule.dart';
 /// - @ symbol
 /// - Domain part with at least one dot
 class Email extends Rule {
+  /// Creates an [Email] rule. Const, because it carries no state.
+  const Email();
+
   /// Standard email validation regex.
   static final RegExp _emailRegex = RegExp(
     r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',

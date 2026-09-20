@@ -6,6 +6,31 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **A `Url` validation rule.** Laravel has `url`; this package did not, so every consumer validating a typed-in endpoint wrote the same `startsWith('http://')` pair by hand and each drew its own conclusion about a scheme it had not thought of.
+
+  ```dart
+  'website': [Required(), Url()],                    // http or https
+  'webhook': [Required(), Url(schemes: ['https'])],  // https only
+  ```
+
+  It checks a scheme from its allowlist and a non-empty host, and nothing else: it reaches no network and resolves no host, because a rule answering a form field synchronously cannot know any of that. **The allowlist is the security-shaped half**: `Uri.parse` accepts `javascript:alert(1)` and `file:///etc/passwd` without complaint, both have a scheme and both parse cleanly. Whitespace is rejected before parsing, because `Uri.tryParse('http://exa mple.com')` succeeds and percent-encodes the space into the host; Laravel's `url` rejects that too.
+
+- **A `messages` override on `FormValidator.rules`,** Laravel's third `Validator::make` argument. A rule's message came from its own key and nothing else, so a screen wanting `Şifre gerekli.` rather than the catalogue's generic `:attribute alanı zorunludur.` had to abandon the rules and hand-roll a closure, which is what the rules exist to prevent.
+
+  ```dart
+  FormValidator.rules(
+    [Required(), Url()],
+    field: 'address',
+    messages: {'required': 'provider.error.address_required'},
+  )
+  ```
+
+  The value is a KEY rather than a finished sentence: an override taking a sentence would make every consumer using it monolingual. Rule parameters still reach it, so `:attribute` and `:schemes` work in an override.
+
+  Keyed by the new `Rule.name`, which is derived from the rule's message key (`validation.required` gives `required`) rather than from `runtimeType`. That choice is load-bearing: `runtimeType.toString()` is not a dependable identifier in a release build, so a messages map keyed on it would match in development and silently stop matching in production. dart2js minifies class names (`js_helper.dart:107` has a `MINIFIED` branch for reporting them), and Flutter's own framework declines to use it outside asserts for the same reason (`foundation/object.dart`, `objectRuntimeType`).
+
+- **`Rule` has a const constructor, and `Required`, `Email`, `Accepted` and `Url` declare one.** Additive; a rule with its own non-const constructor is unaffected. A stateless rule is written inline in a widget's `build`, where a const instance is one allocation that never happens again.
+
 - **`transChoice()` / `Lang.choice()`, the pluralization Laravel calls `trans_choice`.** A sentence carrying a number had one wording at every count, because `Lang.get` is a map lookup plus a `replaceAll` per parameter and nothing parsed a pipe.
 
   What makes that worth a release rather than a nice-to-have is which apps it bites. Turkish, Japanese, Korean, Chinese, Indonesian, Vietnamese and nine more have no plural agreement after a number, so a catalogue written in one of them renders correctly at every count and reveals nothing. The defect appears the first time a SECOND locale is drawn, by which point every counted sentence in the app has been written without a plural form. Found exactly that way in a consumer app whose first locale is Turkish: its English build said "No schedule for 1 channels".
