@@ -54,6 +54,16 @@ class JsonAssetLoader implements TranslationLoader {
     this.fallbackLocale = 'en',
   });
 
+  /// Reads [locale]'s catalogue, falling back to [fallbackLocale]'s whole file.
+  ///
+  /// **An empty map is the failure, and it used to be a silent one.** Every
+  /// caller reads a miss as a key rendering as itself, so a catalogue that did
+  /// not load and a catalogue with a missing key are indistinguishable on
+  /// screen. The warnings below are what tell them apart, and they are guarded
+  /// on `Magic.bound('log')` for exactly the reason
+  /// `Translator._loadFallbackFor` already records: `Log` resolves `log`
+  /// through the container and THROWS for an unbound key, so logging a failure
+  /// unguarded would replace it with a different one.
   @override
   Future<Map<String, dynamic>> load(Locale locale) async {
     try {
@@ -65,19 +75,49 @@ class JsonAssetLoader implements TranslationLoader {
         try {
           final json = await _loadJson(fallbackLocale);
           return _flatten(json);
-        } catch (_) {
-          // Return empty if fallback also fails
+        } catch (fallbackError) {
+          if (Magic.bound('log')) {
+            Log.warning(
+              'Could not load translations for [${locale.languageCode}] '
+              '($e) or for the fallback [$fallbackLocale] ($fallbackError). '
+              'Every key will render as itself.',
+            );
+          }
+
           return {};
         }
       }
+
+      if (Magic.bound('log')) {
+        Log.warning(
+          'Could not load translations for [${locale.languageCode}] from '
+          '[$basePath] ($e). Every key will render as itself.',
+        );
+      }
+
       return {};
     }
   }
 
   /// Load and parse JSON file.
+  ///
+  /// **Reads nothing out of the container, deliberately.** This used to open
+  /// with `Log.info('Loading translation file [$path]')`, and `Log` resolves
+  /// `log` through the container, which throws for an unbound key
+  /// (`foundation/application.dart:269-274`). [load]'s catch then turned that
+  /// throw into an empty catalogue, so a host that loads translations before
+  /// its logging provider boots, or a widget test that never calls
+  /// `Magic.init`, got every key rendering as itself with nothing to read.
+  ///
+  /// Measured from a consumer app's test: `rootBundle` reads the asset fine
+  /// (19,345 bytes), `Translator.load` reports `loaded: true` for the right
+  /// locale, and this loader still answers zero keys.
+  ///
+  /// A loader that reads a file should not need a service to do it. The line
+  /// is gone rather than guarded: it fired twice per `Translator.load`, once
+  /// for the locale and once for the fallback, and nothing consumed it.
   Future<Map<String, dynamic>> _loadJson(String languageCode) async {
     final path = '$basePath/$languageCode.json';
-    Log.info('Loading translation file [$path]');
 
     // In debug mode, attempt to bypass the asset bundle cache so that
     // hot restart picks up JSON changes. Best-effort: works reliably on

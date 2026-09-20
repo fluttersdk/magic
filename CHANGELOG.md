@@ -31,6 +31,18 @@ All notable changes to this project will be documented in this file.
 
   The index is the CURRENT locale's, never English's. A two-segment line in a language with one form never reaches its second segment, and one in Russian or Arabic falls back to segment 0 rather than throwing a `RangeError` into a consumer's UI.
 
+### Fixed
+
+- **A translation catalogue loaded nothing, silently, whenever no `log` service was bound.** `JsonAssetLoader._loadJson` opened with `Log.info('Loading translation file [...]')` before it read anything, and `Log` resolves `log` through the container, which throws for an unbound key (`foundation/application.dart:269-274`). `load`'s own catch then turned that throw into an empty map, so every key rendered as itself with nothing anywhere to read.
+
+  Reported from a consumer app whose test suite could not assert a single translated sentence. Measured there: `rootBundle` reads the asset fine (19,345 bytes), `Translator.load` reports `loaded: true` for the right locale, and the loader still answers zero keys.
+
+  `Translator._loadFallbackFor` had already conceded the point one caller up, where the same `Log` call is wrapped in `if (Magic.bound('log'))` with a comment naming this exact case: "a widget test that builds `MaterialApp` through `LangDelegate` without a full `Magic.init()`". The loader had no such guard.
+
+  The line is removed rather than guarded. A loader that reads a file should not need a service to do it, nothing consumed the line, and it fired twice per `Translator.load` (once for the locale, once for the fallback).
+
+  **`load` now says when it gives up.** It answered an empty map for every failure with no trace, which is how this defect survived: a missing asset and a missing key look identical on screen. Both `return {}` paths log a warning naming the path and the error, guarded on `Magic.bound('log')` for the same reason the line above was removed. (`lib/src/localization/loaders/json_asset_loader.dart`, `test/localization/json_asset_loader_without_log_test.dart`, `doc/digging-deeper/localization.md`)
+
 ## [0.0.14] - 2026-09-19
 
 ### Breaking
