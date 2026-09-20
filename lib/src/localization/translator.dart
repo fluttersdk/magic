@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../support/date_manager.dart';
 import 'contracts/translation_loader.dart';
 import 'loaders/json_asset_loader.dart';
+import 'message_selector.dart';
 import '../facades/log.dart';
 import '../foundation/magic.dart';
 import '../facades/event.dart';
@@ -250,16 +251,47 @@ class Translator extends ChangeNotifier {
   /// // Returns: "Welcome, Magic!"
   /// ```
   String get(String key, [Map<String, dynamic>? replace]) {
-    var sentence = _sentences[key] ?? key;
+    return _replace(_sentences[key] ?? key, replace);
+  }
 
-    // Apply replacements
-    if (replace != null) {
-      for (final entry in replace.entries) {
-        sentence = sentence.replaceAll(':${entry.key}', entry.value.toString());
-      }
+  /// Substitutes every `:name` in [sentence] from [replace].
+  ///
+  /// A plain `replaceAll` with no word boundary, so `:count` inside `:counts`
+  /// is replaced too. That is Laravel's behaviour and it is what lets a
+  /// catalogue abut a unit to its number, which several languages need.
+  String _replace(String sentence, Map<String, dynamic>? replace) {
+    if (replace == null) return sentence;
+
+    var out = sentence;
+    for (final entry in replace.entries) {
+      out = out.replaceAll(':${entry.key}', entry.value.toString());
     }
 
-    return sentence;
+    return out;
+  }
+
+  /// Get a translation by key, choosing the form that suits [number].
+  ///
+  /// Laravel's `trans_choice`. The sentence is a pipe-separated line and
+  /// [MessageSelector] picks a segment from it, by the CURRENT locale's own
+  /// plural rules rather than by English's:
+  ///
+  /// ```dart
+  /// // JSON: "apples": "There is one apple|There are :count apples"
+  /// translator.choice('apples', 1); // "There is one apple"
+  /// translator.choice('apples', 4); // "There are 4 apples"
+  /// ```
+  ///
+  /// `:count` is substituted from [number] without the caller passing it, and
+  /// an explicit `count` in [replace] still wins. A key with no sentence
+  /// answers the key, which is [get]'s own contract.
+  String choice(String key, int number, [Map<String, dynamic>? replace]) {
+    final line = _sentences[key];
+    if (line == null) return key;
+
+    final chosen = MessageSelector.choose(line, number, _locale.languageCode);
+
+    return _replace(chosen, <String, dynamic>{'count': number, ...?replace});
   }
 
   /// Check if a translation exists.

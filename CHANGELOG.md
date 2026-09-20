@@ -4,6 +4,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`transChoice()` / `Lang.choice()`, the pluralization Laravel calls `trans_choice`.** A sentence carrying a number had one wording at every count, because `Lang.get` is a map lookup plus a `replaceAll` per parameter and nothing parsed a pipe.
+
+  What makes that worth a release rather than a nice-to-have is which apps it bites. Turkish, Japanese, Korean, Chinese, Indonesian, Vietnamese and nine more have no plural agreement after a number, so a catalogue written in one of them renders correctly at every count and reveals nothing. The defect appears the first time a SECOND locale is drawn, by which point every counted sentence in the app has been written without a plural form. Found exactly that way in a consumer app whose first locale is Turkish: its English build said "No schedule for 1 channels".
+
+  ```json
+  {
+    "apples": "There is one apple|There are :count apples",
+    "inbox": "{0} Nothing here|[1,19] :count messages|[20,*] Lots of messages"
+  }
+  ```
+
+  ```dart
+  transChoice('apples', 1);  // "There is one apple"
+  transChoice('apples', 4);  // "There are 4 apples"
+  transChoice('inbox', 0);   // "Nothing here"
+  ```
+
+  `:count` is substituted from the number without the caller passing it, and an explicit `count` in `replace` still wins. A key with no sentence answers the key, which is `get`'s own contract.
+
+- **`MessageSelector`, exported.** A direct port of Laravel's `Illuminate\Translation\MessageSelector`, so a catalogue written for a Laravel backend renders the same sentences on the client. Both shapes are supported and compose in one line: positional segments, and inline `{0}` / `[1,19]` / `[20,*]` conditions.
+
+  The 15 plural-rule groups covering 280 locale strings are ported from Laravel's `getPluralIndex` **mechanically**, by reading the PHP rather than transcribing it: one mistyped language code is a language that silently renders the wrong sentence, and nothing downstream would catch it. The rules themselves carry Laravel's own Zend Framework attribution.
+
+  The index is the CURRENT locale's, never English's. A two-segment line in a language with one form never reaches its second segment, and one in Russian or Arabic falls back to segment 0 rather than throwing a `RangeError` into a consumer's UI.
+
 ## [0.0.14] - 2026-09-19
 
 ### Breaking
