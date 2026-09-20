@@ -6,6 +6,8 @@ Migrations are version-controlled schema definitions that let you create, modify
 - [Generating Migrations](#generating-migrations)
 - [Migration Structure](#migration-structure)
 - [Running Migrations](#running-migrations)
+    - [The run is atomic](#the-run-is-atomic)
+    - [`up()` and `down()` are synchronous](#up-and-down-are-synchronous)
 - [Creating Tables](#creating-tables)
     - [Available Column Types](#available-column-types)
     - [Column Modifiers](#column-modifiers)
@@ -101,6 +103,27 @@ void main() async {
 ```
 
 The `Migrator` keeps track of which migrations have already run, so calling `run()` multiple times is safe.
+
+### The run is atomic
+
+Every pending migration in one `run()` is applied inside a single transaction. If any of them throws, all of them are rolled back and the ledger records none, so the next launch retries the whole run from a clean schema rather than meeting half-applied work it cannot recognise.
+
+That matters most when migrations run before your UI exists. A host that migrates inside `Magic.init` and then calls `runApp` has nowhere to report a failure from, and a migration that was half-applied and unrecorded would fail identically on every later launch with no way out but deleting the database.
+
+If you have already opened a transaction yourself, `run()` uses yours rather than opening a second one, because SQLite refuses a nested `BEGIN`. Either shape works:
+
+```dart
+await Migrator().run([...]);                          // the migrator's transaction
+await DB.transaction(() => Migrator().run([...]));    // yours
+```
+
+The tracking table is created outside the transaction, so a failed first run still leaves somewhere to record the retry.
+
+### `up()` and `down()` are synchronous
+
+Writing `void up() async` compiles and is a silent defect: `run()` cannot await a `void`, so an async body is recorded complete the moment it reaches its first suspension. Use `DB.statement` and `DB.select`, both synchronous. `DatabaseManager().getColumns` and `hasColumn` answer futures and must not be called from a migration.
+
+A migration with no honest rollback should throw `UnsupportedError` from `down()` rather than doing nothing, or `rollback()` will delete the ledger row for a migration that is still applied.
 
 <a name="creating-tables"></a>
 ## Creating Tables

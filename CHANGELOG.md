@@ -33,6 +33,16 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **`Migrator.run` was not atomic, and the state that produced is a host that never boots again.** It applied and recorded each migration in turn with no transaction anywhere, so a failure part way left that migration's earlier statements applied and its ledger row absent. The next launch re-ran it from its first statement, met the table it had already created, and failed identically. A host that migrates inside `Magic.init` before `runApp` has no UI to report that from, and the only repair is deleting the database.
+
+  The whole run is one transaction now, not each migration: a ledger recording one migration and not the next describes a schema nobody designed, and the host cannot learn which half it has. SQLite rolls DDL back like anything else, so this is one `BEGIN`.
+
+  **A caller that already opened a transaction is not nested into.** sqlite refuses a nested `BEGIN`, so opening one unconditionally would break every host that wraps the call itself, which is what a host had to do before this landed. `CommonDatabase.autocommit` is false exactly while a transaction is open and is the only thing that can tell the two cases apart. The tracking table is still created outside the transaction, so a failed first run leaves somewhere to record the retry.
+
+- **Every migration could be applied and silently never recorded.** `_ensureMigrationsTable` creates the ledger with a raw `execute`, which `DatabaseManager` never hears about, and `getColumns` caches the EMPTY answer a missing table gives. `_recordMigration` goes through `QueryBuilder`, which filters every key against that cache, and an empty filter makes `insert` return 0 without inserting and without throwing. So anything that read the ledger's columns before it existed left every migration re-running on every launch for ever. One `clearSchemaCache` after the create. Latent rather than observed: no caller in the wild was found reaching it.
+
+- **`Migration.up()` and `down()` are documented as synchronous**, because `void up() async` compiles and is a silent defect: `run` cannot await a `void`, so an async body is recorded complete the moment it reaches its first suspension. The doc block names the synchronous alternatives and says why `DatabaseManager().hasColumn` must not be called from a migration.
+
 - **A translation catalogue loaded nothing, silently, whenever no `log` service was bound.** `JsonAssetLoader._loadJson` opened with `Log.info('Loading translation file [...]')` before it read anything, and `Log` resolves `log` through the container, which throws for an unbound key (`foundation/application.dart:269-274`). `load`'s own catch then turned that throw into an empty map, so every key rendered as itself with nothing anywhere to read.
 
   Reported from a consumer app whose test suite could not assert a single translated sentence. Measured there: `rootBundle` reads the asset fine (19,345 bytes), `Translator.load` reports `loaded: true` for the right locale, and the loader still answers zero keys.

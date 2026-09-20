@@ -68,6 +68,35 @@ class Migrator {
   ///   CreatePostsTable(),
   /// ]);
   /// ```
+  /// Runs every pending migration, or none of them.
+  ///
+  /// ### The whole run is one transaction
+  ///
+  /// It was none, and the state that produced is a host that never boots
+  /// again. Each migration was applied and recorded in turn, so a failure part
+  /// way left that migration's earlier statements applied and its ledger row
+  /// absent. The next launch re-ran it from its first statement, met the table
+  /// it had already created, and failed identically. A host that migrates
+  /// inside `Magic.init` before `runApp` has no UI to report that from, and
+  /// the only repair is deleting the database.
+  ///
+  /// SQLite rolls DDL back like anything else, so one `BEGIN` is the whole
+  /// fix. The run is the unit rather than each migration: a ledger recording
+  /// one migration and not the next describes a schema nobody designed, and
+  /// the host has no way to learn which half it has.
+  ///
+  /// ### Why it defers to a caller that already opened one
+  ///
+  /// sqlite refuses a nested `BEGIN` with `cannot start a transaction within a
+  /// transaction`, so opening one unconditionally would break every host that
+  /// wraps this call itself, which is what a host had to do before this
+  /// landed. [CommonDatabase.autocommit] is false exactly while a transaction
+  /// is open, and is the only thing that can tell the two cases apart.
+  ///
+  /// The tracking table is created OUTSIDE the transaction, deliberately. A
+  /// database with a ledger and no rows is what a fresh install has anyway, so
+  /// there is nothing to roll back about it, and creating it inside would mean
+  /// a failed first run left no way to record the retry.
   Future<List<String>> run(List<Migration> migrations) async {
     // Ensure migrations table exists
     await _ensureMigrationsTable();
@@ -87,24 +116,27 @@ class Migrator {
     // Get next batch number
     _batch = await _getNextBatchNumber();
 
-    // Run each pending migration
+    final owned = _db.connection.autocommit;
+    if (owned) _db.connection.execute('BEGIN');
+
     final ranMigrations = <String>[];
 
-    for (final migration in pending) {
-      try {
-        // Execute the up method
+    try {
+      for (final migration in pending) {
         migration.up();
-
-        // Record it
         await _recordMigration(migration.name);
-
         ranMigrations.add(migration.name);
-      } catch (e) {
-        // Log the error but continue with other migrations
-        // In production, you might want to stop here
-        rethrow;
       }
+    } catch (_) {
+      // Only unwind what this call started. A caller that owns the
+      // transaction gets the throw and rolls back its own, which is what the
+      // `outer` case in `migrator_atomicity_test.dart` asserts.
+      if (owned) _db.connection.execute('ROLLBACK');
+
+      rethrow;
     }
+
+    if (owned) _db.connection.execute('COMMIT');
 
     // Clear schema cache after migrations
     _db.clearSchemaCache();
@@ -202,6 +234,15 @@ class Migrator {
   // ---------------------------------------------------------------------------
 
   /// Create the migrations tracking table if it doesn't exist.
+  ///
+  /// The cache line is not housekeeping. A raw `execute` changes the schema
+  /// behind [DatabaseManager]'s back, and `getColumns` caches the EMPTY answer
+  /// a missing table gives. [_recordMigration] goes through `QueryBuilder`,
+  /// which filters every key against that cache, and an empty filter makes
+  /// `insert` return 0 without inserting and without throwing
+  /// (`query_builder.dart:278-280`). So anything that read this table's
+  /// columns before it existed would leave every migration applied and never
+  /// recorded, and re-applied on every launch for ever.
   Future<void> _ensureMigrationsTable() async {
     _db.connection.execute('''
       CREATE TABLE IF NOT EXISTS $_table (
@@ -210,6 +251,8 @@ class Migrator {
         batch INTEGER NOT NULL
       )
     ''');
+
+    _db.clearSchemaCache(_table);
   }
 
   /// Get list of executed migration names.
