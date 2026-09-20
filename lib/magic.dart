@@ -164,6 +164,7 @@ export 'src/localization/translator.dart';
 export 'src/localization/lang_delegate.dart';
 export 'src/localization/contracts/translation_loader.dart';
 export 'src/localization/loaders/json_asset_loader.dart';
+export 'src/localization/message_selector.dart';
 export 'src/facades/lang.dart';
 export 'src/localization/localization_service_provider.dart';
 export 'src/localization/localization_interceptor.dart';

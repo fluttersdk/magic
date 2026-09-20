@@ -44,7 +44,7 @@ lib/
 - **Routing**: `MagicRoute.page()` / `.group()` (never raw GoRouter)
 - **UI**: Wind UI W-prefix + `className` (never native layout/text widgets)
 - **Feedback/nav**: `MagicRoute.to()`, `Magic.snackbar()`, `Magic.toast()` (never BuildContext)
-- **i18n**: `trans('section.key')` from `assets/lang/en.json` (never hardcoded strings)
+- **i18n**: `trans('section.key')` from `assets/lang/en.json` (never hardcoded strings). A sentence carrying a number takes `transChoice('section.key', n)` and a pipe-separated line, because `trans` renders one wording at every count.
 
 ## Wind UI Rules
 

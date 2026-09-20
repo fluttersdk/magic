@@ -7,6 +7,7 @@ Magic provides a Laravel-style localization system that lets you retrieve and sw
 - [Defining Translation Strings](#defining-translation-strings)
 - [Retrieving Translations](#retrieving-translations)
     - [The trans() Helper](#the-trans-helper)
+    - [Pluralization](#pluralization)
     - [Checking Key Existence](#checking-key-existence)
 - [Locale State](#locale-state)
     - [Current Locale](#current-locale)
@@ -166,6 +167,68 @@ You can also call `Lang.get` directly, which is equivalent:
 
 ```dart
 final message = Lang.get('welcome', {'name': 'Magic'});
+```
+
+<a name="pluralization"></a>
+### Pluralization
+
+A sentence carrying a number needs more than one wording, and `trans()` cannot give it one: it is a lookup plus a replacement, so the same line renders at every count. Use `transChoice()`, Laravel's `trans_choice`, which takes the count and picks a segment from a pipe-separated line.
+
+```dart
+String transChoice(String key, int number, [Map<String, dynamic>? replace])
+```
+
+```json
+{
+  "apples": "There is one apple|There are :count apples"
+}
+```
+
+```dart
+transChoice('apples', 1); // "There is one apple"
+transChoice('apples', 4); // "There are 4 apples"
+```
+
+`:count` is substituted from the number you pass, so you never pass it twice. An explicit `count` in `replace` still wins, which is how you render a spelled-out number.
+
+#### Inline conditions
+
+Segments may carry an explicit count or range, and the first that matches wins. A range accepts `*` on either bound.
+
+```json
+{
+  "inbox": "{0} Nothing here|[1,19] :count messages|[20,*] Lots of messages"
+}
+```
+
+```dart
+transChoice('inbox', 0);  // "Nothing here"
+transChoice('inbox', 7);  // "7 messages"
+transChoice('inbox', 99); // "Lots of messages"
+```
+
+Write a line that is **all** conditions or none. A half-conditional line shifts its own positional segments, because a condition that matched nothing is stripped and what remains is read by index.
+
+#### The plural rules are per language
+
+This is the part that surprises people, and it is why the count is not simply compared to one.
+
+| Language | Forms | Rule |
+|---|---|---|
+| `tr`, `ja`, `ko`, `zh`, `id`, `vi` and nine more | 1 | every count takes segment 0 |
+| `en`, `de`, `es`, `nl`, `pt`, `sv` and 43 more | 2 | `n == 1` takes segment 0 |
+| `fr`, `hi`, `fil`, `am` and nine more | 2 | `n == 0 \|\| n == 1` takes segment 0 |
+| `ru`, `uk`, `hr`, `sr`, `bs`, `be` | 3 | by the last digit |
+| `ar` | 6 | zero, one, two, few, many, other |
+
+Turkish has no plural agreement after a number, so a Turkish line's second segment is never reached. If your app's first locale is Turkish, Japanese or Chinese, a two-segment English line will look correct throughout development and be wrong the first time the second locale renders.
+
+An unlisted language answers segment 0, which is Laravel's own default: it reads as "this language does not agree with its number" rather than as English. The full table lives in `MessageSelector`, ported from Laravel's `getPluralIndex`.
+
+`Lang.choice` is the facade form and is equivalent:
+
+```dart
+Lang.choice('apples', 4);
 ```
 
 <a name="checking-key-existence"></a>
