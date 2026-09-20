@@ -174,6 +174,7 @@ export 'src/validation/contracts/rule.dart';
 export 'src/validation/contracts/async_rule.dart';
 export 'src/validation/rules/required.dart';
 export 'src/validation/rules/email.dart';
+export 'src/validation/rules/url.dart';
 export 'src/validation/rules/min.dart';
 export 'src/validation/rules/max.dart';
 export 'src/validation/rules/confirmed.dart';
