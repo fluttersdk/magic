@@ -111,19 +111,30 @@ Every pending migration in one `run()` is applied inside a single transaction. I
 
 That matters most when migrations run before your UI exists. A host that migrates inside `Magic.init` and then calls `runApp` has nowhere to report a failure from, and a migration that was half-applied and unrecorded would fail identically on every later launch with no way out but deleting the database.
 
-If you have already opened a transaction yourself, `run()` uses yours rather than opening a second one, because SQLite refuses a nested `BEGIN`. Either shape works:
+It is a `SAVEPOINT` rather than a `BEGIN`, which is what lets it nest inside a transaction you opened yourself. Either shape works:
 
 ```dart
-await Migrator().run([...]);                          // the migrator's transaction
-await DB.transaction(() => Migrator().run([...]));    // yours
+await Migrator().run([...]);                          // the migrator's savepoint alone
+await DB.transaction(() => Migrator().run([...]));    // nested in yours
 ```
 
-The tracking table is created outside the transaction, so a failed first run still leaves somewhere to record the retry.
+**A migration must not manage its own transaction.** `DB.beginTransaction`, `DB.commit` and `DB.rollback` are a supported pattern elsewhere and are not available inside `up()`: the run is already one unit. A `commit()` there closes the migrator's savepoint, which used to mean every later migration ran unprotected and the run reported a failure after fully succeeding. `run()` detects it now and throws naming the migration.
+
+The tracking table is created before the savepoint, so a run that owns its own transaction and fails still leaves somewhere to record the retry. A host that wrapped the call in its own transaction and rolls back takes the table with it, which is harmless: every entry point creates it again.
 
 <a name="up-and-down-are-synchronous"></a>
 ### `up()` and `down()` are synchronous
 
-Writing `void up() async` compiles and is a silent defect: `run()` cannot await a `void`, so an async body is recorded complete the moment it reaches its first suspension. Use `DB.statement` and `DB.select`, both synchronous. `DatabaseManager().getColumns` and `hasColumn` answer futures and must not be called from a migration.
+Writing `void up() async` compiles and is a silent defect: `run()` cannot await a `void`, so an async body is recorded complete the moment it reaches its first suspension.
+
+The synchronous half of the schema API is what a migration uses: `Schema.create`, `Schema.table`, `Schema.drop`, `Schema.dropIfExists`, `Schema.rename`, plus `DB.statement` and `DB.select`.
+
+The introspection helpers all answer futures and must not be called from a migration: `Schema.hasTable`, `Schema.hasColumn`, `Schema.getColumns`, and `DatabaseManager().getColumns` / `hasColumn`. To sense a schema synchronously, read the pragma directly:
+
+```dart
+final bool present = DB.select('PRAGMA table_info(users)')
+    .any((Map<String, dynamic> row) => row['name'] == 'avatar');
+```
 
 A migration with no honest rollback should throw `UnsupportedError` from `down()` rather than doing nothing, or `rollback()` will delete the ledger row for a migration that is still applied.
 

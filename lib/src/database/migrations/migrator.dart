@@ -57,10 +57,13 @@ class Migrator {
   /// Current batch number.
   int _batch = 0;
 
-  /// Run all pending migrations.
+  /// The savepoint name [run] wraps itself in.
+  static const String _savepoint = 'magic_migrator';
+
+  /// Runs every pending migration, or none of them.
   ///
-  /// [migrations] should be an ordered list of all migration classes.
-  /// Only migrations that haven't been executed yet will run.
+  /// [migrations] is an ordered list of every migration class; the ones
+  /// already recorded are skipped.
   ///
   /// ```dart
   /// await Migrator().run([
@@ -68,35 +71,50 @@ class Migrator {
   ///   CreatePostsTable(),
   /// ]);
   /// ```
-  /// Runs every pending migration, or none of them.
   ///
-  /// ### The whole run is one transaction
+  /// ### The whole run is one unit
   ///
-  /// It was none, and the state that produced is a host that never boots
-  /// again. Each migration was applied and recorded in turn, so a failure part
-  /// way left that migration's earlier statements applied and its ledger row
-  /// absent. The next launch re-ran it from its first statement, met the table
-  /// it had already created, and failed identically. A host that migrates
-  /// inside `Magic.init` before `runApp` has no UI to report that from, and
-  /// the only repair is deleting the database.
+  /// It was not, and the state that produced is a host that never boots again.
+  /// Each migration was applied and recorded in turn with nothing around them,
+  /// so a failure part way left that migration's earlier statements applied
+  /// and its ledger row absent. The next launch re-ran it from its first
+  /// statement, met the table it had already created, and failed identically.
+  /// A host that migrates inside `Magic.init` before `runApp` has no UI to
+  /// report that from, and the only repair is deleting the database.
   ///
-  /// SQLite rolls DDL back like anything else, so one `BEGIN` is the whole
-  /// fix. The run is the unit rather than each migration: a ledger recording
-  /// one migration and not the next describes a schema nobody designed, and
-  /// the host has no way to learn which half it has.
+  /// The run is the unit rather than each migration: a ledger recording one
+  /// migration and not the next describes a schema nobody designed, and the
+  /// host has no way to learn which half it has.
   ///
-  /// ### Why it defers to a caller that already opened one
+  /// ### A SAVEPOINT rather than a BEGIN
   ///
-  /// sqlite refuses a nested `BEGIN` with `cannot start a transaction within a
-  /// transaction`, so opening one unconditionally would break every host that
-  /// wraps this call itself, which is what a host had to do before this
-  /// landed. [CommonDatabase.autocommit] is false exactly while a transaction
-  /// is open, and is the only thing that can tell the two cases apart.
+  /// A savepoint nests and a `BEGIN` does not, so this composes with a host
+  /// that wraps the call in its own transaction instead of throwing `cannot
+  /// start a transaction within a transaction` at it. Verified in all three
+  /// shapes: with no transaction open, inside one, and unwinding through
+  /// `ROLLBACK TO`. The alternative was branching on
+  /// [CommonDatabase.autocommit], which works and leaves the host's shape
+  /// deciding which code path runs.
   ///
-  /// The tracking table is created OUTSIDE the transaction, deliberately. A
-  /// database with a ledger and no rows is what a fresh install has anyway, so
-  /// there is nothing to roll back about it, and creating it inside would mean
-  /// a failed first run left no way to record the retry.
+  /// ### A migration must not manage its own transaction
+  ///
+  /// `DB.beginTransaction`, `commit` and `rollback` are a documented pattern
+  /// (`doc/database/getting-started.md`), so a migration written that way was
+  /// legitimate before this. It is not now, and the guard below is there
+  /// because failing silently was the alternative: a `COMMIT` inside `up`
+  /// closes this savepoint, so every later migration runs unprotected and the
+  /// `RELEASE` throws `no such savepoint` AFTER every migration has succeeded
+  /// and committed its ledger row. The caller would see a failure from a run
+  /// that fully worked, and the retry would find nothing pending.
+  ///
+  /// The check names the migration that broke the contract and stops the loop
+  /// there. A `DB.beginTransaction` inside `up` throws from sqlite instead,
+  /// which is self-describing and unwinds through the same rollback.
+  ///
+  /// The tracking table is created BEFORE the savepoint, so an owned run that
+  /// fails still leaves somewhere to record the retry. A host that wrapped the
+  /// call in its own transaction and rolls back takes the table with it; that
+  /// is harmless, because every entry point creates it again.
   Future<List<String>> run(List<Migration> migrations) async {
     // Ensure migrations table exists
     await _ensureMigrationsTable();
@@ -116,27 +134,45 @@ class Migrator {
     // Get next batch number
     _batch = await _getNextBatchNumber();
 
-    final owned = _db.connection.autocommit;
-    if (owned) _db.connection.execute('BEGIN');
+    _db.connection.execute('SAVEPOINT $_savepoint');
 
     final ranMigrations = <String>[];
 
     try {
       for (final migration in pending) {
         migration.up();
+
+        // `autocommit` is false while a savepoint is open, so a true here
+        // means this migration ended the transaction under us.
+        if (_db.connection.autocommit) {
+          throw StateError(
+            'Migration [${migration.name}] committed or rolled back the '
+            'transaction the migrator opened. A migration must not call '
+            'DB.beginTransaction, DB.commit or DB.rollback: the whole run is '
+            'already one unit.',
+          );
+        }
+
         await _recordMigration(migration.name);
         ranMigrations.add(migration.name);
       }
     } catch (_) {
-      // Only unwind what this call started. A caller that owns the
-      // transaction gets the throw and rolls back its own, which is what the
-      // `outer` case in `migrator_atomicity_test.dart` asserts.
-      if (owned) _db.connection.execute('ROLLBACK');
+      // `ROLLBACK TO` leaves the savepoint in place, so the `RELEASE` after it
+      // is what actually discards it. Guarded on `autocommit` because the one
+      // failure this cannot unwind is a migration that already closed it.
+      if (!_db.connection.autocommit) {
+        _db.connection.execute('ROLLBACK TO $_savepoint');
+        _db.connection.execute('RELEASE $_savepoint');
+      }
+
+      // Anything cached during the undone migrations describes schema that no
+      // longer exists.
+      _db.clearSchemaCache();
 
       rethrow;
     }
 
-    if (owned) _db.connection.execute('COMMIT');
+    _db.connection.execute('RELEASE $_savepoint');
 
     // Clear schema cache after migrations
     _db.clearSchemaCache();

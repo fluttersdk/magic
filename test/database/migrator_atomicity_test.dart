@@ -29,6 +29,27 @@ class _TwoStepMigration extends Migration {
   }
 }
 
+/// A migration that closes the migrator's own transaction from inside `up`.
+///
+/// `DB.beginTransaction` / `commit` / `rollback` are a documented pattern
+/// (`doc/database/getting-started.md:195`), so a migration written this way was
+/// legitimate before `run` opened a transaction of its own.
+class _CommittingMigration extends Migration {
+  _CommittingMigration(this.name);
+
+  @override
+  final String name;
+
+  @override
+  void up() {
+    DB.statement('CREATE TABLE IF NOT EXISTS ${name}_a (x TEXT)');
+    DB.commit();
+  }
+
+  @override
+  void down() {}
+}
+
 /// A migration that fails is rolled back, and a run that fails leaves nothing.
 ///
 /// **The state this prevents is a permanent boot with no UI.** `run` applied
@@ -184,4 +205,56 @@ void main() {
       expect(exists('outer_a'), isFalse);
     },
   );
+
+  group('a migration that manages its own transaction', () {
+    test(
+      'is named in the error rather than reported as a late failure',
+      () async {
+        // The shape this replaces was the worst possible one. A `COMMIT` inside
+        // `up` closed the migrator's own transaction, so every later migration
+        // ran unprotected and the migrator's closing statement threw AFTER every
+        // migration had succeeded and its ledger row had been committed. The
+        // caller saw a failure from a run that had fully worked, and the retry
+        // found nothing pending.
+        await expectLater(
+          Migrator().run(<Migration>[_CommittingMigration('selfcommit')]),
+          throwsA(
+            isA<StateError>().having(
+              (StateError e) => e.message,
+              'message',
+              allOf(contains('selfcommit'), contains('transaction')),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('does not leave a later migration running unprotected', () async {
+      await expectLater(
+        Migrator().run(<Migration>[
+          _CommittingMigration('selfcommit'),
+          _TwoStepMigration('after', throwsAfterFirst: true),
+        ]),
+        throwsA(isA<StateError>()),
+      );
+
+      // `after` must never have run at all: the guard stops the loop on the
+      // migration that broke the contract rather than carrying on.
+      expect(exists('after_a'), isFalse);
+    });
+  });
+
+  test('a rollback clears the schema cache too', () async {
+    // It ran only on the success path, so a column list cached during an
+    // undone migration stayed in the manager describing schema that no longer
+    // exists.
+    await expectLater(
+      Migrator().run(<Migration>[
+        _TwoStepMigration('cachefail', throwsAfterFirst: true),
+      ]),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await DatabaseManager().getColumns('cachefail_a'), isEmpty);
+  });
 }
