@@ -1,7 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:magic/magic.dart' show Magic, MagicApp;
+import 'package:magic/magic.dart' show Log, Magic, MagicApp;
+import 'package:magic/testing.dart' show FakeLogManager;
 import 'package:magic/src/localization/loaders/json_asset_loader.dart';
 
 /// Reading a file must not need a service.
@@ -84,5 +85,59 @@ void main() {
       ).load(const Locale('en')),
       completion(containsPair('nested.key', 'Nested value')),
     );
+  });
+
+  group('with a log service bound, the failure says why', () {
+    // The other half, and the half that matters to a reader. The tests above
+    // prove the warnings do not THROW when nothing is bound; these prove they
+    // are emitted and that they name the path, which is the whole point of
+    // adding them. Without a bound `log` those two branches never execute at
+    // all, so nothing above covers a line of them.
+
+    test('a missing catalogue at the fallback locale is named', () async {
+      final FakeLogManager log = Log.fake();
+
+      final Map<String, dynamic> loaded = await const JsonAssetLoader(
+        basePath: 'test/fixtures/nothing-here',
+      ).load(const Locale('en'));
+
+      expect(loaded, isEmpty);
+      expect(log.entries, hasLength(1));
+      expect(log.entries.single.level, 'warning');
+      expect(
+        log.entries.single.message,
+        contains('test/fixtures/nothing-here'),
+      );
+      expect(log.entries.single.message, contains('[en]'));
+    });
+
+    test('a locale AND its fallback both missing names both', () async {
+      final FakeLogManager log = Log.fake();
+
+      // `de` is not the fallback, so the loader tries `en` second and reaches
+      // the inner catch. That branch's message has to name both locales, or a
+      // reader cannot tell which of the two files is the one to go and add.
+      final Map<String, dynamic> loaded = await const JsonAssetLoader(
+        basePath: 'test/fixtures/nothing-here',
+      ).load(const Locale('de'));
+
+      expect(loaded, isEmpty);
+      expect(log.entries, hasLength(1));
+      expect(log.entries.single.message, contains('[de]'));
+      expect(log.entries.single.message, contains('[en]'));
+    });
+
+    test('a catalogue that loads says nothing at all', () async {
+      // The warnings are for failures only. A loader that logged on success
+      // would fire twice per `Translator.load`, which is the noise the removed
+      // `Log.info` line was.
+      final FakeLogManager log = Log.fake();
+
+      await const JsonAssetLoader(
+        basePath: 'test/fixtures/lang',
+      ).load(const Locale('en'));
+
+      log.assertNothingLogged();
+    });
   });
 }
