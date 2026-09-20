@@ -189,10 +189,17 @@ await DB.transaction(() async {
 
 If any operation throws an exception, the entire transaction is rolled back.
 
+**Do not close the transaction from inside the callback.** `DB.transaction` owns it, and a `DB.commit()` or `DB.rollback()` in there means everything written afterwards ran outside any transaction. The two cases are answered differently and neither is silent:
+
+- On failure the rollback is skipped, so your error reaches you rather than being replaced by `cannot rollback - no transaction is active`.
+- On success it throws, naming what happened. There is no error to protect on that branch, so staying quiet would only cost you the signal: the block was not atomic and returning normally would say it was.
+
+If you need that control, use the manual API below throughout rather than mixing the two.
+
 <a name="manual-transaction-control"></a>
 ### Manual Transaction Control
 
-For cases where you need finer control over transaction boundaries, call `DB.beginTransaction()`, `DB.commit()`, and `DB.rollback()` directly. This is useful when you need to interleave non-database work between statements or handle multiple error branches differently.
+For cases where you need finer control over transaction boundaries, call `DB.beginTransaction()`, `DB.commit()`, and `DB.rollback()` directly. This is useful when you need to interleave non-database work between statements or handle multiple error branches differently. It is an alternative to `DB.transaction`, not something to use inside one.
 
 ```dart
 DB.beginTransaction();

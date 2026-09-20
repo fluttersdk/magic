@@ -268,4 +268,54 @@ void main() {
       expect(exists('after_a'), isFalse);
     });
   });
+
+  group('DB.transaction and a callback that closes the transaction itself', () {
+    test(
+      'a callback that commits half way is an error, not a silent success',
+      () async {
+        // The asymmetry this closes. Guarding the catch branch protects the
+        // callback's real error, which is what round 2 asked for. Guarding the
+        // success branch the same way turns a loud failure into silence: the
+        // writes after that `commit()` ran outside any transaction and the
+        // caller would be told the block was atomic.
+        await expectLater(
+          DB.transaction(() async {
+            DB.statement('CREATE TABLE IF NOT EXISTS inside_a (x TEXT)');
+            DB.commit();
+            DB.statement('CREATE TABLE IF NOT EXISTS inside_b (x TEXT)');
+          }),
+          throwsA(
+            isA<StateError>().having(
+              (StateError e) => e.message,
+              'message',
+              contains('transaction'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('an ordinary callback still commits and returns its value', () async {
+      final int answer = await DB.transaction(() async {
+        DB.statement('CREATE TABLE IF NOT EXISTS ordinary (x TEXT)');
+
+        return 7;
+      });
+
+      expect(answer, 7);
+      expect(exists('ordinary'), isTrue);
+    });
+
+    test('an ordinary failure still rolls back', () async {
+      await expectLater(
+        DB.transaction(() async {
+          DB.statement('CREATE TABLE IF NOT EXISTS undone (x TEXT)');
+          throw StateError('nope');
+        }),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(exists('undone'), isFalse);
+    });
+  });
 }

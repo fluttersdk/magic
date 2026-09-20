@@ -93,7 +93,7 @@ class Migrator {
   /// start a transaction within a transaction` at it. Verified in all three
   /// shapes: with no transaction open, inside one, and unwinding through
   /// `ROLLBACK TO`. The alternative was branching on
-  /// [CommonDatabase.autocommit], which works and leaves the host's shape
+  /// the connection's `autocommit`, which works and leaves the host's shape
   /// deciding which code path runs.
   ///
   /// ### A migration must not manage its own transaction
