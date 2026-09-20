@@ -104,6 +104,7 @@ void main() async {
 
 The `Migrator` keeps track of which migrations have already run, so calling `run()` multiple times is safe.
 
+<a name="the-run-is-atomic"></a>
 ### The run is atomic
 
 Every pending migration in one `run()` is applied inside a single transaction. If any of them throws, all of them are rolled back and the ledger records none, so the next launch retries the whole run from a clean schema rather than meeting half-applied work it cannot recognise.
@@ -119,6 +120,7 @@ await DB.transaction(() => Migrator().run([...]));    // yours
 
 The tracking table is created outside the transaction, so a failed first run still leaves somewhere to record the retry.
 
+<a name="up-and-down-are-synchronous"></a>
 ### `up()` and `down()` are synchronous
 
 Writing `void up() async` compiles and is a silent defect: `run()` cannot await a `void`, so an async body is recorded complete the moment it reaches its first suspension. Use `DB.statement` and `DB.select`, both synchronous. `DatabaseManager().getColumns` and `hasColumn` answer futures and must not be called from a migration.
