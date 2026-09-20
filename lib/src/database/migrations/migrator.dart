@@ -111,6 +111,14 @@ class Migrator {
   /// there. A `DB.beginTransaction` inside `up` throws from sqlite instead,
   /// which is self-describing and unwinds through the same rollback.
   ///
+  /// **That one case is early and named but NOT atomic**, and the headline
+  /// above does not hold for it: the offending migration's own statements and
+  /// every earlier migration's ledger row are already committed by the time
+  /// the guard sees anything, so there is nothing left to unwind. Nothing can
+  /// recover that, which is the whole reason a migration must not do it. A
+  /// migration in this shape that is not written with `IF NOT EXISTS` will
+  /// still boot-loop on retry.
+  ///
   /// The tracking table is created BEFORE the savepoint, so an owned run that
   /// fails still leaves somewhere to record the retry. A host that wrapped the
   /// call in its own transaction and rolls back takes the table with it; that
@@ -165,8 +173,14 @@ class Migrator {
         _db.connection.execute('RELEASE $_savepoint');
       }
 
-      // Anything cached during the undone migrations describes schema that no
-      // longer exists.
+      // Anything cached during the undone migrations would describe schema
+      // that no longer exists. No case reaches it today and the line stays
+      // anyway: `up()` is synchronous while every cache-populating API is a
+      // future, so the only entry the cache can hold mid-run is
+      // `magic_migrations`, which survives the rollback. It costs one map
+      // clear and stops being a no-op the day a synchronous introspection
+      // helper lands. Deliberately untested rather than tested vacuously: a
+      // test for it passes with the line deleted.
       _db.clearSchemaCache();
 
       rethrow;

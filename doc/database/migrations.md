@@ -118,7 +118,9 @@ await Migrator().run([...]);                          // the migrator's savepoin
 await DB.transaction(() => Migrator().run([...]));    // nested in yours
 ```
 
-**A migration must not manage its own transaction.** `DB.beginTransaction`, `DB.commit` and `DB.rollback` are a supported pattern elsewhere and are not available inside `up()`: the run is already one unit. A `commit()` there closes the migrator's savepoint, which used to mean every later migration ran unprotected and the run reported a failure after fully succeeding. `run()` detects it now and throws naming the migration.
+**A migration must not manage its own transaction.** `DB.beginTransaction`, `DB.commit` and `DB.rollback` are a supported pattern elsewhere and are not available inside `up()`: the run is already one unit. A `commit()` there closes the migrator's savepoint, which used to mean every later migration ran unprotected and the run reported a failure after fully succeeding. `run()` detects it and throws naming the migration.
+
+That one case is the exception to "all of them, or none": by the time the guard sees anything, the offending migration's statements and every earlier ledger row are already committed and there is nothing left to unwind. Nothing can recover that, which is why the rule exists rather than a workaround.
 
 The tracking table is created before the savepoint, so a run that owns its own transaction and fails still leaves somewhere to record the retry. A host that wrapped the call in its own transaction and rolls back takes the table with it, which is harmless: every entry point creates it again.
 

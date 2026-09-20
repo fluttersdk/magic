@@ -229,6 +229,31 @@ void main() {
       },
     );
 
+    test(
+      'is named even when the host wrapped the call in its own transaction',
+      () async {
+        // The diagnostic used to be destroyed in exactly the shape this PR
+        // tells hosts they may use. The migration's `commit()` closes the
+        // HOST's transaction too, so `DB.transaction`'s catch found nothing to
+        // roll back and sqlite threw `cannot rollback - no transaction is
+        // active` over the StateError naming the migration.
+        await expectLater(
+          DB.transaction(
+            () => Migrator().run(<Migration>[
+              _CommittingMigration('wrappedcommit'),
+            ]),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (StateError e) => e.message,
+              'message',
+              contains('wrappedcommit'),
+            ),
+          ),
+        );
+      },
+    );
+
     test('does not leave a later migration running unprotected', () async {
       await expectLater(
         Migrator().run(<Migration>[
@@ -242,19 +267,5 @@ void main() {
       // migration that broke the contract rather than carrying on.
       expect(exists('after_a'), isFalse);
     });
-  });
-
-  test('a rollback clears the schema cache too', () async {
-    // It ran only on the success path, so a column list cached during an
-    // undone migration stayed in the manager describing schema that no longer
-    // exists.
-    await expectLater(
-      Migrator().run(<Migration>[
-        _TwoStepMigration('cachefail', throwsAfterFirst: true),
-      ]),
-      throwsA(isA<StateError>()),
-    );
-
-    expect(await DatabaseManager().getColumns('cachefail_a'), isEmpty);
   });
 }

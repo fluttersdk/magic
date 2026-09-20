@@ -180,14 +180,27 @@ class DB {
   ///   await DB.table('profiles').insert({...});
   /// });
   /// ```
+  /// Both the commit and the rollback are guarded on [CommonDatabase.autocommit],
+  /// which is true exactly when no transaction is open.
+  ///
+  /// A callback that closed the transaction itself used to have its own error
+  /// replaced: `rollback()` found nothing to unwind and sqlite threw `cannot
+  /// rollback - no transaction is active` over whatever actually went wrong.
+  /// The caller then saw a message about transactions in place of the real
+  /// cause, which is the one thing an error path must not do. A callback that
+  /// committed and then succeeded had the mirror of it on the other branch.
+  ///
+  /// Closing the transaction from inside the callback is still a mistake, and
+  /// the guard does not make it one less. It stops that mistake from hiding
+  /// the next one.
   static Future<T> transaction<T>(Future<T> Function() callback) async {
     beginTransaction();
     try {
       final result = await callback();
-      commit();
+      if (!_db.connection.autocommit) commit();
       return result;
     } catch (e) {
-      rollback();
+      if (!_db.connection.autocommit) rollback();
       rethrow;
     }
   }
