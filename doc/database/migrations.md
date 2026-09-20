@@ -6,6 +6,8 @@ Migrations are version-controlled schema definitions that let you create, modify
 - [Generating Migrations](#generating-migrations)
 - [Migration Structure](#migration-structure)
 - [Running Migrations](#running-migrations)
+    - [The run is atomic](#the-run-is-atomic)
+    - [`up()` and `down()` are synchronous](#up-and-down-are-synchronous)
 - [Creating Tables](#creating-tables)
     - [Available Column Types](#available-column-types)
     - [Column Modifiers](#column-modifiers)
@@ -101,6 +103,42 @@ void main() async {
 ```
 
 The `Migrator` keeps track of which migrations have already run, so calling `run()` multiple times is safe.
+
+<a name="the-run-is-atomic"></a>
+### The run is atomic
+
+Every pending migration in one `run()` is applied inside a single transaction. If any of them throws, all of them are rolled back and the ledger records none, so the next launch retries the whole run from a clean schema rather than meeting half-applied work it cannot recognise.
+
+That matters most when migrations run before your UI exists. A host that migrates inside `Magic.init` and then calls `runApp` has nowhere to report a failure from, and a migration that was half-applied and unrecorded would fail identically on every later launch with no way out but deleting the database.
+
+It is a `SAVEPOINT` rather than a `BEGIN`, which is what lets it nest inside a transaction you opened yourself. Either shape works:
+
+```dart
+await Migrator().run([...]);                          // the migrator's savepoint alone
+await DB.transaction(() => Migrator().run([...]));    // nested in yours
+```
+
+**A migration must not manage its own transaction.** `DB.beginTransaction`, `DB.commit` and `DB.rollback` are a supported pattern elsewhere and are not available inside `up()`: the run is already one unit. A `commit()` there closes the migrator's savepoint, which used to mean every later migration ran unprotected and the run reported a failure after fully succeeding. `run()` detects it and throws naming the migration.
+
+That one case is the exception to "all of them, or none": by the time the guard sees anything, the offending migration's statements and every earlier ledger row are already committed and there is nothing left to unwind. Nothing can recover that, which is why the rule exists rather than a workaround.
+
+The tracking table is created before the savepoint, so a run that owns its own transaction and fails still leaves somewhere to record the retry. A host that wrapped the call in its own transaction and rolls back takes the table with it, which is harmless: every entry point creates it again.
+
+<a name="up-and-down-are-synchronous"></a>
+### `up()` and `down()` are synchronous
+
+Writing `void up() async` compiles and is a silent defect: `run()` cannot await a `void`, so an async body is recorded complete the moment it reaches its first suspension.
+
+The synchronous half of the schema API is what a migration uses: `Schema.create`, `Schema.table`, `Schema.drop`, `Schema.dropIfExists`, `Schema.rename`, plus `DB.statement` and `DB.select`.
+
+The introspection helpers all answer futures and must not be called from a migration: `Schema.hasTable`, `Schema.hasColumn`, `Schema.getColumns`, and `DatabaseManager().getColumns` / `hasColumn`. To sense a schema synchronously, read the pragma directly:
+
+```dart
+final bool present = DB.select('PRAGMA table_info(users)')
+    .any((Map<String, dynamic> row) => row['name'] == 'avatar');
+```
+
+A migration with no honest rollback should throw `UnsupportedError` from `down()` rather than doing nothing, or `rollback()` will delete the ledger row for a migration that is still applied.
 
 <a name="creating-tables"></a>
 ## Creating Tables

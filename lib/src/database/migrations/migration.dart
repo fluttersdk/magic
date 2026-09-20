@@ -47,10 +47,23 @@ abstract class Migration {
   ///
   /// Define your schema changes here using [Schema.create], [Schema.drop],
   /// or raw SQL via [DB].
+  ///
+  /// **Synchronous, and writing `void up() async` is a silent defect.**
+  /// `Migrator.run` calls this without awaiting, because a `void` cannot be
+  /// awaited, so an async body is recorded as complete the moment it reaches
+  /// its first suspension and the migrator commits over the top of work that
+  /// has not happened. Everything a migration needs has a synchronous form:
+  /// use `DB.statement` and `DB.select`, never `DatabaseManager().getColumns`
+  /// or `hasColumn`, which answer futures.
   void up();
 
   /// Reverse the migration.
   ///
   /// Define how to undo the changes made in [up].
+  ///
+  /// Synchronous for the same reason as [up]. A migration with no honest
+  /// rollback should throw `UnsupportedError` rather than do nothing: a
+  /// `down` that silently succeeds tells `Migrator.rollback` to delete the
+  /// ledger row for a migration that is still applied.
   void down();
 }

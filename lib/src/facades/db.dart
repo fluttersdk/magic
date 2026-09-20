@@ -180,14 +180,44 @@ class DB {
   ///   await DB.table('profiles').insert({...});
   /// });
   /// ```
+  /// **A callback must not close the transaction itself**, and the two branches
+  /// answer that differently on purpose.
+  ///
+  /// On failure the rollback is skipped. There is a real error in flight and
+  /// the only thing that matters is that it reaches the caller: `rollback()`
+  /// would find nothing to unwind and throw `cannot rollback - no transaction
+  /// is active` over the top, so the caller would read a message about
+  /// transactions in place of the cause.
+  ///
+  /// On success it throws instead, and skipping the commit the same way would
+  /// be the worse bug. There is no error to protect here, so silence buys
+  /// nothing and costs the signal: a callback that commits half way and keeps
+  /// writing ran everything after that point outside any transaction, and
+  /// returning normally tells the caller the block was atomic when it was not.
+  /// `Migrator.run` treats the identical situation as an error worth naming
+  /// the culprit for, and this is the same situation one layer down.
+  ///
+  /// `autocommit` on the connection is true exactly when no transaction is
+  /// open, which is the only thing that can tell either case apart.
   static Future<T> transaction<T>(Future<T> Function() callback) async {
     beginTransaction();
     try {
       final result = await callback();
+
+      if (_db.connection.autocommit) {
+        throw StateError(
+          'The transaction callback committed or rolled back the transaction '
+          'itself. Anything it wrote afterwards ran outside a transaction and '
+          'is not covered by this block. Remove the DB.commit or DB.rollback, '
+          'or stop using DB.transaction and manage it manually throughout.',
+        );
+      }
+
       commit();
+
       return result;
     } catch (e) {
-      rollback();
+      if (!_db.connection.autocommit) rollback();
       rethrow;
     }
   }

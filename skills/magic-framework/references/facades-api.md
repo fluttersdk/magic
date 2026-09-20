@@ -185,7 +185,7 @@ Resolves `Magic.make<DatabaseManager>('db')`.
 | `DB.beginTransaction()` | `void` | Begin a manual transaction. |
 | `DB.commit()` | `void` | Commit the current transaction. |
 | `DB.rollback()` | `void` | Roll back the current transaction. |
-| `DB.transaction<T>(Future<T> Function() callback)` | `Future<T>` | Auto-commit on success, auto-rollback on error. |
+| `DB.transaction<T>(Future<T> Function() callback)` | `Future<T>` | Commits on success, rolls back on error. The callback must NOT call `DB.commit` / `DB.rollback` itself: on success that throws a `StateError` (the writes after it were not in the transaction), and on failure the rollback is skipped so the callback's own error still reaches you. |
 
 ```dart
 import 'package:magic/magic.dart';

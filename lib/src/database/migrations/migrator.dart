@@ -57,10 +57,13 @@ class Migrator {
   /// Current batch number.
   int _batch = 0;
 
-  /// Run all pending migrations.
+  /// The savepoint name [run] wraps itself in.
+  static const String _savepoint = 'magic_migrator';
+
+  /// Runs every pending migration, or none of them.
   ///
-  /// [migrations] should be an ordered list of all migration classes.
-  /// Only migrations that haven't been executed yet will run.
+  /// [migrations] is an ordered list of every migration class; the ones
+  /// already recorded are skipped.
   ///
   /// ```dart
   /// await Migrator().run([
@@ -68,6 +71,58 @@ class Migrator {
   ///   CreatePostsTable(),
   /// ]);
   /// ```
+  ///
+  /// ### The whole run is one unit
+  ///
+  /// It was not, and the state that produced is a host that never boots again.
+  /// Each migration was applied and recorded in turn with nothing around them,
+  /// so a failure part way left that migration's earlier statements applied
+  /// and its ledger row absent. The next launch re-ran it from its first
+  /// statement, met the table it had already created, and failed identically.
+  /// A host that migrates inside `Magic.init` before `runApp` has no UI to
+  /// report that from, and the only repair is deleting the database.
+  ///
+  /// The run is the unit rather than each migration: a ledger recording one
+  /// migration and not the next describes a schema nobody designed, and the
+  /// host has no way to learn which half it has.
+  ///
+  /// ### A SAVEPOINT rather than a BEGIN
+  ///
+  /// A savepoint nests and a `BEGIN` does not, so this composes with a host
+  /// that wraps the call in its own transaction instead of throwing `cannot
+  /// start a transaction within a transaction` at it. Verified in all three
+  /// shapes: with no transaction open, inside one, and unwinding through
+  /// `ROLLBACK TO`. The alternative was branching on
+  /// the connection's `autocommit`, which works and leaves the host's shape
+  /// deciding which code path runs.
+  ///
+  /// ### A migration must not manage its own transaction
+  ///
+  /// `DB.beginTransaction`, `commit` and `rollback` are a documented pattern
+  /// (`doc/database/getting-started.md`), so a migration written that way was
+  /// legitimate before this. It is not now, and the guard below is there
+  /// because failing silently was the alternative: a `COMMIT` inside `up`
+  /// closes this savepoint, so every later migration runs unprotected and the
+  /// `RELEASE` throws `no such savepoint` AFTER every migration has succeeded
+  /// and committed its ledger row. The caller would see a failure from a run
+  /// that fully worked, and the retry would find nothing pending.
+  ///
+  /// The check names the migration that broke the contract and stops the loop
+  /// there. A `DB.beginTransaction` inside `up` throws from sqlite instead,
+  /// which is self-describing and unwinds through the same rollback.
+  ///
+  /// **That one case is early and named but NOT atomic**, and the headline
+  /// above does not hold for it: the offending migration's own statements and
+  /// every earlier migration's ledger row are already committed by the time
+  /// the guard sees anything, so there is nothing left to unwind. Nothing can
+  /// recover that, which is the whole reason a migration must not do it. A
+  /// migration in this shape that is not written with `IF NOT EXISTS` will
+  /// still boot-loop on retry.
+  ///
+  /// The tracking table is created BEFORE the savepoint, so an owned run that
+  /// fails still leaves somewhere to record the retry. A host that wrapped the
+  /// call in its own transaction and rolls back takes the table with it; that
+  /// is harmless, because every entry point creates it again.
   Future<List<String>> run(List<Migration> migrations) async {
     // Ensure migrations table exists
     await _ensureMigrationsTable();
@@ -87,24 +142,51 @@ class Migrator {
     // Get next batch number
     _batch = await _getNextBatchNumber();
 
-    // Run each pending migration
+    _db.connection.execute('SAVEPOINT $_savepoint');
+
     final ranMigrations = <String>[];
 
-    for (final migration in pending) {
-      try {
-        // Execute the up method
+    try {
+      for (final migration in pending) {
         migration.up();
 
-        // Record it
-        await _recordMigration(migration.name);
+        // `autocommit` is false while a savepoint is open, so a true here
+        // means this migration ended the transaction under us.
+        if (_db.connection.autocommit) {
+          throw StateError(
+            'Migration [${migration.name}] committed or rolled back the '
+            'transaction the migrator opened. A migration must not call '
+            'DB.beginTransaction, DB.commit or DB.rollback: the whole run is '
+            'already one unit.',
+          );
+        }
 
+        await _recordMigration(migration.name);
         ranMigrations.add(migration.name);
-      } catch (e) {
-        // Log the error but continue with other migrations
-        // In production, you might want to stop here
-        rethrow;
       }
+    } catch (_) {
+      // `ROLLBACK TO` leaves the savepoint in place, so the `RELEASE` after it
+      // is what actually discards it. Guarded on `autocommit` because the one
+      // failure this cannot unwind is a migration that already closed it.
+      if (!_db.connection.autocommit) {
+        _db.connection.execute('ROLLBACK TO $_savepoint');
+        _db.connection.execute('RELEASE $_savepoint');
+      }
+
+      // Anything cached during the undone migrations would describe schema
+      // that no longer exists. No case reaches it today and the line stays
+      // anyway: `up()` is synchronous while every cache-populating API is a
+      // future, so the only entry the cache can hold mid-run is
+      // `magic_migrations`, which survives the rollback. It costs one map
+      // clear and stops being a no-op the day a synchronous introspection
+      // helper lands. Deliberately untested rather than tested vacuously: a
+      // test for it passes with the line deleted.
+      _db.clearSchemaCache();
+
+      rethrow;
     }
+
+    _db.connection.execute('RELEASE $_savepoint');
 
     // Clear schema cache after migrations
     _db.clearSchemaCache();
@@ -202,6 +284,15 @@ class Migrator {
   // ---------------------------------------------------------------------------
 
   /// Create the migrations tracking table if it doesn't exist.
+  ///
+  /// The cache line is not housekeeping. A raw `execute` changes the schema
+  /// behind [DatabaseManager]'s back, and `getColumns` caches the EMPTY answer
+  /// a missing table gives. [_recordMigration] goes through `QueryBuilder`,
+  /// which filters every key against that cache, and an empty filter makes
+  /// `insert` return 0 without inserting and without throwing
+  /// (`query_builder.dart:278-280`). So anything that read this table's
+  /// columns before it existed would leave every migration applied and never
+  /// recorded, and re-applied on every launch for ever.
   Future<void> _ensureMigrationsTable() async {
     _db.connection.execute('''
       CREATE TABLE IF NOT EXISTS $_table (
@@ -210,6 +301,8 @@ class Migrator {
         batch INTEGER NOT NULL
       )
     ''');
+
+    _db.clearSchemaCache(_table);
   }
 
   /// Get list of executed migration names.
