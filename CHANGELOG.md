@@ -27,7 +27,7 @@ All notable changes to this project will be documented in this file.
 
   The value is a KEY rather than a finished sentence: an override taking a sentence would make every consumer using it monolingual. Rule parameters still reach it, so `:attribute` and `:schemes` work in an override.
 
-  Keyed by the new `Rule.name`, which is derived from the rule's message key (`validation.required` gives `required`) rather than from `runtimeType`. That choice is load-bearing: `runtimeType.toString()` is minified in a Flutter web release build, so a messages map keyed on it would match in development and silently stop matching in production.
+  Keyed by the new `Rule.name`, which is derived from the rule's message key (`validation.required` gives `required`) rather than from `runtimeType`. That choice is load-bearing: `runtimeType.toString()` is not a dependable identifier in a release build, so a messages map keyed on it would match in development and silently stop matching in production. dart2js minifies class names (`js_helper.dart:107` has a `MINIFIED` branch for reporting them), and Flutter's own framework declines to use it outside asserts for the same reason (`foundation/object.dart`, `objectRuntimeType`).
 
 - **`Rule` has a const constructor, and `Required`, `Email`, `Accepted` and `Url` declare one.** Additive; a rule with its own non-const constructor is unaffected. A stateless rule is written inline in a widget's `build`, where a const instance is one allocation that never happens again.
 

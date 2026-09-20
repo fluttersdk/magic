@@ -197,7 +197,7 @@ This is Laravel's third `Validator::make` argument. Without it, a screen wanting
 
 The value is a **key**, not a finished sentence. An override taking a sentence would make every consumer using it monolingual. A key with no sentence renders as itself, which is `trans`'s own contract, and the rule's parameters still reach it, so `:attribute` and `:schemes` work in an override too.
 
-The map key is `Rule.name`, derived from the rule's message key (`validation.required` gives `required`) rather than from `runtimeType`, which is minified in a Flutter web release build.
+The map key is `Rule.name`, derived from the rule's message key (`validation.required` gives `required`) rather than from `runtimeType`, which is not a dependable identifier in a release build: dart2js minifies class names, and Flutter's own `objectRuntimeType` declines to call `toString` on a runtime type outside asserts.
 
 ### Whitelist Rules (`In` / `InList`)
 

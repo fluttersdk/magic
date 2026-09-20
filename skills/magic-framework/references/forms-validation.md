@@ -277,7 +277,7 @@ FormValidator.rules(
 )
 ```
 
-The value is a catalogue KEY, not a sentence, so the override stays localised. Rule parameters still reach it (`:attribute`, `:schemes`). The map key is `Rule.name`, derived from the message key rather than `runtimeType`, which minifies in a web release build.
+The value is a catalogue KEY, not a sentence, so the override stays localised. Rule parameters still reach it (`:attribute`, `:schemes`). The map key is `Rule.name`, derived from the message key rather than `runtimeType`, which is not dependable in a release build (dart2js minifies class names; Flutter's own `objectRuntimeType` avoids it outside asserts).
 
 **Same with valueGetter (recommended for Flutter forms):**
 
