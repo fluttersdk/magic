@@ -2844,6 +2844,49 @@ void main() async {
     );
 
     test(
+      '--with-devtools writes the constraints the post-install message documents',
+      () async {
+        // The installer's constant and install.yaml's message are two copies
+        // of one list, and they drifted: the code pinned `magic_devtools
+        // ^0.0.1` and `fluttersdk_dusk ^0.0.8` while the message told the same
+        // reader `^0.0.2` and `^0.0.9`. So the message is read here rather than
+        // restated, and a release that moves one copy fails until it moves
+        // the other.
+        final String manifest = File(
+          p.join(_magicRoot, 'install.yaml'),
+        ).readAsStringSync();
+        final Map<String, String> documented = <String, String>{
+          for (final RegExpMatch match in RegExp(
+            r'^\s+(magic_devtools|fluttersdk_dusk|fluttersdk_telescope): (\^\S+)$',
+            multiLine: true,
+          ).allMatches(manifest))
+            match.group(1)!: match.group(2)!,
+        };
+        expect(
+          documented.keys,
+          unorderedEquals(<String>[
+            'magic_devtools',
+            'fluttersdk_dusk',
+            'fluttersdk_telescope',
+          ]),
+        );
+
+        final (:cmd, :ctx, :root, :output) = seedRealFsConsumer(
+          optionOverrides: <String, dynamic>{'with-devtools': true},
+        );
+        final exit = await cmd.handle(ctx);
+
+        expect(exit, 0, reason: output.content);
+        final pubspec = File(
+          p.join(root.path, 'pubspec.yaml'),
+        ).readAsStringSync();
+        documented.forEach((String name, String constraint) {
+          expect(pubspec, contains('$name: $constraint'));
+        });
+      },
+    );
+
+    test(
       '--with-devtools is idempotent on re-run (no duplicate wiring/deps)',
       () async {
         // First install.
