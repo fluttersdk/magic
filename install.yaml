@@ -113,9 +113,9 @@ post_install:
     wired into lib/main.dart under kDebugMode (release builds tree-shake them),
     so add them to dependencies, not dev_dependencies (lib/ imports them):
 
-       magic_devtools: ^0.0.2
-       fluttersdk_dusk: ^0.0.9
-       fluttersdk_telescope: ^0.0.4
+       magic_devtools: ^0.0.5
+       fluttersdk_dusk: ^0.0.15
+       fluttersdk_telescope: ^0.0.6
 
     Then:
 

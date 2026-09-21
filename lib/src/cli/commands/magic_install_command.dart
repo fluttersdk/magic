@@ -983,15 +983,16 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// The debug-trio packages added to the consumer's `dependencies` when
   /// `--with-devtools` is set, mapped to their version constraints.
   ///
-  /// Pinned to the versions the `install.yaml` post-install message documents:
-  /// bump these in lockstep when a trio package releases a new minor line. They
+  /// Pinned to the versions the `install.yaml` post-install message documents,
+  /// and the install test reads that message and fails when the two disagree,
+  /// so a release moves both. They
   /// are regular `dependencies` (not `dev_dependencies`) because the wiring in
   /// `lib/main.dart` imports them; the `kDebugMode` gate tree-shakes them from
   /// release builds.
   static const Map<String, String> _devtoolsDependencies = <String, String>{
-    'magic_devtools': '^0.0.1',
-    'fluttersdk_dusk': '^0.0.8',
-    'fluttersdk_telescope': '^0.0.4',
+    'magic_devtools': '^0.0.5',
+    'fluttersdk_dusk': '^0.0.15',
+    'fluttersdk_telescope': '^0.0.6',
   };
 
   /// Injects the debug-trio runtime wiring into a generated `lib/main.dart`

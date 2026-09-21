@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-09-21
+
+### Breaking
+
+- **A migration may no longer manage its own transaction.** `DB.beginTransaction`, `commit` and `rollback` are a documented pattern elsewhere, so a migration written that way was legitimate before this. A `commit()` inside `up()` closes the migrator's savepoint, which meant every later migration ran unprotected and the closing `RELEASE` threw AFTER every migration had succeeded and committed its ledger row: the caller saw a failure from a run that fully worked, and the retry found nothing pending. `run` detects it and throws naming the migration that broke the contract, rather than failing late and confusingly. That case is the one exception to "all of them, or none": the offending migration's statements and every earlier ledger row are already committed by the time the guard sees anything. (See the `Migrator.run` entry under Fixed for the atomic run this protects.)
+
+- **`DB.transaction` answers a callback that closes the transaction itself, instead of failing confusingly or quietly.** The two branches differ on purpose.
+
+  On failure the rollback is skipped. There is a real error in flight and the only thing that matters is that it reaches the caller: `rollback()` would find nothing to unwind and throw `cannot rollback - no transaction is active` over the top, so the caller read a message about transactions in place of the cause.
+
+  On success it now throws, naming what happened. Skipping the commit the same way would be the worse bug: there is no error to protect on that branch, so silence buys nothing and costs the signal. A callback that commits half way and keeps writing ran everything after that point outside any transaction, and returning normally tells the caller the block was atomic when it was not.
+
 ### Added
 
 - **A `Url` validation rule.** Laravel has `url`; this package did not, so every consumer validating a typed-in endpoint wrote the same `startsWith('http://')` pair by hand and each drew its own conclusion about a scheme it had not thought of.
@@ -56,6 +68,12 @@ All notable changes to this project will be documented in this file.
 
   The index is the CURRENT locale's, never English's. A two-segment line in a language with one form never reaches its second segment, and one in Russian or Arabic falls back to segment 0 rather than throwing a `RangeError` into a consumer's UI.
 
+### Changed
+
+- **`flutter_secure_storage` widens from `^10.0.0` to `>=10.0.0 <12.0.0`, so a fresh `pub get` resolves 11.** v11 removes what v10 deprecated (on Android the `encryptedSharedPreferences` and `sharedPreferencesName` options, the PKCS1 key cipher and the CBC storage cipher), and `MagicVaultService` passes none of them. Its warning that data written with a deprecated cipher becomes unreadable is for an app that skipped v10: every magic release on pub.dev has required `^10`, so a vault written through magic is already on the v10 ciphers. v11 also raises the Android `minSdk` to 24, which every Flutter release since 3.35 already requires; magic's floor is 3.41. Keeping 10 in the range leaves an app that pins it directly resolvable. (`pubspec.yaml`)
+
+- **`magic:install --with-devtools` writes the constraints its own post-install message documents.** The installer pinned `magic_devtools ^0.0.1`, `fluttersdk_dusk ^0.0.8` and `fluttersdk_telescope ^0.0.4` into the consumer's pubspec while the message printed beside it said `^0.0.2`, `^0.0.9` and `^0.0.4`. Both now name this batch's releases, `^0.0.5`, `^0.0.15` and `^0.0.6`, and the install test reads the message and fails when the two disagree, so a release cannot move one copy without the other. The old carets already admitted the new releases; what changes is that a fresh install names the ones it is verified against. (`lib/src/cli/commands/magic_install_command.dart`, `install.yaml`, `doc/packages/magic-devtools.md`)
+
 ### Fixed
 
 - **`Migrator.run` was not atomic, and the state that produced is a host that never boots again.** It applied and recorded each migration in turn with no transaction anywhere, so a failure part way left that migration's earlier statements applied and its ledger row absent. The next launch re-ran it from its first statement, met the table it had already created, and failed identically. A host that migrates inside `Magic.init` before `runApp` has no UI to report that from, and the only repair is deleting the database.
@@ -63,14 +81,6 @@ All notable changes to this project will be documented in this file.
   The whole run is one transaction now, not each migration: a ledger recording one migration and not the next describes a schema nobody designed, and the host cannot learn which half it has. SQLite rolls DDL back like anything else, so this is one `BEGIN`.
 
   **A `SAVEPOINT` rather than a `BEGIN`**, which is what lets it nest inside a transaction the host opened itself. Verified in all three shapes: with no transaction open, inside one, and unwinding through `ROLLBACK TO`.
-
-  **BREAKING: a migration may no longer manage its own transaction.** `DB.beginTransaction`, `commit` and `rollback` are a documented pattern elsewhere, so a migration written that way was legitimate before this. A `commit()` inside `up()` closes the migrator's savepoint, which meant every later migration ran unprotected and the closing `RELEASE` threw AFTER every migration had succeeded and committed its ledger row: the caller saw a failure from a run that fully worked, and the retry found nothing pending. `run` detects it and throws naming the migration that broke the contract, rather than failing late and confusingly. That case is the one exception to "all of them, or none": the offending migration's statements and every earlier ledger row are already committed by the time the guard sees anything.
-
-- **BREAKING: `DB.transaction` answers a callback that closes the transaction itself, instead of failing confusingly or quietly.** The two branches differ on purpose.
-
-  On failure the rollback is skipped. There is a real error in flight and the only thing that matters is that it reaches the caller: `rollback()` would find nothing to unwind and throw `cannot rollback - no transaction is active` over the top, so the caller read a message about transactions in place of the cause.
-
-  On success it now throws, naming what happened. Skipping the commit the same way would be the worse bug: there is no error to protect on that branch, so silence buys nothing and costs the signal. A callback that commits half way and keeps writing ran everything after that point outside any transaction, and returning normally tells the caller the block was atomic when it was not.
 
   The tracking table is created before the savepoint, so a run that owns its transaction and fails still leaves somewhere to record the retry. A host that wrapped the call itself and rolls back takes the table with it, which is harmless because every entry point creates it again. The schema cache is cleared on the rollback path too, so nothing cached during an undone migration survives to describe schema that no longer exists.
 
