@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.31 | Updated: 2026-09-21 -->
+<!-- magic_starter v0.0.32 | Updated: 2026-09-22 -->
 
 # magic_starter Plugin
 
@@ -180,6 +180,9 @@ MagicStarter.useTheme(
       sidebarWidth: 280,
       sidebarClassName: 'h-full flex flex-col bg-zinc-900 border-r border-zinc-700',
       drawerBackgroundLightShade: 0.3, // drawer background opacity
+      navigationBreakpoint: 'sm', // sidebar from 640px instead of the default 'lg'
+      sidebarExpandedBreakpoint: 'lg', // icons only between the two
+      sidebarCompactWidth: 80, // the compact rail's width
     ),
   ),
 );
@@ -502,6 +505,7 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 | `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data). Pages through the endpoint since 0.0.28: it asks for the next page on scroll, resets its cursor through `WSelect.onOpen` when the menu reopens, and drops any response whose list epoch has moved. |
 | `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
 | `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide the mobile bottom nav for fullscreen routes |
+| `MagicStarterHideChrome` | Since 0.0.32. The same shape for the WHOLE shell: no sidebar, no drawer, no header, no bottom bar, no safe-area inset and no scroll container. The layout stays mounted, so its notification polling, its auth listeners and its route key survive. For a media player or a map, which sizes itself and cannot use the scroll container's unbounded height. |
 | `MagicStarterConfirmDialog` | Thin alias of `MSConfirmDialog`, kept for existing callers. New code writes `MSConfirmDialog`. |
 | `MagicStarterDialogShell` | Thin alias of `MSDialog` (sticky header/footer, scrollable body). New code writes `MSDialog`. |
 
@@ -512,6 +516,36 @@ Wrap a route's widget to hide the mobile bottom navigation bar in `MagicStarterA
 ```dart
 MagicStarterHideBottomNav(child: FullscreenEditorView())
 ```
+
+### MagicStarterHideChrome
+
+Since 0.0.32. Wrap a route group's layout to give the window to the child and keep the shell mounted:
+
+```dart
+MagicRoute.group(
+  layout: (child) => MagicStarterHideChrome(
+    child: MagicStarter.view.makeLayout('layout.app', child: child),
+  ),
+  layoutId: 'app.immersive',
+  routes: () { /* the player route */ },
+);
+```
+
+### The rail, since 0.0.32
+
+`MagicStarterAppLayout` no longer hardcodes `lg` as the point where the sidebar replaces the drawer plus
+bottom bar, and it can render the sidebar as an icon rail:
+
+| Field | Default | What it decides |
+|---|---|---|
+| `MagicStarterLayoutTheme.navigationBreakpoint` | `'lg'` | From which Wind breakpoint the persistent sidebar replaces the drawer and the bottom bar. Lower it for a television or a small window. |
+| `MagicStarterLayoutTheme.sidebarExpandedBreakpoint` | `'lg'` | From which breakpoint the sidebar carries labels. Between the two it is compact: icons only, every text label dropped, brand and user name included, because a label at the compact width is clipped rather than shortened. Equal to `navigationBreakpoint`, which is the shipped pair, means never compact. |
+| `MagicStarterLayoutTheme.sidebarCompactWidth` | `80` | The compact width. 80 rather than 72 because `MSTeamSelector`'s compact trigger measures exactly 72 and the sidebar's `border-r` takes one more pixel. |
+| `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
+
+Both breakpoint fields are Wind `screens` keys rather than pixel counts, and a name the theme does not
+carry throws a `StateError` naming the field and listing the valid keys. It used to answer false
+silently, which made `sidebarExpandedBreakpoint: 'large'` drop every label at every width.
 
 ## Session scope (cross-tenant leak guard)
 
