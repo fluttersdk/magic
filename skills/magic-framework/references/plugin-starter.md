@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.32 | Updated: 2026-09-22 -->
+<!-- magic_starter v0.0.33 | Updated: 2026-09-22 -->
 
 # magic_starter Plugin
 
@@ -541,6 +541,8 @@ bottom bar, and it can render the sidebar as an icon rail:
 | `MagicStarterLayoutTheme.navigationBreakpoint` | `'lg'` | From which Wind breakpoint the persistent sidebar replaces the drawer and the bottom bar. Lower it for a television or a small window. |
 | `MagicStarterLayoutTheme.sidebarExpandedBreakpoint` | `'lg'` | From which breakpoint the sidebar carries labels. Between the two it is compact: icons only, every text label dropped, brand and user name included, because a label at the compact width is clipped rather than shortened. Equal to `navigationBreakpoint`, which is the shipped pair, means never compact. |
 | `MagicStarterLayoutTheme.sidebarCompactWidth` | `80` | The compact width. 80 rather than 72 because `MSTeamSelector`'s compact trigger measures exactly 72 and the sidebar's `border-r` takes one more pixel. |
+| `MagicStarterLayoutTheme.contentClassName` | `'flex-1 overflow-y-auto'` | Since 0.0.33. The box the route child is handed. The default scrolls, which hands the child an UNBOUNDED height: a fill-shaped screen (an `h-full` column with a `flex-1` body that scrolls internally) then renders nothing, with wind asserting "h-full on a child inside a vertical scroll resolves to an unbounded height" in debug and `RenderPointerListener object was given an infinite size` in release. A host that owns its own scrolling sets `'flex-1 min-h-0'`. |
+| `MagicStarterLayoutTheme.contentScrollPrimary` | `true` | Since 0.0.33. Follows `contentClassName`: a content area that no longer scrolls must not claim the primary scroll position, and a horizontal one must not attach its viewport to the vertical primary controller. |
 | `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
 
 Both breakpoint fields are Wind `screens` keys rather than pixel counts, and a name the theme does not
