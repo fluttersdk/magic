@@ -284,6 +284,16 @@ class MagicRouter {
   GoRouter _buildRouter() {
     _assertMiddlewareResolvable();
 
+    // A `.stacked()` route is PUSHED by `to()`, and go_router reports a push to
+    // the engine under the address of the page beneath it unless this is on.
+    // On the web that is the address bar: a detail screen kept the list's URL
+    // and could not be copied, shared or reloaded. go_router discourages the
+    // flag because a pushed page's URL is not always deep-linkable; here every
+    // route is a full path the router matches on its own, stacked or not, so
+    // the reported address always reopens the screen. Global to go_router and
+    // read only on the web, so it is set where the one router is built.
+    GoRouter.optionURLReflectsImperativeAPIs = true;
+
     return GoRouter(
       navigatorKey: navigatorKey,
       initialLocation: _initialLocation,

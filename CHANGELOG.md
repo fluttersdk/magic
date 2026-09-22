@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `stacked()` route owns the browser's address on the web.** `to()` pushes a stacked route, and go_router reports a push under the address of the page beneath it unless `GoRouter.optionURLReflectsImperativeAPIs` is on, so opening a detail screen left the address bar on the list and the page could not be copied, shared or reloaded. The router now sets the flag when it is built. go_router discourages it because a pushed URL is not always deep-linkable; every Magic route is a full path the router matches on its own, so the reported address always reopens the screen. Web only. (`lib/src/routing/magic_router.dart`, `doc/basics/routing.md`)
+
 ## [0.0.16] - 2026-09-22
 
 ### Changed
