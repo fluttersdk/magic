@@ -400,10 +400,11 @@ class Pick {
   /// it) and stats the file when there is not, so it costs I/O only where the
   /// alternative was no answer at all.
   ///
-  /// Every shipped `length()` implementation returns 0 when that stat throws,
-  /// so a file removed or made unreadable between the pick and this call maps
-  /// to a size of 0 rather than to null. Callers guarding an upload limit read
-  /// 0 as "well under it"; see the same warning on [MagicFile.size].
+  /// A file removed or made unreadable between the pick and this call maps to
+  /// a null size under file_picker 13 and to 0 under file_picker 12, whose
+  /// `length()` returns 0 when the stat throws. The constraint admits both, so
+  /// callers guarding an upload limit must treat both as unknown; see the same
+  /// warning on [MagicFile.size].
   static Future<MagicFile> _platformFileToMagicFile(PlatformFile file) async {
     return MagicFile(
       path: file.path,

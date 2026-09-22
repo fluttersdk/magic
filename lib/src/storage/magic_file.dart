@@ -40,9 +40,10 @@ class MagicFile {
 
   /// The file size in bytes.
   ///
-  /// On a file that came from `Pick`, 0 can mean "the size could not be read"
-  /// as well as "empty": the platform pickers swallow a failing stat and answer
-  /// 0. Treat 0 as unknown before letting it pass a maximum-size check.
+  /// On a file that came from `Pick`, a size that could not be read is null
+  /// under file_picker 13 and 0 under file_picker 12, whose pickers swallow a
+  /// failing stat. magic accepts both majors, so treat null and 0 alike as
+  /// unknown before letting either pass a maximum-size check.
   final int? size;
 
   /// The MIME type (e.g., 'image/jpeg').
