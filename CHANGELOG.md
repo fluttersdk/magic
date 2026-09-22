@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.16] - 2026-09-22
+
+### Changed
+
+- **`file_picker` widens from `^12.2.0` to `>=12.2.0 <14.0.0`, so a fresh `pub get` resolves 13.** v13 removes the parameters v12 deprecated in its federated rewrite (`allowMultiple`, `withData`, `withReadStream`, `readSequential`, `lockParentWindow`, `cancelUploadOnWindowBlur`, `androidSafOptions`), and `Pick` passes none of them. The one change a consumer can see is `PlatformFile.length()`, now `Future<int?>`: a file whose size cannot be read answers null on 13 where 12 answered 0. `MagicFile.size` was already nullable, so nothing stops compiling; the size warnings on `MagicFile.size` and `Pick`'s converter now name both answers, and an upload-limit guard should treat null and 0 alike as unknown. Keeping 12 in the range leaves an app that pins it directly resolvable. (`pubspec.yaml`, `lib/src/storage/magic_file.dart`, `lib/src/facades/pick.dart`) (#181)
+
+- **The `fluttersdk_wind` floor moves `^1.6.2` to `^1.6.3`.** The old range already admitted 1.6.3, so a fresh `pub get` resolves nothing differently; what changes is that the floor names the release this package is verified against. 1.6.3 makes `bg-transparent` and the other `*-transparent` tokens resolve for the first time, so a className that carried one as dead weight now paints it, and a checked `WCheckbox` sheds its outline. (`pubspec.yaml`, `CLAUDE.md`)
+
+- **`magic:install --with-devtools` writes this batch's releases:** `magic_devtools ^0.0.6` and `fluttersdk_telescope ^0.0.7`, with `fluttersdk_dusk ^0.0.15` unchanged. The installer map, the post-install message and the package doc move together, and the install test fails when the first two disagree. (`lib/src/cli/commands/magic_install_command.dart`, `install.yaml`, `doc/packages/magic-devtools.md`)
+
+- **The skill's plugin reference pages name this batch's releases**, and the starter page covers what magic_starter 0.0.32 to 0.0.34 changed for an adopter: the compact rail, the content area's `contentClassName` and `contentScrollPrimary`, the collapsible sidebar with its two translation keys, the centred compact brand, and the guest entries `RedirectIfAuthenticated` now lets through. Stamps: magic_notifications v0.3.4, magic_deeplink v0.1.3, magic_social_auth v0.0.5, magic_payments v0.0.4, magic_devtools v0.0.6, magic_starter v0.0.35; the floor prose in the notifications, devtools, payments and starter pages moves with them. (`skills/magic-framework/`) (#179, #180, #182, #183)
+
 ## [0.0.15] - 2026-09-21
 
 ### Breaking

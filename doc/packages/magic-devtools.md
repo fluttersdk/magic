@@ -52,9 +52,9 @@ Add `magic_devtools` to your `pubspec.yaml`, plus whichever tooling packages you
 
 ```yaml
 dependencies:
-  magic_devtools: ^0.0.5
+  magic_devtools: ^0.0.6
   fluttersdk_dusk: ^0.0.15       # add if you use dusk
-  fluttersdk_telescope: ^0.0.6   # add if you use telescope
+  fluttersdk_telescope: ^0.0.7   # add if you use telescope
 ```
 
 `magic_devtools` depends on `magic`, `fluttersdk_dusk`, and `fluttersdk_telescope` directly, so the tooling packages resolve through `magic_devtools` rather than transitively through `magic` itself.
