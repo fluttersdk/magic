@@ -546,7 +546,7 @@ bottom bar, and it can render the sidebar as an icon rail:
 | `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
 | `MagicStarterLayoutTheme.sidebarCollapsible` | `false` | Since 0.0.34. A toggle above the user menu collapses the labelled sidebar to the compact form and back. Shown only at or above `sidebarExpandedBreakpoint`, where an expansion is possible. The choice is remembered through `Cache` under `magic_starter.sidebar_collapsed` (ten year TTL, since the cache has no `forever` and its default is an hour) when the host binds a cache, and in memory otherwise. |
 | `MagicStarterLayoutTheme.sidebarCollapsedByDefault` | `false` | Since 0.0.34. The state before the viewer has chosen; a remembered choice wins. Ignored unless `sidebarCollapsible` is set. |
-| `MagicStarterNavigationTheme.compactBrandBuilder` | `null` | Since 0.0.34. What the compact rail's brand bar shows, for a wordmark that does not fit 80 pixels. Unset, the rail shows `brandBuilder`. |
+| `MagicStarterNavigationTheme.compactBrandBuilder` | `null` | Since 0.0.34. What the compact rail's brand bar shows, for a wordmark that does not fit 80 pixels. Unset, the rail shows `brandBuilder`. The rail's bar appends `justify-around` to `brandBarClassName`, which centres a lone brand on the icon line and keeps Wind's own child wrapping, so a brand wider than the rail stays bounded. A custom widget whose root is a `flex-1` `WDiv` is still wrapped and throws "Incorrect use of ParentDataWidget": give the brand no flex share at its root. |
 
 The toggle reads `nav.collapse_sidebar` and `nav.expand_sidebar`. Both ship in the install stub; a host
 installed before 0.0.34 adds them to its own language files, or the labelled toggle shows the raw key.
@@ -593,7 +593,9 @@ Two guards ship ready to register as the `auth` and `guest` aliases in the app's
 | Middleware | Redirects | Destination |
 |:-----------|:----------|:------------|
 | `EnsureAuthenticated` | a visitor away from a protected page | `MagicStarterConfig.loginRoute()` |
-| `RedirectIfAuthenticated` | a signed-in user away from a guest page | `MagicStarterConfig.homeRoute()` |
+| `RedirectIfAuthenticated` | a signed-in account away from a guest page | `MagicStarterConfig.homeRoute()` |
+
+Since 0.0.34 `RedirectIfAuthenticated` lets a user whose `is_guest` is true through: a guest session is signed in, and the login and registration pages are where it becomes an account. From the same release a guest gets Sign in and Create account at the top of `MSUserProfileDropdown` (the menu reads `is_guest`) and a Sign in row under the settings hub's upgrade row. The hub shows both of its guest rows when `Gate.denies('starter.delete-account')`, which is how the hub tells a guest: that ability is granted only when `is_guest != true` (see Gate Abilities), so it is denied for a guest and the rows appear. All of this only ever meets a guest when `features.guest_auth` is on, since nothing else creates one; on a default install (the flag is `false`) no user carries `is_guest` and none of it shows. Create account opens the profile route's in-place upgrade, so the guest keeps its own rows. `MagicStarterGuestAuthController.doGuestLogin` goes home without a request when the user is already a guest, because a second `POST /auth/guest` revokes every token of a returning guest, including one a host keeps to claim the guest's data at sign-in.
 
 Both override `redirectTarget` (a pre-build synchronous redirect) rather than `handle` (a post-build remount), so a guarded page never mounts for someone who is about to be sent away. Each one guards its own destination so the redirect cannot loop, which matters because go_router raises after more than five successive redirects.
 
