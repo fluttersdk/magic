@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.33 | Updated: 2026-09-22 -->
+<!-- magic_starter v0.0.34 | Updated: 2026-09-22 -->
 
 # magic_starter Plugin
 
@@ -544,6 +544,12 @@ bottom bar, and it can render the sidebar as an icon rail:
 | `MagicStarterLayoutTheme.contentClassName` | `'flex-1 overflow-y-auto'` | Since 0.0.33. The box the route child is handed. The default scrolls, which hands the child an UNBOUNDED height: a fill-shaped screen (an `h-full` column with a `flex-1` body that scrolls internally) then renders nothing, with wind asserting "h-full on a child inside a vertical scroll resolves to an unbounded height" in debug and `RenderPointerListener object was given an infinite size` in release. A host that owns its own scrolling sets `'flex-1 min-h-0'`. |
 | `MagicStarterLayoutTheme.contentScrollPrimary` | `true` | Since 0.0.33. Follows `contentClassName`: a content area that no longer scrolls must not claim the primary scroll position, and a horizontal one must not attach its viewport to the vertical primary controller. |
 | `MagicStarterNavigationTheme.focusItemClassName` | `''` | Applied to every sidebar, drawer and bottom-bar item, so a host driven by arrow keys or a remote can light the destination that holds focus. Tokens carry the `focus:` prefix. |
+| `MagicStarterLayoutTheme.sidebarCollapsible` | `false` | Since 0.0.34. A toggle above the user menu collapses the labelled sidebar to the compact form and back. Shown only at or above `sidebarExpandedBreakpoint`, where an expansion is possible. The choice is remembered through `Cache` under `magic_starter.sidebar_collapsed` (ten year TTL, since the cache has no `forever` and its default is an hour) when the host binds a cache, and in memory otherwise. |
+| `MagicStarterLayoutTheme.sidebarCollapsedByDefault` | `false` | Since 0.0.34. The state before the viewer has chosen; a remembered choice wins. Ignored unless `sidebarCollapsible` is set. |
+| `MagicStarterNavigationTheme.compactBrandBuilder` | `null` | Since 0.0.34. What the compact rail's brand bar shows, for a wordmark that does not fit 80 pixels. Unset, the rail shows `brandBuilder`. |
+
+The toggle reads `nav.collapse_sidebar` and `nav.expand_sidebar`. Both ship in the install stub; a host
+installed before 0.0.34 adds them to its own language files, or the labelled toggle shows the raw key.
 
 Both breakpoint fields are Wind `screens` keys rather than pixel counts, and a name the theme does not
 carry throws a `StateError` naming the field and listing the valid keys. It used to answer false
