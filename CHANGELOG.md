@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.18] - 2026-09-23
+
 ### Added
 
 - **`BaseGuard.startSession(user, token:, refreshToken:)`** persists the tokens, then sets the in-memory token and the user in one synchronous step, then caches the user. The three built-in guards' `login()` use it, and a custom guard should too, in place of `storeToken` followed by `setUser`: between those two calls the guard held the new token under the previous account, and a boot sync answering in that window applied the previous account and dispatched `AuthRestored` for it. `storeToken` now also persists the refresh token before the in-memory token moves. (`lib/src/auth/guards/`, `doc/security/authentication.md`, `skills/magic-framework/`)
