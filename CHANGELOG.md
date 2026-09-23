@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`BaseGuard.startSession(user, token:, refreshToken:)`** persists the tokens, then sets the in-memory token and the user in one synchronous step, then caches the user. The three built-in guards' `login()` use it, and a custom guard should too, in place of `storeToken` followed by `setUser`: between those two calls the guard held the new token under the previous account, and a boot sync answering in that window applied the previous account and dispatched `AuthRestored` for it. `storeToken` now also persists the refresh token before the in-memory token moves. (`lib/src/auth/guards/`, `doc/security/authentication.md`, `skills/magic-framework/`)
+
 ### Changed
 
 - **Since 0.0.17, a guard that does not extend `BaseGuard` is logged out on a 401 only when the request carried the header `auth.token.header` names.** Before 0.0.17 every 401 ran the refresh-or-logout ladder whatever the request carried. A guard outside `BaseGuard` keeps no token the interceptor can compare against, so it is now judged on presence alone, and a cookie-based guard, or one that sends its credential under a different header, stays signed in while its calls return 401. Such a guard has to end its own session. This entry is late: 0.0.17 shipped the change without saying so. (`lib/src/auth/auth_interceptor.dart`, `doc/security/authentication.md`, `skills/magic-framework/`)

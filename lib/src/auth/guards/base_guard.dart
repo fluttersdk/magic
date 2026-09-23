@@ -36,9 +36,7 @@ import '../events/auth_events.dart';
 ///
 ///   @override
 ///   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-///     await storeToken(data['token']);
-///     await cacheUser(user);
-///     setUser(user);
+///     await startSession(user, token: data['token'] as String?);
 ///   }
 /// }
 /// ```
@@ -116,9 +114,44 @@ abstract class BaseGuard implements Guard {
   String? get cachedToken => _cachedToken;
 
   /// Store token (and optional refresh token).
+  ///
+  /// Both are persisted before the in-memory token moves, so nothing reading
+  /// [cachedToken] sees the new token while its refresh token is still being
+  /// written. A sign-in goes through [startSession] instead, which also sets
+  /// the user in the same step.
   Future<void> storeToken(String token, [String? refreshToken]) async {
-    await Vault.put(tokenKey, token);
+    await _persistTokens(token, refreshToken);
     _cachedToken = token;
+  }
+
+  /// Open a session: persist [token] (when given) and its [refreshToken],
+  /// then set [user] and the in-memory token together, then cache the user.
+  ///
+  /// The token and the user move in one synchronous step on purpose. A boot
+  /// sync still in the air decides whether its answer is stale by whether the
+  /// session changed ([stateNotifier]) and whether the token did, and a
+  /// sign-in that stored its token first and set its user a few awaits later
+  /// left a window where the guard held the NEW token under the OLD account:
+  /// a sync answering then applied the previous account and dispatched
+  /// [AuthRestored] for it. Use this from [login] rather than [storeToken]
+  /// followed by [setUser].
+  @protected
+  Future<void> startSession(
+    Authenticatable user, {
+    String? token,
+    String? refreshToken,
+  }) async {
+    if (token != null) {
+      await _persistTokens(token, refreshToken);
+      _cachedToken = token;
+    }
+    setUser(user);
+
+    await cacheUser(user);
+  }
+
+  Future<void> _persistTokens(String token, String? refreshToken) async {
+    await Vault.put(tokenKey, token);
 
     if (refreshToken != null && refreshTokenKey != null) {
       await Vault.put(refreshTokenKey!, refreshToken);

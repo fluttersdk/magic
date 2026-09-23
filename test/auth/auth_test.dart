@@ -140,6 +140,27 @@ class _HeldDriver extends FakeNetworkDriver {
   }
 }
 
+/// A vault whose write of the refresh token waits for [gate], so a test can
+/// act in the middle of a sign-in's token writes.
+class _HeldRefreshVault extends FakeVaultService {
+  _HeldRefreshVault(this.gate, super.initialValues);
+
+  final Completer<void> gate;
+
+  /// Completes when the refresh-token write has started and is waiting.
+  final Completer<void> refreshWriteStarted = Completer<void>();
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (key == 'refresh_token') {
+      refreshWriteStarted.complete();
+      await gate.future;
+    }
+
+    return super.put(key, value);
+  }
+}
+
 /// A driver whose GET answers the way [DioNetworkDriver] answers a transport
 /// failure: no response, so `statusCode` is 0 rather than anything the server
 /// said.
@@ -720,6 +741,63 @@ void main() {
         expect(await Vault.get('auth_token'), 'rotated-token');
       });
     });
+
+    test(
+      'a sign-in never shows its new token under the previous account',
+      () async {
+        // `login()` used to store the token, write the refresh token, and set
+        // the user only afterwards. A boot sync answering inside that window
+        // saw a new token under an unchanged session, read it as a refresh,
+        // and set the PREVIOUS account against the NEW token, dispatching
+        // `AuthRestored` for it. The refresh-token write is held open here so
+        // the sync lands exactly there.
+        Log.fake();
+        final refreshWrite = Completer<void>();
+        final vault = _HeldRefreshVault(refreshWrite, {
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Old Account'}),
+        });
+        Magic.app.setInstance('vault', vault);
+        final gate = Completer<void>();
+        Magic.singleton(
+          'network',
+          () => _HeldDriver(
+            gate,
+            MagicResponse(
+              data: {'id': 7, 'name': 'Old Account'},
+              statusCode: 200,
+            ),
+          ),
+        );
+
+        final guard = BearerTokenGuard(
+          refreshTokenKey: 'refresh_token',
+          userEndpoint: '/user',
+          userFactory: (data) => MockUser()..setRawAttributes(data, sync: true),
+        );
+        await guard.restore();
+
+        final seen = <(String?, Object?)>[];
+        guard.stateNotifier.addListener(
+          () => seen.add((guard.cachedToken, guard.id())),
+        );
+
+        final signingIn = guard.login(
+          {'token': 'new-token', 'refresh_token': 'new-refresh'},
+          MockUser()
+            ..setRawAttributes({'id': 8, 'name': 'New Account'}, sync: true),
+        );
+        await vault.refreshWriteStarted.future;
+        gate.complete();
+        await Future<void>.delayed(Duration.zero);
+        refreshWrite.complete();
+        await signingIn;
+
+        expect(seen, isNot(contains(('new-token', 7))));
+        expect(guard.user<MockUser>()?.name, 'New Account');
+        expect(guard.cachedToken, 'new-token');
+      },
+    );
 
     test('a late 200 after a sign-out does not sign the user back in', () async {
       // The same shape with the session ended rather than replaced: the sync's

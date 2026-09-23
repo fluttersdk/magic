@@ -210,15 +210,19 @@ class MyGuard extends BaseGuard {
 
   @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-    await storeToken(data['token'], data['refresh_token']);
-    await cacheUser(user);
-    setUser(user);
+    await startSession(
+      user,
+      token: data['token'] as String?,
+      refreshToken: data['refresh_token'] as String?,
+    );
   }
 }
 
 // Register in your auth config
 Auth.manager.extend('myguard', (config) => MyGuard());
 ```
+
+`startSession` persists the tokens, then sets the in-memory token and the user in one step, then caches the user. Prefer it to `storeToken` followed by `setUser`: between those two calls the guard holds the new token under the previous account, and a boot-time user sync that answers in that window applies the previous account.
 
 ### Firebase Guard Example
 
@@ -231,9 +235,7 @@ class FirebaseGuard extends BaseGuard {
   @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
     final idToken = await _auth.currentUser?.getIdToken();
-    if (idToken != null) await storeToken(idToken);
-    await cacheUser(user);
-    setUser(user);
+    await startSession(user, token: idToken);
   }
 
   @override

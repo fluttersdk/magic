@@ -23,12 +23,11 @@ class BasicAuthGuard extends BaseGuard {
     final username = data['username'] as String?;
     final password = data['password'] as String?;
 
-    if (username != null && password != null) {
-      final credentials = base64Encode(utf8.encode('$username:$password'));
-      await storeToken(credentials);
-    }
-    setUser(user);
-    await cacheUser(user);
+    final credentials = username != null && password != null
+        ? base64Encode(utf8.encode('$username:$password'))
+        : null;
+
+    await startSession(user, token: credentials);
     Log.info('Auth: Basic auth login');
   }
 }
