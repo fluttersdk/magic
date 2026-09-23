@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart' show FormData;
+
 import '../network/magic_response.dart';
 import '../network/contracts/magic_network_interceptor.dart';
 import '../facades/auth.dart';
@@ -53,19 +55,17 @@ class AuthInterceptor extends MagicNetworkInterceptor {
   /// header at all, and its refusal arrives after the session exists: read as
   /// a rejection, it ends a session the server never saw. Measured in a
   /// browser against a consumer app, where an unauthenticated call made during
-  /// bootstrap logged out the guest session that had just been opened. Such a
-  /// request is left refused rather than replayed, because it may have been
-  /// anonymous on purpose: a failed sign-in answers 401 too.
+  /// bootstrap logged out the guest session that had just been opened.
   ///
   /// A request that carried an OLDER token is the same race with a credential
   /// in it, so against a [BaseGuard] the presented value has to be the one
-  /// [onRequest] would write now. When it is not and the guard holds a newer
-  /// token, the request raced a sign-in or a rotation, and the only answer
-  /// that says anything about the session as it stands is the one the server
-  /// gives the newer token: the request is replayed once with it, with no
-  /// refresh and no logout, and the replay's own 401 is then judged here like
-  /// any other. A guard that keeps no token of its own can only be judged on
-  /// whether one was presented at all.
+  /// [onRequest] would write now. Such a request is handed back refused and
+  /// NOT replayed with the newer token: from here a rotation and a different
+  /// account signing in look identical, and a replay would answer a screen
+  /// still rendering one account with another account's data. The caller that
+  /// asked is the one that knows whether its question still stands. A guard
+  /// that keeps no token of its own can only be judged on whether one was
+  /// presented at all.
   ///
   /// This is the sibling of the rule [BaseGuard] already applies to a
   /// transport failure: only the server may end a session, and only about a
@@ -75,18 +75,11 @@ class AuthInterceptor extends MagicNetworkInterceptor {
     if (!error.isUnauthorized) return error;
 
     final request = error.request;
-    final presented = _presentedCredential(request);
-    if (request == null || presented == null) return error;
+    if (request == null || _presentedCredential(request) == null) return error;
 
-    if (Auth.guard() is BaseGuard) {
-      final current = _currentCredential;
-      if (current == null) return error;
-
-      if (presented != current) {
-        Log.info('Auth: Request raced a token change, replaying it');
-
-        return await _retryRequest(_withCredential(request, current)) ?? error;
-      }
+    if (Auth.guard() is BaseGuard &&
+        _presentedCredential(request) != _currentCredential) {
+      return error;
     }
 
     return _refreshOrLogout(error, request);
@@ -151,18 +144,29 @@ class AuthInterceptor extends MagicNetworkInterceptor {
     return token == null || token.isEmpty ? null : '$_prefix $token';
   }
 
-  /// [request] with [credential] as its only auth header.
+  /// A copy of [request] carrying [credential] as its only auth header.
   ///
-  /// The refused request's map is a plain, case-sensitive copy of Dio's, so a
-  /// key the caller spelled differently would survive beside the one written
-  /// here and carry the refused token as well.
+  /// A copy, so the refused request handed back when the retry yields nothing
+  /// still shows the header it was actually sent with. The refused request's
+  /// map is a plain, case-sensitive copy of Dio's, so a key the caller spelled
+  /// differently has to go too, or it would carry the refused token beside
+  /// the fresh one. A [FormData] body is single use (Dio throws on a second
+  /// `finalize()`), so an upload's body is cloned rather than re-sent.
   MagicRequest _withCredential(MagicRequest request, String credential) {
     final header = _header.toLowerCase();
-    request.headers
-      ..removeWhere((key, _) => key.toLowerCase() == header)
-      ..[_header] = credential;
+    final data = request.data;
 
-    return request;
+    return MagicRequest(
+      url: request.url,
+      method: request.method,
+      headers: {
+        for (final entry in request.headers.entries)
+          if (entry.key.toLowerCase() != header) entry.key: entry.value,
+        _header: credential,
+      },
+      data: data is FormData ? data.clone() : data,
+      queryParameters: request.queryParameters,
+    );
   }
 
   /// Retry the original request.

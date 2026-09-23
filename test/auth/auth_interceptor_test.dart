@@ -119,24 +119,21 @@ void main() {
         // The same race with a credential in it: a request dispatched with the
         // token restored at boot is refused, a sign-in stores a new token while
         // that refusal is in flight, and the late 401 is about the old token.
-        // Ending the session on it ends one the server never judged; the
-        // request is replayed once with the token the guard holds now.
+        // Ending the session on it ends one the server never judged. It is
+        // not replayed with the new token either: a rotation and a different
+        // account signing in look the same from here.
         final http = Http.fake();
 
         final result = await AuthInterceptor().onError(
           _unauthorized(<String, dynamic>{
-            'authorization': 'Bearer stale-token',
+            'Authorization': 'Bearer stale-token',
           }),
         );
 
-        expect(result, isA<MagicResponse>());
+        expect(result, isA<MagicError>());
         expect(guard.check(), isTrue);
         expect(guard.cachedToken, 'fresh-token');
-        final sent = http.recorded.single.$1.headers.entries
-            .where((entry) => entry.key.toLowerCase() == 'authorization')
-            .map((entry) => entry.value)
-            .toList();
-        expect(sent, <String>['Bearer fresh-token']);
+        http.assertNothingSent();
       },
     );
 
@@ -195,4 +192,39 @@ void main() {
         .toList();
     expect(sent, <String>['Bearer rotated-token']);
   });
+
+  test(
+    'a retry that yields nothing hands back the request as it was sent',
+    () async {
+      // The retry used to rewrite the refused request's own header map, so
+      // the error returned when the retry failed advertised a token that
+      // request never carried.
+      MagicApp.reset();
+      Magic.flush();
+      Log.fake();
+      Vault.fake();
+      Http.fake((MagicRequest _) => throw StateError('offline'));
+      Config.set('auth', <String, dynamic>{
+        'defaults': <String, dynamic>{'guard': 'api'},
+        'guards': <String, dynamic>{
+          'api': <String, dynamic>{'driver': 'rotating'},
+        },
+      });
+      Magic.singleton('auth', AuthManager.new);
+      Auth.manager
+        ..extend('rotating', (_) => _RotatingGuard())
+        ..forgetGuards();
+      await (Auth.guard() as BaseGuard).storeToken('old-token');
+
+      final result = await AuthInterceptor().onError(
+        _unauthorized(<String, dynamic>{'Authorization': 'Bearer old-token'}),
+      );
+
+      expect(result, isA<MagicError>());
+      expect(
+        (result as MagicError).request!.headers['Authorization'],
+        'Bearer old-token',
+      );
+    },
+  );
 }

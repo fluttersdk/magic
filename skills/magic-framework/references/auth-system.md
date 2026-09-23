@@ -310,7 +310,7 @@ The `AuthInterceptor` automatically handles token refresh on 401:
 
 A 401 on a request that carried no auth header, or a token other than the one the guard holds now, does none of this. A call dispatched before a sign-in completed goes out anonymous and its refusal lands after the session exists, so reading it as a rejection logs out a session the server never saw. Only a credential the server was actually shown can end one.
 
-A request refused on an older token while the guard holds a newer one is replayed once with the current token (no refresh, no logout); a 401 on the replay runs the ladder. A request with no token is never replayed. A guard that does not extend `BaseGuard` is judged on whether the `auth.token.header` header was present at all, so a cookie-based or differently headered guard stays signed in on a 401 and must end its own session.
+A request refused on an older token while the guard holds a newer one keeps the session but is handed back refused, never replayed: a rotation and a different account signing in look the same from the interceptor, so the caller re-issues if its request still stands. A guard that does not extend `BaseGuard` is judged on whether the `auth.token.header` header was present at all, so a cookie-based or differently headered guard stays signed in on a 401 and must end its own session.
 
 Manual refresh:
 
