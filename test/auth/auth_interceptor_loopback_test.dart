@@ -274,4 +274,47 @@ void main() {
       expect(restoring.id(), 9);
     },
   );
+
+  test(
+    'a cold start whose refreshed token is refused too ends the session',
+    () async {
+      // The same refresh-and-retry, but the server refuses the refreshed
+      // token as well (a suspended or unverified account answers 403). The
+      // sync's refusal arrives under a token it was not sent with, and
+      // reading that alone as "about the old token" left the viewer holding
+      // a token the server had just refused. Re-checked once under the
+      // current token, the refusal is a verdict and the session ends, as it
+      // did in 0.0.17.
+      final restoring = _RefreshingGuard();
+      Config.set('auth', <String, dynamic>{
+        'defaults': <String, dynamic>{'guard': 'api'},
+        'guards': <String, dynamic>{
+          'api': <String, dynamic>{'driver': 'refreshing'},
+        },
+      });
+      Auth.manager
+        ..extend('refreshing', (_) => restoring)
+        ..forgetGuards();
+      await Vault.put('auth_token', 'expired-token');
+      await Vault.put('refresh_token', 'refresh-me');
+      panel.answerWith = (path, authorization) =>
+          switch ((path, authorization)) {
+            ('/refresh', _) => (200, '{"token": "new-token"}'),
+            ('/user', 'Bearer new-token') => (403, '{}'),
+            _ => null,
+          };
+
+      await restoring.restore();
+
+      expect(panel.presented, [
+        'Bearer expired-token',
+        'Bearer expired-token',
+        'Bearer new-token',
+        'Bearer new-token',
+      ]);
+      expect(restoring.check(), isFalse);
+      expect(restoring.cachedToken, isNull);
+      expect(await Vault.get('auth_token'), isNull);
+    },
+  );
 }

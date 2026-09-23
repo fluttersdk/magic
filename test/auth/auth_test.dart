@@ -700,17 +700,22 @@ void main() {
       // speaking about a token nobody holds any more.
       late _CacheFirstGuard guard;
 
-      Future<void> rotateWhileHeld(MagicResponse response) async {
+      Future<void> rotateWhileHeld(
+        MagicResponse response, {
+        MagicResponse? recheck,
+      }) async {
         Log.fake();
         Vault.fake({
           'auth_token': 'old-token',
           'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
         });
         guard = _CacheFirstGuard();
+        var calls = 0;
         Magic.singleton(
           'network',
           () => FakeNetworkDriver(
             stubs: (MagicRequest _) async {
+              if (calls++ > 0) return recheck!;
               await guard.storeToken('rotated-token');
 
               return response;
@@ -734,11 +739,34 @@ void main() {
         );
       });
 
-      test('a 401 about the replaced token keeps the session', () async {
-        await rotateWhileHeld(MagicResponse(data: null, statusCode: 401));
+      test(
+        'a 401 about the replaced token is re-checked under the current one',
+        () async {
+          // The refusal is about the token another request's refresh
+          // replaced, so it ends nothing by itself; the current token's
+          // answer decides.
+          await rotateWhileHeld(
+            MagicResponse(data: null, statusCode: 401),
+            recheck: MagicResponse(
+              data: {'id': 7, 'name': 'Fresh User'},
+              statusCode: 200,
+            ),
+          );
 
-        expect(guard.check(), isTrue);
-        expect(await Vault.get('auth_token'), 'rotated-token');
+          expect(guard.check(), isTrue);
+          expect(guard.user<MockUser>()?.name, 'Fresh User');
+          expect(await Vault.get('auth_token'), 'rotated-token');
+        },
+      );
+
+      test('a re-check the server refuses too ends the session', () async {
+        await rotateWhileHeld(
+          MagicResponse(data: null, statusCode: 401),
+          recheck: MagicResponse(data: null, statusCode: 401),
+        );
+
+        expect(guard.check(), isFalse);
+        expect(await Vault.get('auth_token'), isNull);
       });
     });
 
@@ -827,6 +855,65 @@ void main() {
 
       expect(guard.check(), isFalse);
       expect(await Vault.get('auth_user'), isNull);
+    });
+  });
+
+  group('built-in guard login', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+      Log.fake();
+      Vault.fake();
+    });
+
+    tearDown(() {
+      Vault.unfake();
+      Log.unfake();
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    MockUser signedIn() =>
+        MockUser()
+          ..setRawAttributes({'id': 3, 'name': 'Signed In'}, sync: true);
+
+    test('BearerTokenGuard stores both tokens and the user', () async {
+      final guard = BearerTokenGuard(refreshTokenKey: 'refresh_token');
+
+      await guard.login({
+        'token': 'bearer-token',
+        'refresh_token': 'refresh-token',
+      }, signedIn());
+
+      expect(guard.cachedToken, 'bearer-token');
+      expect(await Vault.get('auth_token'), 'bearer-token');
+      expect(await Vault.get('refresh_token'), 'refresh-token');
+      expect(guard.id(), 3);
+      expect(
+        jsonDecode((await Vault.get('auth_user'))!),
+        containsPair('name', 'Signed In'),
+      );
+    });
+
+    test('BasicAuthGuard stores the encoded credentials', () async {
+      final guard = BasicAuthGuard();
+      final expected = base64Encode(utf8.encode('ada:secret'));
+
+      await guard.login({'username': 'ada', 'password': 'secret'}, signedIn());
+
+      expect(guard.cachedToken, expected);
+      expect(await Vault.get('basic_auth_credentials'), expected);
+      expect(guard.id(), 3);
+    });
+
+    test('ApiKeyGuard stores the key', () async {
+      final guard = ApiKeyGuard();
+
+      await guard.login({'api_key': 'sk_test_123'}, signedIn());
+
+      expect(guard.cachedToken, 'sk_test_123');
+      expect(await Vault.get('api_key'), 'sk_test_123');
+      expect(guard.id(), 3);
     });
   });
 }

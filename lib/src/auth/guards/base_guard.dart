@@ -391,9 +391,13 @@ abstract class BaseGuard implements Guard {
   /// a 200 is still applied: the interceptor's own refresh-and-retry of this
   /// very request lands here as a 200 under a new token, and on a cold start
   /// with no cached user that 200 is the only thing that can sign the user
-  /// in. A 401 under a rotated token is about the token it replaced, whether
-  /// another request rotated it or the retry was refused, so it ends nothing.
-  Future<void> _syncUserFromApi() async {
+  /// in. A 401 or 403 under a rotated token is about the token it replaced,
+  /// so it ends nothing by itself: the sync is re-checked once under the
+  /// current token ([afterRotation]), and that answer decides. Keeping the
+  /// session on the first refusal alone left a viewer holding a token the
+  /// server had just refused, when the interceptor's own refresh-and-retry of
+  /// this request was the thing refused.
+  Future<void> _syncUserFromApi({bool afterRotation = false}) async {
     if (userEndpoint == null || userFactory == null) {
       Log.debug(
         'Auth: Skipping API sync '
@@ -425,13 +429,13 @@ abstract class BaseGuard implements Guard {
         // away a valid session because the phone went through a tunnel, and
         // said "Token invalid" about a server that never spoke.
         if (response.statusCode == 401 || response.statusCode == 403) {
-          if (cachedToken != sentToken) {
+          if (cachedToken != sentToken && !afterRotation) {
             Log.debug(
               'Auth: user sync refused a token the guard has since replaced; '
-              'keeping the session',
+              're-checking under the current one',
             );
 
-            return;
+            return await _syncUserFromApi(afterRotation: true);
           }
 
           Log.warning('Auth: Token rejected by the server, logging out');

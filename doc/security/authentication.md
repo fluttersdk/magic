@@ -251,16 +251,12 @@ class FirebaseGuard extends BaseGuard {
       return;
     }
 
-    final token = await fbUser.getIdToken();
-    if (token != null) await storeToken(token);
-
     final user = userFactory!({
       'id': fbUser.uid,
       'email': fbUser.email,
       'name': fbUser.displayName,
     });
-    setUser(user);
-    await cacheUser(user);
+    await startSession(user, token: await fbUser.getIdToken());
   }
 
   @override
@@ -423,7 +419,7 @@ void main() async {
 
 This instantly restores the cached user for a fast startup, then syncs with the API in the background.
 
-A sign-in or a sign-out that completes while the sync is in the air wins: a late 401 about the restored token does not log out the new session, and a late 200 does not put the previous account back. A token refresh is not a new session, so a 200 that arrives under a refreshed token is still applied, and a 401 about a token that has since been refreshed ends nothing.
+A sign-in or a sign-out that completes while the sync is in the air wins: a late 401 about the restored token does not log out the new session, and a late 200 does not put the previous account back. A token refresh is not a new session, so a 200 that arrives under a refreshed token is still applied, and a 401 or 403 about a token that has since been refreshed is re-checked once under the current token, whose answer decides.
 
 If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully (no error is thrown). Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
 
