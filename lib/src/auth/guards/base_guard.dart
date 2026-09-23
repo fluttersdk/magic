@@ -44,6 +44,12 @@ abstract class BaseGuard implements Guard {
   Authenticatable? _user;
   String? _cachedToken;
 
+  /// Moves, synchronously and before any await, whenever a session opens
+  /// ([startSession]) or ends ([logout]). An in-flight boot sync compares it
+  /// against the value it captured, which [stateNotifier] cannot do alone: it
+  /// bumps only once the user is set or cleared, after the Vault awaits.
+  int _sessionEpoch = 0;
+
   /// Auth state notifier.
   ///
   /// Bumped on every auth state change (setUser, logout, restore).
@@ -115,35 +121,39 @@ abstract class BaseGuard implements Guard {
 
   /// Store token (and optional refresh token).
   ///
-  /// Both are persisted before the in-memory token moves, so nothing reading
-  /// [cachedToken] sees the new token while its refresh token is still being
-  /// written. A sign-in goes through [startSession] instead, which also sets
-  /// the user in the same step.
+  /// The in-memory token moves BEFORE the Vault writes, not after them. A
+  /// boot sync still in the air judges a 401 by whether the token it was sent
+  /// with is still the one held, and with the writes first a 401 about the
+  /// old token landing between them read as a verdict on the current session:
+  /// its logout deleted the token just written. A sign-in goes through
+  /// [startSession] instead, which also marks the session as changed.
   Future<void> storeToken(String token, [String? refreshToken]) async {
-    await _persistTokens(token, refreshToken);
     _cachedToken = token;
+    await _persistTokens(token, refreshToken);
   }
 
-  /// Open a session: persist [token] (when given) and its [refreshToken],
-  /// then set [user] and the in-memory token together, then cache the user.
+  /// Open a session: mark it opened and move the in-memory token, persist
+  /// [token] (when given) and its [refreshToken], then set [user] and cache it.
   ///
-  /// The token and the user move in one synchronous step on purpose. A boot
-  /// sync still in the air decides whether its answer is stale by whether the
-  /// session changed ([stateNotifier]) and whether the token did, and a
-  /// sign-in that stored its token first and set its user a few awaits later
-  /// left a window where the guard held the NEW token under the OLD account:
-  /// a sync answering then applied the previous account and dispatched
-  /// [AuthRestored] for it. Use this from [login] rather than [storeToken]
-  /// followed by [setUser].
+  /// Everything an in-flight boot sync reads moves before the first await.
+  /// The sync ignores its answer once [_sessionEpoch] has moved, so neither of
+  /// the two windows a sign-in used to open is reachable: with the user set a
+  /// few awaits after the token, a late 200 applied the PREVIOUS account
+  /// against the NEW token (0.0.17), and with the Vault writes ahead of the
+  /// in-memory token, a late 401 logged out and deleted the token the sign-in
+  /// had just written (0.0.18). Use this from [login] rather than
+  /// [storeToken] followed by [setUser].
   @protected
   Future<void> startSession(
     Authenticatable user, {
     String? token,
     String? refreshToken,
   }) async {
+    _sessionEpoch++;
+
     if (token != null) {
-      await _persistTokens(token, refreshToken);
       _cachedToken = token;
+      await _persistTokens(token, refreshToken);
     }
     setUser(user);
 
@@ -303,8 +313,13 @@ abstract class BaseGuard implements Guard {
   /// still reaches the caller, because a logout that could not remove a
   /// credential is not a logout, and only the caller can decide what to say
   /// about it.
+  ///
+  /// [_sessionEpoch] moves first, before any await, so a boot sync answering
+  /// while the deletes run is not applied to a session that is ending.
   @override
   Future<void> logout() async {
+    _sessionEpoch++;
+
     Object? failure;
     StackTrace? failureStack;
 
@@ -381,11 +396,12 @@ abstract class BaseGuard implements Guard {
   /// can change while it is in the air, and two kinds of change need two
   /// different answers.
   ///
-  /// A sign-in or a sign-out ([setUser] or [logout], both of which bump
-  /// [stateNotifier]) makes the answer about a session that no longer exists,
-  /// so nothing of it is applied. A 401 used to run [logout], whose
-  /// [clearTokens] deleted the token the sign-in had just stored, and a 200
-  /// used to put the previous account back in memory and on disk.
+  /// A sign-in or a sign-out makes the answer about a session that no longer
+  /// exists, so nothing of it is applied. Either is seen from its first line,
+  /// through [_sessionEpoch], and a [setUser] from anywhere else through
+  /// [stateNotifier]. A 401 used to run [logout], whose [clearTokens] deleted
+  /// the token the sign-in had just stored, and a 200 used to put the
+  /// previous account back in memory and on disk.
   ///
   /// A token rotation (a refresh, which bumps nothing) keeps the account, so
   /// a 200 is still applied: the interceptor's own refresh-and-retry of this
@@ -408,11 +424,12 @@ abstract class BaseGuard implements Guard {
 
     final sentToken = cachedToken;
     final sentSession = stateNotifier.value;
+    final sentEpoch = _sessionEpoch;
 
     try {
       final response = await Http.get(userEndpoint!);
 
-      if (stateNotifier.value != sentSession) {
+      if (_sessionEpoch != sentEpoch || stateNotifier.value != sentSession) {
         Log.debug(
           'Auth: user sync answered for a session that has since changed; '
           'ignoring it',
