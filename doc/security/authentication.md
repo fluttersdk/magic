@@ -314,6 +314,10 @@ The auth interceptor is built into `AuthServiceProvider` and works automatically
 
 **A 401 on a request that carried no auth header, or an older token, is ignored.** The ladder above runs only when the refused request actually presented the header `auth.token.header` names, matched without regard to case, carrying the token the guard holds now. A request dispatched before a sign-in completed goes out anonymous, and its refusal arrives once the session exists; treating that as a rejection would end a session the server was never shown. Only a credential the server actually saw and refused ends a session.
 
+**A request that raced a token change is replayed once.** When the refused request carried an older token and the guard already holds a newer one (a sign-in or a refresh completed while it was in flight), it is sent again with the current token, without a refresh and without a logout. The replay's answer is what the caller gets, and a 401 on the replay runs the ladder above like any other. A request that carried no token is never replayed, since it may have been anonymous on purpose.
+
+**A guard that does not extend `BaseGuard`** keeps no token the interceptor can compare against, so it is judged on presence alone: a 401 ends its session only when the request carried the header `auth.token.header` names. A cookie-based guard, or one that sends its credential under another header, stays signed in while calls return 401; such a guard has to end its own session.
+
 ```dart
 // Manual token refresh
 final success = await Auth.refreshToken();
@@ -416,6 +420,8 @@ void main() async {
 ```
 
 This instantly restores the cached user for a fast startup, then syncs with the API in the background.
+
+The sync's answer is applied only while the guard still holds the token the sync was sent with. A sign-in or a sign-out that completes while it is in the air wins: a late 401 about the restored token does not log out the new session, and a late 200 does not put the previous account back.
 
 If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully (no error is thrown). Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
 

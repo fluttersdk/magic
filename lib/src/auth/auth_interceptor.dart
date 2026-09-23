@@ -43,28 +43,96 @@ class AuthInterceptor extends MagicNetworkInterceptor {
     return request;
   }
 
-  /// Whether the refused request presented the credential the guard holds.
+  @override
+  dynamic onResponse(MagicResponse response) => response;
+
+  /// Judge a 401 on the credential the refused request actually presented.
   ///
   /// A 401 only speaks about the guard's token when the request carried it.
   /// A request dispatched BEFORE a sign-in completed goes out with no auth
   /// header at all, and its refusal arrives after the session exists: read as
   /// a rejection, it ends a session the server never saw. Measured in a
   /// browser against a consumer app, where an unauthenticated call made during
-  /// bootstrap logged out the guest session that had just been opened. A
-  /// request that carried an OLDER token is the same race with a credential in
-  /// it, so against a [BaseGuard] the presented value has to be the one
-  /// [onRequest] would write now. A guard that keeps no token of its own can
-  /// only be judged on whether one was presented at all.
+  /// bootstrap logged out the guest session that had just been opened. Such a
+  /// request is left refused rather than replayed, because it may have been
+  /// anonymous on purpose: a failed sign-in answers 401 too.
   ///
-  /// The lookup ignores case because header names do, and because Dio keeps
-  /// the casing of a key's first insertion: a caller that passed
-  /// `authorization` still owns that key after [onRequest] writes into it.
+  /// A request that carried an OLDER token is the same race with a credential
+  /// in it, so against a [BaseGuard] the presented value has to be the one
+  /// [onRequest] would write now. When it is not and the guard holds a newer
+  /// token, the request raced a sign-in or a rotation, and the only answer
+  /// that says anything about the session as it stands is the one the server
+  /// gives the newer token: the request is replayed once with it, with no
+  /// refresh and no logout, and the replay's own 401 is then judged here like
+  /// any other. A guard that keeps no token of its own can only be judged on
+  /// whether one was presented at all.
   ///
   /// This is the sibling of the rule [BaseGuard] already applies to a
   /// transport failure: only the server may end a session, and only about a
   /// credential it was actually shown.
-  bool _presentedCurrentCredential(MagicRequest? request) {
-    if (request == null) return false;
+  @override
+  dynamic onError(MagicError error) async {
+    if (!error.isUnauthorized) return error;
+
+    final request = error.request;
+    final presented = _presentedCredential(request);
+    if (request == null || presented == null) return error;
+
+    if (Auth.guard() is BaseGuard) {
+      final current = _currentCredential;
+      if (current == null) return error;
+
+      if (presented != current) {
+        Log.info('Auth: Request raced a token change, replaying it');
+
+        return await _retryRequest(_withCredential(request, current)) ?? error;
+      }
+    }
+
+    return _refreshOrLogout(error, request);
+  }
+
+  /// Run the refresh-or-logout ladder for a 401 on the current credential.
+  Future<dynamic> _refreshOrLogout(
+    MagicError error,
+    MagicRequest request,
+  ) async {
+    if (_isRefreshing) return error;
+
+    _isRefreshing = true;
+
+    try {
+      final refreshed = await Auth.guard().refreshToken();
+
+      if (!refreshed) {
+        Log.warning('Auth: Token refresh failed, logging out');
+        await Auth.logout();
+
+        return error;
+      }
+
+      Log.info('Auth: Token refreshed, retrying request');
+
+      final current = Auth.guard() is BaseGuard ? _currentCredential : null;
+      if (current == null) return error;
+
+      return await _retryRequest(_withCredential(request, current)) ?? error;
+    } catch (e) {
+      Log.error('Auth: Error during token refresh: $e');
+
+      return error;
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  /// The credential [request] presented, or null when it carried none.
+  ///
+  /// The lookup ignores case because header names do, and because Dio keeps
+  /// the casing of a key's first insertion: a caller that passed
+  /// `authorization` still owns that key after [onRequest] writes into it.
+  String? _presentedCredential(MagicRequest? request) {
+    if (request == null) return null;
 
     final header = _header.toLowerCase();
     final presented = request.headers.entries
@@ -72,71 +140,29 @@ class AuthInterceptor extends MagicNetworkInterceptor {
         .map((entry) => entry.value?.toString() ?? '')
         .firstWhere((value) => value.isNotEmpty, orElse: () => '');
 
-    if (presented.isEmpty) return false;
-
-    final guard = Auth.guard();
-    if (guard is! BaseGuard) return true;
-
-    final token = guard.cachedToken;
-
-    return token != null && token.isNotEmpty && presented == '$_prefix $token';
+    return presented.isEmpty ? null : presented;
   }
 
-  @override
-  dynamic onResponse(MagicResponse response) => response;
+  /// The credential [onRequest] would attach now, or null when the guard
+  /// holds no token. Only meaningful against a [BaseGuard].
+  String? get _currentCredential {
+    final token = (Auth.guard() as BaseGuard).cachedToken;
 
-  @override
-  dynamic onError(MagicError error) async {
-    // Handle 401 Unauthorized, but only for a request that presented the
-    // token the guard holds: one that carried none, or an older one, says
-    // nothing about the session as it stands.
-    if (error.isUnauthorized &&
-        !_isRefreshing &&
-        _presentedCurrentCredential(error.request)) {
-      _isRefreshing = true;
+    return token == null || token.isEmpty ? null : '$_prefix $token';
+  }
 
-      try {
-        final refreshed = await Auth.guard().refreshToken();
+  /// [request] with [credential] as its only auth header.
+  ///
+  /// The refused request's map is a plain, case-sensitive copy of Dio's, so a
+  /// key the caller spelled differently would survive beside the one written
+  /// here and carry the refused token as well.
+  MagicRequest _withCredential(MagicRequest request, String credential) {
+    final header = _header.toLowerCase();
+    request.headers
+      ..removeWhere((key, _) => key.toLowerCase() == header)
+      ..[_header] = credential;
 
-        if (refreshed) {
-          Log.info('Auth: Token refreshed, retrying request');
-
-          // Retry original request
-          final originalRequest = error.request;
-          if (originalRequest != null) {
-            // Update header with new token
-            final guard = Auth.guard();
-            if (guard is BaseGuard) {
-              final token = guard.cachedToken;
-              if (token != null) {
-                // The refused request's map is a plain, case-sensitive copy of
-                // Dio's, so a key the caller spelled differently would survive
-                // beside the one written here and carry the refused token too.
-                final header = _header.toLowerCase();
-                originalRequest.headers
-                  ..removeWhere((key, _) => key.toLowerCase() == header)
-                  ..[_header] = '$_prefix $token';
-
-                // Retry via Http facade
-                final response = await _retryRequest(originalRequest);
-                if (response != null) {
-                  return response;
-                }
-              }
-            }
-          }
-        } else {
-          Log.warning('Auth: Token refresh failed, logging out');
-          await Auth.logout();
-        }
-      } catch (e) {
-        Log.error('Auth: Error during token refresh: $e');
-      } finally {
-        _isRefreshing = false;
-      }
-    }
-
-    return error;
+    return request;
   }
 
   /// Retry the original request.

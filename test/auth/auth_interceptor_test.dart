@@ -119,17 +119,39 @@ void main() {
         // The same race with a credential in it: a request dispatched with the
         // token restored at boot is refused, a sign-in stores a new token while
         // that refusal is in flight, and the late 401 is about the old token.
-        // Ending the session on it ends one the server never judged.
-        await AuthInterceptor().onError(
+        // Ending the session on it ends one the server never judged; the
+        // request is replayed once with the token the guard holds now.
+        final http = Http.fake();
+
+        final result = await AuthInterceptor().onError(
           _unauthorized(<String, dynamic>{
-            'Authorization': 'Bearer stale-token',
+            'authorization': 'Bearer stale-token',
           }),
         );
 
+        expect(result, isA<MagicResponse>());
         expect(guard.check(), isTrue);
         expect(guard.cachedToken, 'fresh-token');
+        final sent = http.recorded.single.$1.headers.entries
+            .where((entry) => entry.key.toLowerCase() == 'authorization')
+            .map((entry) => entry.value)
+            .toList();
+        expect(sent, <String>['Bearer fresh-token']);
       },
     );
+
+    test('a 401 on a token after a sign-out is left alone', () async {
+      // Nothing newer to replay with, and nothing left to end.
+      final http = Http.fake();
+      await guard.logout();
+
+      final result = await AuthInterceptor().onError(
+        _unauthorized(<String, dynamic>{'Authorization': 'Bearer fresh-token'}),
+      );
+
+      expect(result, isA<MagicError>());
+      http.assertNothingSent();
+    });
 
     test('a 401 on the token the guard holds still ends the session', () async {
       await AuthInterceptor().onError(
