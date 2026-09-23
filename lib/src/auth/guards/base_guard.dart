@@ -343,6 +343,15 @@ abstract class BaseGuard implements Guard {
   }
 
   /// Sync user data from API.
+  ///
+  /// The answer is applied only while the guard still holds the token the
+  /// request went out with. [restore] fires this unawaited when the cache had
+  /// a user, so a sign-in or a sign-out can complete while it is in the air,
+  /// and what the server then says is about the token it replaced: a 401 used
+  /// to run [logout], whose [clearTokens] deleted the token the sign-in had
+  /// just stored, and a 200 used to put the previous account back in memory
+  /// and on disk. The cost of the rule is one sync thrown away when a refresh
+  /// rotated the token mid-flight; the cached user stays until the next one.
   Future<void> _syncUserFromApi() async {
     if (userEndpoint == null || userFactory == null) {
       Log.debug(
@@ -352,8 +361,19 @@ abstract class BaseGuard implements Guard {
       return;
     }
 
+    final sentToken = cachedToken;
+
     try {
       final response = await Http.get(userEndpoint!);
+
+      if (cachedToken != sentToken) {
+        Log.debug(
+          'Auth: user sync answered for a token the guard no longer holds; '
+          'ignoring it',
+        );
+
+        return;
+      }
 
       if (!response.successful) {
         // Only the server may end a session. A transport failure (a timeout, a
