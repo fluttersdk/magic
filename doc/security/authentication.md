@@ -222,7 +222,7 @@ class MyGuard extends BaseGuard {
 Auth.manager.extend('myguard', (config) => MyGuard());
 ```
 
-`startSession` persists the tokens, then sets the in-memory token and the user in one step, then caches the user. Prefer it to `storeToken` followed by `setUser`: between those two calls the guard holds the new token under the previous account, and a boot-time user sync that answers in that window applies the previous account.
+`startSession` marks the session as opened and moves the in-memory token before its first await, then persists the tokens, sets the user and caches it. Prefer it to `storeToken` followed by `setUser`: a boot-time user sync still in the air sees a sign-in made through `startSession` from its first line and ignores its own answer, whereas between `storeToken` and `setUser` it cannot tell the sign-in from a token refresh and applies the previous account.
 
 ### Firebase Guard Example
 
