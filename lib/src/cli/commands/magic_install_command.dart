@@ -991,7 +991,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// release builds.
   static const Map<String, String> _devtoolsDependencies = <String, String>{
     'magic_devtools': '^0.0.6',
-    'fluttersdk_dusk': '^0.0.15',
+    'fluttersdk_dusk': '^0.0.16',
     'fluttersdk_telescope': '^0.0.7',
   };
 

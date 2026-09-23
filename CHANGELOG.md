@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.20] - 2026-09-23
+
 ### Changed
+
+- **The `fluttersdk_wind` floor moves `^1.6.3` to `^1.6.4`.** The old range already admitted 1.6.4, so a fresh `pub get` resolves nothing differently; what changes is that the floor names the release this package is verified against. 1.6.4 clips a rounded, bordered `overflow-hidden` box inside its border, so a child that fills the box no longer paints over the border's corners, and the box's shadow shows again. (`pubspec.yaml`, `CLAUDE.md`)
+
+- **`magic:install --with-devtools` writes `fluttersdk_dusk: ^0.0.16`, up from `^0.0.15`.** dusk 0.0.16 stops `dusk:fill`, `dusk:type` and `dusk:clear` from writing into a field on a route the visible one covers. The installer's constraint map, `install.yaml`'s post-install message (held together by a parity test), `doc/packages/magic-devtools.md` and the skill's devtools page move together; `magic_devtools` stays `^0.0.6`, whose own `^0.0.15` admits 0.0.16. (`lib/src/cli/commands/magic_install_command.dart`, `install.yaml`, `doc/packages/magic-devtools.md`, `skills/magic-framework/references/plugin-devtools.md`)
 
 - **On the web, every push now reports the pushed page's address, not only a stacked `to()`.** The flag below is go_router's, and it covers every imperative push: `MagicRoute.push()`, `replace()` over a pushed page, and a go_router `context.push` in app code all move the address bar now, where they used to leave the page beneath's. A reload of such an address arrives with only the path, so a page pushed with go_router's `extra` receives none, and the page that was underneath is not there for `back()` without a `fallback`. (`lib/src/routing/magic_router.dart`, `doc/basics/routing.md`) (#185)
 
