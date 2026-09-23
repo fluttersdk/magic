@@ -114,7 +114,7 @@ post_install:
     so add them to dependencies, not dev_dependencies (lib/ imports them):
 
        magic_devtools: ^0.0.6
-       fluttersdk_dusk: ^0.0.15
+       fluttersdk_dusk: ^0.0.16
        fluttersdk_telescope: ^0.0.7
 
     Then:
