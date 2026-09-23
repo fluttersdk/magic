@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **On the web, every push now reports the pushed page's address, not only a stacked `to()`.** The flag below is go_router's, and it covers every imperative push: `MagicRoute.push()`, `replace()` over a pushed page, and a go_router `context.push` in app code all move the address bar now, where they used to leave the page beneath's. A reload of such an address arrives with only the path, so a page pushed with go_router's `extra` receives none, and the page that was underneath is not there for `back()` without a `fallback`. (`lib/src/routing/magic_router.dart`, `doc/basics/routing.md`) (#185)
+
+### Fixed
+
+- **A `stacked()` route owns the browser's address on the web.** `to()` pushes a stacked route, and go_router reports a push under the address of the page beneath it unless `GoRouter.optionURLReflectsImperativeAPIs` is on, so opening a detail screen left the address bar on the list and the page could not be copied, shared or reloaded. The router now sets the flag when it is built. go_router discourages it because a pushed URL is not always deep-linkable; every Magic route is a full path the router matches on its own, so the reported address always matches a route. Web only. `MagicRouter.reset()` puts the flag back to go_router's default, since it is a static that outlives the router. (`lib/src/routing/magic_router.dart`, `doc/basics/routing.md`, `skills/magic-framework/`) (#185)
+
 ## [0.0.19] - 2026-09-23
 
 ### Fixed
