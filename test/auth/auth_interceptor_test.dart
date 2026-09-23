@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -7,6 +9,26 @@ class _User extends Model with Authenticatable {
 
   @override
   String get resource => 'users';
+}
+
+/// A vault whose write of the refresh token waits for [gate].
+class _HeldRefreshVault extends FakeVaultService {
+  _HeldRefreshVault(this.gate);
+
+  final Completer<void> gate;
+
+  /// Completes when the refresh-token write has started and is waiting.
+  final Completer<void> refreshWriteStarted = Completer<void>();
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (key == 'refresh_token') {
+      refreshWriteStarted.complete();
+      await gate.future;
+    }
+
+    return super.put(key, value);
+  }
 }
 
 /// A guard whose refresh always succeeds, rotating the stored token.
@@ -225,6 +247,52 @@ void main() {
         (result as MagicError).request!.headers['Authorization'],
         'Bearer old-token',
       );
+    },
+  );
+
+  test(
+    'a 401 on the old token during a sign-in keeps the token it wrote',
+    () async {
+      // `startSession` moves the in-memory token before its Vault writes. With
+      // the writes first, a request that went out with the old token and was
+      // refused while the refresh token was being written matched the token
+      // the guard still held, ran the ladder, and its logout deleted the
+      // access token the sign-in had just written.
+      MagicApp.reset();
+      Magic.flush();
+      Log.fake();
+      final refreshWrite = Completer<void>();
+      final vault = _HeldRefreshVault(refreshWrite);
+      Magic.app.setInstance('vault', vault);
+      Config.set('auth', <String, dynamic>{
+        'defaults': <String, dynamic>{'guard': 'api'},
+        'guards': <String, dynamic>{
+          'api': <String, dynamic>{'driver': 'with-refresh-key'},
+        },
+      });
+      Magic.singleton('auth', AuthManager.new);
+      Auth.manager
+        ..extend(
+          'with-refresh-key',
+          (_) => BearerTokenGuard(refreshTokenKey: 'refresh_token'),
+        )
+        ..forgetGuards();
+      final guard = Auth.guard() as BaseGuard;
+      await guard.storeToken('old-token');
+
+      final signingIn = guard.login({
+        'token': 'new-token',
+        'refresh_token': 'new-refresh',
+      }, _User()..setRawAttributes({'id': 2}, sync: true));
+      await vault.refreshWriteStarted.future;
+      await AuthInterceptor().onError(
+        _unauthorized(<String, dynamic>{'Authorization': 'Bearer old-token'}),
+      );
+      refreshWrite.complete();
+      await signingIn;
+
+      expect(guard.check(), isTrue);
+      expect(await Vault.get('auth_token'), 'new-token');
     },
   );
 }

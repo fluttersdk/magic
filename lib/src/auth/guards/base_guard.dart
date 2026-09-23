@@ -127,10 +127,8 @@ abstract class BaseGuard implements Guard {
   /// old token landing between them read as a verdict on the current session:
   /// its logout deleted the token just written. A sign-in goes through
   /// [startSession] instead, which also marks the session as changed.
-  Future<void> storeToken(String token, [String? refreshToken]) async {
-    _cachedToken = token;
-    await _persistTokens(token, refreshToken);
-  }
+  Future<void> storeToken(String token, [String? refreshToken]) =>
+      _holdThenPersist(token, refreshToken);
 
   /// Open a session: mark it opened and move the in-memory token, persist
   /// [token] (when given) and its [refreshToken], then set [user] and cache it.
@@ -151,13 +149,31 @@ abstract class BaseGuard implements Guard {
   }) async {
     _sessionEpoch++;
 
-    if (token != null) {
-      _cachedToken = token;
-      await _persistTokens(token, refreshToken);
-    }
+    if (token != null) await _holdThenPersist(token, refreshToken);
     setUser(user);
 
     await cacheUser(user);
+  }
+
+  /// Move the in-memory token to [token], then persist it and [refreshToken].
+  ///
+  /// When a Vault write throws ([MagicVaultException] on a locked keychain or
+  /// a missing entitlement), the in-memory token goes back to what it was, as
+  /// long as nothing moved it since, and the failure propagates. A token that
+  /// was never stored must not ride on later requests: a guest would carry a
+  /// failed sign-in's bearer, and on an account switch the screen would show
+  /// one account while the requests carried the other.
+  Future<void> _holdThenPersist(String token, String? refreshToken) async {
+    final previous = _cachedToken;
+    _cachedToken = token;
+
+    try {
+      await _persistTokens(token, refreshToken);
+    } catch (_) {
+      if (_cachedToken == token) _cachedToken = previous;
+
+      rethrow;
+    }
   }
 
   Future<void> _persistTokens(String token, String? refreshToken) async {

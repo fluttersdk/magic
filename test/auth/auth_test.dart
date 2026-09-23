@@ -203,6 +203,21 @@ class _HeldUserWriteVault extends FakeVaultService {
   }
 }
 
+/// A vault that refuses to write [refused], the way a locked keychain or a
+/// missing entitlement refuses a `Vault.put`.
+class _RefusingVault extends FakeVaultService {
+  _RefusingVault(this.refused);
+
+  final String refused;
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (value == refused) throw StateError('keychain refused the write');
+
+    return super.put(key, value);
+  }
+}
+
 /// Records every event of type [T] it is handed.
 class _RecordingListener<T extends MagicEvent> extends MagicListener<T> {
   final List<T> received = <T>[];
@@ -1146,6 +1161,36 @@ void main() {
       expect(guard.cachedToken, expected);
       expect(await Vault.get('basic_auth_credentials'), expected);
       expect(guard.id(), 3);
+    });
+
+    test('a sign-in whose token write fails leaves no token behind', () async {
+      // The in-memory token moves before the Vault writes, so a write that
+      // throws has to move it back, or a guest's later requests would carry
+      // the bearer of a sign-in that never happened.
+      Magic.app.setInstance('vault', _RefusingVault('new-token'));
+      final guard = BearerTokenGuard();
+      await guard.storeToken('old-token');
+
+      await expectLater(
+        guard.login({'token': 'new-token'}, signedIn()),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(guard.cachedToken, 'old-token');
+      expect(guard.check(), isFalse);
+    });
+
+    test('a refresh whose token write fails keeps the old token', () async {
+      Magic.app.setInstance('vault', _RefusingVault('new-token'));
+      final guard = BearerTokenGuard();
+      await guard.storeToken('old-token');
+
+      await expectLater(
+        guard.storeToken('new-token'),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(guard.cachedToken, 'old-token');
     });
 
     test('ApiKeyGuard stores the key', () async {
