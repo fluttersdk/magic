@@ -25,6 +25,9 @@ void main() {
   });
 
   test('reset returns the address flag to go_router\'s default', () {
+    // Cleans up after itself, so the address tests below keep failing on
+    // their own if the router stops setting the flag, whatever order runs.
+    addTearDown(() => GoRouter.optionURLReflectsImperativeAPIs = false);
     GoRouter.optionURLReflectsImperativeAPIs = true;
 
     MagicRouter.reset();

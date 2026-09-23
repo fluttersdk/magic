@@ -290,8 +290,11 @@ class MagicRouter {
     // and could not be copied, shared or reloaded. go_router discourages the
     // flag because a pushed page's URL is not always deep-linkable; here every
     // route is a full path the router matches on its own, stacked or not, so
-    // the reported address always reopens the screen. Global to go_router and
-    // read only on the web, so it is set where the one router is built.
+    // the reported address always matches a route. It covers every push, not
+    // only `to()` on a stacked route: `MagicRoute.push()`, `replace()` over a
+    // pushed page and a raw go_router `push` report their own address too.
+    // Global to go_router and read on every platform, but only the web shows
+    // it, as the address; set where the one router is built.
     GoRouter.optionURLReflectsImperativeAPIs = true;
 
     return GoRouter(
