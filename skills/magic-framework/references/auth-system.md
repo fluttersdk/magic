@@ -72,7 +72,7 @@ if (Auth.check()) {
 2. Load user from local cache (instant UI)
 3. Fetch fresh user from API endpoint in background (syncs data)
 
-If API sync fails, the cached user remains authenticated. Its answer is applied only while the guard still holds the token it was sent with, so a sign-in or sign-out that lands meanwhile wins over a late 401 or 200 about the restored token.
+If API sync fails, the cached user remains authenticated. A sign-in or sign-out that lands while it is in the air wins over a late 401 or 200 about the restored token; a token refresh does not count as one, so a 200 under the refreshed token is still applied.
 
 ### Token Management
 

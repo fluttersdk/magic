@@ -26,6 +26,21 @@ class _RotatingGuard extends BaseGuard {
   }
 }
 
+/// A guard with a refresh endpoint and no cached user, so its boot sync is
+/// awaited and the interceptor's refresh-and-retry answers it.
+class _RefreshingGuard extends BaseGuard {
+  _RefreshingGuard()
+    : super(
+        userEndpoint: '/user',
+        refreshEndpoint: '/refresh',
+        refreshTokenKey: 'refresh_token',
+        userFactory: (data) => _User()..setRawAttributes(data, sync: true),
+      );
+
+  @override
+  Future<void> login(Map<String, dynamic> data, Authenticatable user) async {}
+}
+
 /// A loopback server that answers each request by the credential it carried.
 ///
 /// `Http.fake()` never runs an interceptor (its `addInterceptor` is a no-op),
@@ -42,6 +57,10 @@ class _Panel {
   /// The status each presented `Authorization` value is answered with; 401
   /// for anything not listed.
   final Map<String, int> statusFor = {};
+
+  /// Overrides [statusFor] for the requests it answers, with a status and a
+  /// JSON body; returning null falls back to [statusFor].
+  (int, String)? Function(String path, String? authorization)? answerWith;
 
   /// Requests this matches wait for [release] before they are answered.
   bool Function(String? authorization)? holdWhen;
@@ -73,10 +92,14 @@ class _Panel {
       await release.future;
     }
 
+    final (status, body) =
+        answerWith?.call(request.uri.path, authorization) ??
+        (statusFor[authorization] ?? 401, '{}');
+
     request.response
-      ..statusCode = statusFor[authorization] ?? 401
+      ..statusCode = status
       ..headers.contentType = ContentType.json
-      ..write('{}');
+      ..write(body);
     await request.response.close();
   }
 
@@ -210,4 +233,45 @@ void main() {
     expect(panel.bodies.last, contains('avatar-bytes'));
     expect(panel.bodies.last, contains('hello'));
   });
+
+  test(
+    'a cold start whose token the sync itself refreshed signs the user in',
+    () async {
+      // No cached user, so `restore()` awaits the sync and its answer is the
+      // only thing that can sign anyone in. The stored token has expired: the
+      // interceptor refreshes it and retries, and the retried 200 arrives
+      // under a token the sync was not sent with. Discarding it for that
+      // reason left a valid rotated token with no user, and the app routed a
+      // signed-in viewer to the login screen.
+      final restoring = _RefreshingGuard();
+      Config.set('auth', <String, dynamic>{
+        'defaults': <String, dynamic>{'guard': 'api'},
+        'guards': <String, dynamic>{
+          'api': <String, dynamic>{'driver': 'refreshing'},
+        },
+      });
+      Auth.manager
+        ..extend('refreshing', (_) => restoring)
+        ..forgetGuards();
+      await Vault.put('auth_token', 'expired-token');
+      await Vault.put('refresh_token', 'refresh-me');
+      panel.answerWith = (path, authorization) =>
+          switch ((path, authorization)) {
+            ('/refresh', _) => (200, '{"token": "new-token"}'),
+            ('/user', 'Bearer new-token') => (200, '{"id": 9}'),
+            _ => null,
+          };
+
+      await restoring.restore();
+
+      expect(panel.presented, [
+        'Bearer expired-token',
+        'Bearer expired-token',
+        'Bearer new-token',
+      ]);
+      expect(restoring.cachedToken, 'new-token');
+      expect(restoring.check(), isTrue);
+      expect(restoring.id(), 9);
+    },
+  );
 }

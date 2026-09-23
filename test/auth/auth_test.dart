@@ -672,6 +672,55 @@ void main() {
       });
     });
 
+    group('when the token rotates while the boot sync is in the air', () {
+      // A refresh keeps the account and bumps no session state. The
+      // interceptor's own refresh-and-retry of the sync lands as a 200 under
+      // the new token, and another request's refresh leaves the sync's 401
+      // speaking about a token nobody holds any more.
+      late _CacheFirstGuard guard;
+
+      Future<void> rotateWhileHeld(MagicResponse response) async {
+        Log.fake();
+        Vault.fake({
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+        guard = _CacheFirstGuard();
+        Magic.singleton(
+          'network',
+          () => FakeNetworkDriver(
+            stubs: (MagicRequest _) async {
+              await guard.storeToken('rotated-token');
+
+              return response;
+            },
+          ),
+        );
+
+        await guard.restore();
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      test('a 200 is applied, because the account is the same', () async {
+        await rotateWhileHeld(
+          MagicResponse(data: {'id': 7, 'name': 'Fresh User'}, statusCode: 200),
+        );
+
+        expect(guard.user<MockUser>()?.name, 'Fresh User');
+        expect(
+          jsonDecode((await Vault.get('auth_user'))!),
+          containsPair('name', 'Fresh User'),
+        );
+      });
+
+      test('a 401 about the replaced token keeps the session', () async {
+        await rotateWhileHeld(MagicResponse(data: null, statusCode: 401));
+
+        expect(guard.check(), isTrue);
+        expect(await Vault.get('auth_token'), 'rotated-token');
+      });
+    });
+
     test('a late 200 after a sign-out does not sign the user back in', () async {
       // The same shape with the session ended rather than replaced: the sync's
       // user must not reappear once the guard holds no token at all.

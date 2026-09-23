@@ -421,7 +421,7 @@ void main() async {
 
 This instantly restores the cached user for a fast startup, then syncs with the API in the background.
 
-The sync's answer is applied only while the guard still holds the token the sync was sent with. A sign-in or a sign-out that completes while it is in the air wins: a late 401 about the restored token does not log out the new session, and a late 200 does not put the previous account back.
+A sign-in or a sign-out that completes while the sync is in the air wins: a late 401 about the restored token does not log out the new session, and a late 200 does not put the previous account back. A token refresh is not a new session, so a 200 that arrives under a refreshed token is still applied, and a 401 about a token that has since been refreshed ends nothing.
 
 If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully (no error is thrown). Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
 
