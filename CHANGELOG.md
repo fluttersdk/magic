@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`BaseGuard.startSession(user, token:, refreshToken:)`** persists the tokens, then sets the in-memory token and the user in one synchronous step, then caches the user. The three built-in guards' `login()` use it, and a custom guard should too, in place of `storeToken` followed by `setUser`: between those two calls the guard held the new token under the previous account, and a boot sync answering in that window applied the previous account and dispatched `AuthRestored` for it. `storeToken` now also persists the refresh token before the in-memory token moves. (`lib/src/auth/guards/`, `doc/security/authentication.md`, `skills/magic-framework/`)
+
+### Changed
+
+- **Since 0.0.17, a guard that does not extend `BaseGuard` is logged out on a 401 only when the request carried the header `auth.token.header` names.** Before 0.0.17 every 401 ran the refresh-or-logout ladder whatever the request carried. A guard outside `BaseGuard` keeps no token the interceptor can compare against, so it is now judged on presence alone, and a cookie-based guard, or one that sends its credential under a different header, stays signed in while its calls return 401. Such a guard has to end its own session. This entry is late: 0.0.17 described the fix but did not list it as a behaviour change. (`lib/src/auth/auth_interceptor.dart`, `doc/security/authentication.md`, `skills/magic-framework/`)
+
+### Fixed
+
+- **A sign-in made while the boot-time user sync is in flight is no longer undone by it.** `restore()` sets the cached user and fires the `/user` sync unawaited with the token restored at boot. When the viewer signed in before that sync answered, a 401 about the OLD token made `_syncUserFromApi` call `logout()` itself, and `clearTokens()` deleted the token the sign-in had just stored: the new session was silently gone, even though 0.0.17's interceptor had correctly ignored the same 401. The mirror case was just as wrong: a late 200 ran `setUser` and `cacheUser` with the previous account while the guard held the new account's token, and a late 200 after a sign-out put the user back. The sync now ignores its answer when a sign-in or a sign-out happened while it was in the air (both bump `stateNotifier`), and a 401 or 403 under a token that has since been replaced is re-checked once under the current token, whose answer decides. A refresh is neither: it keeps the account, so a 200 under a rotated token is still applied, which is what signs in a cold start whose expired token the interceptor refreshed while retrying the sync itself; if the server refuses the refreshed token too, the re-check ends the session, as 0.0.17 did. (`lib/src/auth/guards/base_guard.dart`, `doc/security/authentication.md`, `skills/magic-framework/`)
+
+- **An upload retried after a token refresh sends its body again.** `Http.upload` posts a Dio `FormData`, which is single use: the retry re-sent the same instance, Dio threw on the second `finalize()`, the retry swallowed it, and the caller got the 401 back for an upload the refreshed token would have carried. The retry now sends a clone. (`lib/src/auth/auth_interceptor.dart`)
+
+- **A retry that yields nothing hands back the refused request as it was sent.** The retry rewrote the refused request's own header map, so the error returned when it failed advertised a token that request never carried. It now builds a copy. (`lib/src/auth/auth_interceptor.dart`)
+
+### Improvements
+
+- **The interceptor's 401 handling is now exercised on a real socket.** Every earlier interceptor test ran against `Http.fake()`, whose `addInterceptor` is a no-op, so the reasoning about Dio's header map and the error it hands back was never tested. A loopback suite puts a real `DioNetworkDriver` and `AuthInterceptor` in front of a local `HttpServer` and covers a 401 on the current token, one on a token replaced mid-flight (the session is kept, and the request is handed back refused rather than replayed, since a rotation and a different account signing in look the same from the interceptor), an anonymous request, and an upload retried after a refresh. (`test/auth/auth_interceptor_loopback_test.dart`)
+
 ## [0.0.17] - 2026-09-23
 
 ### Fixed

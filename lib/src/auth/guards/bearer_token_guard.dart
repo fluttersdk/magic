@@ -24,14 +24,11 @@ class BearerTokenGuard extends BaseGuard {
 
   @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-    final token = data['token'] as String?;
-    final refreshToken = data['refresh_token'] as String?;
-
-    if (token != null) {
-      await storeToken(token, refreshToken);
-    }
-    setUser(user);
-    await cacheUser(user);
+    await startSession(
+      user,
+      token: data['token'] as String?,
+      refreshToken: data['refresh_token'] as String?,
+    );
     Log.info('Auth: User logged in');
   }
 }

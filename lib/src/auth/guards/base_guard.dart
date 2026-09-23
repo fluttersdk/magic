@@ -36,9 +36,7 @@ import '../events/auth_events.dart';
 ///
 ///   @override
 ///   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-///     await storeToken(data['token']);
-///     await cacheUser(user);
-///     setUser(user);
+///     await startSession(user, token: data['token'] as String?);
 ///   }
 /// }
 /// ```
@@ -116,9 +114,44 @@ abstract class BaseGuard implements Guard {
   String? get cachedToken => _cachedToken;
 
   /// Store token (and optional refresh token).
+  ///
+  /// Both are persisted before the in-memory token moves, so nothing reading
+  /// [cachedToken] sees the new token while its refresh token is still being
+  /// written. A sign-in goes through [startSession] instead, which also sets
+  /// the user in the same step.
   Future<void> storeToken(String token, [String? refreshToken]) async {
-    await Vault.put(tokenKey, token);
+    await _persistTokens(token, refreshToken);
     _cachedToken = token;
+  }
+
+  /// Open a session: persist [token] (when given) and its [refreshToken],
+  /// then set [user] and the in-memory token together, then cache the user.
+  ///
+  /// The token and the user move in one synchronous step on purpose. A boot
+  /// sync still in the air decides whether its answer is stale by whether the
+  /// session changed ([stateNotifier]) and whether the token did, and a
+  /// sign-in that stored its token first and set its user a few awaits later
+  /// left a window where the guard held the NEW token under the OLD account:
+  /// a sync answering then applied the previous account and dispatched
+  /// [AuthRestored] for it. Use this from [login] rather than [storeToken]
+  /// followed by [setUser].
+  @protected
+  Future<void> startSession(
+    Authenticatable user, {
+    String? token,
+    String? refreshToken,
+  }) async {
+    if (token != null) {
+      await _persistTokens(token, refreshToken);
+      _cachedToken = token;
+    }
+    setUser(user);
+
+    await cacheUser(user);
+  }
+
+  Future<void> _persistTokens(String token, String? refreshToken) async {
+    await Vault.put(tokenKey, token);
 
     if (refreshToken != null && refreshTokenKey != null) {
       await Vault.put(refreshTokenKey!, refreshToken);
@@ -343,7 +376,28 @@ abstract class BaseGuard implements Guard {
   }
 
   /// Sync user data from API.
-  Future<void> _syncUserFromApi() async {
+  ///
+  /// [restore] fires this unawaited when the cache had a user, so the session
+  /// can change while it is in the air, and two kinds of change need two
+  /// different answers.
+  ///
+  /// A sign-in or a sign-out ([setUser] or [logout], both of which bump
+  /// [stateNotifier]) makes the answer about a session that no longer exists,
+  /// so nothing of it is applied. A 401 used to run [logout], whose
+  /// [clearTokens] deleted the token the sign-in had just stored, and a 200
+  /// used to put the previous account back in memory and on disk.
+  ///
+  /// A token rotation (a refresh, which bumps nothing) keeps the account, so
+  /// a 200 is still applied: the interceptor's own refresh-and-retry of this
+  /// very request lands here as a 200 under a new token, and on a cold start
+  /// with no cached user that 200 is the only thing that can sign the user
+  /// in. A 401 or 403 under a rotated token is about the token it replaced,
+  /// so it ends nothing by itself: the sync is re-checked once under the
+  /// current token ([afterRotation]), and that answer decides. Keeping the
+  /// session on the first refusal alone left a viewer holding a token the
+  /// server had just refused, when the interceptor's own refresh-and-retry of
+  /// this request was the thing refused.
+  Future<void> _syncUserFromApi({bool afterRotation = false}) async {
     if (userEndpoint == null || userFactory == null) {
       Log.debug(
         'Auth: Skipping API sync '
@@ -352,8 +406,20 @@ abstract class BaseGuard implements Guard {
       return;
     }
 
+    final sentToken = cachedToken;
+    final sentSession = stateNotifier.value;
+
     try {
       final response = await Http.get(userEndpoint!);
+
+      if (stateNotifier.value != sentSession) {
+        Log.debug(
+          'Auth: user sync answered for a session that has since changed; '
+          'ignoring it',
+        );
+
+        return;
+      }
 
       if (!response.successful) {
         // Only the server may end a session. A transport failure (a timeout, a
@@ -363,6 +429,15 @@ abstract class BaseGuard implements Guard {
         // away a valid session because the phone went through a tunnel, and
         // said "Token invalid" about a server that never spoke.
         if (response.statusCode == 401 || response.statusCode == 403) {
+          if (cachedToken != sentToken && !afterRotation) {
+            Log.debug(
+              'Auth: user sync refused a token the guard has since replaced; '
+              're-checking under the current one',
+            );
+
+            return await _syncUserFromApi(afterRotation: true);
+          }
+
           Log.warning('Auth: Token rejected by the server, logging out');
           await logout();
 

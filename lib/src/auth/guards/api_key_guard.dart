@@ -18,12 +18,7 @@ class ApiKeyGuard extends BaseGuard {
 
   @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-    final apiKey = data['api_key'] as String?;
-    if (apiKey != null) {
-      await storeToken(apiKey);
-    }
-    setUser(user);
-    await cacheUser(user);
+    await startSession(user, token: data['api_key'] as String?);
     Log.info('Auth: API key login');
   }
 }

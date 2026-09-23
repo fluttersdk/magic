@@ -210,15 +210,19 @@ class MyGuard extends BaseGuard {
 
   @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-    await storeToken(data['token'], data['refresh_token']);
-    await cacheUser(user);
-    setUser(user);
+    await startSession(
+      user,
+      token: data['token'] as String?,
+      refreshToken: data['refresh_token'] as String?,
+    );
   }
 }
 
 // Register in your auth config
 Auth.manager.extend('myguard', (config) => MyGuard());
 ```
+
+`startSession` persists the tokens, then sets the in-memory token and the user in one step, then caches the user. Prefer it to `storeToken` followed by `setUser`: between those two calls the guard holds the new token under the previous account, and a boot-time user sync that answers in that window applies the previous account.
 
 ### Firebase Guard Example
 
@@ -231,9 +235,7 @@ class FirebaseGuard extends BaseGuard {
   @override
   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
     final idToken = await _auth.currentUser?.getIdToken();
-    if (idToken != null) await storeToken(idToken);
-    await cacheUser(user);
-    setUser(user);
+    await startSession(user, token: idToken);
   }
 
   @override
@@ -249,16 +251,12 @@ class FirebaseGuard extends BaseGuard {
       return;
     }
 
-    final token = await fbUser.getIdToken();
-    if (token != null) await storeToken(token);
-
     final user = userFactory!({
       'id': fbUser.uid,
       'email': fbUser.email,
       'name': fbUser.displayName,
     });
-    setUser(user);
-    await cacheUser(user);
+    await startSession(user, token: await fbUser.getIdToken());
   }
 
   @override
@@ -313,6 +311,10 @@ When `auto_refresh` is enabled, Magic automatically handles 401 responses:
 The auth interceptor is built into `AuthServiceProvider` and works automatically when configured.
 
 **A 401 on a request that carried no auth header, or an older token, is ignored.** The ladder above runs only when the refused request actually presented the header `auth.token.header` names, matched without regard to case, carrying the token the guard holds now. A request dispatched before a sign-in completed goes out anonymous, and its refusal arrives once the session exists; treating that as a rejection would end a session the server was never shown. Only a credential the server actually saw and refused ends a session.
+
+**A request that raced a token change is handed back refused, not replayed.** When the refused request carried an older token and the guard already holds a newer one, the interceptor cannot tell a refresh from a different account signing in, and a replay with the newer token could answer one account's screen with another account's data. The caller receives the 401 and decides whether its request still stands.
+
+**A guard that does not extend `BaseGuard`** keeps no token the interceptor can compare against, so it is judged on presence alone: a 401 ends its session only when the request carried the header `auth.token.header` names. A cookie-based guard, or one that sends its credential under another header, stays signed in while calls return 401; such a guard has to end its own session.
 
 ```dart
 // Manual token refresh
@@ -416,6 +418,8 @@ void main() async {
 ```
 
 This instantly restores the cached user for a fast startup, then syncs with the API in the background.
+
+A sign-in or a sign-out that completes while the sync is in the air wins: a late 401 about the restored token does not log out the new session, and a late 200 does not put the previous account back. A token refresh is not a new session, so a 200 that arrives under a refreshed token is still applied, and a 401 or 403 about a token that has since been refreshed is re-checked once under the current token, whose answer decides.
 
 If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully (no error is thrown). Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
 
