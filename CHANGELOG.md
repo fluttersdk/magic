@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-09-23
+
 ### Fixed
 
 - **A 401 no longer ends the session when the refused request carried no credential.** `AuthInterceptor.onError` treated every 401 as a verdict on the stored token, so a request that went out with no auth header at all still ran the refresh-or-logout ladder. On an app with no refresh endpoint that ladder is a straight logout.
