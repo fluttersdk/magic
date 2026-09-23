@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.19] - 2026-09-23
+
 ### Fixed
 
 - **A boot sync answering 401 during a sign-in no longer deletes the token the sign-in just wrote.** 0.0.18's `startSession` and `storeToken` wrote both tokens to the Vault before the in-memory token moved. A 401 about the restored token landing between those writes saw an unchanged token and an unchanged session, so the sync logged out: `clearTokens()` deleted the new token, the sign-in then set its user, and the app looked signed in with nothing in the Vault, a guest again on the next cold start. The same window existed on the refresh path. A session opening or ending is now visible to an in-flight sync from its first line: `startSession` and `logout()` move a private session epoch before any await and the sync ignores its answer once it has moved, and `storeToken` moves the in-memory token before its writes, so a refusal arriving mid-refresh is re-checked under the new token rather than read as a verdict on it. When the access-token write throws (a locked keychain, a missing entitlement), the in-memory token goes back to what it was before the failure propagates, so a token that was never stored does not ride on later requests; a failed refresh-token write keeps the new access token, which is already on disk. The epoch also closes #191: a sync 200 landing inside `logout()`'s Vault deletes is no longer applied to the ending session, and one whose own cache write a sign-out overtook neither dispatches `AuthRestored` nor leaves the user cached on disk. (`lib/src/auth/guards/base_guard.dart`, `doc/security/authentication.md`, `skills/magic-framework/`)
