@@ -72,7 +72,7 @@ if (Auth.check()) {
 2. Load user from local cache (instant UI)
 3. Fetch fresh user from API endpoint in background (syncs data)
 
-If API sync fails, the cached user remains authenticated.
+If API sync fails, the cached user remains authenticated. A sign-in or sign-out that lands while it is in the air wins over a late 401 or 200 about the restored token; a token refresh does not count as one, so a 200 under the refreshed token is still applied, and a 401 or 403 about a replaced token is re-checked once under the current one.
 
 ### Token Management
 
@@ -299,14 +299,20 @@ await Auth.login({
 
 The `login()` method extracts tokens from the data map and persists them securely. On subsequent API calls, the `AuthInterceptor` automatically injects the token into request headers.
 
+A custom `BaseGuard` implements `login()` with `await startSession(user, token: ..., refreshToken: ...)`, not `storeToken` then `setUser`: `startSession` marks the session as opened before its first await, so a boot sync answering mid-sign-in ignores its answer instead of applying the previous account or logging out the new token.
+
 ### Token Refresh
 
 The `AuthInterceptor` automatically handles token refresh on 401:
 
-1. Guard returns 401 from API
+1. Guard returns 401 from API, **on a request that presented the token**
 2. Interceptor calls `Auth.refreshToken()`
 3. If successful, retries the original request once
 4. If refresh fails, calls `Auth.logout()` and user is redirected to login
+
+A 401 on a request that carried no auth header, or a token other than the one the guard holds now, does none of this. A call dispatched before a sign-in completed goes out anonymous and its refusal lands after the session exists, so reading it as a rejection logs out a session the server never saw. Only a credential the server was actually shown can end one.
+
+A request refused on an older token while the guard holds a newer one keeps the session but is handed back refused, never replayed: a rotation and a different account signing in look the same from the interceptor, so the caller re-issues if its request still stands. A guard that does not extend `BaseGuard` is judged on whether the `auth.token.header` header was present at all, so a cookie-based or differently headered guard stays signed in on a 401 and must end its own session.
 
 Manual refresh:
 

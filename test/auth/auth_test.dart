@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart' hide EventDispatcher;
 import 'package:magic/magic.dart';
 
 // ---------------------------------------------------------------------------
@@ -118,6 +118,112 @@ class _GatedDriver extends FakeNetworkDriver {
 
     return super.get(url, query: query, headers: headers);
   }
+}
+
+/// A driver whose GET answers [response], but only once the test opens [gate],
+/// so the test can change the session while the request is still in the air.
+class _HeldDriver extends FakeNetworkDriver {
+  _HeldDriver(this.gate, this.response);
+
+  final Completer<void> gate;
+  final MagicResponse response;
+
+  @override
+  Future<MagicResponse> get(
+    String url, {
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) async {
+    await gate.future;
+
+    return response;
+  }
+}
+
+/// A vault whose write of the refresh token waits for [gate], so a test can
+/// act in the middle of a sign-in's token writes.
+class _HeldRefreshVault extends FakeVaultService {
+  _HeldRefreshVault(this.gate, super.initialValues);
+
+  final Completer<void> gate;
+
+  /// Completes when the refresh-token write has started and is waiting.
+  final Completer<void> refreshWriteStarted = Completer<void>();
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (key == 'refresh_token') {
+      refreshWriteStarted.complete();
+      await gate.future;
+    }
+
+    return super.put(key, value);
+  }
+}
+
+/// A vault whose delete of the access token waits for [gate], so a test can
+/// act in the middle of a sign-out.
+class _HeldTokenDeleteVault extends FakeVaultService {
+  _HeldTokenDeleteVault(this.gate, super.initialValues);
+
+  final Completer<void> gate;
+
+  /// Completes when the access-token delete has started and is waiting.
+  final Completer<void> tokenDeleteStarted = Completer<void>();
+
+  @override
+  Future<void> remove(String key) async {
+    if (key == 'auth_token') {
+      tokenDeleteStarted.complete();
+      await gate.future;
+    }
+
+    return super.remove(key);
+  }
+}
+
+/// A vault whose first write of the cached user waits for [gate], so a test
+/// can act while a sync is caching the user it just fetched.
+class _HeldUserWriteVault extends FakeVaultService {
+  _HeldUserWriteVault(this.gate, super.initialValues);
+
+  final Completer<void> gate;
+
+  /// Completes when the first cached-user write has started and is waiting.
+  final Completer<void> userWriteStarted = Completer<void>();
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (key == 'auth_user' && !userWriteStarted.isCompleted) {
+      userWriteStarted.complete();
+      await gate.future;
+    }
+
+    return super.put(key, value);
+  }
+}
+
+/// A vault that refuses to write [refused], the way a locked keychain or a
+/// missing entitlement refuses a `Vault.put`.
+class _RefusingVault extends FakeVaultService {
+  _RefusingVault(this.refused);
+
+  final String refused;
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (value == refused) throw StateError('keychain refused the write');
+
+    return super.put(key, value);
+  }
+}
+
+/// Records every event of type [T] it is handed.
+class _RecordingListener<T extends MagicEvent> extends MagicListener<T> {
+  final List<T> received = <T>[];
+
+  @override
+  Future<void> handle(T event) async => received.add(event);
 }
 
 /// A driver whose GET answers the way [DioNetworkDriver] answers a transport
@@ -559,6 +665,562 @@ void main() {
 
       expect(guard.check(), isFalse);
       expect(await Vault.get('auth_token'), isNull);
+    });
+
+    test('a 200 on the token it was sent with refreshes the user', () async {
+      Log.fake();
+      Vault.fake({
+        'auth_token': 'stored-token',
+        'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+      });
+      final gate = Completer<void>();
+      Magic.singleton(
+        'network',
+        () => _HeldDriver(
+          gate,
+          MagicResponse(data: {'id': 7, 'name': 'Fresh User'}, statusCode: 200),
+        ),
+      );
+
+      final guard = _CacheFirstGuard();
+      await guard.restore();
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(guard.user<MockUser>()?.name, 'Fresh User');
+    });
+
+    group('when a sign-in lands while the boot sync is in the air', () {
+      // `restore()` sets the cached user and fires the sync unawaited with the
+      // token restored at boot. A sign-in can store a new token and set a new
+      // user before that sync answers, and whatever the server then says is
+      // about the OLD token: it is no verdict on the session that exists now.
+      late Completer<void> gate;
+      late _CacheFirstGuard guard;
+
+      Future<void> signInWhileHeld(MagicResponse response) async {
+        Log.fake();
+        Vault.fake({
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Old Account'}),
+        });
+        gate = Completer<void>();
+        Magic.singleton('network', () => _HeldDriver(gate, response));
+
+        guard = _CacheFirstGuard();
+        await guard.restore();
+
+        final signedIn = MockUser()
+          ..setRawAttributes({'id': 8, 'name': 'New Account'}, sync: true);
+        await guard.storeToken('new-token');
+        await guard.cacheUser(signedIn);
+        guard.setUser(signedIn);
+
+        gate.complete();
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      test('a late 401 about the old token keeps the new session', () async {
+        // Before this, `_syncUserFromApi` called `logout()`, and
+        // `clearTokens()` deleted the token the sign-in had just stored: the
+        // new session was silently undone by a verdict on the one it replaced.
+        await signInWhileHeld(MagicResponse(data: null, statusCode: 401));
+
+        expect(guard.check(), isTrue);
+        expect(guard.user<MockUser>()?.name, 'New Account');
+        expect(guard.cachedToken, 'new-token');
+        expect(await Vault.get('auth_token'), 'new-token');
+      });
+
+      test('a late 403 about the old token keeps the new session', () async {
+        await signInWhileHeld(MagicResponse(data: null, statusCode: 403));
+
+        expect(guard.check(), isTrue);
+        expect(await Vault.get('auth_token'), 'new-token');
+      });
+
+      test('a late 200 about the old token keeps the new account', () async {
+        // The mirror case: the old account's profile arrives after the new
+        // account signed in, and `setUser` plus `cacheUser` would put the OLD
+        // account in memory and on disk while the guard holds the NEW token.
+        await signInWhileHeld(
+          MagicResponse(
+            data: {'id': 7, 'name': 'Old Account'},
+            statusCode: 200,
+          ),
+        );
+
+        expect(guard.user<MockUser>()?.name, 'New Account');
+        expect(
+          jsonDecode((await Vault.get('auth_user'))!),
+          containsPair('name', 'New Account'),
+        );
+      });
+    });
+
+    group('when the token rotates while the boot sync is in the air', () {
+      // A refresh keeps the account and bumps no session state. The
+      // interceptor's own refresh-and-retry of the sync lands as a 200 under
+      // the new token, and another request's refresh leaves the sync's 401
+      // speaking about a token nobody holds any more.
+      late _CacheFirstGuard guard;
+
+      Future<void> rotateWhileHeld(
+        MagicResponse response, {
+        MagicResponse? recheck,
+      }) async {
+        Log.fake();
+        Vault.fake({
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+        guard = _CacheFirstGuard();
+        var calls = 0;
+        Magic.singleton(
+          'network',
+          () => FakeNetworkDriver(
+            stubs: (MagicRequest _) async {
+              if (calls++ > 0) return recheck!;
+              await guard.storeToken('rotated-token');
+
+              return response;
+            },
+          ),
+        );
+
+        await guard.restore();
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      test('a 200 is applied, because the account is the same', () async {
+        await rotateWhileHeld(
+          MagicResponse(data: {'id': 7, 'name': 'Fresh User'}, statusCode: 200),
+        );
+
+        expect(guard.user<MockUser>()?.name, 'Fresh User');
+        expect(
+          jsonDecode((await Vault.get('auth_user'))!),
+          containsPair('name', 'Fresh User'),
+        );
+      });
+
+      test(
+        'a 401 about the replaced token is re-checked under the current one',
+        () async {
+          // The refusal is about the token another request's refresh
+          // replaced, so it ends nothing by itself; the current token's
+          // answer decides.
+          await rotateWhileHeld(
+            MagicResponse(data: null, statusCode: 401),
+            recheck: MagicResponse(
+              data: {'id': 7, 'name': 'Fresh User'},
+              statusCode: 200,
+            ),
+          );
+
+          expect(guard.check(), isTrue);
+          expect(guard.user<MockUser>()?.name, 'Fresh User');
+          expect(await Vault.get('auth_token'), 'rotated-token');
+        },
+      );
+
+      test('a re-check the server refuses too ends the session', () async {
+        await rotateWhileHeld(
+          MagicResponse(data: null, statusCode: 401),
+          recheck: MagicResponse(data: null, statusCode: 401),
+        );
+
+        expect(guard.check(), isFalse);
+        expect(await Vault.get('auth_token'), isNull);
+      });
+    });
+
+    test(
+      'a sign-in never shows its new token under the previous account',
+      () async {
+        // `login()` used to store the token, write the refresh token, and set
+        // the user only afterwards. A boot sync answering inside that window
+        // saw a new token under an unchanged session, read it as a refresh,
+        // and set the PREVIOUS account against the NEW token, dispatching
+        // `AuthRestored` for it. The refresh-token write is held open here so
+        // the sync lands exactly there.
+        Log.fake();
+        final refreshWrite = Completer<void>();
+        final vault = _HeldRefreshVault(refreshWrite, {
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Old Account'}),
+        });
+        Magic.app.setInstance('vault', vault);
+        final gate = Completer<void>();
+        Magic.singleton(
+          'network',
+          () => _HeldDriver(
+            gate,
+            MagicResponse(
+              data: {'id': 7, 'name': 'Old Account'},
+              statusCode: 200,
+            ),
+          ),
+        );
+
+        final guard = BearerTokenGuard(
+          refreshTokenKey: 'refresh_token',
+          userEndpoint: '/user',
+          userFactory: (data) => MockUser()..setRawAttributes(data, sync: true),
+        );
+        await guard.restore();
+
+        final seen = <(String?, Object?)>[];
+        guard.stateNotifier.addListener(
+          () => seen.add((guard.cachedToken, guard.id())),
+        );
+
+        final signingIn = guard.login(
+          {'token': 'new-token', 'refresh_token': 'new-refresh'},
+          MockUser()
+            ..setRawAttributes({'id': 8, 'name': 'New Account'}, sync: true),
+        );
+        await vault.refreshWriteStarted.future;
+        gate.complete();
+        await Future<void>.delayed(Duration.zero);
+        refreshWrite.complete();
+        await signingIn;
+
+        expect(seen, isNot(contains(('new-token', 7))));
+        expect(guard.user<MockUser>()?.name, 'New Account');
+        expect(guard.cachedToken, 'new-token');
+      },
+    );
+
+    test(
+      'a late 401 inside a sign-in keeps the token the sign-in wrote',
+      () async {
+        // The mirror of the case above. In 0.0.18 a sign-in wrote both tokens
+        // to the Vault before the in-memory token moved, so a 401 about the old
+        // token landing during the refresh-token write saw an unchanged token
+        // and an unchanged session and logged out: `clearTokens()` deleted the
+        // token the sign-in had just written, the sign-in then set its user,
+        // and the app looked signed in with nothing in the Vault. The next
+        // cold start was a guest.
+        Log.fake();
+        final refreshWrite = Completer<void>();
+        final vault = _HeldRefreshVault(refreshWrite, {
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Old Account'}),
+        });
+        Magic.app.setInstance('vault', vault);
+        final gate = Completer<void>();
+        Magic.singleton(
+          'network',
+          () => _HeldDriver(gate, MagicResponse(data: null, statusCode: 401)),
+        );
+
+        final guard = BearerTokenGuard(
+          refreshTokenKey: 'refresh_token',
+          userEndpoint: '/user',
+          userFactory: (data) => MockUser()..setRawAttributes(data, sync: true),
+        );
+        await guard.restore();
+
+        final signingIn = guard.login(
+          {'token': 'new-token', 'refresh_token': 'new-refresh'},
+          MockUser()
+            ..setRawAttributes({'id': 8, 'name': 'New Account'}, sync: true),
+        );
+        await vault.refreshWriteStarted.future;
+        gate.complete();
+        await Future<void>.delayed(Duration.zero);
+        refreshWrite.complete();
+        await signingIn;
+
+        expect(guard.check(), isTrue);
+        expect(guard.cachedToken, 'new-token');
+        expect(await Vault.get('auth_token'), 'new-token');
+        expect(await Vault.get('refresh_token'), 'new-refresh');
+      },
+    );
+
+    test(
+      'a late 401 inside a refresh keeps the token the refresh wrote',
+      () async {
+        // The same window on the refresh path: `storeToken` wrote both tokens
+        // before the in-memory token moved, so a 401 about the old token
+        // landing between the writes read as a verdict on the current token
+        // and its logout deleted the refreshed one. With the in-memory token
+        // moved first, the refusal is about a replaced token and is re-checked
+        // under the current one, which the server accepts.
+        Log.fake();
+        final refreshWrite = Completer<void>();
+        final vault = _HeldRefreshVault(refreshWrite, {
+          'auth_token': 'old-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+        Magic.app.setInstance('vault', vault);
+        final gate = Completer<void>();
+        var calls = 0;
+        Magic.singleton(
+          'network',
+          () => FakeNetworkDriver(
+            stubs: (MagicRequest _) async {
+              if (calls++ > 0) {
+                return MagicResponse(
+                  data: {'id': 7, 'name': 'Cached User'},
+                  statusCode: 200,
+                );
+              }
+              await gate.future;
+
+              return MagicResponse(data: null, statusCode: 401);
+            },
+          ),
+        );
+
+        final guard = BearerTokenGuard(
+          refreshTokenKey: 'refresh_token',
+          userEndpoint: '/user',
+          userFactory: (data) => MockUser()..setRawAttributes(data, sync: true),
+        );
+        await guard.restore();
+
+        final refreshing = guard.storeToken('rotated-token', 'new-refresh');
+        await vault.refreshWriteStarted.future;
+        gate.complete();
+        await Future<void>.delayed(Duration.zero);
+        refreshWrite.complete();
+        await refreshing;
+        await Future<void>.delayed(Duration.zero);
+
+        expect(guard.check(), isTrue);
+        expect(await Vault.get('auth_token'), 'rotated-token');
+        expect(await Vault.get('refresh_token'), 'new-refresh');
+      },
+    );
+
+    test(
+      'a sign-out during the sync\'s own cache write gets no AuthRestored',
+      () async {
+        // The epoch is read once, when the answer arrives, and the 200 path
+        // then awaits its cache write before dispatching. A sign-out starting
+        // inside that write used to hear `AuthRestored` for the session it
+        // had just ended, and the cache write could land after the sign-out
+        // cleared it.
+        Log.fake();
+        EventDispatcher.instance.clear();
+        final restored = _RecordingListener<AuthRestored>();
+        EventDispatcher.instance.register(AuthRestored, [() => restored]);
+        final cacheWrite = Completer<void>();
+        final vault = _HeldUserWriteVault(cacheWrite, {
+          'auth_token': 'stored-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+        Magic.app.setInstance('vault', vault);
+        final gate = Completer<void>();
+        Magic.singleton(
+          'network',
+          () => _HeldDriver(
+            gate,
+            MagicResponse(
+              data: {'id': 7, 'name': 'Fresh User'},
+              statusCode: 200,
+            ),
+          ),
+        );
+
+        final guard = _CacheFirstGuard();
+        await guard.restore();
+        gate.complete();
+        await vault.userWriteStarted.future;
+
+        await guard.logout();
+        cacheWrite.complete();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(restored.received, isEmpty);
+        expect(guard.check(), isFalse);
+        expect(await Vault.get('auth_user'), isNull);
+        EventDispatcher.instance.clear();
+      },
+    );
+
+    test('a late 200 inside a sign-out is not applied', () async {
+      // `logout()` bumped the session only at its end, after awaiting the
+      // Vault deletes, so a sync answering inside them read an unchanged
+      // session and set the user again mid-sign-out, dispatching
+      // `AuthRestored` for a session that was ending.
+      Log.fake();
+      final tokenDelete = Completer<void>();
+      final vault = _HeldTokenDeleteVault(tokenDelete, {
+        'auth_token': 'stored-token',
+        'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+      });
+      Magic.app.setInstance('vault', vault);
+      final gate = Completer<void>();
+      Magic.singleton(
+        'network',
+        () => _HeldDriver(
+          gate,
+          MagicResponse(
+            data: {'id': 7, 'name': 'Cached User'},
+            statusCode: 200,
+          ),
+        ),
+      );
+
+      final guard = _CacheFirstGuard();
+      await guard.restore();
+
+      final seen = <bool>[];
+      guard.stateNotifier.addListener(() => seen.add(guard.check()));
+
+      final signingOut = guard.logout();
+      await vault.tokenDeleteStarted.future;
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+      tokenDelete.complete();
+      await signingOut;
+
+      expect(seen, [false]);
+      expect(guard.check(), isFalse);
+      expect(await Vault.get('auth_user'), isNull);
+    });
+
+    test('a late 200 after a sign-out does not sign the user back in', () async {
+      // The same shape with the session ended rather than replaced: the sync's
+      // user must not reappear once the guard holds no token at all.
+      Log.fake();
+      Vault.fake({
+        'auth_token': 'stored-token',
+        'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+      });
+      final gate = Completer<void>();
+      Magic.singleton(
+        'network',
+        () => _HeldDriver(
+          gate,
+          MagicResponse(
+            data: {'id': 7, 'name': 'Cached User'},
+            statusCode: 200,
+          ),
+        ),
+      );
+
+      final guard = _CacheFirstGuard();
+      await guard.restore();
+      await guard.logout();
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(guard.check(), isFalse);
+      expect(await Vault.get('auth_user'), isNull);
+    });
+  });
+
+  group('built-in guard login', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+      Log.fake();
+      Vault.fake();
+    });
+
+    tearDown(() {
+      Vault.unfake();
+      Log.unfake();
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    MockUser signedIn() =>
+        MockUser()
+          ..setRawAttributes({'id': 3, 'name': 'Signed In'}, sync: true);
+
+    test('BearerTokenGuard stores both tokens and the user', () async {
+      final guard = BearerTokenGuard(refreshTokenKey: 'refresh_token');
+
+      await guard.login({
+        'token': 'bearer-token',
+        'refresh_token': 'refresh-token',
+      }, signedIn());
+
+      expect(guard.cachedToken, 'bearer-token');
+      expect(await Vault.get('auth_token'), 'bearer-token');
+      expect(await Vault.get('refresh_token'), 'refresh-token');
+      expect(guard.id(), 3);
+      expect(
+        jsonDecode((await Vault.get('auth_user'))!),
+        containsPair('name', 'Signed In'),
+      );
+    });
+
+    test('BasicAuthGuard stores the encoded credentials', () async {
+      final guard = BasicAuthGuard();
+      final expected = base64Encode(utf8.encode('ada:secret'));
+
+      await guard.login({'username': 'ada', 'password': 'secret'}, signedIn());
+
+      expect(guard.cachedToken, expected);
+      expect(await Vault.get('basic_auth_credentials'), expected);
+      expect(guard.id(), 3);
+    });
+
+    test('a sign-in whose token write fails leaves no token behind', () async {
+      // The in-memory token moves before the Vault writes, so a write that
+      // throws has to move it back, or a guest's later requests would carry
+      // the bearer of a sign-in that never happened.
+      Magic.app.setInstance('vault', _RefusingVault('new-token'));
+      final guard = BearerTokenGuard();
+      await guard.storeToken('old-token');
+
+      await expectLater(
+        guard.login({'token': 'new-token'}, signedIn()),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(guard.cachedToken, 'old-token');
+      expect(guard.check(), isFalse);
+    });
+
+    test('a refresh whose token write fails keeps the old token', () async {
+      Magic.app.setInstance('vault', _RefusingVault('new-token'));
+      final guard = BearerTokenGuard();
+      await guard.storeToken('old-token');
+
+      await expectLater(
+        guard.storeToken('new-token'),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(guard.cachedToken, 'old-token');
+    });
+
+    test(
+      'a refresh whose refresh-token write fails keeps the new access token',
+      () async {
+        // The access token is on disk by then and the server has rotated the
+        // old one away, so going back to the old token would sign requests
+        // with a token nobody accepts while the Vault holds the working one.
+        Magic.app.setInstance('vault', _RefusingVault('new-refresh'));
+        final guard = BearerTokenGuard(refreshTokenKey: 'refresh_token');
+        await guard.storeToken('old-token');
+
+        await expectLater(
+          guard.storeToken('new-token', 'new-refresh'),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(guard.cachedToken, 'new-token');
+        expect(await Vault.get('auth_token'), 'new-token');
+      },
+    );
+
+    test('ApiKeyGuard stores the key', () async {
+      final guard = ApiKeyGuard();
+
+      await guard.login({'api_key': 'sk_test_123'}, signedIn());
+
+      expect(guard.cachedToken, 'sk_test_123');
+      expect(await Vault.get('api_key'), 'sk_test_123');
+      expect(guard.id(), 3);
     });
   });
 }

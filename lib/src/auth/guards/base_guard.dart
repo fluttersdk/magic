@@ -36,15 +36,19 @@ import '../events/auth_events.dart';
 ///
 ///   @override
 ///   Future<void> login(Map<String, dynamic> data, Authenticatable user) async {
-///     await storeToken(data['token']);
-///     await cacheUser(user);
-///     setUser(user);
+///     await startSession(user, token: data['token'] as String?);
 ///   }
 /// }
 /// ```
 abstract class BaseGuard implements Guard {
   Authenticatable? _user;
   String? _cachedToken;
+
+  /// Moves, synchronously and before any await, whenever a session opens
+  /// ([startSession]) or ends ([logout]). An in-flight boot sync compares it
+  /// against the value it captured, which [stateNotifier] cannot do alone: it
+  /// bumps only once the user is set or cleared, after the Vault awaits.
+  int _sessionEpoch = 0;
 
   /// Auth state notifier.
   ///
@@ -116,9 +120,65 @@ abstract class BaseGuard implements Guard {
   String? get cachedToken => _cachedToken;
 
   /// Store token (and optional refresh token).
-  Future<void> storeToken(String token, [String? refreshToken]) async {
-    await Vault.put(tokenKey, token);
+  ///
+  /// The in-memory token moves BEFORE the Vault writes, not after them. A
+  /// boot sync still in the air judges a 401 by whether the token it was sent
+  /// with is still the one held, and with the writes first a 401 about the
+  /// old token landing between them read as a verdict on the current session:
+  /// its logout deleted the token just written. A sign-in goes through
+  /// [startSession] instead, which also marks the session as changed.
+  Future<void> storeToken(String token, [String? refreshToken]) =>
+      _holdThenPersist(token, refreshToken);
+
+  /// Open a session: mark it opened and move the in-memory token, persist
+  /// [token] (when given) and its [refreshToken], then set [user] and cache it.
+  ///
+  /// Everything an in-flight boot sync reads moves before the first await.
+  /// The sync ignores its answer once [_sessionEpoch] has moved, so neither of
+  /// the two windows a sign-in used to open is reachable: with the user set a
+  /// few awaits after the token, a late 200 applied the PREVIOUS account
+  /// against the NEW token (0.0.17), and with the Vault writes ahead of the
+  /// in-memory token, a late 401 logged out and deleted the token the sign-in
+  /// had just written (0.0.18). Use this from [login] rather than
+  /// [storeToken] followed by [setUser].
+  @protected
+  Future<void> startSession(
+    Authenticatable user, {
+    String? token,
+    String? refreshToken,
+  }) async {
+    _sessionEpoch++;
+
+    if (token != null) await _holdThenPersist(token, refreshToken);
+    setUser(user);
+
+    await cacheUser(user);
+  }
+
+  /// Move the in-memory token to [token], then persist it and [refreshToken].
+  ///
+  /// When the access-token write throws ([MagicVaultException] on a locked
+  /// keychain or a missing entitlement), the in-memory token goes back to what
+  /// it was, as long as nothing moved it since, and the failure propagates. A
+  /// token that was never stored must not ride on later requests: a guest
+  /// would carry a failed sign-in's bearer, and on an account switch the
+  /// screen would show one account while the requests carried the other.
+  ///
+  /// A failed refresh-token write does NOT move it back. By then the new
+  /// access token is on disk, and after a refresh the server has already
+  /// rotated the old one away, so reverting would sign requests with a token
+  /// nobody accepts while the Vault holds the one that works.
+  Future<void> _holdThenPersist(String token, String? refreshToken) async {
+    final previous = _cachedToken;
     _cachedToken = token;
+
+    try {
+      await Vault.put(tokenKey, token);
+    } catch (_) {
+      if (_cachedToken == token) _cachedToken = previous;
+
+      rethrow;
+    }
 
     if (refreshToken != null && refreshTokenKey != null) {
       await Vault.put(refreshTokenKey!, refreshToken);
@@ -270,8 +330,13 @@ abstract class BaseGuard implements Guard {
   /// still reaches the caller, because a logout that could not remove a
   /// credential is not a logout, and only the caller can decide what to say
   /// about it.
+  ///
+  /// [_sessionEpoch] moves first, before any await, so a boot sync answering
+  /// while the deletes run is not applied to a session that is ending.
   @override
   Future<void> logout() async {
+    _sessionEpoch++;
+
     Object? failure;
     StackTrace? failureStack;
 
@@ -343,7 +408,29 @@ abstract class BaseGuard implements Guard {
   }
 
   /// Sync user data from API.
-  Future<void> _syncUserFromApi() async {
+  ///
+  /// [restore] fires this unawaited when the cache had a user, so the session
+  /// can change while it is in the air, and two kinds of change need two
+  /// different answers.
+  ///
+  /// A sign-in or a sign-out makes the answer about a session that no longer
+  /// exists, so nothing of it is applied. Either is seen from its first line,
+  /// through [_sessionEpoch], and a [setUser] from anywhere else through
+  /// [stateNotifier]. A 401 used to run [logout], whose [clearTokens] deleted
+  /// the token the sign-in had just stored, and a 200 used to put the
+  /// previous account back in memory and on disk.
+  ///
+  /// A token rotation (a refresh, which bumps nothing) keeps the account, so
+  /// a 200 is still applied: the interceptor's own refresh-and-retry of this
+  /// very request lands here as a 200 under a new token, and on a cold start
+  /// with no cached user that 200 is the only thing that can sign the user
+  /// in. A 401 or 403 under a rotated token is about the token it replaced,
+  /// so it ends nothing by itself: the sync is re-checked once under the
+  /// current token ([afterRotation]), and that answer decides. Keeping the
+  /// session on the first refusal alone left a viewer holding a token the
+  /// server had just refused, when the interceptor's own refresh-and-retry of
+  /// this request was the thing refused.
+  Future<void> _syncUserFromApi({bool afterRotation = false}) async {
     if (userEndpoint == null || userFactory == null) {
       Log.debug(
         'Auth: Skipping API sync '
@@ -352,8 +439,21 @@ abstract class BaseGuard implements Guard {
       return;
     }
 
+    final sentToken = cachedToken;
+    final sentSession = stateNotifier.value;
+    final sentEpoch = _sessionEpoch;
+
     try {
       final response = await Http.get(userEndpoint!);
+
+      if (_sessionEpoch != sentEpoch || stateNotifier.value != sentSession) {
+        Log.debug(
+          'Auth: user sync answered for a session that has since changed; '
+          'ignoring it',
+        );
+
+        return;
+      }
 
       if (!response.successful) {
         // Only the server may end a session. A transport failure (a timeout, a
@@ -363,6 +463,15 @@ abstract class BaseGuard implements Guard {
         // away a valid session because the phone went through a tunnel, and
         // said "Token invalid" about a server that never spoke.
         if (response.statusCode == 401 || response.statusCode == 403) {
+          if (cachedToken != sentToken && !afterRotation) {
+            Log.debug(
+              'Auth: user sync refused a token the guard has since replaced; '
+              're-checking under the current one',
+            );
+
+            return await _syncUserFromApi(afterRotation: true);
+          }
+
           Log.warning('Auth: Token rejected by the server, logging out');
           await logout();
 
@@ -382,6 +491,17 @@ abstract class BaseGuard implements Guard {
         final user = userFactory!(userData);
         setUser(user);
         await cacheUser(user);
+
+        // The cache write is an await, and a sign-in or sign-out can begin
+        // inside it. Neither should hear `AuthRestored` for the session this
+        // answer was about, and a sign-out that cleared the cache before this
+        // write landed would find the user back on disk.
+        if (_sessionEpoch != sentEpoch) {
+          if (cachedToken == null) await clearUserCache();
+
+          return;
+        }
+
         Log.info('Auth: User synced from API');
 
         // Dispatch updated event
