@@ -82,4 +82,49 @@ void main() {
 
     auth.assertLoggedOut();
   });
+
+  group('against a guard that holds a token', () {
+    // `FakeAuthManager`'s guard is not a `BaseGuard`, so it has no token to
+    // compare against. A real guard over a faked vault is the seam that does.
+    late BaseGuard guard;
+
+    setUp(() async {
+      MagicApp.reset();
+      Magic.flush();
+      Log.fake();
+      Vault.fake();
+      Magic.singleton('auth', AuthManager.new);
+
+      guard = Auth.guard() as BaseGuard;
+      await guard.storeToken('fresh-token');
+      guard.setUser(_User()..setRawAttributes({'id': 1}, sync: true));
+    });
+
+    test(
+      'a 401 on a token the guard no longer holds keeps the session',
+      () async {
+        // The same race with a credential in it: a request dispatched with the
+        // token restored at boot is refused, a sign-in stores a new token while
+        // that refusal is in flight, and the late 401 is about the old token.
+        // Ending the session on it ends one the server never judged.
+        await AuthInterceptor().onError(
+          _unauthorized(<String, dynamic>{
+            'Authorization': 'Bearer stale-token',
+          }),
+        );
+
+        expect(guard.check(), isTrue);
+        expect(guard.cachedToken, 'fresh-token');
+      },
+    );
+
+    test('a 401 on the token the guard holds still ends the session', () async {
+      await AuthInterceptor().onError(
+        _unauthorized(<String, dynamic>{'Authorization': 'Bearer fresh-token'}),
+      );
+
+      expect(guard.check(), isFalse);
+      expect(guard.cachedToken, isNull);
+    });
+  });
 }

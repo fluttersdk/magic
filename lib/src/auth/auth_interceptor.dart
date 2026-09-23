@@ -43,14 +43,18 @@ class AuthInterceptor extends MagicNetworkInterceptor {
     return request;
   }
 
-  /// Whether the refused request actually presented a credential.
+  /// Whether the refused request presented the credential the guard holds.
   ///
   /// A 401 only speaks about the guard's token when the request carried it.
   /// A request dispatched BEFORE a sign-in completed goes out with no auth
   /// header at all, and its refusal arrives after the session exists: read as
   /// a rejection, it ends a session the server never saw. Measured in a
   /// browser against a consumer app, where an unauthenticated call made during
-  /// bootstrap logged out the guest session that had just been opened.
+  /// bootstrap logged out the guest session that had just been opened. A
+  /// request that carried an OLDER token is the same race with a credential in
+  /// it, so against a [BaseGuard] the presented value has to be the one
+  /// [onRequest] would write now. A guard that keeps no token of its own can
+  /// only be judged on whether one was presented at all.
   ///
   /// The lookup ignores case because header names do, and because Dio keeps
   /// the casing of a key's first insertion: a caller that passed
@@ -59,16 +63,23 @@ class AuthInterceptor extends MagicNetworkInterceptor {
   /// This is the sibling of the rule [BaseGuard] already applies to a
   /// transport failure: only the server may end a session, and only about a
   /// credential it was actually shown.
-  bool _presentedCredential(MagicRequest? request) {
+  bool _presentedCurrentCredential(MagicRequest? request) {
     if (request == null) return false;
 
     final header = _header.toLowerCase();
+    final presented = request.headers.entries
+        .where((entry) => entry.key.toLowerCase() == header)
+        .map((entry) => entry.value?.toString() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
 
-    return request.headers.entries.any(
-      (entry) =>
-          entry.key.toLowerCase() == header &&
-          (entry.value?.toString() ?? '').isNotEmpty,
-    );
+    if (presented.isEmpty) return false;
+
+    final guard = Auth.guard();
+    if (guard is! BaseGuard) return true;
+
+    final token = guard.cachedToken;
+
+    return token != null && token.isNotEmpty && presented == '$_prefix $token';
   }
 
   @override
@@ -77,10 +88,11 @@ class AuthInterceptor extends MagicNetworkInterceptor {
   @override
   dynamic onError(MagicError error) async {
     // Handle 401 Unauthorized, but only for a request that presented the
-    // token: one that carried none was never judged by the server.
+    // token the guard holds: one that carried none, or an older one, says
+    // nothing about the session as it stands.
     if (error.isUnauthorized &&
         !_isRefreshing &&
-        _presentedCredential(error.request)) {
+        _presentedCurrentCredential(error.request)) {
       _isRefreshing = true;
 
       try {
