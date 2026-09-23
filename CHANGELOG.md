@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A 401 no longer ends the session when the refused request carried no credential.** `AuthInterceptor.onError` treated every 401 as a verdict on the stored token, so a request that went out with no auth header at all still ran the refresh-or-logout ladder. On an app with no refresh endpoint that ladder is a straight logout.
+
+  That is not a hypothetical ordering. Measured in a browser: an app opens a guest session on launch without awaiting it, and a second call made during the same bootstrap is dispatched BEFORE the login returns, so it carries no header. Its 401 comes back AFTER `Auth.login` has already stored the token and set the user, and the interceptor then logged out the session that had just been opened. Every account-backed feature was dead for the rest of the process, the app looked signed out with a valid token on the server, and nothing said so: the interceptor's own `Log.warning` is the only trace and it is not an error.
+
+  The interceptor now asks whether the request presented the header `auth.token.header` names before it concludes anything, matching the name without regard to case: header names are case-insensitive, and Dio keeps the casing of a key's first insertion, so a caller that passed `authorization` itself still owns that key after the interceptor writes into it. A 401 on a request the server was never shown a credential for says nothing about the credential the guard now holds, and neither does one on a request that carried an OLDER token: against a `BaseGuard` the presented value has to be the one the interceptor would attach now, so a refusal of the token restored at boot that lands after a sign-in stored a new one no longer ends the new session. A guard that keeps no token of its own is judged on presence alone. This is the sibling of the rule `BaseGuard._syncUserFromApi` already applies to a transport failure: only the server may end a session, and only about a credential it actually saw. A token the server really did reject still ends the session, exactly as before, and the retry after a successful refresh now drops a differently cased copy of the header before writing the new token, so it no longer carries the refused token beside the fresh one. (`lib/src/auth/auth_interceptor.dart`, `doc/security/authentication.md`, `skills/magic-framework/`)
+
 ## [0.0.16] - 2026-09-22
 
 ### Changed

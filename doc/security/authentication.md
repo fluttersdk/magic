@@ -305,12 +305,14 @@ MagicBuilder(
 
 When `auto_refresh` is enabled, Magic automatically handles 401 responses:
 
-1. Original request fails with 401
+1. Original request fails with 401, **having presented the token**
 2. Interceptor calls `Auth.refreshToken()`
 3. If refresh succeeds, original request is retried with new token
 4. If refresh fails, user is logged out
 
 The auth interceptor is built into `AuthServiceProvider` and works automatically when configured.
+
+**A 401 on a request that carried no auth header, or an older token, is ignored.** The ladder above runs only when the refused request actually presented the header `auth.token.header` names, matched without regard to case, carrying the token the guard holds now. A request dispatched before a sign-in completed goes out anonymous, and its refusal arrives once the session exists; treating that as a rejection would end a session the server was never shown. Only a credential the server actually saw and refused ends a session.
 
 ```dart
 // Manual token refresh
