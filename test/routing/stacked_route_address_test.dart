@@ -22,8 +22,14 @@ void main() {
     Magic.flush();
     TitleManager.reset();
     MagicRouter.reset();
-    // Start from go_router's own default, so a pass is the router's doing.
-    GoRouter.optionURLReflectsImperativeAPIs = false;
+  });
+
+  test('reset returns the address flag to go_router\'s default', () {
+    GoRouter.optionURLReflectsImperativeAPIs = true;
+
+    MagicRouter.reset();
+
+    expect(GoRouter.optionURLReflectsImperativeAPIs, isFalse);
   });
 
   Future<void> pumpRouter(WidgetTester tester) async {

@@ -269,7 +269,7 @@ MagicRouter.instance.defaultStacked = true;
 MagicRouter.instance.defaultTransition = RouteTransition.platform;
 ```
 
-Leave `defaultStacked` off on web: `go()` already gives a working browser Back.
+Leave `defaultStacked` off on web: `go()` already gives a working browser Back. A route you do stack still owns the address bar there, because the router turns on go_router's `optionURLReflectsImperativeAPIs`, so a pushed detail page shows its own url and can be deep-linked.
 
 `back()` is unchanged and still prefers the native pop, so the history fallback keeps covering unstacked routes.
 

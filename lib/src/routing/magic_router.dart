@@ -1121,6 +1121,9 @@ class MagicRouter {
     _instance?._isBuilt = false;
     _instance?._intendedUrl = null;
     _instance?._history.clear();
+    // Set by `_buildRouter` on a static, so it outlives the instance; back to
+    // go_router's default with the rest of the router's state.
+    GoRouter.optionURLReflectsImperativeAPIs = false;
     TitleManager.reset();
     _instance = null;
   }
