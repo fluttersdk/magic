@@ -1193,6 +1193,26 @@ void main() {
       expect(guard.cachedToken, 'old-token');
     });
 
+    test(
+      'a refresh whose refresh-token write fails keeps the new access token',
+      () async {
+        // The access token is on disk by then and the server has rotated the
+        // old one away, so going back to the old token would sign requests
+        // with a token nobody accepts while the Vault holds the working one.
+        Magic.app.setInstance('vault', _RefusingVault('new-refresh'));
+        final guard = BearerTokenGuard(refreshTokenKey: 'refresh_token');
+        await guard.storeToken('old-token');
+
+        await expectLater(
+          guard.storeToken('new-token', 'new-refresh'),
+          throwsA(isA<StateError>()),
+        );
+
+        expect(guard.cachedToken, 'new-token');
+        expect(await Vault.get('auth_token'), 'new-token');
+      },
+    );
+
     test('ApiKeyGuard stores the key', () async {
       final guard = ApiKeyGuard();
 

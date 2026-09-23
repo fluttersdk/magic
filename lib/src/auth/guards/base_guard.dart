@@ -157,27 +157,28 @@ abstract class BaseGuard implements Guard {
 
   /// Move the in-memory token to [token], then persist it and [refreshToken].
   ///
-  /// When a Vault write throws ([MagicVaultException] on a locked keychain or
-  /// a missing entitlement), the in-memory token goes back to what it was, as
-  /// long as nothing moved it since, and the failure propagates. A token that
-  /// was never stored must not ride on later requests: a guest would carry a
-  /// failed sign-in's bearer, and on an account switch the screen would show
-  /// one account while the requests carried the other.
+  /// When the access-token write throws ([MagicVaultException] on a locked
+  /// keychain or a missing entitlement), the in-memory token goes back to what
+  /// it was, as long as nothing moved it since, and the failure propagates. A
+  /// token that was never stored must not ride on later requests: a guest
+  /// would carry a failed sign-in's bearer, and on an account switch the
+  /// screen would show one account while the requests carried the other.
+  ///
+  /// A failed refresh-token write does NOT move it back. By then the new
+  /// access token is on disk, and after a refresh the server has already
+  /// rotated the old one away, so reverting would sign requests with a token
+  /// nobody accepts while the Vault holds the one that works.
   Future<void> _holdThenPersist(String token, String? refreshToken) async {
     final previous = _cachedToken;
     _cachedToken = token;
 
     try {
-      await _persistTokens(token, refreshToken);
+      await Vault.put(tokenKey, token);
     } catch (_) {
       if (_cachedToken == token) _cachedToken = previous;
 
       rethrow;
     }
-  }
-
-  Future<void> _persistTokens(String token, String? refreshToken) async {
-    await Vault.put(tokenKey, token);
 
     if (refreshToken != null && refreshTokenKey != null) {
       await Vault.put(refreshTokenKey!, refreshToken);
