@@ -5,7 +5,7 @@ when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.ini
 version: 0.1.38
 ---
 
-<!-- magic 0.0.16 | Skill v0.1.37 (2026-09-22). API surface verified against lib/src. -->
+<!-- magic 0.0.16 | Skill v0.1.38 (2026-09-23). API surface verified against lib/src. -->
 
 # Magic Framework
 
