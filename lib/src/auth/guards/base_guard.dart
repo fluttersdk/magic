@@ -474,6 +474,17 @@ abstract class BaseGuard implements Guard {
         final user = userFactory!(userData);
         setUser(user);
         await cacheUser(user);
+
+        // The cache write is an await, and a sign-in or sign-out can begin
+        // inside it. Neither should hear `AuthRestored` for the session this
+        // answer was about, and a sign-out that cleared the cache before this
+        // write landed would find the user back on disk.
+        if (_sessionEpoch != sentEpoch) {
+          if (cachedToken == null) await clearUserCache();
+
+          return;
+        }
+
         Log.info('Auth: User synced from API');
 
         // Dispatch updated event

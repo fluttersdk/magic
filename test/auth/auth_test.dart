@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart' hide EventDispatcher;
 import 'package:magic/magic.dart';
 
 // ---------------------------------------------------------------------------
@@ -180,6 +180,35 @@ class _HeldTokenDeleteVault extends FakeVaultService {
 
     return super.remove(key);
   }
+}
+
+/// A vault whose first write of the cached user waits for [gate], so a test
+/// can act while a sync is caching the user it just fetched.
+class _HeldUserWriteVault extends FakeVaultService {
+  _HeldUserWriteVault(this.gate, super.initialValues);
+
+  final Completer<void> gate;
+
+  /// Completes when the first cached-user write has started and is waiting.
+  final Completer<void> userWriteStarted = Completer<void>();
+
+  @override
+  Future<void> put(String key, String value) async {
+    if (key == 'auth_user' && !userWriteStarted.isCompleted) {
+      userWriteStarted.complete();
+      await gate.future;
+    }
+
+    return super.put(key, value);
+  }
+}
+
+/// Records every event of type [T] it is handed.
+class _RecordingListener<T extends MagicEvent> extends MagicListener<T> {
+  final List<T> received = <T>[];
+
+  @override
+  Future<void> handle(T event) async => received.add(event);
 }
 
 /// A driver whose GET answers the way [DioNetworkDriver] answers a transport
@@ -949,6 +978,52 @@ void main() {
         expect(guard.check(), isTrue);
         expect(await Vault.get('auth_token'), 'rotated-token');
         expect(await Vault.get('refresh_token'), 'new-refresh');
+      },
+    );
+
+    test(
+      'a sign-out during the sync\'s own cache write gets no AuthRestored',
+      () async {
+        // The epoch is read once, when the answer arrives, and the 200 path
+        // then awaits its cache write before dispatching. A sign-out starting
+        // inside that write used to hear `AuthRestored` for the session it
+        // had just ended, and the cache write could land after the sign-out
+        // cleared it.
+        Log.fake();
+        EventDispatcher.instance.clear();
+        final restored = _RecordingListener<AuthRestored>();
+        EventDispatcher.instance.register(AuthRestored, [() => restored]);
+        final cacheWrite = Completer<void>();
+        final vault = _HeldUserWriteVault(cacheWrite, {
+          'auth_token': 'stored-token',
+          'auth_user': jsonEncode({'id': 7, 'name': 'Cached User'}),
+        });
+        Magic.app.setInstance('vault', vault);
+        final gate = Completer<void>();
+        Magic.singleton(
+          'network',
+          () => _HeldDriver(
+            gate,
+            MagicResponse(
+              data: {'id': 7, 'name': 'Fresh User'},
+              statusCode: 200,
+            ),
+          ),
+        );
+
+        final guard = _CacheFirstGuard();
+        await guard.restore();
+        gate.complete();
+        await vault.userWriteStarted.future;
+
+        await guard.logout();
+        cacheWrite.complete();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(restored.received, isEmpty);
+        expect(guard.check(), isFalse);
+        expect(await Vault.get('auth_user'), isNull);
+        EventDispatcher.instance.clear();
       },
     );
 
