@@ -41,9 +41,7 @@ void main() {
     return information!.uri.path;
   }
 
-  testWidgets('a pushed stacked route reports its own address', (
-    tester,
-  ) async {
+  testWidgets('a pushed stacked route reports its own address', (tester) async {
     MagicRoute.page('/', () => const SizedBox());
     MagicRoute.page('/monitors', () => const SizedBox());
     MagicRoute.page('/monitors/:id', (id) => const SizedBox()).stacked();
