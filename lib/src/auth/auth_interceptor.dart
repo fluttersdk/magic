@@ -109,7 +109,13 @@ class AuthInterceptor extends MagicNetworkInterceptor {
             if (guard is BaseGuard) {
               final token = guard.cachedToken;
               if (token != null) {
-                originalRequest.headers[_header] = '$_prefix $token';
+                // The refused request's map is a plain, case-sensitive copy of
+                // Dio's, so a key the caller spelled differently would survive
+                // beside the one written here and carry the refused token too.
+                final header = _header.toLowerCase();
+                originalRequest.headers
+                  ..removeWhere((key, _) => key.toLowerCase() == header)
+                  ..[_header] = '$_prefix $token';
 
                 // Retry via Http facade
                 final response = await _retryRequest(originalRequest);

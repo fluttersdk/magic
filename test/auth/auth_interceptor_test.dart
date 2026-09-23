@@ -9,6 +9,19 @@ class _User extends Model with Authenticatable {
   String get resource => 'users';
 }
 
+/// A guard whose refresh always succeeds, rotating the stored token.
+class _RotatingGuard extends BaseGuard {
+  @override
+  Future<void> login(Map<String, dynamic> data, Authenticatable user) async {}
+
+  @override
+  Future<bool> refreshToken() async {
+    await storeToken('rotated-token');
+
+    return true;
+  }
+}
+
 /// A 401 carrying whatever headers the request actually went out with.
 MagicError _unauthorized(Map<String, dynamic> headers) => MagicError(
   request: MagicRequest(url: '/notifications', method: 'GET', headers: headers),
@@ -126,5 +139,38 @@ void main() {
       expect(guard.check(), isFalse);
       expect(guard.cachedToken, isNull);
     });
+  });
+
+  test('a retry after a refresh carries the new token exactly once', () async {
+    // The retry reuses the refused request's own header map, which is a plain
+    // copy of Dio's and so case-sensitive. A caller that sent `authorization`
+    // left that key in place beside the `Authorization` the retry wrote, and
+    // the retry went out carrying the refused token as well as the fresh one.
+    MagicApp.reset();
+    Magic.flush();
+    Log.fake();
+    Vault.fake();
+    final http = Http.fake();
+    Config.set('auth', <String, dynamic>{
+      'defaults': <String, dynamic>{'guard': 'api'},
+      'guards': <String, dynamic>{
+        'api': <String, dynamic>{'driver': 'rotating'},
+      },
+    });
+    Magic.singleton('auth', AuthManager.new);
+    Auth.manager
+      ..extend('rotating', (_) => _RotatingGuard())
+      ..forgetGuards();
+    await (Auth.guard() as BaseGuard).storeToken('old-token');
+
+    await AuthInterceptor().onError(
+      _unauthorized(<String, dynamic>{'authorization': 'Bearer old-token'}),
+    );
+
+    final sent = http.recorded.single.$1.headers.entries
+        .where((entry) => entry.key.toLowerCase() == 'authorization')
+        .map((entry) => entry.value)
+        .toList();
+    expect(sent, <String>['Bearer rotated-token']);
   });
 }
