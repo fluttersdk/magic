@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`MagicApplication.builder`, a layer above the router that survives every navigation.** It is passed straight to `MaterialApp.router(builder:)`, so it wraps the `Router` inside the app's `Theme`, localizations, `Directionality` and `MediaQuery`, and above the root `Navigator`. A layout cannot do this job, since it belongs to its routes and a `to()` to an unstacked route outside the group disposes it; there was no seam short of abandoning `MagicApplication`. The case that forced it is a floating video player whose platform view must never be remounted while the viewer moves between pages: its State now survives every `to()`, push and `back()`. From the layer's own context `Navigator.of` and `Overlay.of` find nothing, so it navigates through `MagicRoute`, opens dialogs with `Magic.dialog()`, and needs an `Overlay` of its own around any `Tooltip`, `WPopover` or `WSelect`. A soft restart is not a navigation: `Magic.reload()`, which `Lang.setLocale()` calls unless passed `reload: false`, remounts the layer with everything else. The loading and failure screens shown before initialization are left unwrapped, and a null `builder` changes nothing. (`lib/src/foundation/magic_app_widget.dart`, `doc/basics/routing.md`, `skills/magic-framework/`)
+
 ## [0.0.20] - 2026-09-23
 
 ### Changed

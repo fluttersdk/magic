@@ -13,6 +13,7 @@ Magic's routing wraps `go_router` with a Laravel-style fluent API: define routes
     - [Prefixes](#prefixes)
     - [Layouts (Shell Routes)](#layouts-shell-routes)
 - [Standalone Layouts](#standalone-layouts)
+- [A Layer Above Every Page](#a-layer-above-every-page)
 - [Context-Free Navigation](#context-free-navigation)
 - [Back Gestures and the Stack](#back-gestures-and-the-stack)
     - [Transitions](#transitions)
@@ -358,6 +359,31 @@ MagicRoute.layout(
 
 > [!TIP]
 > For most cases, the `layout:` parameter on `MagicRoute.group()` is more convenient. Use `MagicRoute.layout()` when you need to reference a list of routes that are built separately.
+
+<a name="a-layer-above-every-page"></a>
+## A Layer Above Every Page
+
+A layout belongs to its routes: a `to()` to an unstacked route outside the group disposes it with them. When something has to survive every navigation, whatever the route, wrap the router itself with `MagicApplication`'s `builder`:
+
+```dart
+MagicApplication(
+  builder: (context, child) => Stack(
+    children: [
+      child!,
+      const FloatingPlayer(),
+    ],
+  ),
+)
+```
+
+It is passed straight to `MaterialApp.builder`, so the builder runs inside the app's `Theme`, localizations, `Directionality` and `MediaQuery`, and `child` is the `Router`, which builds the root `Navigator`. Whatever you put around `child` sits above the Navigator and inside no route, so its State survives every `to()`, push and `back()`. That is the property a floating video player needs, since remounting its platform view would restart the stream.
+
+The same position means `Navigator.of(context)` and `Overlay.of(context)` find nothing from the layer's own context. Navigate with `MagicRoute` and open a dialog with `Magic.dialog()`, which shows it on the root Navigator. A widget inside the layer that needs an `Overlay` of its own, such as a `Tooltip`, a `WPopover` or a `WSelect`, throws unless the layer puts an `Overlay` around it.
+
+> [!WARNING]
+> A soft restart is not a navigation. `Magic.reload()` rebuilds the whole `MaterialApp`, so the layer is remounted with a new State, and `Lang.setLocale()` calls it unless you pass `reload: false`.
+
+Only the running app is wrapped: the loading and failure screens shown before `MagicApplication` finishes initializing are not. Leaving `builder` null changes nothing.
 
 <a name="context-free-navigation"></a>
 ## Context-Free Navigation
