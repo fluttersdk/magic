@@ -9,6 +9,7 @@ Carbon is Magic's date and time utility, inspired by PHP's Carbon library, offer
 - [Comparison](#comparison)
 - [Human Readable](#human-readable)
 - [Timezone Support](#timezone-support)
+- [Testing](#testing)
 - [Model Integration](#model-integration)
 
 <a name="introduction"></a>
@@ -209,6 +210,31 @@ instance. To work in a specific zone, pass it explicitly:
 Carbon.now('Europe/Istanbul');           // build in a zone
 Carbon.now().setTimezone('America/New_York'); // convert an existing instance
 ```
+
+<a name="testing"></a>
+## Testing
+
+`Carbon.setTestNow([testNow])` freezes what `Carbon.now([timezone])` returns, mirroring Laravel's
+`Carbon::setTestNow()`. Call it with no argument (or `null`) to clear the freeze; `Carbon.hasTestNow()`
+reports whether one is currently set.
+
+```dart
+setUp(() {
+  Carbon.setTestNow(Carbon.create(year: 2024, month: 1, day: 15, hour: 10));
+});
+
+tearDown(() {
+  Carbon.setTestNow(); // never leak a frozen clock into the next test
+});
+
+test('a rule that reads "now"', () {
+  expect(Carbon.now().toDateString(), '2024-01-15');
+});
+```
+
+`Carbon.now(timezone)` still converts the frozen instant into the requested zone; only the moment
+`now()` starts from is frozen, not the timezone-conversion path. Nothing else on `Carbon` reads the
+freeze: `Carbon.parse()`, `Carbon.fromDateTime()`, and instance methods like `isToday()` are unaffected.
 
 <a name="model-integration"></a>
 ## Model Integration

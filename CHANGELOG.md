@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`Carbon.setTestNow([testNow])` and `Carbon.hasTestNow()`, Laravel's frozen-clock testing helper.** `Carbon.now([timezone])` returns the frozen instant while one is set (timezone conversion still applies on top of it), and `Carbon.setTestNow()` with no argument (or `null`) clears the freeze. A test that seeds an app's clock now has a Laravel-parity seam instead of threading a fake `DateTime` through every call site. (`lib/src/support/carbon.dart`, `doc/digging-deeper/carbon.md`, `skills/magic-framework/`)
+
 ## [0.0.21] - 2026-09-24
 
 ### Added

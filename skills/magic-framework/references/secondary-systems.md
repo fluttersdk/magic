@@ -605,6 +605,13 @@ Laravel-style fluent date wrapper around Jiffy for parsing, formatting, and mani
 | `Carbon.fromDateTime(dateTime)` | `DateTime dateTime` | `Carbon` | Wrap a DateTime. |
 | `Carbon.create({...})` | Year, month, day, hour, minute, second, millisecond | `Carbon` | Create from parts. |
 
+#### Testing
+
+| Method | Parameters | Return Type | Description |
+|:-------|:-----------|:------------|:------------|
+| `Carbon.setTestNow([testNow])` | `Carbon? testNow` | `void` | Freeze `Carbon.now()` to `testNow`; no argument (or `null`) clears the freeze. |
+| `Carbon.hasTestNow()` | none | `bool` | Whether `Carbon.now()` is currently frozen. |
+
 #### Getters
 
 | Property | Type | Description |

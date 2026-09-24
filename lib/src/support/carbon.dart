@@ -51,7 +51,9 @@ class Carbon implements Comparable<Carbon> {
   /// final inNY = Carbon.now('America/New_York');
   /// ```
   factory Carbon.now([String? timezone]) {
-    var jiffy = Jiffy.now();
+    var jiffy = _testNow != null
+        ? Jiffy.parseFromDateTime(_testNow!._engine.dateTime)
+        : Jiffy.now();
     if (timezone != null) {
       try {
         final location = tz.getLocation(timezone);
@@ -110,6 +112,29 @@ class Carbon implements Comparable<Carbon> {
     );
     return Carbon.fromDateTime(dateTime);
   }
+
+  // ---------------------------------------------------------------------------
+  // Testing
+  // ---------------------------------------------------------------------------
+
+  /// The frozen instant `Carbon.now()` returns while set, mirroring Laravel's
+  /// `Carbon::setTestNow()`.
+  static Carbon? _testNow;
+
+  /// Freeze `Carbon.now()` to [testNow] for the rest of the test, or clear the
+  /// freeze when called with no argument (or `null`).
+  ///
+  /// ```dart
+  /// Carbon.setTestNow(Carbon.create(year: 2024, month: 1, day: 15));
+  /// Carbon.now(); // always 2024-01-15
+  /// Carbon.setTestNow(); // back to the real clock
+  /// ```
+  static void setTestNow([Carbon? testNow]) {
+    _testNow = testNow;
+  }
+
+  /// Whether `Carbon.now()` is currently frozen via [setTestNow].
+  static bool hasTestNow() => _testNow != null;
 
   // ---------------------------------------------------------------------------
   // Getters
