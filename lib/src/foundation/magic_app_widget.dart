@@ -154,6 +154,46 @@ class MagicApplication extends StatefulWidget {
   /// rest build their own animation explicitly and never consult the theme.
   final PageTransitionsTheme? pageTransitionsTheme;
 
+  /// Wrap the router's output in a layer that outlives every navigation.
+  ///
+  /// Passed straight to [MaterialApp.builder], so the contract is Flutter's:
+  /// the builder runs inside the app's [Theme] and [Localizations] (which
+  /// carry [Directionality]) and the [MediaQuery] the [View] supplies, and
+  /// `child` is the [Router], which builds the root [Navigator]. A widget
+  /// placed around `child` is therefore above the Navigator and inside no
+  /// route, so no `to()`, push or `back()` remounts it: its State survives
+  /// every route change.
+  ///
+  /// That is what a floating video player needs, whose platform view would
+  /// restart the stream if it were ever remounted:
+  ///
+  /// ```dart
+  /// MagicApplication(
+  ///   builder: (context, child) => Stack(
+  ///     children: [
+  ///       child!,
+  ///       const FloatingPlayer(),
+  ///     ],
+  ///   ),
+  /// )
+  /// ```
+  ///
+  /// Being above the Navigator cuts both ways: `Navigator.of` and `Overlay.of`
+  /// find nothing from the layer's own context. Navigate through `MagicRoute`
+  /// and open a dialog with `Magic.dialog`, which shows it on the root
+  /// Navigator. Anything inside the layer that needs an [Overlay] of its own
+  /// (a [Tooltip], wind's `WPopover` or `WSelect`) throws unless the layer
+  /// puts an [Overlay] around it.
+  ///
+  /// A soft restart is not a navigation. `Magic.reload()` re-keys the whole
+  /// [MaterialApp], so the layer is remounted with a new State, and
+  /// `Lang.setLocale` calls it unless passed `reload: false`.
+  ///
+  /// Only the running app is wrapped: the loading and failure screens shown
+  /// before initialization completes are separate [MaterialApp]s with no
+  /// router. Left null, nothing is wrapped.
+  final TransitionBuilder? builder;
+
   /// Debug banner.
   final bool debugShowCheckedModeBanner;
 
@@ -175,6 +215,7 @@ class MagicApplication extends StatefulWidget {
     this.locale,
     this.localizationsDelegates,
     this.pageTransitionsTheme,
+    this.builder,
     this.debugShowCheckedModeBanner = false,
     this.onInit,
     this.onThemeChanged,
@@ -352,6 +393,7 @@ class _MagicApplicationState extends State<MagicApplication> {
       localizationsDelegates:
           widget.localizationsDelegates ?? _getLocalizationsDelegates(),
       debugShowCheckedModeBanner: widget.debugShowCheckedModeBanner,
+      builder: widget.builder,
       routerConfig: MagicRouter.instance.routerConfig,
     );
   }

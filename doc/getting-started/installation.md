@@ -238,6 +238,8 @@ runApp(
 );
 ```
 
+To keep a widget on screen across every page, such as a floating player, pass a `builder`; see [A Layer Above Every Page](../basics/routing.md#a-layer-above-every-page).
+
 <a name="wind-ui-plugin"></a>
 ## Wind UI Plugin
 
