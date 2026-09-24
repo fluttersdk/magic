@@ -481,23 +481,32 @@ abstract class Model {
   /// `await` would silently run guarded. That is caught by an assertion.
   static T unguarded<T>(T Function() callback) {
     if (_unguarded) {
-      return callback();
+      return _runAssertingSync(callback);
     }
 
     unguard();
 
     try {
-      final result = callback();
-      assert(
-        result is! Future,
-        'Model.unguarded() needs a synchronous callback; the guard is '
-        'restored before an async one finishes.',
-      );
-
-      return result;
+      return _runAssertingSync(callback);
     } finally {
       reguard();
     }
+  }
+
+  /// Run [callback] and assert its result is not a [Future].
+  ///
+  /// Shared by both branches of [unguarded]: the nested/global-unguard early
+  /// return and the scoped guard/restore path must both catch an async
+  /// callback, or the assertion silently only fires from the scoped path.
+  static T _runAssertingSync<T>(T Function() callback) {
+    final result = callback();
+    assert(
+      result is! Future,
+      'Model.unguarded() needs a synchronous callback; the guard is '
+      'restored before an async one finishes.',
+    );
+
+    return result;
   }
 
   /// Determine if the given attribute is fillable.

@@ -25,6 +25,32 @@ class Monitor extends Model {
   }
 }
 
+class RefusingMonitor extends Model {
+  @override
+  String get table => 'monitors';
+
+  @override
+  String get resource => 'monitors';
+
+  @override
+  List<String> get fillable => ['name'];
+
+  /// Stands in for `InteractsWithPersistence.save`, refusing the save the way
+  /// a failed remote validation would.
+  Future<bool> save() async => false;
+}
+
+class RefusingMonitorFactory extends Factory<RefusingMonitor> {
+  @override
+  Factory<RefusingMonitor> newFactory() => RefusingMonitorFactory();
+
+  @override
+  RefusingMonitor newInstance() => RefusingMonitor();
+
+  @override
+  Map<String, dynamic> definition() => {'name': 'Refused'};
+}
+
 class MonitorFactory extends Factory<Monitor> {
   int definitions = 0;
 
@@ -173,6 +199,13 @@ void main() {
       expect(monitors.first.exists, isTrue);
       expect(monitors.first.savedUnguarded, [false]);
       expect(Model.isUnguarded, isFalse);
+    });
+
+    test('throws when save refuses the model', () async {
+      await expectLater(
+        RefusingMonitorFactory().create(),
+        throwsA(isA<StateError>()),
+      );
     });
   });
 }

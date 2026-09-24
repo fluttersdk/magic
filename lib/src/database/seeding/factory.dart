@@ -154,8 +154,14 @@ abstract class Factory<T extends Model> {
   /// Create and persist models to the database.
   ///
   /// This calls `model.save()` for each created model. The model is filled
-  /// unguarded, but `save()` itself runs with the guard back on.
+  /// unguarded, so every definition key (including `id` and timestamps) is
+  /// forwarded to the persistence layer, but `save()` itself runs with the
+  /// guard back on.
   /// Note: Your model must use `InteractsWithPersistence` mixin.
+  ///
+  /// Throws [StateError] when `save()` refuses a model (any result other than
+  /// `true`), naming the model type and, when the model exposes
+  /// `validationErrors`, the field errors from the refused save.
   ///
   /// ```dart
   /// // Create one
@@ -170,11 +176,38 @@ abstract class Factory<T extends Model> {
     for (final attributes in raw()) {
       final model = _build(attributes);
       // Use dynamic call since save() comes from InteractsWithPersistence mixin
-      await (model as dynamic).save();
+      final dynamic saved = await (model as dynamic).save();
+
+      if (saved != true) {
+        throw StateError(
+          'Factory<$T>.create() refused to save a ${model.runtimeType}: '
+          '${_describeRefusal(model)}',
+        );
+      }
+
       models.add(model);
     }
 
     return models;
+  }
+
+  /// Describe why `save()` refused [model], for [create]'s [StateError].
+  ///
+  /// Reads `validationErrors` dynamically since only models mixing in
+  /// `InteractsWithPersistence` expose it; a model without that mixin (or one
+  /// whose most recent save carried no field errors) falls back to a generic
+  /// message.
+  String _describeRefusal(T model) {
+    try {
+      final dynamic errors = (model as dynamic).validationErrors;
+      if (errors is Map<String, List<String>> && errors.isNotEmpty) {
+        return 'validation errors: $errors';
+      }
+    } catch (_) {
+      // The model does not expose validationErrors; fall through.
+    }
+
+    return 'save() did not return true';
   }
 
   /// Create models without persisting to the database.

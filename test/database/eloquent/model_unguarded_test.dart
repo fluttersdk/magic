@@ -140,5 +140,19 @@ void main() {
 
       expect(Model.isUnguarded, isTrue);
     });
+
+    test(
+      'unguarded inside a global unguard still fails on an async callback',
+      () {
+        Model.unguard();
+
+        expect(
+          () => Model.unguarded(() async {
+            await Future<void>.delayed(Duration.zero);
+          }),
+          throwsA(isA<AssertionError>()),
+        );
+      },
+    );
   });
 }

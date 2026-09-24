@@ -243,17 +243,25 @@ Seeders populate your database with test data:
 class UserSeeder extends Seeder {
   @override
   Future<void> run() async {
-    await User.factory().count(10).create();
+    await UserFactory().count(10).create();
   }
 }
 ```
 
 ### Factories
 
-Factories define how to generate fake model instances:
+Factories define how to generate fake model instances. Implement
+`definition()`, `newInstance()` and `newFactory()`; `state()` and `count()`
+return a copy rather than mutating the factory:
 
 ```dart
 class UserFactory extends Factory<User> {
+  @override
+  Factory<User> newFactory() => UserFactory();
+
+  @override
+  User newInstance() => User();
+
   @override
   Map<String, dynamic> definition() => {
     'name': faker.person.name(),
