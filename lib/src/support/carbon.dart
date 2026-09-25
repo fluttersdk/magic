@@ -51,7 +51,7 @@ class Carbon implements Comparable<Carbon> {
   /// final inNY = Carbon.now('America/New_York');
   /// ```
   factory Carbon.now([String? timezone]) {
-    var jiffy = Jiffy.now();
+    var jiffy = _clock();
     if (timezone != null) {
       try {
         final location = tz.getLocation(timezone);
@@ -109,6 +109,46 @@ class Carbon implements Comparable<Carbon> {
       millisecond,
     );
     return Carbon.fromDateTime(dateTime);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Testing
+  // ---------------------------------------------------------------------------
+
+  /// The frozen instant `Carbon.now()` returns while set, mirroring Laravel's
+  /// `Carbon::setTestNow()`.
+  static Carbon? _testNow;
+
+  /// Freeze the clock to [testNow], or clear the freeze when called with no
+  /// argument (or `null`).
+  ///
+  /// The freeze covers every read of "now": `Carbon.now()`, `isToday()`,
+  /// `isYesterday()`, `isTomorrow()`, `isFuture()`, `isPast()` and
+  /// `diffForHumans()` without an argument. It is static state, so clear it
+  /// in `tearDown` or it leaks into the next test.
+  ///
+  /// ```dart
+  /// setUp(() => Carbon.setTestNow(Carbon.create(year: 2024, month: 1, day: 15)));
+  /// tearDown(() => Carbon.setTestNow());
+  ///
+  /// Carbon.now(); // always 2024-01-15
+  /// ```
+  static void setTestNow([Carbon? testNow]) {
+    _testNow = testNow;
+  }
+
+  /// Whether the clock is currently frozen via [setTestNow].
+  static bool hasTestNow() => _testNow != null;
+
+  /// The current instant: the [setTestNow] freeze when set, else the real
+  /// clock.
+  static Jiffy _clock() {
+    final Carbon? frozen = _testNow;
+    if (frozen == null) {
+      return Jiffy.now();
+    }
+
+    return Jiffy.parseFromDateTime(frozen._engine.dateTime);
   }
 
   // ---------------------------------------------------------------------------
@@ -404,7 +444,7 @@ class Carbon implements Comparable<Carbon> {
     if (other != null) {
       return _engine.from(other._engine);
     }
-    return _engine.fromNow();
+    return _engine.from(_clock());
   }
 
   /// Get difference in days.
@@ -473,30 +513,30 @@ class Carbon implements Comparable<Carbon> {
 
   /// Check if this is today.
   bool isToday() {
-    final now = Jiffy.now();
+    final now = _clock();
     return _engine.isSame(now, unit: Unit.day);
   }
 
   /// Check if this is yesterday.
   bool isYesterday() {
-    final yesterday = Jiffy.now().subtract(days: 1);
+    final yesterday = _clock().subtract(days: 1);
     return _engine.isSame(yesterday, unit: Unit.day);
   }
 
   /// Check if this is tomorrow.
   bool isTomorrow() {
-    final tomorrow = Jiffy.now().add(days: 1);
+    final tomorrow = _clock().add(days: 1);
     return _engine.isSame(tomorrow, unit: Unit.day);
   }
 
   /// Check if this date is in the future.
   bool isFuture() {
-    return _engine.isAfter(Jiffy.now());
+    return _engine.isAfter(_clock());
   }
 
   /// Check if this date is in the past.
   bool isPast() {
-    return _engine.isBefore(Jiffy.now());
+    return _engine.isBefore(_clock());
   }
 
   /// Check if this is a weekend.
