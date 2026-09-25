@@ -167,6 +167,43 @@ void main() {
     );
   });
 
+  test(
+    'a name change while the driver has a reconnect pending only subscribes, '
+    'it does not call connect() beside it',
+    () async {
+      final _CountingBroadcastManager counting = _CountingBroadcastManager();
+      Magic.app.setInstance('broadcasting', counting);
+
+      String channelName = 'teams.1';
+      final AuthChannelSubscription subscription = AuthChannelSubscription(
+        channelName: () => channelName,
+        listeners: <String, void Function(BroadcastEvent)>{},
+      );
+
+      await subscription.sync();
+      expect(counting.spy.connectCount, 1);
+
+      // The driver lost its socket and armed its own reconnect Timer: it
+      // reports `reconnecting` before `isConnected` flips to `false`, the
+      // same order as the real Reverb driver's `_onDone`/`_onError`.
+      counting.spy.emitConnectionState(BroadcastConnectionState.reconnecting);
+      await flushMicrotasks();
+      await counting.spy.disconnect();
+
+      channelName = 'teams.2';
+      await subscription.sync();
+
+      expect(
+        counting.spy.connectCount,
+        1,
+        reason:
+            'a connect beside the driver\'s pending reconnect opens a '
+            'second socket',
+      );
+      expect(counting.spy.subscribedChannels, contains('private-teams.2'));
+    },
+  );
+
   test('overlapping syncs serialize and settle on the latest name', () async {
     String channelName = 'teams.1';
     final AuthChannelSubscription subscription = AuthChannelSubscription(
