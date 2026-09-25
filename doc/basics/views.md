@@ -8,6 +8,8 @@ Views extend `MagicView` or `MagicStatefulView` to give each screen a typed cont
     - [Stateful Views](#stateful-views)
 - [Form Handling](#form-handling)
 - [Rendering Async State](#rendering-async-state)
+- [Refetching Data on Mount](#refetching-on-mount)
+- [Guarding a Submit Against a Double Tap](#submits-once)
 - [Responsive Views](#responsive-views)
 - [Generating Views](#generating-views)
 
@@ -194,6 +196,50 @@ Widget build(BuildContext context) {
 ```
 
 Each callback is optional. Magic provides sensible defaults if omitted.
+
+<a name="refetching-on-mount"></a>
+## Refetching Data on Mount
+
+Controllers are Type-keyed singletons and fire `onInit` ONCE per controller instance, not once per view mount, so a controller that loads its data in `onInit` fetches on the first view that resolves it and never again for the lifetime of the app. Navigating away and back re-renders the same cached rows, which reads as stale or fabricated data rather than as a stale screen.
+
+Mix `RefetchesOnMount<Controller, View>` onto a `MagicStatefulViewState` and point `refetch` at a load method your controller defines (`ensureFresh` below). That method must JOIN a load already in flight rather than start a second one: the mount that creates the controller has already started the same load from `onInit`, so a refetch that always fires a new request sends every request twice.
+
+```dart
+class _ItemsListViewState
+    extends MagicStatefulViewState<ItemsController, ItemsListView>
+    with RefetchesOnMount<ItemsController, ItemsListView> {
+  @override
+  Future<void> refetch() => controller.ensureFresh();
+}
+```
+
+The refetch is fire-and-forget: `build()` renders the cached data immediately and the view rebuilds once the fresh data lands, so a mount never blocks on the network. Have the load keep its last-known-good data on failure, so a failed refetch leaves the screen as it was. Keep a separate method for a refresh after a mutation: it must not join an older in-flight request, or it returns a snapshot without the row the user just created.
+
+<a name="submits-once"></a>
+## Guarding a Submit Against a Double Tap
+
+An `async` submit handler wired straight to a button (`onTap: _onSubmit`) leaves nothing disabling the button for the duration of the await, so a double tap fires the write twice. On a create path that is not idempotent, two taps create two records.
+
+Mix `SubmitsOnce<W>` onto the form's `State`, route the handler through `submitOnce`, and feed `isSubmitting` to the button's `isLoading`:
+
+```dart
+class _RegisterFormState extends State<RegisterForm> with SubmitsOnce<RegisterForm> {
+  Future<void> _onSubmit() async {
+    await Http.post('/register', data: form.data);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WButton(
+      isLoading: isSubmitting,
+      onTap: () => submitOnce(_onSubmit),
+      child: WText(trans('auth.register')),
+    );
+  }
+}
+```
+
+Feeding `isSubmitting` to the button's `isLoading` is what actually blocks the second tap: a well-behaved button computes `isInteractive = !isLoading && !disabled` and passes `null` for `onTap` when that is false, so the spinner and the guard are the same switch. A throwing submit re-arms the button rather than leaving it spinning forever, since the reset runs in a `finally`.
 
 <a name="responsive-views"></a>
 ## Responsive Views

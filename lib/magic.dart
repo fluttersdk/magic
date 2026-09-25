@@ -50,6 +50,10 @@ export 'src/support/carbon.dart';
 export 'src/support/carbon_extension.dart';
 export 'src/support/date_manager.dart';
 export 'src/helpers/date_helpers.dart';
+export 'src/support/number.dart';
+export 'src/support/str.dart';
+export 'src/support/cast.dart';
+export 'src/support/arr.dart';
 
 // Routing
 export 'src/routing/magic_platform_page.dart';
@@ -93,6 +97,8 @@ export 'src/ui/magic_selector.dart';
 export 'src/ui/magic_feedback.dart';
 export 'src/ui/magic_view_registry.dart';
 export 'src/ui/magic_view.dart';
+export 'src/ui/refetches_on_mount.dart';
+export 'src/ui/submits_once.dart';
 export 'src/ui/magic_paginated_list_view.dart';
 export 'src/ui/magic_form.dart';
 export 'src/ui/magic_form_data.dart';

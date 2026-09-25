@@ -131,6 +131,16 @@ class Env {
       return defaultValue as T;
     }
 
+    // Laravel parity: `flutter_dotenv` leaves `KEY=""` and `KEY=''` as the
+    // literal two-character string (its parser needs one char inside the
+    // quotes to strip them). Laravel's `Env::get` returns '' for both
+    // (`laravel-framework/src/Illuminate/Support/Env.php:271`); treat the
+    // value as an explicit empty string here too, never as "absent".
+    final String trimmedValue = value.trim();
+    if (trimmedValue == '""' || trimmedValue == "''") {
+      value = '';
+    }
+
     // Type casting based on T
     if (T == bool) {
       return (['true', '1', 'yes'].contains(value.toLowerCase())) as T;
@@ -184,6 +194,56 @@ class Env {
     } catch (e) {
       return Map<String, String>.from(_fallback);
     }
+  }
+
+  /// Get a STRING env value, treating a blank or quote-only value as absent.
+  ///
+  /// `Env.get`/`env()` only fall back to [fallback] when [key] is entirely
+  /// missing; a key that is present but empty resolves to `''`. In a deployed
+  /// app that shows up as a blank `APP_NAME` rendering `Monitor | ""` in a
+  /// browser tab, or a blank `WEB_URL` pointing a link at a path with no
+  /// origin, so this is the guard for values a blank silently corrupts:
+  /// absent, blank, or a
+  /// quote-only value all resolve to [fallback], and a present value has one
+  /// wrapping pair of quotes and surrounding whitespace stripped (an inner
+  /// apostrophe survives; an unbalanced quote is left alone).
+  static String filled(String key, String fallback) {
+    final String value = _unwrapQuotes(get<String?>(key));
+
+    return value.isEmpty ? _unwrapQuotes(fallback) : value;
+  }
+
+  /// Get a required env value or throw.
+  ///
+  /// Mirrors Laravel's `Env::getOrFail`. Throws [StateError] when [key] is
+  /// absent entirely; a key present but empty resolves to `''`, matching
+  /// [get]'s Laravel-parity handling of an explicit empty value.
+  static String getOrFail(String key) {
+    if (!has(key)) {
+      throw StateError('Environment variable [$key] has no value.');
+    }
+
+    return get<String>(key, '');
+  }
+
+  /// Strips one WRAPPING pair of quotes and surrounding whitespace from a raw
+  /// `.env` value.
+  ///
+  /// Only the boundary pair goes, never every quote in the string: a value
+  /// may legitimately carry an apostrophe (`K="Anıl's Monitor"`), and
+  /// stripping every quote would silently rewrite it. An unbalanced quote is
+  /// left alone, so a malformed line stays visibly malformed.
+  static String _unwrapQuotes(String? value) {
+    if (value == null) return '';
+
+    final String trimmed = value.trim();
+    if (trimmed.length < 2) return trimmed;
+
+    final String first = trimmed[0];
+    final bool wrapped =
+        (first == '"' || first == "'") && trimmed.endsWith(first);
+
+    return wrapped ? trimmed.substring(1, trimmed.length - 1).trim() : trimmed;
   }
 
   /// Reset the Env state (for testing).

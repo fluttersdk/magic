@@ -4,6 +4,8 @@ Complete reference for Magic framework utility systems: Cache, Events, Logging, 
 
 ## Contents
 
+- [Support Helpers (Number, Str, Arr, Cast)](#support-helpers)
+- [Environment Variables (Env)](#environment-variables-env)
 - [Cache System](#cache-system)
 - [Event Dispatcher](#event-dispatcher)
 - [Logging Manager](#logging-manager)
@@ -17,6 +19,65 @@ Complete reference for Magic framework utility systems: Cache, Events, Logging, 
 - [Pick (File & Image Selection)](#pick-file--image-selection)
 - [Broadcasting](#broadcasting)
 - [Key Gotchas](#key-gotchas)
+
+## Support Helpers (Number, Str, Arr, Cast)
+
+Four `abstract final class` static namespaces under `lib/src/support/`, no facade, no IoC binding, no shared base class between them. Full doc page with tr/en examples: `doc/digging-deeper/helpers.md`.
+
+### Number
+
+Locale-aware number formatting. Every method resolves `locale` (or `Lang.current` when omitted) through `Intl.verifiedLocale`, falling back to `'en'` for a locale intl has no data for.
+
+| Method | Description |
+|:-------|:------------|
+| `Number.format(value, {precision, maxPrecision, grouped, locale})` | Locale grouping/decimal marks. `grouped: false` drops the thousands separator. |
+| `Number.currency(amount, {code, precision, locale})` | Built on `simpleCurrency`, not `currency`: resolves the locale's symbol (`'₺1.234,50'`), not a bare ISO code. |
+| `Number.percentage(value, {precision, maxPrecision, locale})` | Takes a 0-100 input like Laravel, not intl's native 0-1 fraction. |
+| `Number.fileSize(bytes, {precision, maxPrecision, locale})` | Steps by 1024 (B/KB/MB/GB/TB/PB). |
+| `Number.abbreviate(value, {precision, maxPrecision, locale})` | Compacts with the locale's own unit letters (`Mn`/`B` tr, `M`/`K` en). |
+
+### Str
+
+Locale-aware casing. `String.toUpperCase()`/`toLowerCase()` get Turkish/Azerbaijani wrong (dotted `i` vs dotless `ı`); `Str.upper`/`Str.lower` correct for it, defaulting `locale` to `Lang.current.languageCode` and accepting a full tag (`tr_TR`, `tr-TR`).
+
+| Method | Description |
+|:-------|:------------|
+| `Str.upper(value, {locale})` / `Str.lower(value, {locale})` | Dotted-i aware casing. `İ` maps to a plain `i` in EVERY locale (not only tr/az) to avoid the web's combining-dot lowercase. |
+| `Str.initials(value, {limit, capitalize, locale})` | First letter of each whitespace-separated word; `limit` keeps only the first N words. |
+
+### Arr
+
+Dot-path access into a nested `Map<String, dynamic>`, mirroring Laravel's `Arr::get`/`has`/`set`/`dot`. Carries NO typed accessors; compose with `Cast`.
+
+| Method | Description |
+|:-------|:------------|
+| `Arr.get(map, path, [fallback])` | An exact key wins over walking the path; a numeric segment indexes into a `List`. |
+| `Arr.has(map, path)` | True even for a reachable `null` leaf. |
+| `Arr.set(map, path, value)` | Creates intermediate maps for a missing or non-map segment. |
+| `Arr.dot(map, {prepend})` | Flattens to dotted-key leaves; an empty nested map is kept as its own leaf. |
+
+### Cast
+
+Total, throw-free readers for a loosely-typed wire value (a nested-map field, not a model attribute, which the ORM already coerces via `get<T>`).
+
+| Method | Numeric string? | Notes |
+|:-------|:-----------------|:------|
+| `Cast.stringOr(v, fallback)` / `stringOrNull(v)` | n/a | |
+| `Cast.intOr(v, fallback)` | **Parses** | The one reader that parses a numeric string (orders/durations: a silent fallback would misorder a list). |
+| `Cast.intOrNull(v)` / `numOrNull(v)` / `doubleOrNull(v)` | Does NOT parse | Checks `is num`, never `is double` (JSON `3` decodes as double on web, int on VM). |
+| `Cast.boolOr(v, fallback)` / `boolOrNull(v)` | n/a | |
+| `Cast.idOrNull(v)` | Stringifies a `num` | A pk can be uuid or bigint; reading an int id as null would corrupt a save-diff. |
+
+## Environment Variables (Env)
+
+`Env`/`env()` mimic Laravel's `env()` helper over `flutter_dotenv`. Full doc page: `doc/getting-started/configuration.md`.
+
+`Env.get<T>(key, [defaultValue])`/`env<T>(key, [defaultValue])` only fall back to `defaultValue` when `key` is entirely ABSENT; a key present but blank resolves to `''` (Laravel parity: `KEY=""`/`KEY=''` also resolve to `''`, not the two-character literal `flutter_dotenv`'s own parser would otherwise leave in place).
+
+| Method | Description |
+|:-------|:------------|
+| `Env.filled(key, fallback)` | Treats absent, blank, AND quote-only the same way, all resolving to `fallback`. Strips one wrapping quote pair + surrounding whitespace from a present value (an inner apostrophe survives). Use for anything that becomes a URL, a title, or a link. |
+| `Env.getOrFail(key)` | Throws `StateError` only when `key` is entirely absent; still returns `''` for a present-but-empty value. |
 
 ## Cache System
 
@@ -674,6 +735,7 @@ Laravel-style fluent date wrapper around Jiffy for parsing, formatting, and mani
 | `toTimeString()` | — | `String` | HH:mm:ss. |
 | `toDateTimeString()` | — | `String` | yyyy-MM-dd HH:mm:ss. |
 | `diffForHumans([other])` | `Carbon? other` | `String` | Human-readable diff (e.g., "2 hours ago"). |
+| `shortDiffForHumans([other])` | `Carbon? other` | `String` | Compact ladder for dense tables/list rows: seconds through years (`'14m ago'`, `'1mo ago'` for a truncated 30-day month, `'5m from now'`, `'Just now'` under 1s). Each unit and wrapper resolves through `Lang` (`time.units_short.*`, `time.ago`, `time.from_now`, `time.just_now`) with an English literal fallback. |
 
 #### Comparison & Checking
 

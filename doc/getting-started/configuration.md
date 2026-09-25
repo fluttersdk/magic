@@ -7,6 +7,7 @@ Magic's configuration system lets you load, read, write, and inspect application
     - [Environment Variable Types](#environment-variable-types)
     - [Determining the Current Environment](#determining-the-current-environment)
 - [Accessing Configuration Values](#accessing-configuration-values)
+- [Guarding Against a Blank Value](#guarding-against-a-blank-value)
 - [Retrieving All Values](#retrieving-all-values)
 - [Array Configuration](#array-configuration)
 - [Removing Configuration](#removing-configuration)
@@ -84,6 +85,8 @@ All variables in your `.env` files are parsed as strings. The `env()` helper aut
 | `null` / `(null)` | `null` |
 | `empty` / `(empty)` | `''` (empty string) |
 | Numeric strings | Parsed as `int` or `double` |
+
+`KEY=""` and `KEY=''` resolve to `''`, not to the `env()` default: an explicitly present but empty value is not the same as an absent key, matching Laravel's `Env::get`. A blank value reaching a browser tab title or a link as `Monitor | ""` or as a path with no origin is the failure mode this distinguishes; see [Guarding Against a Blank Value](#guarding-against-a-blank-value) for the helper that treats blank as absent instead.
 
 <a name="determining-the-current-environment"></a>
 ### Determining the Current Environment
@@ -355,3 +358,21 @@ Magic.reload();
 
 > [!TIP]
 > For production apps, consider using `Config.getOrFail()` for critical values to catch missing configuration early during startup.
+
+<a name="guarding-against-a-blank-value"></a>
+## Guarding Against a Blank Value
+
+`Env.get`/`env()` only fall back to the given default when the key is entirely missing; a key that is present but blank resolves to `''`. `Env.filled(key, fallback)` treats an absent, blank, or quote-only value the same way, all resolving to `fallback`, and strips one wrapping pair of quotes plus surrounding whitespace from a present value (an inner apostrophe survives; an unbalanced quote is left alone):
+
+```dart
+Env.filled('WEB_URL', 'https://app.example.com'); // falls back on '', '""', "''", or a missing key
+Env.filled('APP_NAME', 'My App');
+```
+
+Use it for any value that becomes a URL, a title, or anything else a blank string silently corrupts rather than visibly breaks.
+
+`Env.getOrFail(key)` mirrors Laravel's `Env::getOrFail`: it throws a `StateError` when `key` is absent entirely, and still returns `''` for a key that is present but empty, matching `Env.get`'s own Laravel-parity handling of an explicit empty value.
+
+```dart
+final apiKey = Env.getOrFail('API_KEY'); // throws StateError when API_KEY is not set at all
+```
