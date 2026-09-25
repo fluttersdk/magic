@@ -105,12 +105,10 @@ Future<void> boot() async {
   // ✅ Safe to access any registered service
   final config = Config.get('payment');
   final auth = Auth.instance;
-  
-  // Register event listeners
-  Event.listen<UserLoggedIn>((event) {
-    Log.info('User logged in: ${event.user.email}');
-  });
-  
+
+  // Event listeners belong in register(), not here: the auth guard can
+  // dispatch AuthLogin during AuthServiceProvider.boot, before this runs.
+
   // Perform async initialization
   await initializePaymentGateway();
 }

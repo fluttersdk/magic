@@ -246,6 +246,21 @@ if (response.isValidationError) {
 }
 ```
 
+### CollapsesIndexedErrorKeys
+
+Opt-in `ValidatesRequests.errorFieldFor` override: mix on top of `ValidatesRequests` to collapse a backend's indexed list-validation key (`items.0.name`) onto its field name (`name`), keeping the FIRST message when two indexed keys collapse onto the same field. A key addressing a distinct sub-key rather than a list element (`credentials.token`) is left whole.
+
+```dart
+class ItemsController extends MagicController
+    with ValidatesRequests, CollapsesIndexedErrorKeys {}
+```
+
+`CollapsesIndexedErrorKeys.collapse(wireKey)` (static) runs the same collapse for a controller that cannot mix in the class (it already extends a different base):
+
+```dart
+final field = CollapsesIndexedErrorKeys.collapse('items.0.name'); // 'name'
+```
+
 
 ## Built-in Rules
 

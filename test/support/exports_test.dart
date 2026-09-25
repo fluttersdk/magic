@@ -27,6 +27,15 @@ void main() {
     expect(CollapsesIndexedErrorKeys, isNotNull);
   });
 
+  test('AuthChannelSubscription resolves through the public barrel', () {
+    final subscription = AuthChannelSubscription(
+      channelName: () => null,
+      listeners: const {},
+    );
+
+    expect(subscription, isNotNull);
+  });
+
   test('Env.filled resolves an absent key to the fallback', () {
     expect(Env.filled('MISSING_EXPORTS_TEST_KEY', 'fallback'), 'fallback');
   });

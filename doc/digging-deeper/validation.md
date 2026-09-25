@@ -328,6 +328,12 @@ class ItemsController extends MagicController
 
 Two wire keys that collapse onto the same field (two failing elements of the same list) keep the FIRST message; the later one is dropped rather than overwriting it. A key addressing a distinct sub-key rather than a list element (`credentials.token`) is left whole, since a form with a separate error slot per sub-key needs each one kept.
 
+A controller that already extends a different base and cannot mix in `CollapsesIndexedErrorKeys` still reaches the same collapse through the mixin's static helper, `CollapsesIndexedErrorKeys.collapse(wireKey)`:
+
+```dart
+final field = CollapsesIndexedErrorKeys.collapse('items.0.name'); // 'name'
+```
+
 <a name="server-side-validation"></a>
 ## Server-Side Validation
 

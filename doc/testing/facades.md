@@ -59,7 +59,7 @@ All fake types are exported from `package:magic/testing.dart`. Import them along
 <a name="auth-fake"></a>
 ## Auth.fake()
 
-`Auth.fake()` replaces the real `AuthManager` with a `FakeAuthManager` that routes all guard operations through an in-memory `_FakeGuard`. No platform channels, no secure storage, no token refresh calls.
+`Auth.fake()` replaces the real `AuthManager` with a `FakeAuthManager` that routes all guard operations through an in-memory `_FakeGuard`. No platform channels, no secure storage, no token refresh calls. `login()` and `logout()` still dispatch `AuthLogin`/`AuthLogout` through the real `Event` facade, so a listener registered with `Event.listen` observes a faked session the same way it would a real one.
 
 **Signature:**
 

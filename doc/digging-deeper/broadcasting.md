@@ -27,6 +27,7 @@ Magic provides a Laravel Echo-equivalent broadcasting system for real-time WebSo
     - [Activity Monitor and Heartbeat](#activity-monitor-and-heartbeat)
     - [Connection Timeout](#connection-timeout)
     - [Deduplication](#deduplication)
+- [Auth-Scoped Subscriptions with AuthChannelSubscription](#auth-scoped-subscriptions)
 - [Testing Broadcasting](#testing-broadcasting)
 
 <a name="introduction"></a>
@@ -137,7 +138,7 @@ The `Echo` facade provides static access to the broadcasting system, proxying al
 | `Echo.join(name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking) |
 | `Echo.listen(channel, event, callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call |
 | `Echo.leave(name)` | `void` | Unsubscribe from a channel |
-| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection |
+| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection; idempotent, never opens a second socket |
 | `Echo.disconnect()` | `Future<void>` | Close the connection and release resources |
 | `Echo.connection` | `BroadcastDriver` | The resolved default driver instance |
 | `Echo.socketId` | `String?` | Server-assigned socket identifier, or `null` when disconnected |
@@ -553,6 +554,8 @@ The `connection_timeout` config key (default: **15 seconds**) controls how long 
 - A reconnect is scheduled (subject to backoff and the `reconnect` config flag).
 - A `TimeoutException` is thrown from `Echo.connect()` so callers can surface an error state.
 
+`ReverbBroadcastDriver.connect()` is idempotent, so calling it again is always safe: it returns at once when already connected, joins an attempt already in flight (another `connect()` or a timer-driven retry), and when a reconnect is armed (after a drop, a failed retry, or this timeout) it cancels the armed retry and reconnects now, resubscribing every channel and firing `onReconnect` as the timer would. A second call never opens a second socket.
+
 ```dart
 'connections': {
   'reverb': {
@@ -569,6 +572,43 @@ The `connection_timeout` config key (default: **15 seconds**) controls how long 
 The Reverb driver maintains a ring buffer of recently seen event fingerprints (channel + event name + raw data). Duplicate messages — which can arrive during reconnection — are silently dropped.
 
 Configure the buffer size with `dedup_buffer_size` (default: `100`). A larger buffer consumes more memory but reduces false duplicate detection during high-throughput scenarios.
+
+<a name="auth-scoped-subscriptions"></a>
+## Auth-Scoped Subscriptions with AuthChannelSubscription
+
+`AuthChannelSubscription` keeps a single private channel subscription in sync with a caller-supplied name, re-read on every `sync()` call. It is the seam behind a channel whose name depends on the signed-in user or team: which channel is currently subscribed, leaving the old one and standing up the replacement when the name changes, and re-firing `onReconnect` after a connection drop so a caller can refetch whatever the socket missed while it was down (Reverb does not replay).
+
+```dart
+late final subscription = AuthChannelSubscription(
+  channelName: () {
+    final teamId = Auth.user<User>()?.teamId;
+    return teamId == null ? null : 'teams.$teamId';
+  },
+  listeners: {
+    'incident.opened': (event) => refetchIncidents(),
+  },
+  onReconnect: refetchIncidents,
+);
+
+// Wire it to whatever changes the channel name, typically the guard's
+// own state notifier:
+Auth.stateNotifier.addListener(subscription.sync);
+
+// Reconcile once at startup too, since the listener only fires on a change.
+subscription.sync();
+```
+
+`sync()` is serialised: a call arriving while another is in flight defers and re-runs once more after the current one settles, rather than risking two live subscriptions across an await. It is a no-op when `channelName()` still answers the name it is already subscribed to, whatever the connection is doing at that moment: the Reverb driver recovers a drop and re-subscribes on its own. A name change leaves the old channel by its fully-qualified (prefixed) name, calls `Echo.connect()` when the connection is not live, then subscribes to the new channel and wires every entry of `listeners`. That connect is safe during a pending reconnect because the Reverb driver's `connect()` is idempotent (see [Connection Timeout](#connection-timeout)).
+
+`onReconnect` fires on both an `Echo.onReconnect` signal and a `connectionState` transition to `connected`, covering a driver that announces its own recovery as well as the same recovery observed independently. `dispose()` cancels only the reconnect-listening subscriptions; it does not leave the channel or disconnect, which stay live until the next `sync()` resolves a `null` channel name. A `null` channel name disconnects the whole default connection via `Echo.disconnect()`, not just this channel, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, since a signed-out app has no business staying on the socket.
+
+```dart
+@override
+void onClose() {
+  Auth.stateNotifier.removeListener(subscription.sync);
+  subscription.dispose();
+}
+```
 
 <a name="testing-broadcasting"></a>
 ## Testing Broadcasting

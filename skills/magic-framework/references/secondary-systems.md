@@ -44,6 +44,7 @@ Locale-aware casing. `String.toUpperCase()`/`toLowerCase()` get Turkish/Azerbaij
 |:-------|:------------|
 | `Str.upper(value, {locale})` / `Str.lower(value, {locale})` | Dotted-i aware casing. `İ` maps to a plain `i` in EVERY locale (not only tr/az) to avoid the web's combining-dot lowercase. |
 | `Str.initials(value, {limit, capitalize, locale})` | First letter of each whitespace-separated word; `limit` keeps only the first N words. |
+| `Str.unwrap(value, before, [after])` | Strips `before` from the start and `after` (default `before`) from the end, each checked/stripped independently (Laravel's `Str::unwrap`); a prefix-only match (`'"x'`) still loses the leading quote. |
 
 ### Arr
 
@@ -144,6 +145,7 @@ A pub/sub system for decoupling business logic from side-effects. Dispatchers pu
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
 | `Event.dispatch(event)` | `MagicEvent event` | `Future<void>` | Dispatch an event to all registered listeners. |
+| `Event.listen<T extends MagicEvent>(factory)` | `MagicListener Function() factory` | `void` | Register a listener without adding it to `AppEventServiceProvider.listen`; `T` must be named explicitly. Equivalent to `EventDispatcher.instance.register(T, [factory])`. Call from a provider's `register()`, not `boot()`. |
 
 ### EventDispatcher (Direct Access)
 
@@ -151,6 +153,10 @@ A pub/sub system for decoupling business logic from side-effects. Dispatchers pu
 |:-------|:-----------|:------------|:------------|
 | `EventDispatcher.instance.register(eventType, listeners)` | `Type eventType`, `List<MagicListener Function()> listeners` | `void` | Register listener factories for an event type. |
 | `EventDispatcher.instance.clear()` | — | `void` | Clear all registered listeners (testing only). |
+
+### Framework Auth Events
+
+`BaseGuard` (and `Auth.fake()`'s fake guard) dispatch `AuthLogin`/`AuthLogout` through `Event`: `AuthLogin` at the end of a successful `startSession` (not on a restore), `AuthLogout` on every `logout()` including a guest's (means "the in-memory session ended", not "the credentials are gone"; gate server-side release on `Auth.hasToken()`). `AuthRestored` fires only on an API-confirmed sync. Full firing conditions: `references/auth-system.md#auth-events`.
 
 ### Usage
 
@@ -1027,7 +1033,7 @@ Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via t
 | `Echo.join(name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking) |
 | `Echo.listen(channel, event, callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call |
 | `Echo.leave(name)` | `void` | Unsubscribe from a channel |
-| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection |
+| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection; idempotent, never opens a second socket |
 | `Echo.disconnect()` | `Future<void>` | Close the connection |
 | `Echo.connection` | `BroadcastDriver` | The resolved default driver instance |
 | `Echo.socketId` | `String?` | Server-assigned socket ID, or `null` when disconnected |
@@ -1124,6 +1130,26 @@ Auth failures in `_authenticateAndSubscribe()` are logged via `Log.error()` and 
 ### NullBroadcastDriver
 
 Silently drops all broadcast operations. Used for local development or when `broadcasting.default` is `'null'`. `BroadcastServiceProvider` skips `connect()` when the default connection is `null`.
+
+### AuthChannelSubscription
+
+Reconciles a single private channel subscription against a caller-supplied, re-read-on-every-call channel name: the seam behind a channel whose name depends on auth state (a team id, a user id).
+
+```dart
+late final subscription = AuthChannelSubscription(
+  channelName: () {
+    final teamId = Auth.user<User>()?.teamId;
+    return teamId == null ? null : 'teams.$teamId';
+  },
+  listeners: {'incident.opened': (event) => refetchIncidents()},
+  onReconnect: refetchIncidents,
+);
+
+Auth.stateNotifier.addListener(subscription.sync);
+subscription.sync(); // reconcile once at startup too
+```
+
+`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and a no-op when `channelName()` still answers the subscribed name, whatever the connection is doing (the Reverb driver recovers a drop on its own). A name change leaves the old channel by its prefixed name, calls `Echo.connect()` when the connection is not live, then subscribes and wires every `listeners` entry. That connect is safe mid-reconnect: `ReverbBroadcastDriver.connect()` is idempotent (returns when connected, joins an attempt in flight, supersedes an armed retry), so it never opens a second socket. `onReconnect` fires on both an `Echo.onReconnect` signal and a `connectionState` transition to `connected`. `dispose()` cancels only the reconnect-listening subscriptions, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
 
 ### FakeBroadcastManager (Testing)
 

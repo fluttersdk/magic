@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../auth/auth_manager.dart';
 import '../auth/authenticatable.dart';
 import '../auth/contracts/guard.dart';
+import '../auth/events/auth_events.dart';
 import '../database/eloquent/model.dart';
+import '../facades/event.dart';
 
 /// A fake [AuthManager] for testing.
 ///
@@ -134,13 +136,18 @@ class _FakeGuard implements Guard {
     _token = data['token'] as String?;
     _loginAttempts.add(data);
     stateNotifier.value++;
+
+    await Event.dispatch(AuthLogin(user));
   }
 
   @override
   Future<void> logout() async {
+    final previous = _user;
     _user = null;
     _token = null;
     stateNotifier.value++;
+
+    await Event.dispatch(AuthLogout(previous));
   }
 
   @override

@@ -55,4 +55,22 @@ void main() {
     expect(Str.upper('istanbul', locale: 'tr_TR'), 'İSTANBUL');
     expect(Str.lower('IŞIK', locale: 'tr-TR'), 'ışık');
   });
+
+  group('Str.unwrap', () {
+    test('strips a matching before/after pair', () {
+      expect(Str.unwrap('"x"', '"'), 'x');
+      expect(Str.unwrap('[x]', '[', ']'), 'x');
+    });
+
+    test(
+      'strips the prefix alone when the suffix does not match (Laravel parity)',
+      () {
+        expect(Str.unwrap('"x', '"'), 'x');
+      },
+    );
+
+    test('leaves a value with neither the prefix nor the suffix unchanged', () {
+      expect(Str.unwrap('x', '"'), 'x');
+    });
+  });
 }

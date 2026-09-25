@@ -392,6 +392,11 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
 mixin CollapsesIndexedErrorKeys on ValidatesRequests {
   @override
   String errorFieldFor(String wireKey) => _collapseIndexedKey(wireKey);
+
+  /// Collapses [wireKey] the same way [errorFieldFor] does, for a controller
+  /// that cannot mix in [CollapsesIndexedErrorKeys] (e.g. it already extends
+  /// a different base) but still needs the collapse.
+  static String collapse(String wireKey) => _collapseIndexedKey(wireKey);
 }
 
 /// Collapses a wire validation key onto the form field it should report on.

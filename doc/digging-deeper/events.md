@@ -177,18 +177,23 @@ class OrderController extends MagicController {
 <a name="inline-listeners"></a>
 ## Inline Listeners
 
-For simple event handling, you can register listeners inline using a closure instead of creating a dedicated listener class:
+`Event.listen<T>(factory)` registers a listener without adding a mapping to `AppEventServiceProvider.listen`. It takes a factory, `MagicListener Function()`, the same shape `listen` registers under the hood, not a bare closure:
 
 ```dart
-Event.listen<OrderShipped>((event) {
-  Log.info('Order shipped: ${event.order.id}');
-});
+class LogOrderShipped extends MagicListener<OrderShipped> {
+  @override
+  Future<void> handle(OrderShipped event) async {
+    Log.info('Order shipped: ${event.order.id}');
+  }
+}
+
+Event.listen<OrderShipped>(() => LogOrderShipped());
 ```
 
-Inline listeners are useful for quick logging, metrics, or simple side effects. For more complex logic, use dedicated listener classes.
+`T` is the registration key and must be named explicitly: leave it off and Dart infers `MagicEvent`, which no dispatched event matches exactly.
 
 > [!TIP]
-> Register inline listeners in your `EventServiceProvider`'s `boot()` method to keep them organized alongside class-based listener registrations.
+> Register `Event.listen` calls in your `EventServiceProvider`'s `register()` method, not `boot()`: a guard can dispatch `AuthLogin` during `AuthServiceProvider.boot`, before a later provider's `boot()` runs. Registrations last until `MagicApp.flush()`.
 
 <a name="framework-events"></a>
 ## Framework Events
@@ -199,14 +204,22 @@ Magic fires several system events automatically.
 
 | Event | Fired When |
 |-------|------------|
-| `AuthLogin` | User successfully logs in |
-| `AuthLogout` | User logs out |
-| `AuthFailed` | Authentication attempt fails |
+| `AuthLogin` | A guard's `startSession` finishes: the token (when given) is persisted, the user is set and cached. Not fired on a restore. |
+| `AuthLogout` | A guard's `logout()` ends the in-memory session, guest logout included. Not a promise the credentials are gone: it fires even when a Vault delete failed, so a listener releasing server-side state must gate on `Auth.hasToken()`. |
+| `AuthRestored` | An API-confirmed sync (`BaseGuard`'s background `/user` fetch) sets the user; not fired for the cache-only step of `Auth.restore()`. |
+
+> [!NOTE]
+> `AuthFailed` is defined, not dispatched by the guards: no code path in `lib/` fires it automatically. Dispatch it yourself from a failed login flow, e.g. `Event.dispatch(AuthFailed(credentials, guard: 'web'));` in the `catch` branch around your `Auth.login()` call.
 
 ```dart
-Event.listen<AuthLogin>((event) {
-  Log.info('User logged in: ${event.user.email}');
-});
+class LogAuthLogin extends MagicListener<AuthLogin> {
+  @override
+  Future<void> handle(AuthLogin event) async {
+    Log.info('User logged in: ${event.user.authIdentifier}');
+  }
+}
+
+Event.listen<AuthLogin>(() => LogAuthLogin());
 ```
 
 ### Model Lifecycle Events
@@ -222,12 +235,17 @@ Event.listen<AuthLogin>((event) {
 | `ModelDeleted` | After model is deleted |
 
 ```dart
-Event.listen<ModelCreated>((event) {
-  if (event.model is User) {
-    final user = event.model as User;
-    Log.info('New user registered: ${user.email}');
+class LogNewUser extends MagicListener<ModelCreated> {
+  @override
+  Future<void> handle(ModelCreated event) async {
+    if (event.model is User) {
+      final user = event.model as User;
+      Log.info('New user registered: ${user.email}');
+    }
   }
-});
+}
+
+Event.listen<ModelCreated>(() => LogNewUser());
 ```
 
 ### Gate Events
@@ -240,9 +258,14 @@ Event.listen<ModelCreated>((event) {
 
 ```dart
 // Log denied access attempts
-Event.listen<GateAccessDenied>((event) {
-  Log.warning('Access denied: ${event.ability} for user ${event.user?.id}');
-});
+class LogDeniedAccess extends MagicListener<GateAccessDenied> {
+  @override
+  Future<void> handle(GateAccessDenied event) async {
+    Log.warning('Access denied: ${event.ability} for user ${event.user?.id}');
+  }
+}
+
+Event.listen<GateAccessDenied>(() => LogDeniedAccess());
 ```
 
 ### Database Events

@@ -172,6 +172,17 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   Timer? _reconnectTimer;
   int _attempt = 0;
 
+  /// The socket-opening attempt currently in flight, or `null` when none is.
+  ///
+  /// Shared by the public [connect] and the reconnect timer, so any caller
+  /// arriving while an attempt runs joins it instead of opening a second
+  /// socket beside it.
+  Future<void>? _inFlight;
+
+  /// Bumped by [disconnect] so an attempt still suspended across an await
+  /// can tell it was cancelled and stop before touching a socket.
+  int _epoch = 0;
+
   // ---------------------------------------------------------------------------
   // Activity monitor
   // ---------------------------------------------------------------------------
@@ -206,9 +217,85 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // BroadcastDriver — connection lifecycle
   // ---------------------------------------------------------------------------
 
+  /// Connects to the Reverb server. Idempotent: the driver never holds more
+  /// than one socket, however many callers ask.
+  ///
+  /// Returns at once when already connected, and joins the attempt already
+  /// in flight (a concurrent [connect] or a timer-driven retry) instead of
+  /// starting another. The connection state stream alone cannot tell a
+  /// caller whether a retry is pending (a failed timer retry re-arms without
+  /// emitting anything), so the guard has to live here, where the retry
+  /// state is.
+  ///
+  /// When a reconnect timer is armed, the call supersedes it: the timer is
+  /// cancelled and the same reconnect work runs now, so every known channel
+  /// is resubscribed and [onReconnect] fires as it would for a timer retry.
+  /// Superseding rather than joining is deliberate: joining would park the
+  /// caller for the rest of the backoff (up to `max_reconnect_delay`), while
+  /// an explicit connect asks for a connection now. A superseding attempt
+  /// that fails re-arms the retry before it throws, so it never ends the
+  /// reconnect loop it replaced.
+  ///
+  /// @throws TimeoutException when the handshake does not arrive within
+  ///   `connection_timeout` seconds; a retry is armed before the throw.
+  /// @throws StateError when the server closes the socket before the
+  ///   handshake.
   @override
-  Future<void> connect() async {
+  Future<void> connect() {
+    if (_isConnected) return Future<void>.value();
+
+    final inFlight = _inFlight;
+    if (inFlight != null) return inFlight;
+
+    final retryTimer = _reconnectTimer;
+    if (retryTimer != null && retryTimer.isActive) {
+      retryTimer.cancel();
+      _reconnectTimer = null;
+      return _singleFlight(_reconnect);
+    }
+
+    return _singleFlight(_openSocket);
+  }
+
+  /// Runs [attempt] as the one socket attempt in flight, published through
+  /// [_inFlight] so every other [connect] and the reconnect timer join it.
+  ///
+  /// [_inFlight] is cleared before the returned future completes, so a
+  /// caller reacting to the outcome with another [connect] starts a fresh
+  /// attempt instead of joining the finished one.
+  Future<void> _singleFlight(Future<void> Function() attempt) {
+    final completer = Completer<void>();
+    final flight = completer.future;
+    _inFlight = flight;
+
+    attempt().then(
+      (_) {
+        if (identical(_inFlight, flight)) _inFlight = null;
+        completer.complete();
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        if (identical(_inFlight, flight)) _inFlight = null;
+        completer.completeError(error, stackTrace);
+      },
+    );
+
+    return flight;
+  }
+
+  /// Opens a fresh socket and waits for the Pusher handshake.
+  ///
+  /// The only place a socket is created. Both [connect] and the reconnect
+  /// timer reach it through [_singleFlight], which is what bounds the driver
+  /// to one socket. Any previous socket (left by a drop or a failed
+  /// handshake) is released first, so it is never leaked beside the new one.
+  /// Returns without opening anything when [disconnect] runs while this is
+  /// suspended.
+  Future<void> _openSocket() async {
+    final epoch = _epoch;
     _connectionStateController.add(BroadcastConnectionState.connecting);
+
+    await _releaseSocket();
+    if (epoch != _epoch) return;
 
     final host = _config['host'] as String;
     final port = _config['port'] as int;
@@ -220,14 +307,18 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       '?protocol=7&client=dart&version=1.0.0',
     );
 
-    _channel = _channelFactory(uri);
-    await _channel!.ready;
+    final channel = _channelFactory(uri);
+    _channel = channel;
+    await channel.ready;
+    // disconnect() already closed this socket; a later connect() may own
+    // `_channel` by now, so leave every field alone.
+    if (epoch != _epoch) return;
 
     _connectionCompleter = Completer<void>();
 
     // Wrap the single-subscription stream as a broadcast stream.
     _broadcastStreamController = StreamController<dynamic>.broadcast();
-    _streamSubscription = _channel!.stream.listen(
+    _streamSubscription = channel.stream.listen(
       _broadcastStreamController!.add,
       onDone: () {
         _broadcastStreamController?.close();
@@ -265,7 +356,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     return _connectionCompleter!.future.timeout(
       Duration(seconds: timeout),
       onTimeout: () {
-        _channel?.sink.close();
+        channel.sink.close();
         _connectionCompleter = null;
         _scheduleReconnect();
         throw TimeoutException(
@@ -277,6 +368,11 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
   @override
   Future<void> disconnect() async {
+    // Cancel any attempt still in flight: it sees the new epoch at its next
+    // await and stops, and a connect() after this starts fresh instead of
+    // joining it.
+    _epoch++;
+    _inFlight = null;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _cancelActivityTimers();
@@ -692,7 +788,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     if (!_isConnected) return;
     _isConnected = false;
     _socketId = null;
-    _connectionStateController.add(BroadcastConnectionState.reconnecting);
+    _connectionStateController.add(_dropConnectionState());
     _scheduleReconnect();
   }
 
@@ -711,8 +807,21 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     if (!_isConnected) return;
     _isConnected = false;
     _socketId = null;
-    _connectionStateController.add(BroadcastConnectionState.reconnecting);
+    _connectionStateController.add(_dropConnectionState());
     _scheduleReconnect();
+  }
+
+  /// The state to report after a socket drop.
+  ///
+  /// `reconnecting` when [_scheduleReconnect] will actually attempt one,
+  /// `disconnected` when the `reconnect` config key disables it, so a
+  /// consumer of [connectionState] is never told a reconnect is coming when
+  /// none is armed. Reads the same key [_scheduleReconnect] reads.
+  BroadcastConnectionState _dropConnectionState() {
+    final shouldReconnect = _config['reconnect'] as bool? ?? true;
+    return shouldReconnect
+        ? BroadcastConnectionState.reconnecting
+        : BroadcastConnectionState.disconnected;
   }
 
   void _scheduleReconnect({bool immediate = false}) {
@@ -725,52 +834,89 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     final delay = immediate ? Duration.zero : backoffDelay(_attempt);
     _attempt++;
 
-    _reconnectTimer = Timer(delay, () async {
-      try {
-        _streamSubscription?.cancel();
-        _streamSubscription = null;
-        _broadcastStreamController?.close();
-        _broadcastStreamController = null;
-        try {
-          await _channel?.sink.close();
-        } catch (_) {}
-        _channel = null;
-        _isConnected = false;
+    _reconnectTimer = Timer(delay, () {
+      _reconnectTimer = null;
 
-        await connect();
+      // An attempt already in flight (a public connect()) owns the socket;
+      // opening another beside it is exactly what the single-flight forbids.
+      if (_inFlight != null) return;
 
-        // Resubscribe all channels. Snapshot keys to avoid concurrent
-        // modification if a handler modifies _channels during iteration.
-        for (final name in _channels.keys.toList()) {
-          // Skip channels that were left after the snapshot was taken.
-          if (!_channels.containsKey(name)) continue;
-
-          if (name.startsWith('presence-') || name.startsWith('private-')) {
-            try {
-              await _authenticateAndSubscribe(name);
-            } catch (_) {
-              // Per-channel failure — continue to next channel.
-              // Auth errors are already logged in _authenticateAndSubscribe.
-            }
-          } else {
-            _send({
-              'event': 'pusher:subscribe',
-              'data': <String, dynamic>{'channel': name},
-            });
-          }
-        }
-
-        _onReconnectController.add(null);
-      } catch (error) {
-        // Route through interceptor chain before scheduling retry.
-        dynamic processed = error;
-        for (final interceptor in _interceptors) {
-          processed = interceptor.onError(processed);
-        }
-        Log.error('Reconnect failed', error);
-        _scheduleReconnect();
-      }
+      // _reconnect already routed the failure through the interceptors,
+      // logged it and re-armed this timer; nobody awaits a timer retry.
+      _singleFlight(_reconnect).ignore();
     });
+  }
+
+  /// One reconnect: reopens the socket, resubscribes every known channel,
+  /// then emits [onReconnect].
+  ///
+  /// Run by the reconnect timer and by a [connect] that supersedes it, so a
+  /// caller-driven reconnect behaves exactly like a timer-driven one. A
+  /// failure is routed through the interceptors, logged, and re-arms the
+  /// retry before it is rethrown to whoever started the attempt.
+  Future<void> _reconnect() async {
+    final epoch = _epoch;
+    try {
+      await _openSocket();
+      if (epoch != _epoch) return;
+
+      // Resubscribe all channels. Snapshot keys to avoid concurrent
+      // modification if a handler modifies _channels during iteration.
+      for (final name in _channels.keys.toList()) {
+        // Skip channels that were left after the snapshot was taken.
+        if (!_channels.containsKey(name)) continue;
+
+        if (name.startsWith('presence-') || name.startsWith('private-')) {
+          try {
+            await _authenticateAndSubscribe(name);
+          } catch (_) {
+            // Per-channel failure: continue to next channel.
+            // Auth errors are already logged in _authenticateAndSubscribe.
+          }
+        } else {
+          _send({
+            'event': 'pusher:subscribe',
+            'data': <String, dynamic>{'channel': name},
+          });
+        }
+      }
+
+      _onReconnectController.add(null);
+    } catch (error) {
+      // Route through interceptor chain before scheduling retry.
+      dynamic processed = error;
+      for (final interceptor in _interceptors) {
+        processed = interceptor.onError(processed);
+      }
+      Log.error('Reconnect failed', error);
+      // A disconnect() while this attempt was suspended ended the loop.
+      if (epoch == _epoch) _scheduleReconnect();
+      rethrow;
+    }
+  }
+
+  /// Drops the current socket and its stream plumbing, if any.
+  ///
+  /// The stream subscription is cancelled before the sink closes, so the
+  /// released socket's own close never reaches [_onDone] and schedules a
+  /// reconnect of its own.
+  Future<void> _releaseSocket() async {
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
+    _broadcastStreamController?.close();
+    _broadcastStreamController = null;
+
+    final channel = _channel;
+    _channel = null;
+    _isConnected = false;
+    if (channel == null) return;
+
+    try {
+      await channel.sink.close();
+    } catch (_) {
+      // The socket is being discarded either way; a sink that is already
+      // dead may throw on close, and that says nothing about the next one.
+    }
   }
 
   // ---------------------------------------------------------------------------
