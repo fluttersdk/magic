@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
-/// Usage of magic's Support helpers as an app writes them, kept runnable so
-/// the examples cannot drift from the API.
+/// Usage of magic's Support helpers as an app writes them.
+///
+/// Runnable with `flutter test` from `example/`; CI runs only the package's
+/// own suite, so this file is checked by hand when an API it calls changes.
 void main() {
   test('Number and Str format for the reader\'s locale', () {
     expect(
