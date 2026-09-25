@@ -107,6 +107,9 @@ import '../../app/models/user.dart';
 
 class UserFactory extends Factory<User> {
   @override
+  Factory<User> newFactory() => UserFactory();
+
+  @override
   User newInstance() => User();
 
   @override
@@ -120,6 +123,16 @@ class UserFactory extends Factory<User> {
   }
 }
 ```
+
+`newFactory()` returns a fresh factory of the same class. `state()` and `count()` never change the factory they are called on; they return a copy built through `newFactory()`, so a shared base factory can branch without one branch leaking into the other.
+
+Like Laravel, a factory fills its models **unguarded**: `id`, timestamps, and any key missing from the model's `fillable` list are kept, so a factory can build a model exactly as the API returns it. Outside a factory, `fill()` still honours `fillable` and `guarded`. The same switch is available directly:
+
+```dart
+final user = Model.unguarded(() => User()..fill({'id': 1, 'name': 'Taylor'}));
+```
+
+`Model.unguarded()` restores the guard when the callback returns or throws, and it needs a synchronous callback: an async one would keep running after the guard is back on.
 
 <a name="available-faker-methods"></a>
 ### Available Faker Methods
@@ -175,47 +188,34 @@ final admins = await UserFactory()
     .create();
 
 // Create without saving (in-memory only)
-final mocks = UserFactory().count(10).make();
+final users = UserFactory().count(10).make();
+
+// Attribute maps only, one per model (a request payload, a faked response)
+final payloads = UserFactory().count(3).raw();
 ```
+
+`make()` leaves each model with `exists` false and every attribute dirty, as Laravel does. `raw()` always returns a list: a single map when no `count()` was set.
 
 <a name="factory-states"></a>
 ### Factory States
 
-Define reusable state transformations within your factory:
+Write reusable states as an extension on `Factory<User>`. `state()` and `count()` return `Factory<User>`, so an extension method chains before or after either of them:
 
 ```dart
-class UserFactory extends Factory<User> {
-  @override
-  User newInstance() => User();
+extension UserFactoryStates on Factory<User> {
+  Factory<User> admin() => state({'role': 'admin'});
 
-  @override
-  Map<String, dynamic> definition() {
-    return {
-      'name': faker.person.name(),
-      'email': faker.internet.email(),
-      'role': 'user',
-      'email_verified_at': Carbon.now().toIso8601String(),
-    };
-  }
+  Factory<User> unverified() => state({'email_verified_at': null});
 
-  // State methods for common variations
-  UserFactory admin() {
-    return state({'role': 'admin'}) as UserFactory;
-  }
-
-  UserFactory unverified() {
-    return state({'email_verified_at': null}) as UserFactory;
-  }
-
-  UserFactory inactive() {
-    return state({'is_active': false}) as UserFactory;
-  }
+  Factory<User> inactive() => state({'is_active': false});
 }
 
 // Usage
 await UserFactory().admin().count(3).create();
-await UserFactory().unverified().count(10).create();
+await UserFactory().count(10).unverified().create();
 ```
+
+A method declared on `UserFactory` itself would be unreachable after the first `state()` or `count()` call, whose result is typed `Factory<User>`.
 
 <a name="cli-commands"></a>
 ## CLI Commands

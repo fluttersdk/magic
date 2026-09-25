@@ -15,7 +15,10 @@ import 'gate_result.dart';
 /// - `bool callback(Model user, Post post)` - Typed
 /// - `bool callback(Model user, Post? post)` - Nullable typed
 /// - `bool callback(Model user, dynamic post)` - Dynamic
-/// - `bool callback(Model user)` - No second argument
+/// - `bool callback(Model user, [dynamic arg])` - Argument unused
+///
+/// The gate always calls `callback(user, arguments)`, so a callback declared
+/// as `(Model user)` alone throws on that call and the ability is denied.
 typedef AbilityCallback = Function;
 
 /// Callback signature for "before" checks (super admin bypass).

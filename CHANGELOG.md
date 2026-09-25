@@ -4,9 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### BREAKING
+
+- **`state()` and `count()` return a copy, and every factory implements `Factory<T> newFactory()`.** They used to mutate the factory and return it, so `final f = UserFactory(); f.state({...}); f.make()` carried the state, and two branches off one base leaked into each other. Dart cannot construct "the same subclass" on its own, so the new abstract hook answers with the subclass constructor (`Factory<User> newFactory() => UserFactory();`). Named states move to an extension on `Factory<T>`, since a method on the subclass is out of reach after the first `state()` or `count()`; the old `state({...}) as UserFactory` cast would now throw. No factory subclass exists in this package's `lib/`, `test/` or `example/`; the `make:factory` stub and `doc/database/seeding.md` show the new shape. (`lib/src/database/seeding/factory.dart`, `assets/stubs/factory.stub`, `doc/database/seeding.md`)
+
 ### Added
 
+- **`Model.unguarded()`, `Model.unguard()`, `Model.reguard()` and `Model.isUnguarded`, Laravel's mass-assignment switch.** Inside `Model.unguarded(() => ...)` every `fill()` keeps every key, whatever `fillable` and `guarded` say; the guard comes back when the callback returns or throws, and a nested call leaves the outer scope unguarded. The callback must be synchronous, since an async one would run its later `fill()` calls guarded, and an assertion says so, now checked whether or not the call nests inside an outer `unguard()`/`unguarded()` scope. Outside it, `fill()` behaves exactly as before, `strict: true` included; `fromMap()` and `setRawAttributes()` are untouched. (`lib/src/database/eloquent/model.dart`)
+- **`Factory.raw()`**, the merged definition and states without a model: always a `List<Map<String, dynamic>>`, one map per model, a single map when no `count()` was set. (`lib/src/database/seeding/factory.dart`)
 - **`Carbon.setTestNow([testNow])` and `Carbon.hasTestNow()`, Laravel's frozen-clock testing helper.** `Carbon.now([timezone])` returns the frozen instant while one is set (timezone conversion still applies on top of it), `isToday()`, `isYesterday()`, `isTomorrow()`, `isFuture()`, `isPast()` and argument-less `diffForHumans()` measure against it, and `Carbon.setTestNow()` with no argument (or `null`) clears the freeze. A test that seeds an app's clock now has a Laravel-parity seam instead of threading a fake `DateTime` through every call site. (`lib/src/support/carbon.dart`, `doc/digging-deeper/carbon.md`, `skills/magic-framework/`)
+
+### Changed
+
+- **A factory fills its models unguarded, as Laravel's does.** `make()` and `create()` used to run `fill()` under the model's `fillable` list, so `id`, `last_status` and every other key the model does not mass-assign silently vanished, and a factory could not build a model the way the API returns it. Only the `fill()` is unguarded; `create()` saves with the guard back on. `make()` leaves `exists` false and every attribute dirty. `create()` now sends every definition key, including `id` and timestamps, to the persistence layer (`Http.store` / `QueryBuilder.insert`), and throws a `StateError` naming the model type when `save()` refuses the model (any result other than `true`), including the model's `validationErrors` when it exposes them. (`lib/src/database/seeding/factory.dart`)
+
+### Fixed
+
+- **The `AbilityCallback` doc listed `bool callback(Model user)` as valid.** The gate always calls `callback(user, arguments)`, so that shape throws and the ability is denied; the doc now shows `(Model user, [dynamic arg])`. (`lib/src/auth/gate_manager.dart`)
 
 ## [0.0.21] - 2026-09-24
 
