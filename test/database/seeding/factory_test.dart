@@ -26,6 +26,12 @@ class Monitor extends Model {
 }
 
 class RefusingMonitor extends Model {
+  RefusingMonitor({this.validationErrors = const {}});
+
+  /// Stands in for `InteractsWithPersistence.validationErrors`, the field
+  /// errors of the refused save.
+  final Map<String, List<String>> validationErrors;
+
   @override
   String get table => 'monitors';
 
@@ -41,11 +47,18 @@ class RefusingMonitor extends Model {
 }
 
 class RefusingMonitorFactory extends Factory<RefusingMonitor> {
-  @override
-  Factory<RefusingMonitor> newFactory() => RefusingMonitorFactory();
+  RefusingMonitorFactory({this.validationErrors = const {}});
+
+  /// The field errors every built model reports for its refused save.
+  final Map<String, List<String>> validationErrors;
 
   @override
-  RefusingMonitor newInstance() => RefusingMonitor();
+  Factory<RefusingMonitor> newFactory() =>
+      RefusingMonitorFactory(validationErrors: validationErrors);
+
+  @override
+  RefusingMonitor newInstance() =>
+      RefusingMonitor(validationErrors: validationErrors);
 
   @override
   Map<String, dynamic> definition() => {'name': 'Refused'};
@@ -139,11 +152,9 @@ void main() {
     });
 
     test('state() and count() carry what came before', () {
-      final monitors = MonitorFactory()
-          .count(2)
-          .state({'a': 1})
-          .state({'b': 2})
-          .make();
+      final monitors = MonitorFactory().count(2).state({'a': 1}).state({
+        'b': 2,
+      }).make();
 
       expect(monitors, hasLength(2));
       expect(monitors.first.getAttribute('a'), 1);
@@ -154,10 +165,10 @@ void main() {
       final monitors = MonitorFactory().down().count(2).make();
 
       expect(monitors, hasLength(2));
-      expect(
-        monitors.map((m) => m.getAttribute('last_status')),
-        ['down', 'down'],
-      );
+      expect(monitors.map((m) => m.getAttribute('last_status')), [
+        'down',
+        'down',
+      ]);
     });
 
     test('a branch off a shared base does not leak into its sibling', () {
@@ -175,11 +186,7 @@ void main() {
       final raw = MonitorFactory().state({'last_status': 'down'}).raw();
 
       expect(raw, [
-        {
-          'id': 1,
-          'name': 'Monitor 1',
-          'last_status': 'down',
-        },
+        {'id': 1, 'name': 'Monitor 1', 'last_status': 'down'},
       ]);
     });
 
@@ -204,7 +211,34 @@ void main() {
     test('throws when save refuses the model', () async {
       await expectLater(
         RefusingMonitorFactory().create(),
-        throwsA(isA<StateError>()),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('save() did not return true'),
+          ),
+        ),
+      );
+    });
+
+    test('names the validation errors of a refused save', () async {
+      final factory = RefusingMonitorFactory(
+        validationErrors: {
+          'name': ['The name has already been taken.'],
+        },
+      );
+
+      await expectLater(
+        factory.create(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains(
+              'validation errors: {name: [The name has already been taken.]}',
+            ),
+          ),
+        ),
       );
     });
   });
