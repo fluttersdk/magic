@@ -31,12 +31,7 @@ void main() {
   group('Model.unguarded', () {
     test('fill keeps non-fillable keys inside the callback', () {
       final monitor = Model.unguarded(
-        () => Monitor()
-          ..fill({
-            'id': 1,
-            'name': 'API',
-            'last_status': 'up',
-          }),
+        () => Monitor()..fill({'id': 1, 'name': 'API', 'last_status': 'up'}),
       );
 
       expect(monitor.id, 1);

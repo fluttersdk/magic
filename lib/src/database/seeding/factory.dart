@@ -129,12 +129,7 @@ abstract class Factory<T extends Model> {
   ///     .create();
   /// ```
   Factory<T> state(Map<String, dynamic> state) {
-    return _copy(
-      states: {
-        ..._states,
-        ...state,
-      },
-    );
+    return _copy(states: {..._states, ...state});
   }
 
   /// Build the attribute maps without creating any model.
@@ -146,9 +141,7 @@ abstract class Factory<T extends Model> {
   /// final payload = UserFactory().raw().single;
   /// ```
   List<Map<String, dynamic>> raw() {
-    return [
-      for (var i = 0; i < (_count ?? 1); i++) _attributes(),
-    ];
+    return [for (var i = 0; i < (_count ?? 1); i++) _attributes()];
   }
 
   /// Create and persist models to the database.
@@ -223,10 +216,7 @@ abstract class Factory<T extends Model> {
 
   /// Merge this factory's states over a fresh definition.
   Map<String, dynamic> _attributes() {
-    return {
-      ...definition(),
-      ..._states,
-    };
+    return {...definition(), ..._states};
   }
 
   /// Fill a new model with [attributes], bypassing mass-assignment protection.
@@ -236,10 +226,7 @@ abstract class Factory<T extends Model> {
 
   /// Copy this factory's configuration into [newFactory], overriding
   /// whichever of [count] and [states] is given.
-  Factory<T> _copy({
-    int? count,
-    Map<String, dynamic>? states,
-  }) {
+  Factory<T> _copy({int? count, Map<String, dynamic>? states}) {
     return newFactory()
       .._count = count ?? _count
       .._states = states ?? _states;
