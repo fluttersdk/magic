@@ -423,10 +423,30 @@ A sign-in or a sign-out that completes while the sync is in the air wins: a late
 
 If `userFactory` is not set on the guard, the cache load and API sync steps are skipped gracefully (no error is thrown). Set `userFactory` via `Auth.manager.setUserFactory()` (or pass it to `BaseGuard`'s constructor) during the boot phase to enable full session restore.
 
+<a name="auth-events"></a>
+## Auth Events
+
+`BaseGuard` (and `FakeAuthManager`'s fake guard) dispatch `MagicEvent`s through the `Event` facade; see [Events](../digging-deeper/events.md#framework-events) for `Event.listen<T>`'s registration shape.
+
+- **`AuthLogin`** fires at the end of `startSession`, once the token (when given) is persisted and the user is set and cached. Not fired on a restore; a restored user announces itself through `AuthRestored` instead. Skipped when the session ended or was replaced while the user was being cached, so a sign-out racing a sign-in never gets a stray `AuthLogin` for the session it just ended.
+- **`AuthLogout`** fires from `logout()`, after the `stateNotifier` bump and before a rethrown Vault failure. It carries the user held when the logout began (`null` for a guest), and a guest logout still dispatches. It means "the in-memory session ended", not "the credentials are gone": it fires even when a Vault delete failed, so a listener releasing server-side state must still gate on `Auth.hasToken()`.
+- **`AuthRestored`** fires only after an API-confirmed sync (`BaseGuard`'s background `/user` fetch inside `restore()`), never for the cache-only step that runs first. A sign-in or sign-out racing that sync suppresses it the same way `AuthLogin` is suppressed.
+
+```dart
+class LogAuthEvents extends MagicListener<AuthLogout> {
+  @override
+  Future<void> handle(AuthLogout event) async {
+    Log.info('Session ended for ${event.user?.authIdentifier ?? 'guest'}');
+  }
+}
+
+Event.listen<AuthLogout>(() => LogAuthEvents());
+```
+
 <a name="testing"></a>
 ## Testing
 
-Replace the real auth manager with a `FakeAuthManager` using `Auth.fake()`. The fake routes all guard operations through an in-memory guard so tests run without platform channels or a real backend.
+Replace the real auth manager with a `FakeAuthManager` using `Auth.fake()`. The fake routes all guard operations through an in-memory guard so tests run without platform channels or a real backend. Its `login()` and `logout()` dispatch `AuthLogin`/`AuthLogout` through the real `Event` facade too, same as the real guard, so a listener under test observes a faked session exactly as it would a real one.
 
 ```dart
 import 'package:magic/testing.dart';

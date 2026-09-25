@@ -1,5 +1,6 @@
 import '../events/magic_event.dart';
 import '../events/event_dispatcher.dart';
+import '../events/magic_listener.dart';
 
 /// The Event Facade.
 ///
@@ -25,5 +26,20 @@ class Event {
     // or fallback to singleton access if needed.
     // However, EventServiceProvider registers it as 'events'.
     return EventDispatcher.instance.dispatch(event);
+  }
+
+  /// Register a listener for events of type [T], as Laravel's `Event::listen`.
+  ///
+  /// [T] is the registration key, so it has to be named: without it Dart
+  /// infers [MagicEvent], and no dispatched event matches that exactly.
+  /// Register from a provider's `register()`, not `boot()`: the auth guard
+  /// can dispatch during `AuthServiceProvider.boot`, before a later provider
+  /// boots. Registrations last until `MagicApp.flush()`.
+  ///
+  /// ```dart
+  /// Event.listen<AuthLogin>(() => TrackSignIn());
+  /// ```
+  static void listen<T extends MagicEvent>(MagicListener Function() factory) {
+    EventDispatcher.instance.register(T, [factory]);
   }
 }

@@ -141,18 +141,45 @@ abstract class BaseGuard implements Guard {
   /// in-memory token, a late 401 logged out and deleted the token the sign-in
   /// had just written (0.0.18). Use this from [login] rather than
   /// [storeToken] followed by [setUser].
+  ///
+  /// Dispatches [AuthLogin] last, and awaits its listeners (a throwing one is
+  /// logged by the dispatcher, never rethrown here), so a listener doing slow
+  /// work should not await it. Not dispatched when the session ended or was
+  /// replaced while the user was being cached, nor when a logout that was
+  /// already mid-[clearTokens] when this login began finishes and clears
+  /// [_user] before this check runs.
   @protected
   Future<void> startSession(
     Authenticatable user, {
     String? token,
     String? refreshToken,
   }) async {
-    _sessionEpoch++;
+    final epoch = ++_sessionEpoch;
 
     if (token != null) await _holdThenPersist(token, refreshToken);
     setUser(user);
 
     await cacheUser(user);
+
+    // The cache write is an await, and a sign-out or another sign-in can begin
+    // inside it. Neither should hear `AuthLogin` for this session after it has
+    // ended, and a sign-out that cleared the cache before this write landed
+    // would find the user back on disk. The same guard as the boot sync's.
+    //
+    // The epoch alone misses one case: a [logout] already inside its own
+    // Vault deletes when this sign-in began. It bumped the epoch before this
+    // login did, so this login's epoch is still the newest, but its
+    // `_user = null` (see [logout]) can still land between `setUser` above
+    // and this check, after the cached-user write yields. Comparing identity
+    // catches that: a session this login no longer owns, even with a
+    // matching epoch, no longer holds the user it just set.
+    if (_sessionEpoch != epoch || !identical(_user, user)) {
+      if (cachedToken == null) await clearUserCache();
+
+      return;
+    }
+
+    await Event.dispatch(AuthLogin(user));
   }
 
   /// Move the in-memory token to [token], then persist it and [refreshToken].
@@ -333,9 +360,18 @@ abstract class BaseGuard implements Guard {
   ///
   /// [_sessionEpoch] moves first, before any await, so a boot sync answering
   /// while the deletes run is not applied to a session that is ending.
+  ///
+  /// [AuthLogout] means "the in-memory session ended", not "the credentials
+  /// are gone": it follows the notifier bump even when a delete failed, so
+  /// listeners never disagree with [stateNotifier], and it goes out before the
+  /// rethrow. A listener releasing server-side state still has to gate on
+  /// [hasToken]. It carries the user held when the logout began (Laravel's
+  /// `SessionGuard::logout` takes it at entry the same way), which is null for
+  /// a guest, and a guest logout still dispatches.
   @override
   Future<void> logout() async {
     _sessionEpoch++;
+    final previous = _user;
 
     Object? failure;
     StackTrace? failureStack;
@@ -356,6 +392,8 @@ abstract class BaseGuard implements Guard {
 
     _user = null;
     stateNotifier.value++;
+
+    await Event.dispatch(AuthLogout(previous));
 
     if (failure != null) Error.throwWithStackTrace(failure, failureStack!);
   }

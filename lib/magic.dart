@@ -249,6 +249,7 @@ export 'src/cli/tinker_integration.dart';
 
 // Broadcasting
 export 'config/broadcasting.dart';
+export 'src/broadcasting/auth_channel_subscription.dart';
 export 'src/broadcasting/broadcast_connection_state.dart';
 export 'src/broadcasting/broadcast_event.dart';
 export 'src/broadcasting/broadcast_manager.dart';

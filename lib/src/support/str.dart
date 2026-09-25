@@ -78,4 +78,26 @@ abstract final class Str {
 
     return capitalize ? upper(result, locale: locale) : result;
   }
+
+  /// Strips [before] from the start of [value] and [after] (default
+  /// [before]) from its end, each independently.
+  ///
+  /// Mirrors Laravel's `Str::unwrap`: a prefix match and a suffix match are
+  /// each checked and stripped on their own, so `'"x'` (prefix only) loses
+  /// the leading quote and keeps the string unbalanced rather than being
+  /// left alone.
+  static String unwrap(String value, String before, [String? after]) {
+    final String suffix = after ?? before;
+    String result = value;
+
+    if (result.startsWith(before)) {
+      result = result.substring(before.length);
+    }
+
+    if (result.endsWith(suffix)) {
+      result = result.substring(0, result.length - suffix.length);
+    }
+
+    return result;
+  }
 }

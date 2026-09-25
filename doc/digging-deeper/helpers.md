@@ -27,6 +27,14 @@ Str.lower('IŞIK', locale: 'tr');                // 'ışık'
 Str.initials('ismail kaya', limit: 2, capitalize: true, locale: 'tr'); // 'İK'
 ```
 
+`Str.unwrap(value, before, [after])` strips `before` from the start and `after` (default `before`) from the end, each checked and stripped independently, mirroring Laravel's `Str::unwrap`. A prefix-only match (`'"x'`) loses the leading quote and is left unbalanced rather than untouched.
+
+```dart
+Str.unwrap('"quoted"', '"');       // 'quoted'
+Str.unwrap('"x', '"');             // 'x', prefix-only match still strips
+Str.unwrap('[value]', '[', ']');   // 'value'
+```
+
 <a name="number"></a>
 ## Number
 

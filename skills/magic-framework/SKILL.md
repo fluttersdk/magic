@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.47
+version: 0.1.48
 ---
 
-<!-- magic 0.0.21 | Skill v0.1.47 (2026-09-25). API surface verified against lib/src. -->
+<!-- magic 0.0.21 | Skill v0.1.48 (2026-09-25). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -102,7 +102,7 @@ The five assumptions a Laravel developer gets wrong most: (1) the container auto
 | `DB` | (lazy) | `table(name)` (query builder), `select/statement/insert/update/delete` (raw SQL), `transaction(cb)`, `beginTransaction/commit/rollback` |
 | `Schema` | (manager) | `create(table, (b){})`, `table`, `drop`, `dropIfExists`, `hasTable`, `hasColumn`, `getColumns`, `rename` |
 | `Log` | `log` | `info/error/warning/debug/notice/critical/alert/emergency`, `log(level, msg)`, `channel(name)`, `fake()` |
-| `Event` | (dispatcher) | `dispatch(MagicEvent)`; register listeners with `EventDispatcher.register(Type, [() => Listener()])` |
+| `Event` | (dispatcher) | `dispatch(MagicEvent)`; `listen<T extends MagicEvent>(() => Listener())` (named `T`, register in `register()` not `boot()`); or `EventDispatcher.register(Type, [() => Listener()])` directly |
 | `Echo` | `broadcasting` | `channel/private/join`, `listen`, `leave`, `connect/disconnect`, `socketId`, `connectionState`, `onReconnect`, `addInterceptor`, `manager`, `fake()` |
 | `MagicRoute` | (router) | `page`, `group`, `layout`, `resource(name, ctrl, {only, except})`, `to`, `toNamed`, `push`, `back({fallback})`, `replace`, `setTitle`, `currentTitle`, `config` |
 | `Gate` | (manager) | `define`, `before`, `allows`, `denies`, `allowsAny(list)`, `allowsAll(list)`, `has`, `abilities`, `flush` |
@@ -251,7 +251,9 @@ A controller with `ValidatesRequests` should call `validateRequest`/`validateReq
 final payload = validateRequest(StoreUserRequest(), form.data);   // throws Authorization/ValidationException, populates validationErrors
 ```
 
-Mix `CollapsesIndexedErrorKeys` on top of `ValidatesRequests` to collapse a backend's indexed list-validation key (`items.0.name`) onto its field name (`name`) for a form with one error slot per field, not per element.
+Mix `CollapsesIndexedErrorKeys` on top of `ValidatesRequests` to collapse a backend's indexed list-validation key (`items.0.name`) onto its field name (`name`) for a form with one error slot per field, not per element; `CollapsesIndexedErrorKeys.collapse(wireKey)` (static) runs the same collapse for a controller that cannot mix it in.
+
+`BaseGuard.startSession`/`logout()` (and `Auth.fake()`'s fake guard) dispatch `AuthLogin`/`AuthLogout` through `Event`: `AuthLogin` at the end of a successful `startSession`, `AuthLogout` after the state bump on every `logout()` including a guest's, never on a restore (`AuthRestored` covers that, API-confirmed sync only). `AuthChannelSubscription(channelName:, listeners:, onReconnect:)` reconciles a private broadcast channel whose name tracks auth state (wire `sync` to `Auth.stateNotifier`); see `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
 
 ### Support helpers
 
@@ -260,6 +262,7 @@ Mix `CollapsesIndexedErrorKeys` on top of `ValidatesRequests` to collapse a back
 ```dart
 Number.currency(1234.5, code: 'TRY', locale: 'tr');   // '₺1.234,50'
 Str.upper('istanbul', locale: 'tr');                   // 'İSTANBUL', dotted-i aware
+Str.unwrap('"x', '"');                                 // 'x', prefix-only match still strips
 Cast.intOr(Arr.get(payload, 'meta.priority'), 0);      // Arr does no type check; compose with Cast
 ```
 

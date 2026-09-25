@@ -248,4 +248,13 @@ void main() {
       },
     );
   });
+
+  group('CollapsesIndexedErrorKeys.collapse', () {
+    test(
+      'exposes the collapse result to a controller that cannot mix it in',
+      () {
+        expect(CollapsesIndexedErrorKeys.collapse('items.0.name'), 'name');
+      },
+    );
+  });
 }
