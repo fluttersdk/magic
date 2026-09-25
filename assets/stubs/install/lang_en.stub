@@ -14,5 +14,19 @@
     "min": "The :attribute must be at least :min characters.",
     "max": "The :attribute may not be greater than :max characters.",
     "confirmed": "The :attribute confirmation does not match."
+  },
+  "time": {
+    "just_now": "Just now",
+    "ago": ":time ago",
+    "from_now": ":time from now",
+    "units_short": {
+      "second": ":counts",
+      "minute": ":countm",
+      "hour": ":counth",
+      "day": ":countd",
+      "week": ":countw",
+      "month": ":countmo",
+      "year": ":county"
+    }
   }
 }

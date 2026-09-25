@@ -8,6 +8,7 @@ Carbon is Magic's date and time utility, inspired by PHP's Carbon library, offer
 - [Manipulation](#manipulation)
 - [Comparison](#comparison)
 - [Human Readable](#human-readable)
+- [Short Human Readable](#short-human-readable)
 - [Timezone Support](#timezone-support)
 - [Testing](#testing)
 - [Model Integration](#model-integration)
@@ -187,6 +188,34 @@ final date2 = Carbon.parse('2024-01-20');
 
 date1.diffForHumans(date2);  // "5 days before"
 date2.diffForHumans(date1);  // "5 days after"
+```
+
+<a name="short-human-readable"></a>
+## Short Human Readable
+
+`shortDiffForHumans([other])` is a compact ladder (seconds, minutes, hours, days, weeks, months, years, each threshold exclusive of the next) for dense tables and list rows where `diffForHumans()` reads too wide. It measures against the current instant (or `other` when given) rather than the frozen test clock's format:
+
+```dart
+createdAt.shortDiffForHumans();  // "14m ago"
+dueAt.shortDiffForHumans();      // "5m from now"
+```
+
+A gap under one second reads `"Just now"`; a future instant reads `":time from now"` instead of `":time ago"`. Months are truncated 30-day buckets, so a 45-day gap reads `"1mo ago"`, not `"1 month, 15 days ago"`.
+
+Every unit and wrapper resolves through the `Lang` catalogue when present (`time.units_short.<unit>`, `time.ago`, `time.from_now`, `time.just_now`), falling back to the English literal (`:counts`, `:countm`, `:counth`, `:countd`, `:countw`, `:countmo`, `:county`, `:time ago`, `:time from now`, `Just now`) when no catalogue is loaded or the key is missing:
+
+```json
+{
+  "time": {
+    "units_short": { "minute": ":count dk" },
+    "ago": ":time önce"
+  }
+}
+```
+
+```dart
+// With the catalogue above loaded for 'tr':
+event.shortDiffForHumans();  // "14 dk önce"
 ```
 
 <a name="timezone-support"></a>

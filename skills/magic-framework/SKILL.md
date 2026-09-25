@@ -2,10 +2,10 @@
 name: magic-framework
 description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
 when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.46
+version: 0.1.47
 ---
 
-<!-- magic 0.0.21 | Skill v0.1.46 (2026-09-25). API surface verified against lib/src. -->
+<!-- magic 0.0.21 | Skill v0.1.47 (2026-09-25). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -244,6 +244,30 @@ await user.save();
 ```
 
 Rules: `Required`, `Email`, `Min(n)`, `Max(n)`, `Confirmed`, `Same(other)`, `Accepted`, `In<T>(values)` (primitives), `InList<T extends Enum>(values, {caseInsensitive, wire})` (enums), `Unique(endpoint, {field, debounce})`. Async rules implement `AsyncRule.passesAsync`; run them with `Validator.make(data, rules).validateAsync()`. `Unique` debounces (400ms default), passes on network error, discards stale calls; swap the backend with `.via(resolver)`.
+
+A controller with `ValidatesRequests` should call `validateRequest`/`validateRequestAsync` rather than `FormRequest.validate()` directly: the latter never touches `validationErrors`, so a controller-side error bag, a repaint, and a stale-error clear on resubmit are all skipped. Both run the same authorize/prepare sequence and return the FULL prepared map, not the rule-filtered one; `validateRequestAsync` is the one to reach for when `rules()` contains an `AsyncRule`.
+
+```dart
+final payload = validateRequest(StoreUserRequest(), form.data);   // throws Authorization/ValidationException, populates validationErrors
+```
+
+Mix `CollapsesIndexedErrorKeys` on top of `ValidatesRequests` to collapse a backend's indexed list-validation key (`items.0.name`) onto its field name (`name`) for a form with one error slot per field, not per element.
+
+### Support helpers
+
+`Number`/`Str`/`Arr`/`Cast` (`lib/src/support/`) are static namespaces, no facade or IoC binding needed:
+
+```dart
+Number.currency(1234.5, code: 'TRY', locale: 'tr');   // '₺1.234,50'
+Str.upper('istanbul', locale: 'tr');                   // 'İSTANBUL', dotted-i aware
+Cast.intOr(Arr.get(payload, 'meta.priority'), 0);      // Arr does no type check; compose with Cast
+```
+
+`RefetchesOnMount<Controller, View>` (mix onto a `MagicStatefulViewState`, point `refetch` at `controller.ensureFresh()`, never `reload()`) and `SubmitsOnce<W>` (mix onto a form's `State`, route the handler through `submitOnce`, feed `isSubmitting` to the button's `isLoading`) close the gaps singleton controllers (fire `onInit` once per instance, not per mount) and async submit handlers (nothing disables the button mid-await by default) leave open.
+
+`Env.filled(key, fallback)` treats an absent, blank, or quote-only `.env` value the same way, all resolving to `fallback` (`Env.get`/`env()` only fall back on a fully absent key). `Env.getOrFail(key)` throws a `StateError` only when the key is missing entirely. `Carbon.shortDiffForHumans([other])` is the compact-ladder sibling of `diffForHumans()` for dense tables (`'14m ago'`, `'1mo ago'`).
+
+Full reference: `${CLAUDE_SKILL_DIR}/references/secondary-systems.md` (Support helpers, Carbon, Env) and `doc/digging-deeper/helpers.md`, `doc/digging-deeper/validation.md`, `doc/basics/views.md`, `doc/getting-started/configuration.md`.
 
 ### Routing + resource
 

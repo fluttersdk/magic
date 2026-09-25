@@ -68,13 +68,13 @@ class JsonAssetLoader implements TranslationLoader {
   Future<Map<String, dynamic>> load(Locale locale) async {
     try {
       final json = await _loadJson(locale.languageCode);
-      return _flatten(json);
+      return flatten(json);
     } catch (e) {
       // Try fallback locale
       if (locale.languageCode != fallbackLocale) {
         try {
           final json = await _loadJson(fallbackLocale);
-          return _flatten(json);
+          return flatten(json);
         } catch (fallbackError) {
           if (Magic.bound('log')) {
             Log.warning(
@@ -137,11 +137,16 @@ class JsonAssetLoader implements TranslationLoader {
 
   /// Flatten nested JSON keys for O(1) lookup.
   ///
+  /// Public so a caller building its own [TranslationLoader] (see
+  /// `MagicTest.loadTranslations`) can flatten with the exact same rule the
+  /// translator's own loader uses, rather than growing a second copy that
+  /// silently drifts from this one.
+  ///
   /// Example:
   /// ```dart
-  /// {'auth': {'failed': 'Error'}} -> {'auth.failed': 'Error'}
+  /// JsonAssetLoader.flatten({'auth': {'failed': 'Error'}}); // {'auth.failed': 'Error'}
   /// ```
-  Map<String, dynamic> _flatten(
+  static Map<String, dynamic> flatten(
     Map<String, dynamic> json, [
     String prefix = '',
   ]) {
@@ -151,7 +156,7 @@ class JsonAssetLoader implements TranslationLoader {
       final key = prefix.isEmpty ? entry.key : '$prefix.${entry.key}';
 
       if (entry.value is Map<String, dynamic>) {
-        result.addAll(_flatten(entry.value as Map<String, dynamic>, key));
+        result.addAll(flatten(entry.value as Map<String, dynamic>, key));
       } else {
         result[key] = entry.value;
       }

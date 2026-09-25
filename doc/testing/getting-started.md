@@ -51,8 +51,10 @@ void main() {
 
 `MagicTest.init()` handles:
 - `setUpAll`: `TestWidgetsFlutterBinding.ensureInitialized()`
-- `setUp`: `MagicApp.reset()` + `Magic.flush()`
-- `tearDown`: `Magic.flush()`
+- `setUp`: `MagicApp.reset()` + `Magic.flush()` + `Gate.flush()`
+- `tearDown`: `Magic.flush()` + `Gate.flush()`
+
+`Gate` is a process static that `Magic.flush()` does not clear on its own, so without the extra call an ability defined in one test leaks into every later test in the same file.
 
 For integration tests that need a full `Magic.init()` lifecycle, use `MagicTest.boot()` instead:
 
@@ -84,6 +86,17 @@ Map<String, dynamic> get testDatabaseConfig => {
   },
 };
 ```
+
+### Loading a Translation Catalogue
+
+A widget test that renders `trans()` output needs a real catalogue loaded first; without one, `trans()` renders the raw dotted key. `MagicTest.loadTranslations(locale, {directory})` reads `<directory>/<locale>.json` off disk (default `assets/lang`, the app's own catalogue location), flattens it the same way the app's own loader does, and installs it before awaiting the translator's load:
+
+```dart
+await MagicTest.loadTranslations('tr');
+expect(trans('auth.login'), 'Giriş yap');
+```
+
+Point `directory` at a temp directory with a small fixture json to test one key in isolation without touching the app's real catalogue. Loading never requires a fallback-locale file on disk: the translator only warns and falls back to an empty map when the fallback catalogue fails to load.
 
 <a name="writing-tests"></a>
 ## Writing Tests

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 import 'package:magic/testing.dart';
@@ -122,5 +125,52 @@ void main() {
     test('FakeNetworkDriver is accessible', () {
       expect(FakeNetworkDriver, isNotNull);
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 7. MagicTest.init() resets Gate between tests
+  // ---------------------------------------------------------------------------
+
+  group('MagicTest.init() resets Gate between tests', () {
+    MagicTest.init();
+
+    test('first test — defines an ability', () {
+      Gate.define('gate-isolation-key', (user, arguments) => true);
+
+      expect(Gate.has('gate-isolation-key'), isTrue);
+    });
+
+    test('second test — ability from first test is gone', () {
+      expect(Gate.has('gate-isolation-key'), isFalse);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // 8. MagicTest.loadTranslations() loads a catalogue for trans()
+  // ---------------------------------------------------------------------------
+
+  group('MagicTest.loadTranslations() loads a catalogue for trans()', () {
+    MagicTest.init();
+
+    test(
+      'nested key resolves after loading a temp directory catalogue',
+      () async {
+        final tempDir = await Directory.systemTemp.createTemp(
+          'magic_test_translations_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+
+        final trFile = File('${tempDir.path}/tr.json');
+        await trFile.writeAsString(
+          jsonEncode({
+            'a': {'b': 'merhaba'},
+          }),
+        );
+
+        await MagicTest.loadTranslations('tr', directory: tempDir.path);
+
+        expect(trans('a.b'), 'merhaba');
+      },
+    );
   });
 }

@@ -9,6 +9,7 @@ Magic provides a client-side validation system that integrates with Flutter form
     - [The Url Rule](#the-url-rule)
     - [Custom Messages](#custom-messages)
 - [Form Requests](#form-request)
+- [Validating a Form Request Through a Controller](#validate-request)
 - [Server-Side Validation](#server-side-validation)
 - [Async Validation](#async-rules)
 - [Custom Rules](#custom-rules)
@@ -286,6 +287,46 @@ try {
 - `validate()` returns the prepared payload filtered to the keys declared in `rules()` — same contract as `Validator.validate`.
 
 Pairs cleanly with `Model.fill(payload, strict: true)` so mass-assignment catches schema drift at the boundary.
+
+<a name="validate-request"></a>
+## Validating a Form Request Through a Controller
+
+`FormRequest.validate()` filters its return value to the keys declared in `rules()` and never touches a controller's error bag, so calling it directly skips clearing stale errors before a resubmit, populating per-field errors on failure, and repainting the form. A controller with the `ValidatesRequests` mixin calls `validateRequest` instead, which runs the same authorize/prepare sequence but routes through the mixin's own error bag and returns the FULL prepared map, not the rule-filtered one, so a write can still send fields the backend needs but no rule constrains:
+
+```dart
+class MonitorController extends MagicController with ValidatesRequests {
+  Future<void> store(Map<String, dynamic> data) async {
+    try {
+      final payload = validateRequest(StoreMonitorRequest(Auth.user()!), data);
+      await Http.post('/monitors', data: payload);
+    } on AuthorizationException {
+      Magic.error('Error', 'You do not have permission to create monitors.');
+    } on ValidationException catch (e) {
+      // validationErrors is already populated; UI has already rebuilt.
+    }
+  }
+}
+```
+
+`validateRequest` throws `AuthorizationException` when `FormRequest.authorize()` returns `false`, before any field is touched, and runs only synchronous rules (an `AsyncRule` in the request's `rules()` is skipped). Use `validateRequestAsync` when a rule needs to `await`; it has the same contract, validated through `Validator.validateAsync()` so an `AsyncRule` actually runs:
+
+```dart
+final payload = await validateRequestAsync(SlugUniqueRequest(), data);
+```
+
+### CollapsesIndexedErrorKeys
+
+A backend that validates a list field returns one wire key per element (`items.0.name`, `items.1.name`), but a form with a single error slot per field, not per element, has nowhere to put a per-index message. `ValidatesRequests.errorFieldFor` keeps a wire key as-is by default, which is what an existing controller already depends on; mix in `CollapsesIndexedErrorKeys` on top to collapse an indexed key down to its field name instead:
+
+```dart
+class ItemsController extends MagicController
+    with ValidatesRequests, CollapsesIndexedErrorKeys {}
+
+// A 422 response carrying {"errors": {"items.0.name": ["The items.0.name field is required."]}}
+// populates controller.validationErrors as {"name": "The items.0.name field is required."}
+```
+
+Two wire keys that collapse onto the same field (two failing elements of the same list) keep the FIRST message; the later one is dropped rather than overwriting it. A key addressing a distinct sub-key rather than a list element (`credentials.token`) is left whole, since a form with a separate error slot per sub-key needs each one kept.
 
 <a name="server-side-validation"></a>
 ## Server-Side Validation

@@ -1,6 +1,7 @@
 import 'package:jiffy/jiffy.dart';
 import 'package:timezone/timezone.dart' as tz;
 
+import '../facades/lang.dart';
 import 'date_manager.dart';
 
 /// The Carbon Class - Laravel-Style Date Wrapper.
@@ -445,6 +446,112 @@ class Carbon implements Comparable<Carbon> {
       return _engine.from(other._engine);
     }
     return _engine.from(_clock());
+  }
+
+  /// Get a compact, localized human-readable difference (e.g. `"14m ago"`,
+  /// `"2h ago"`, `"5m from now"`).
+  ///
+  /// Measures against [other] when given, or Carbon's own clock (honouring
+  /// [setTestNow]) otherwise. Unlike [diffForHumans], the wording comes from
+  /// the `time` translation group (`time.units_short.*`, `time.ago`,
+  /// `time.from_now`, `time.just_now`): a catalogue entry wins when present,
+  /// and the English literal shipped in `lang_en.stub` is the fallback when
+  /// it is not (`Translator.has`, `localization/translator.dart:298`).
+  ///
+  /// The magnitude ladder truncates, never rounds: a 45-day gap reads
+  /// `"1mo ago"` because 45 days is one whole 30-day month, not two.
+  ///
+  /// ```dart
+  /// createdAt.shortDiffForHumans();  // "14m ago"
+  /// dueAt.shortDiffForHumans();      // "5m from now"
+  /// ```
+  String shortDiffForHumans([Carbon? other]) {
+    final DateTime reference = other?.toDateTime ?? _clock().dateTime;
+    final Duration elapsed = reference.difference(toDateTime);
+    final int totalSeconds = elapsed.inSeconds.abs();
+
+    if (totalSeconds < 1) {
+      return _shortLocalized('time.just_now', 'Just now', const {});
+    }
+
+    final String unitText = _shortUnitText(totalSeconds);
+    final bool isFuture = elapsed.isNegative;
+    final String wrapperKey = isFuture ? 'time.from_now' : 'time.ago';
+    final String wrapperFallback = isFuture ? ':time from now' : ':time ago';
+
+    return _shortLocalized(wrapperKey, wrapperFallback, {'time': unitText});
+  }
+
+  /// The `:count`-substituted unit text for [shortDiffForHumans]'s ladder,
+  /// stepping second -> minute -> hour -> day -> week -> month -> year on
+  /// the absolute [totalSeconds], each threshold exclusive of the next.
+  String _shortUnitText(int totalSeconds) {
+    const int minute = 60;
+    const int hour = 60 * minute;
+    const int day = 24 * hour;
+    const int week = 7 * day;
+    const int month = 30 * day;
+    const int year = 365 * day;
+
+    final String unit;
+    final int count;
+    final String fallback;
+
+    if (totalSeconds < minute) {
+      unit = 'second';
+      count = totalSeconds;
+      fallback = ':counts';
+    } else if (totalSeconds < hour) {
+      unit = 'minute';
+      count = totalSeconds ~/ minute;
+      fallback = ':countm';
+    } else if (totalSeconds < day) {
+      unit = 'hour';
+      count = totalSeconds ~/ hour;
+      fallback = ':counth';
+    } else if (totalSeconds < week) {
+      unit = 'day';
+      count = totalSeconds ~/ day;
+      fallback = ':countd';
+    } else if (totalSeconds < month) {
+      unit = 'week';
+      count = totalSeconds ~/ week;
+      fallback = ':countw';
+    } else if (totalSeconds < year) {
+      unit = 'month';
+      count = totalSeconds ~/ month;
+      fallback = ':countmo';
+    } else {
+      unit = 'year';
+      count = totalSeconds ~/ year;
+      fallback = ':county';
+    }
+
+    return _shortLocalized('time.units_short.$unit', fallback, {
+      'count': '$count',
+    });
+  }
+
+  /// Resolves [key] through the catalogue when present, or [fallback]
+  /// otherwise, then applies [replace] the same way [Translator.get] does
+  /// (`:name` substitution, no word boundary).
+  ///
+  /// Reads the raw template with `Lang.has`/`trans` rather than trusting
+  /// `trans(key)`'s own key-echo, since a translated sentence that happened
+  /// to equal its own key would otherwise be misread as missing.
+  String _shortLocalized(
+    String key,
+    String fallback,
+    Map<String, String> replace,
+  ) {
+    final String template = Lang.has(key) ? trans(key) : fallback;
+
+    var result = template;
+    for (final entry in replace.entries) {
+      result = result.replaceAll(':${entry.key}', entry.value);
+    }
+
+    return result;
   }
 
   /// Get difference in days.
