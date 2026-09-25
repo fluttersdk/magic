@@ -13,6 +13,7 @@ Magic provides a frontend-focused authentication system with secure token storag
 - [Auto Token Refresh](#auto-token-refresh)
 - [Protecting Routes](#protecting-routes)
 - [Login & Logout](#login--logout)
+- [Auth Events](#auth-events)
 - [Testing](#testing)
 
 <a name="introduction"></a>
