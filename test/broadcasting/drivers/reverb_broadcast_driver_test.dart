@@ -847,6 +847,26 @@ void main() {
       await driver.disconnect();
     });
 
+    test('onDone emits disconnected, not reconnecting, when reconnect is '
+        'disabled', () async {
+      final (driver, mock) = await _createConnectedDriver(
+        configOverrides: {'reconnect': false},
+      );
+
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      // Simulate server closing the connection.
+      mock.simulateClose();
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(states, contains(BroadcastConnectionState.disconnected));
+      expect(states, isNot(contains(BroadcastConnectionState.reconnecting)));
+
+      await driver.disconnect();
+    });
+
     test('onError routes through interceptor chain', () async {
       final (driver, mock) = await _createConnectedDriver();
 

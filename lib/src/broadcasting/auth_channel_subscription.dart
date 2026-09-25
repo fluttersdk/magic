@@ -183,19 +183,33 @@ class AuthChannelSubscription {
     //    pointing at a channel that is not actually subscribed.
     _leaveCurrentChannel();
     _subscribedName = null;
-    // Connect only when there is no live connection AND no connect or
-    // reconnect is already in flight: `connect()` is not idempotent in the
-    // Reverb driver (a second call opens a second socket and leaks the
+    // Connect only when there is no live connection AND the driver already
+    // has a reconnect actually in flight: `connect()` is not idempotent in
+    // the Reverb driver (a second call opens a second socket and leaks the
     // first). After a drop, the driver reports `reconnecting` and arms its
     // own reconnect Timer before `isConnected` flips to `false`, so a name
     // change in that window must only touch the channel; the driver's own
     // reconnect resubscribes every channel it already knows about (including
     // one created while disconnected) once it reconnects.
+    //
+    // `connecting` is deliberately excluded from this gate: the connect call
+    // below emits it too, and if that call throws (e.g. the server
+    // unreachable at boot), the driver emits nothing further, so the last
+    // observed state would stay `connecting` forever with no reconnect
+    // actually pending. Treating it as "pending" would strand every later
+    // sync as a no-op subscribe onto a dead driver.
     final bool driverReconnectPending =
-        _lastConnectionState == BroadcastConnectionState.reconnecting ||
-        _lastConnectionState == BroadcastConnectionState.connecting;
+        _lastConnectionState == BroadcastConnectionState.reconnecting;
     if (!Echo.connection.isConnected && !driverReconnectPending) {
-      await Echo.connect();
+      try {
+        await Echo.connect();
+      } catch (_) {
+        // The failed call's own `connecting` announcement must not be read
+        // as a pending reconnect by the next sync; `_subscribedName` is
+        // already null (cleared above), so that sync retries `connect()`.
+        _lastConnectionState = null;
+        rethrow;
+      }
     }
 
     final BroadcastChannel channel = Echo.private(name);

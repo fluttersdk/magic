@@ -692,7 +692,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     if (!_isConnected) return;
     _isConnected = false;
     _socketId = null;
-    _connectionStateController.add(BroadcastConnectionState.reconnecting);
+    _connectionStateController.add(_dropConnectionState());
     _scheduleReconnect();
   }
 
@@ -711,8 +711,21 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     if (!_isConnected) return;
     _isConnected = false;
     _socketId = null;
-    _connectionStateController.add(BroadcastConnectionState.reconnecting);
+    _connectionStateController.add(_dropConnectionState());
     _scheduleReconnect();
+  }
+
+  /// The state to report after a socket drop.
+  ///
+  /// `reconnecting` when [_scheduleReconnect] will actually attempt one,
+  /// `disconnected` when the `reconnect` config key disables it, so a
+  /// consumer of [connectionState] is never told a reconnect is coming when
+  /// none is armed. Reads the same key [_scheduleReconnect] reads.
+  BroadcastConnectionState _dropConnectionState() {
+    final shouldReconnect = _config['reconnect'] as bool? ?? true;
+    return shouldReconnect
+        ? BroadcastConnectionState.reconnecting
+        : BroadcastConnectionState.disconnected;
   }
 
   void _scheduleReconnect({bool immediate = false}) {

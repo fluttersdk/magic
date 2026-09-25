@@ -18,14 +18,25 @@ import 'package:magic/magic.dart';
 class _CountingBroadcastDriver extends FakeBroadcastDriver {
   int connectCount = 0;
 
+  /// When set, the next [connect] emits `connecting` on [connectionState]
+  /// and then throws, instead of succeeding. Simulates the real Reverb
+  /// driver's `connect()` failing after its own `connecting` announcement
+  /// (e.g. the server unreachable at boot) with no further state emitted.
+  bool failNextConnect = false;
+
   final StreamController<void> _reconnectController =
       StreamController<void>.broadcast();
   final StreamController<BroadcastConnectionState> _connectionStateController =
       StreamController<BroadcastConnectionState>.broadcast();
 
   @override
-  Future<void> connect() {
+  Future<void> connect() async {
     connectCount++;
+    if (failNextConnect) {
+      failNextConnect = false;
+      _connectionStateController.add(BroadcastConnectionState.connecting);
+      throw StateError('connect failed');
+    }
     return super.connect();
   }
 
@@ -203,6 +214,41 @@ void main() {
       expect(counting.spy.subscribedChannels, contains('private-teams.2'));
     },
   );
+
+  test('a failed own connect does not strand the subscription: the next sync '
+      'connects again and subscribes', () async {
+    final _CountingBroadcastManager counting = _CountingBroadcastManager();
+    Magic.app.setInstance('broadcasting', counting);
+    counting.spy.failNextConnect = true;
+
+    final AuthChannelSubscription subscription = AuthChannelSubscription(
+      channelName: () => 'teams.1',
+      listeners: <String, void Function(BroadcastEvent)>{},
+    );
+
+    await subscription.sync();
+    expect(
+      counting.spy.connectCount,
+      1,
+      reason: 'the first sync attempts to connect',
+    );
+    expect(
+      counting.spy.subscribedChannels,
+      isEmpty,
+      reason: 'a failed connect must not subscribe on a dead driver',
+    );
+
+    await subscription.sync();
+
+    expect(
+      counting.spy.connectCount,
+      2,
+      reason:
+          'the failed own connect must not be read as a pending driver '
+          'reconnect',
+    );
+    expect(counting.spy.subscribedChannels, contains('private-teams.1'));
+  });
 
   test('overlapping syncs serialize and settle on the latest name', () async {
     String channelName = 'teams.1';
