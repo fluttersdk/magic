@@ -1,7 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/support/carbon.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 void main() {
+  // Without the zone database `Carbon.now(zone)` falls back to the local
+  // instant, which would let the timezone test below pass without converting.
+  setUpAll(tz.initializeTimeZones);
+
   group('Carbon.setTestNow', () {
     tearDown(() {
       // Never leak a frozen clock into an unrelated test.
@@ -61,10 +66,19 @@ void main() {
 
       final inTokyo = Carbon.now('Asia/Tokyo');
 
-      expect(inTokyo.year, 2024);
-      expect(inTokyo.month, 6);
-      // Asia/Tokyo (UTC+9) is ahead of the frozen local instant's implied UTC.
-      expect(inTokyo.hour, isNot(equals(0)));
+      // Asia/Tokyo is a fixed UTC+9 with no daylight saving, so the frozen
+      // instant's UTC wall clock plus nine hours is the exact expectation,
+      // whatever the machine's own zone is.
+      final DateTime expected = DateTime(
+        2024,
+        6,
+        1,
+        12,
+      ).toUtc().add(const Duration(hours: 9));
+      expect(inTokyo.year, expected.year);
+      expect(inTokyo.month, expected.month);
+      expect(inTokyo.day, expected.day);
+      expect(inTokyo.hour, expected.hour);
     });
   });
 }
