@@ -81,4 +81,50 @@ void main() {
       expect(inTokyo.hour, expected.hour);
     });
   });
+
+  group('Carbon.setTestNow with the now-relative checks', () {
+    setUp(() {
+      Carbon.setTestNow(Carbon.create(year: 2024, month: 1, day: 15, hour: 12));
+    });
+
+    tearDown(() {
+      Carbon.setTestNow();
+    });
+
+    test('isToday(), isYesterday() and isTomorrow() read the frozen day', () {
+      expect(Carbon.create(year: 2024, month: 1, day: 15).isToday(), isTrue);
+      expect(
+        Carbon.create(year: 2024, month: 1, day: 14).isYesterday(),
+        isTrue,
+      );
+      expect(Carbon.create(year: 2024, month: 1, day: 16).isTomorrow(), isTrue);
+      expect(Carbon.now().isToday(), isTrue);
+    });
+
+    test('isFuture() and isPast() compare against the frozen instant', () {
+      final DateTime realNow = DateTime.now();
+
+      expect(
+        Carbon.create(year: 2024, month: 1, day: 15, hour: 13).isFuture(),
+        isTrue,
+      );
+      expect(
+        Carbon.create(year: 2024, month: 1, day: 15, hour: 11).isPast(),
+        isTrue,
+      );
+      expect(Carbon.fromDateTime(realNow).isFuture(), isTrue);
+      expect(Carbon.fromDateTime(realNow).isPast(), isFalse);
+    });
+
+    test('diffForHumans() measures from the frozen instant', () {
+      final Carbon threeDaysEarlier = Carbon.create(
+        year: 2024,
+        month: 1,
+        day: 12,
+        hour: 12,
+      );
+
+      expect(threeDaysEarlier.diffForHumans(), '3 days ago');
+    });
+  });
 }

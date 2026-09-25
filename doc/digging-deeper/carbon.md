@@ -214,9 +214,10 @@ Carbon.now().setTimezone('America/New_York'); // convert an existing instance
 <a name="testing"></a>
 ## Testing
 
-`Carbon.setTestNow([testNow])` freezes what `Carbon.now([timezone])` returns, mirroring Laravel's
+`Carbon.setTestNow([testNow])` freezes the clock `Carbon` reads, mirroring Laravel's
 `Carbon::setTestNow()`. Call it with no argument (or `null`) to clear the freeze; `Carbon.hasTestNow()`
-reports whether one is currently set.
+reports whether one is currently set. The freeze is static state, so clear it in `tearDown` or it leaks
+into the next test.
 
 ```dart
 setUp(() {
@@ -232,9 +233,10 @@ test('a rule that reads "now"', () {
 });
 ```
 
-`Carbon.now(timezone)` still converts the frozen instant into the requested zone; only the moment
-`now()` starts from is frozen, not the timezone-conversion path. Nothing else on `Carbon` reads the
-freeze: `Carbon.parse()`, `Carbon.fromDateTime()`, and instance methods like `isToday()` are unaffected.
+Every read of "now" honours the freeze: `Carbon.now()`, `isToday()`, `isYesterday()`, `isTomorrow()`,
+`isFuture()`, `isPast()`, and `diffForHumans()` without an argument. `Carbon.now(timezone)` still converts
+the frozen instant into the requested zone. Constructors that take an explicit moment
+(`Carbon.parse()`, `Carbon.fromDateTime()`, `Carbon.create()`) are unaffected.
 
 <a name="model-integration"></a>
 ## Model Integration

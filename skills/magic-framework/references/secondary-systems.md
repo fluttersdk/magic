@@ -609,8 +609,8 @@ Laravel-style fluent date wrapper around Jiffy for parsing, formatting, and mani
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Carbon.setTestNow([testNow])` | `Carbon? testNow` | `void` | Freeze `Carbon.now()` to `testNow`; no argument (or `null`) clears the freeze. |
-| `Carbon.hasTestNow()` | none | `bool` | Whether `Carbon.now()` is currently frozen. |
+| `Carbon.setTestNow([testNow])` | `Carbon? testNow` | `void` | Freeze the clock to `testNow`; no argument (or `null`) clears the freeze. Covers `now()`, `isToday/isYesterday/isTomorrow`, `isFuture/isPast`, and argument-less `diffForHumans()`. Static: clear it in `tearDown`. |
+| `Carbon.hasTestNow()` | none | `bool` | Whether the clock is currently frozen. |
 
 #### Getters
 
