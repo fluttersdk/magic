@@ -52,7 +52,7 @@ void main() {
 `MagicTest.init()` handles:
 - `setUpAll`: `TestWidgetsFlutterBinding.ensureInitialized()`
 - `setUp`: `MagicApp.reset()` + `Magic.flush()` + `Gate.flush()`
-- `tearDown`: `Magic.flush()` + `Gate.flush()`
+- `tearDown`: `Magic.flush()` + `Gate.flush()` + `DateManager.reset()` + `Translator.reset()`, so a loaded catalogue or locale does not carry into the next test
 
 `Gate` is a process static that `Magic.flush()` does not clear on its own, so without the extra call an ability defined in one test leaks into every later test in the same file.
 

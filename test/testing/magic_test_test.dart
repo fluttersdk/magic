@@ -178,4 +178,28 @@ void main() {
       expect(trans('a.b'), 'a.b');
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // 9. MagicTest.init() resets DateManager with the Translator
+  // ---------------------------------------------------------------------------
+
+  group('MagicTest.init() resets DateManager with the Translator', () {
+    MagicTest.init();
+
+    test(
+      'first test: boots DateManager against this test\'s translator',
+      () async {
+        await DateManager.instance.boot();
+
+        expect(DateManager.instance.isBooted, isTrue);
+      },
+    );
+
+    test('second test: DateManager is fresh, so it re-subscribes on boot', () {
+      // A booted singleton surviving into this test would keep its listener on
+      // the translator the previous tearDown disposed, and Lang.setLocale would
+      // stop reaching Carbon's locale.
+      expect(DateManager.instance.isBooted, isFalse);
+    });
+  });
 }

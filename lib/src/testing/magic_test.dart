@@ -43,6 +43,10 @@ class MagicTest {
       // loadTranslations() installs a loader and a locale on the Translator
       // singleton, which Magic.flush() does not reach; without this the next
       // test formats numbers and dates in that locale without saying so.
+      // DateManager goes with it: it subscribes to the translator once on
+      // boot, so a booted DateManager outliving the disposed translator would
+      // stop following Lang.setLocale in every later test.
+      DateManager.reset();
       Translator.reset();
     });
   }
