@@ -263,7 +263,7 @@ Str.upper('istanbul', locale: 'tr');                   // 'İSTANBUL', dotted-i 
 Cast.intOr(Arr.get(payload, 'meta.priority'), 0);      // Arr does no type check; compose with Cast
 ```
 
-`RefetchesOnMount<Controller, View>` (mix onto a `MagicStatefulViewState`, point `refetch` at `controller.ensureFresh()`, never `reload()`) and `SubmitsOnce<W>` (mix onto a form's `State`, route the handler through `submitOnce`, feed `isSubmitting` to the button's `isLoading`) close the gaps singleton controllers (fire `onInit` once per instance, not per mount) and async submit handlers (nothing disables the button mid-await by default) leave open.
+`RefetchesOnMount<Controller, View>` (mix onto a `MagicStatefulViewState`, point `refetch` at a controller load that joins an in-flight request instead of starting a second one) and `SubmitsOnce<W>` (mix onto a form's `State`, route the handler through `submitOnce`, feed `isSubmitting` to the button's `isLoading`) close the gaps singleton controllers (fire `onInit` once per instance, not per mount) and async submit handlers (nothing disables the button mid-await by default) leave open.
 
 `Env.filled(key, fallback)` treats an absent, blank, or quote-only `.env` value the same way, all resolving to `fallback` (`Env.get`/`env()` only fall back on a fully absent key). `Env.getOrFail(key)` throws a `StateError` only when the key is missing entirely. `Carbon.shortDiffForHumans([other])` is the compact-ladder sibling of `diffForHumans()` for dense tables (`'14m ago'`, `'1mo ago'`).
 

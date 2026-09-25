@@ -202,7 +202,7 @@ Each callback is optional. Magic provides sensible defaults if omitted.
 
 Controllers are Type-keyed singletons and fire `onInit` ONCE per controller instance, not once per view mount, so a controller that loads its data in `onInit` fetches on the first view that resolves it and never again for the lifetime of the app. Navigating away and back re-renders the same cached rows, which reads as stale or fabricated data rather than as a stale screen.
 
-Mix `RefetchesOnMount<Controller, View>` onto a `MagicStatefulViewState` and point `refetch` at the controller's `ensureFresh` (not `reload`, which would send every request twice: the mount that creates the controller has already started the same load from `onInit`):
+Mix `RefetchesOnMount<Controller, View>` onto a `MagicStatefulViewState` and point `refetch` at a load method your controller defines (`ensureFresh` below). That method must JOIN a load already in flight rather than start a second one: the mount that creates the controller has already started the same load from `onInit`, so a refetch that always fires a new request sends every request twice.
 
 ```dart
 class _ItemsListViewState
@@ -213,7 +213,7 @@ class _ItemsListViewState
 }
 ```
 
-The refetch is fire-and-forget: `build()` renders the cached data immediately and the view rebuilds once the fresh data lands, so a mount never blocks on the network. A failed refetch leaves the screen as it was, since every controller's `reload()` keeps its last-known-good cache on failure.
+The refetch is fire-and-forget: `build()` renders the cached data immediately and the view rebuilds once the fresh data lands, so a mount never blocks on the network. Have the load keep its last-known-good data on failure, so a failed refetch leaves the screen as it was. Keep a separate method for a refresh after a mutation: it must not join an older in-flight request, or it returns a snapshot without the row the user just created.
 
 <a name="submits-once"></a>
 ## Guarding a Submit Against a Double Tap

@@ -21,8 +21,8 @@ import 'package:magic/magic.dart';
 ///
 /// ## Usage
 ///
-/// Mix onto a [MagicStatefulViewState] and point [refetch] at the controller's
-/// reload:
+/// Mix onto a [MagicStatefulViewState] and point [refetch] at a load method
+/// your controller defines:
 ///
 /// ```dart
 /// class _ItemsListViewState
@@ -33,21 +33,20 @@ import 'package:magic/magic.dart';
 /// }
 /// ```
 ///
-/// `ensureFresh`, not `reload`. The mount that CREATES the controller has
-/// already started the same load from `onInit`, and both firing sent every
-/// request twice: two identical GET requests for the same list, and doubled
-/// calls on a dashboard where half would do. `ensureFresh` joins that
-/// in-flight load and refetches on every later mount, which is the staleness
-/// this mixin exists to prevent. Coalescing inside `reload` instead would also
-/// join a refresh issued right after a mutation to a request that started
-/// before it, and hand back a snapshot without the row the caller just
-/// created.
+/// `ensureFresh` here is YOUR method, not a framework one, and its contract is
+/// what makes the mixin safe: it must JOIN a load that is already in flight
+/// rather than start a second one. The mount that creates the controller has
+/// already started the same load from `onInit`, so a refetch that always
+/// fires a new request sends every request twice on the first mount. Keep a
+/// separate method for a refresh after a mutation, which must NOT join an
+/// older in-flight request, or it hands back a snapshot without the row the
+/// caller just created.
 ///
 /// The refetch is fire-and-forget: `build()` renders the cached data immediately
 /// and the view rebuilds when the fresh data lands, so a mount never blocks on
-/// the network. Every controller's `reload()` already keeps its last-known-good
-/// cache on failure, so a failed refetch leaves the screen as it was instead of
-/// flickering into an empty state.
+/// the network. Have the load keep its last-known-good data on failure, so a
+/// failed refetch leaves the screen as it was instead of flickering into an
+/// empty state.
 mixin RefetchesOnMount<
   C extends MagicController,
   W extends MagicStatefulView<C>
@@ -59,6 +58,7 @@ mixin RefetchesOnMount<
     unawaited(refetch());
   }
 
-  /// The refetch to run on each mount, normally `controller.reload()`.
+  /// The refetch to run on each mount: a controller load that joins an
+  /// in-flight request rather than starting a second one.
   Future<void> refetch();
 }

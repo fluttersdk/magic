@@ -47,6 +47,10 @@ void main() {
     });
   });
 
+  test('initials read a whole code point, so an emoji stays intact', () {
+    expect(Str.initials('😀 team'), '😀t');
+  });
+
   test('a full locale tag resolves to its language code', () {
     expect(Str.upper('istanbul', locale: 'tr_TR'), 'İSTANBUL');
     expect(Str.lower('IŞIK', locale: 'tr-TR'), 'ışık');

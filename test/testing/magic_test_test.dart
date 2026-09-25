@@ -134,13 +134,13 @@ void main() {
   group('MagicTest.init() resets Gate between tests', () {
     MagicTest.init();
 
-    test('first test — defines an ability', () {
+    test('first test: defines an ability', () {
       Gate.define('gate-isolation-key', (user, arguments) => true);
 
       expect(Gate.has('gate-isolation-key'), isTrue);
     });
 
-    test('second test — ability from first test is gone', () {
+    test('second test: ability from first test is gone', () {
       expect(Gate.has('gate-isolation-key'), isFalse);
     });
   });
@@ -172,5 +172,10 @@ void main() {
         expect(trans('a.b'), 'merhaba');
       },
     );
+
+    test('the next test starts on the default locale again', () {
+      expect(Lang.current.languageCode, 'en');
+      expect(trans('a.b'), 'a.b');
+    });
   });
 }

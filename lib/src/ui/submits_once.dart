@@ -27,10 +27,9 @@ import 'package:flutter/widgets.dart';
 /// when it is false, so the spinner and the guard are the same switch.
 ///
 /// ```dart
-/// MSButton(
-///   isLoading: isSubmitting,
-///   onPressed: () => submitOnce(_onSubmit),
-///   child: WText(trans('...')),
+/// ElevatedButton(
+///   onPressed: isSubmitting ? null : () => submitOnce(_onSubmit),
+///   child: Text(trans('...')),
 /// )
 /// ```
 mixin SubmitsOnce<W extends StatefulWidget> on State<W> {

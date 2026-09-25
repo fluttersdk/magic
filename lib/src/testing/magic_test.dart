@@ -40,6 +40,10 @@ class MagicTest {
     tearDown(() {
       Magic.flush();
       Gate.flush();
+      // loadTranslations() installs a loader and a locale on the Translator
+      // singleton, which Magic.flush() does not reach; without this the next
+      // test formats numbers and dates in that locale without saying so.
+      Translator.reset();
     });
   }
 

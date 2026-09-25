@@ -71,7 +71,9 @@ abstract final class Str {
 
     final String result = words
         .where((String word) => word.isNotEmpty)
-        .map((String word) => word[0])
+        // First code point, not first UTF-16 unit, so an emoji-led word does
+        // not yield a lone surrogate (Laravel reads it with mb_substr).
+        .map((String word) => String.fromCharCode(word.runes.first))
         .join();
 
     return capitalize ? upper(result, locale: locale) : result;

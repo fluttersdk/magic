@@ -517,13 +517,15 @@ class Carbon implements Comparable<Carbon> {
       unit = 'week';
       count = totalSeconds ~/ week;
       fallback = ':countw';
-    } else if (totalSeconds < year) {
+    } else if (totalSeconds < year && totalSeconds ~/ month < 12) {
       unit = 'month';
       count = totalSeconds ~/ month;
       fallback = ':countmo';
     } else {
       unit = 'year';
-      count = totalSeconds ~/ year;
+      // 360-364 days are twelve 30-day months but under a 365-day year; they
+      // read as one year rather than "12mo" or "0y".
+      count = totalSeconds < year ? 1 : totalSeconds ~/ year;
       fallback = ':county';
     }
 

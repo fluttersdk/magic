@@ -193,7 +193,7 @@ date2.diffForHumans(date1);  // "5 days after"
 <a name="short-human-readable"></a>
 ## Short Human Readable
 
-`shortDiffForHumans([other])` is a compact ladder (seconds, minutes, hours, days, weeks, months, years, each threshold exclusive of the next) for dense tables and list rows where `diffForHumans()` reads too wide. It measures against the current instant (or `other` when given) rather than the frozen test clock's format:
+`shortDiffForHumans([other])` is a compact ladder (seconds, minutes, hours, days, weeks, months, years, each threshold exclusive of the next) for dense tables and list rows where `diffForHumans()` reads too wide. It measures against Carbon's clock (frozen while `Carbon.setTestNow` is set), or against `other` when given:
 
 ```dart
 createdAt.shortDiffForHumans();  // "14m ago"

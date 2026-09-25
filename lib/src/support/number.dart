@@ -63,7 +63,9 @@ abstract final class Number {
   /// `NumberFormat.simpleCurrency` rather than `NumberFormat.currency`: the
   /// latter renders the bare ISO code with no symbol and no space
   /// (`'TRY1.234,50'`), while `simpleCurrency` resolves the locale's own
-  /// symbol (`'₺1.234,50'`).
+  /// symbol (`'₺1.234,50'`). The symbol comes from intl's CLDR data, so it
+  /// follows the intl version the app resolves: intl 0.20.2 renders the lira
+  /// as `TL`, 0.20.3 and later as `₺`.
   ///
   /// ```dart
   /// Number.currency(1234.5, code: 'TRY', locale: 'tr'); // '₺1.234,50'

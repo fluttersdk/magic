@@ -56,6 +56,13 @@ void main() {
       expect(event.shortDiffForHumans(), '1mo ago');
     });
 
+    test('T-362 d reads "1y ago", never "12mo ago"', () {
+      final t = Carbon.create(year: 2024, month: 3, day: 15, hour: 10);
+      Carbon.setTestNow(t);
+
+      expect(t.subDays(362).shortDiffForHumans(), '1y ago');
+    });
+
     test('T+5 min reads "5m from now"', () {
       final t = Carbon.create(year: 2024, month: 3, day: 15, hour: 10);
       Carbon.setTestNow(t);

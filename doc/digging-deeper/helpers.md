@@ -1,6 +1,6 @@
 # Helpers
 
-`Str`, `Number`, `Arr`, and `Cast` are static namespace helpers ported from Laravel's Support layer, covering locale-aware casing, locale-aware number formatting, dot-path map access, and defensive type reading for loosely-typed wire data.
+`Str`, `Number`, and `Arr` are static namespace helpers modelled on Laravel's Support layer, and `Cast` is magic's own, together covering locale-aware casing, locale-aware number formatting, dot-path map access, and defensive type reading for loosely-typed wire data.
 
 - [Str](#str)
 - [Number](#number)
