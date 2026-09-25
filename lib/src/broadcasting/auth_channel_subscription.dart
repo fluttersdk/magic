@@ -96,25 +96,6 @@ class AuthChannelSubscription {
   /// The `Echo.connectionState` subscription, or `null` when not subscribed.
   StreamSubscription<BroadcastConnectionState>? _connectionSubscription;
 
-  /// The most recently observed [BroadcastConnectionState], or `null` before
-  /// the first one is seen.
-  ///
-  /// Populated by [_stateTrackingSubscription] independently of
-  /// `BroadcastDriver.isConnected`: after a drop, the driver reports
-  /// [BroadcastConnectionState.reconnecting] and arms its own reconnect timer
-  /// before `isConnected` flips to `false`, so this is what lets [_reconcile]
-  /// tell "no connection, and nobody is trying" apart from "no connection,
-  /// but a reconnect is already in flight".
-  BroadcastConnectionState? _lastConnectionState;
-
-  /// The `Echo.connectionState` subscription backing [_lastConnectionState].
-  ///
-  /// Started on the first [sync] and kept alive through [_teardown] (a
-  /// `null` [channelName] does not cancel it), so a drop observed while the
-  /// subscription is torn down is still reflected in [_lastConnectionState]
-  /// the next time a channel name reappears. Only [dispose] cancels it.
-  StreamSubscription<BroadcastConnectionState>? _stateTrackingSubscription;
-
   // ---------------------------------------------------------------------------
   // Sync
   // ---------------------------------------------------------------------------
@@ -158,7 +139,6 @@ class AuthChannelSubscription {
   /// The single-flight body of [sync]; assumes [sync]'s latch serialises it,
   /// so it never runs concurrently with itself.
   Future<void> _reconcile() async {
-    _ensureTrackingConnectionState();
     final String? name = channelName();
 
     // 1. No channel to subscribe to: tear down any live subscription.
@@ -170,9 +150,8 @@ class AuthChannelSubscription {
     // 2. Already on this channel: nothing to do, whatever the connection is
     //    doing. The marker is only set after a subscribe succeeded, and a drop
     //    after that is the driver's to recover (Reverb reconnects and
-    //    re-subscribes on its own). Resubscribing here while the socket is
-    //    mid-reconnect would call `Echo.connect()` beside the driver's own
-    //    reconnect and open a second socket.
+    //    re-subscribes every channel it knows on its own), so a resubscribe
+    //    here would only repeat that work.
     if (_subscribedName == name) {
       return;
     }
@@ -183,33 +162,13 @@ class AuthChannelSubscription {
     //    pointing at a channel that is not actually subscribed.
     _leaveCurrentChannel();
     _subscribedName = null;
-    // Connect only when there is no live connection AND the driver already
-    // has a reconnect actually in flight: `connect()` is not idempotent in
-    // the Reverb driver (a second call opens a second socket and leaks the
-    // first). After a drop, the driver reports `reconnecting` and arms its
-    // own reconnect Timer before `isConnected` flips to `false`, so a name
-    // change in that window must only touch the channel; the driver's own
-    // reconnect resubscribes every channel it already knows about (including
-    // one created while disconnected) once it reconnects.
-    //
-    // `connecting` is deliberately excluded from this gate: the connect call
-    // below emits it too, and if that call throws (e.g. the server
-    // unreachable at boot), the driver emits nothing further, so the last
-    // observed state would stay `connecting` forever with no reconnect
-    // actually pending. Treating it as "pending" would strand every later
-    // sync as a no-op subscribe onto a dead driver.
-    final bool driverReconnectPending =
-        _lastConnectionState == BroadcastConnectionState.reconnecting;
-    if (!Echo.connection.isConnected && !driverReconnectPending) {
-      try {
-        await Echo.connect();
-      } catch (_) {
-        // The failed call's own `connecting` announcement must not be read
-        // as a pending reconnect by the next sync; `_subscribedName` is
-        // already null (cleared above), so that sync retries `connect()`.
-        _lastConnectionState = null;
-        rethrow;
-      }
+    // Whether a reconnect is already pending is the driver's to know, not
+    // something to infer here from its state stream: the Reverb driver's
+    // `connect()` is idempotent (it returns when connected, joins an attempt
+    // in flight, and supersedes an armed retry), so this call never opens a
+    // second socket. The `isConnected` check only saves the round trip.
+    if (!Echo.connection.isConnected) {
+      await Echo.connect();
     }
 
     final BroadcastChannel channel = Echo.private(name);
@@ -229,10 +188,7 @@ class AuthChannelSubscription {
   /// Disconnects the whole default connection (`Echo.disconnect()`), not
   /// just this channel: any other channel the app subscribed through `Echo`
   /// on the same connection is dropped too. Deliberate, since a signed-out
-  /// app has no business staying on the socket. Does not cancel
-  /// [_stateTrackingSubscription], so a drop seen while torn down is still
-  /// reflected in [_lastConnectionState] the next time a channel name
-  /// reappears.
+  /// app has no business staying on the socket.
   ///
   /// A no-op when never subscribed, so a repeated `null` [channelName] stays
   /// idempotent.
@@ -254,24 +210,6 @@ class AuthChannelSubscription {
     }
     Echo.leave(channel.name);
     _channel = null;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Connection-state tracking
-  // ---------------------------------------------------------------------------
-
-  /// Starts tracking `Echo.connectionState` into [_lastConnectionState].
-  ///
-  /// Idempotent: a no-op once [_stateTrackingSubscription] is set. Called at
-  /// the top of every [_reconcile] pass so tracking starts on the first
-  /// [sync], not just after a successful subscribe.
-  void _ensureTrackingConnectionState() {
-    if (_stateTrackingSubscription != null) {
-      return;
-    }
-    _stateTrackingSubscription = Echo.connectionState.listen(
-      (BroadcastConnectionState state) => _lastConnectionState = state,
-    );
   }
 
   // ---------------------------------------------------------------------------
@@ -309,14 +247,11 @@ class AuthChannelSubscription {
   // Disposal
   // ---------------------------------------------------------------------------
 
-  /// Releases the reconnect stream subscriptions and the connection-state
-  /// tracking used to detect a pending driver reconnect.
+  /// Releases the reconnect stream subscriptions.
   ///
   /// Idempotent. Does not touch the channel or connection, which stay live
   /// until the next [sync] resolves a `null` [channelName].
   void dispose() {
     _cancelReconnectListeners();
-    _stateTrackingSubscription?.cancel();
-    _stateTrackingSubscription = null;
   }
 }

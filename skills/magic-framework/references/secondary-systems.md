@@ -1033,7 +1033,7 @@ Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via t
 | `Echo.join(name)` | `BroadcastPresenceChannel` | Join a presence channel (auth + member tracking) |
 | `Echo.listen(channel, event, callback)` | `BroadcastChannel` | Shorthand: subscribe + listen in one call |
 | `Echo.leave(name)` | `void` | Unsubscribe from a channel |
-| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection |
+| `Echo.connect()` | `Future<void>` | Establish the WebSocket connection; idempotent, never opens a second socket |
 | `Echo.disconnect()` | `Future<void>` | Close the connection |
 | `Echo.connection` | `BroadcastDriver` | The resolved default driver instance |
 | `Echo.socketId` | `String?` | Server-assigned socket ID, or `null` when disconnected |
@@ -1149,7 +1149,7 @@ Auth.stateNotifier.addListener(subscription.sync);
 subscription.sync(); // reconcile once at startup too
 ```
 
-`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and a no-op when `channelName()` still answers the subscribed name, whatever the connection is doing (the Reverb driver recovers a drop on its own, and calling `Echo.connect()` again here would open a second socket). A name change leaves the old channel by its prefixed name, then connects only when there is no live connection and the driver has not already reported `reconnecting`; when a reconnect is already in flight it only subscribes to the new channel, and the driver's own reconnect resubscribes it once it recovers. `onReconnect` fires on both an `Echo.onReconnect` signal and a `connectionState` transition to `connected`. `dispose()` cancels the reconnect-listening subscriptions and the connection-state tracking, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
+`sync()` is serialised (a call arriving mid-flight defers and re-runs once more) and a no-op when `channelName()` still answers the subscribed name, whatever the connection is doing (the Reverb driver recovers a drop on its own). A name change leaves the old channel by its prefixed name, calls `Echo.connect()` when the connection is not live, then subscribes and wires every `listeners` entry. That connect is safe mid-reconnect: `ReverbBroadcastDriver.connect()` is idempotent (returns when connected, joins an attempt in flight, supersedes an armed retry), so it never opens a second socket. `onReconnect` fires on both an `Echo.onReconnect` signal and a `connectionState` transition to `connected`. `dispose()` cancels only the reconnect-listening subscriptions, not the channel or connection. A `null` channel name disconnects the whole default connection, dropping any other channel the app subscribed elsewhere through `Echo`: deliberate, a signed-out app has no business staying on the socket. Full reference: `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
 
 ### FakeBroadcastManager (Testing)
 

@@ -773,6 +773,179 @@ void main() {
     });
   });
 
+  group('ReverbBroadcastDriver: idempotent connect', () {
+    /// Creates a driver whose channel factory records every socket it opens,
+    /// so a test can count them. Each socket completes the Pusher handshake
+    /// after a microtask, except that the server closes it before the
+    /// handshake when [refuse] answers `true` for its 1-based index, and
+    /// never answers it at all when [silent] does.
+    (ReverbBroadcastDriver, List<_MockWebSocketChannel>) createCountingDriver({
+      bool Function(int index)? refuse,
+      bool Function(int index)? silent,
+      Map<String, dynamic>? configOverrides,
+    }) {
+      final sockets = <_MockWebSocketChannel>[];
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(
+          overrides: {
+            'reconnect': true,
+            'connection_timeout': 1,
+            ...?configOverrides,
+          },
+        ),
+        channelFactory: (_) {
+          final socket = _MockWebSocketChannel();
+          sockets.add(socket);
+          final index = sockets.length;
+          if (refuse?.call(index) ?? false) {
+            Future<void>.delayed(Duration.zero, socket.simulateClose);
+          } else if (!(silent?.call(index) ?? false)) {
+            _simulateConnectionEstablished(socket, socketId: 'socket-$index');
+          }
+          return socket;
+        },
+        random: Random(42),
+      );
+      return (driver, sockets);
+    }
+
+    Set<String> subscribedOn(_MockWebSocketChannel socket) => socket.sentFrames
+        .where((f) => f['event'] == 'pusher:subscribe')
+        .map((f) => (f['data'] as Map<String, dynamic>)['channel'] as String)
+        .toSet();
+
+    test('two concurrent connect() calls open one socket', () async {
+      final (driver, sockets) = createCountingDriver();
+
+      await Future.wait(<Future<void>>[driver.connect(), driver.connect()]);
+
+      expect(sockets, hasLength(1));
+      expect(driver.isConnected, isTrue);
+
+      await driver.disconnect();
+    });
+
+    test('connect() while connected opens nothing', () async {
+      final (driver, sockets) = createCountingDriver();
+      await driver.connect();
+
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      await driver.connect();
+
+      expect(sockets, hasLength(1));
+      expect(states, isEmpty);
+      expect(driver.socketId, 'socket-1');
+
+      await driver.disconnect();
+    });
+
+    test('connect() after a drop supersedes the armed retry: one socket in '
+        'total, channels resubscribed, onReconnect once', () async {
+      final (driver, sockets) = createCountingDriver();
+      await driver.connect();
+      driver.channel('orders');
+      await Future<void>.delayed(Duration.zero);
+
+      var reconnects = 0;
+      driver.onReconnect.listen((_) => reconnects++);
+
+      // The server drops the socket; the driver arms its retry timer.
+      sockets.first.simulateClose();
+      await Future<void>.delayed(Duration.zero);
+      expect(driver.isConnected, isFalse);
+
+      await driver.connect();
+
+      expect(sockets, hasLength(2));
+      expect(driver.isConnected, isTrue);
+      expect(subscribedOn(sockets[1]), contains('orders'));
+
+      // Past the attempt-0 backoff (at most 650ms): the cancelled retry must
+      // not open a third socket.
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+
+      expect(sockets, hasLength(2));
+      expect(reconnects, 1);
+
+      await driver.disconnect();
+    });
+
+    test('connect() during the backoff after a failed timer-driven retry '
+        'opens one socket, not two', () async {
+      final (driver, sockets) = createCountingDriver(
+        refuse: (index) => index == 2,
+      );
+      await driver.connect();
+
+      // Drop, then let the timer-driven retry (socket 2) fail and re-arm.
+      sockets.first.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      expect(sockets, hasLength(2));
+      expect(driver.isConnected, isFalse);
+
+      await driver.connect();
+
+      expect(sockets, hasLength(3));
+      expect(driver.isConnected, isTrue);
+
+      // Past the attempt-1 backoff (at most 1300ms).
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+
+      expect(sockets, hasLength(3));
+
+      await driver.disconnect();
+    });
+
+    test('connect() during the retry armed by a connection timeout opens one '
+        'socket, not two', () async {
+      final (driver, sockets) = createCountingDriver(
+        silent: (index) => index == 1,
+      );
+
+      // The server never answers socket 1: connect() times out after 1s and
+      // arms a retry before throwing.
+      await expectLater(driver.connect(), throwsA(isA<TimeoutException>()));
+      expect(sockets, hasLength(1));
+
+      await driver.connect();
+
+      expect(sockets, hasLength(2));
+      expect(driver.isConnected, isTrue);
+
+      // Past the backoff the timeout armed (at most 650ms).
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+
+      expect(sockets, hasLength(2));
+
+      await driver.disconnect();
+    });
+
+    test('a failed superseding connect() throws to its caller and re-arms '
+        'the retry', () async {
+      final (driver, sockets) = createCountingDriver(
+        refuse: (index) => index == 2,
+      );
+      await driver.connect();
+
+      sockets.first.simulateClose();
+      await Future<void>.delayed(Duration.zero);
+
+      await expectLater(driver.connect(), throwsA(isA<StateError>()));
+      expect(sockets, hasLength(2));
+
+      // The retry loop survives the failed public attempt: the re-armed
+      // timer (attempt-1 backoff, at most 1300ms) opens socket 3.
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+
+      expect(sockets, hasLength(3));
+      expect(driver.isConnected, isTrue);
+
+      await driver.disconnect();
+    });
+  });
+
   group('ReverbBroadcastDriver — Pusher error codes', () {
     test('4000-4099 are fatal (no reconnect)', () {
       final driver = ReverbBroadcastDriver(_defaultConfig());

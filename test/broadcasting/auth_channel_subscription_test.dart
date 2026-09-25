@@ -13,15 +13,15 @@ import 'package:magic/magic.dart';
 /// The shipped [FakeBroadcastDriver] cannot emit a synthetic reconnect or
 /// connection-state signal: both streams are `Stream.empty()`. It also cannot
 /// distinguish one `connect()` call from two, since `connect()` just flips a
-/// bool; on the real Reverb driver a second call opens a second socket, so
-/// the guard against a redundant connect needs a driver that counts.
+/// bool; counting them is what shows when the subscription asks the driver
+/// to connect and when it reuses the live connection.
 class _CountingBroadcastDriver extends FakeBroadcastDriver {
   int connectCount = 0;
 
   /// When set, the next [connect] emits `connecting` on [connectionState]
   /// and then throws, instead of succeeding. Simulates the real Reverb
   /// driver's `connect()` failing after its own `connecting` announcement
-  /// (e.g. the server unreachable at boot) with no further state emitted.
+  /// (e.g. the server unreachable at boot).
   bool failNextConnect = false;
 
   final StreamController<void> _reconnectController =
@@ -173,47 +173,38 @@ void main() {
       counting.spy.connectCount,
       1,
       reason:
-          'a connect beside the Reverb driver\'s own reconnect opens a '
-          'second socket',
+          'an unchanged name is the driver\'s to recover; it resubscribes '
+          'on its own',
     );
   });
 
-  test(
-    'a name change while the driver has a reconnect pending only subscribes, '
-    'it does not call connect() beside it',
-    () async {
-      final _CountingBroadcastManager counting = _CountingBroadcastManager();
-      Magic.app.setInstance('broadcasting', counting);
+  test('a name change while the socket is down asks the driver to connect, '
+      'whatever state it last reported, and subscribes', () async {
+    final _CountingBroadcastManager counting = _CountingBroadcastManager();
+    Magic.app.setInstance('broadcasting', counting);
 
-      String channelName = 'teams.1';
-      final AuthChannelSubscription subscription = AuthChannelSubscription(
-        channelName: () => channelName,
-        listeners: <String, void Function(BroadcastEvent)>{},
-      );
+    String channelName = 'teams.1';
+    final AuthChannelSubscription subscription = AuthChannelSubscription(
+      channelName: () => channelName,
+      listeners: <String, void Function(BroadcastEvent)>{},
+    );
 
-      await subscription.sync();
-      expect(counting.spy.connectCount, 1);
+    await subscription.sync();
+    expect(counting.spy.connectCount, 1);
 
-      // The driver lost its socket and armed its own reconnect Timer: it
-      // reports `reconnecting` before `isConnected` flips to `false`, the
-      // same order as the real Reverb driver's `_onDone`/`_onError`.
-      counting.spy.emitConnectionState(BroadcastConnectionState.reconnecting);
-      await flushMicrotasks();
-      await counting.spy.disconnect();
+    // The driver dropped its socket and reports a pending reconnect. The
+    // subscription no longer second-guesses that: the driver's connect()
+    // is idempotent and supersedes its own armed retry.
+    counting.spy.emitConnectionState(BroadcastConnectionState.reconnecting);
+    await flushMicrotasks();
+    await counting.spy.disconnect();
 
-      channelName = 'teams.2';
-      await subscription.sync();
+    channelName = 'teams.2';
+    await subscription.sync();
 
-      expect(
-        counting.spy.connectCount,
-        1,
-        reason:
-            'a connect beside the driver\'s pending reconnect opens a '
-            'second socket',
-      );
-      expect(counting.spy.subscribedChannels, contains('private-teams.2'));
-    },
-  );
+    expect(counting.spy.connectCount, 2);
+    expect(counting.spy.subscribedChannels, contains('private-teams.2'));
+  });
 
   test('a failed own connect does not strand the subscription: the next sync '
       'connects again and subscribes', () async {
@@ -243,9 +234,7 @@ void main() {
     expect(
       counting.spy.connectCount,
       2,
-      reason:
-          'the failed own connect must not be read as a pending driver '
-          'reconnect',
+      reason: 'the next sync retries the connect',
     );
     expect(counting.spy.subscribedChannels, contains('private-teams.1'));
   });
