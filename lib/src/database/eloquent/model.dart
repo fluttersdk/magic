@@ -436,7 +436,8 @@ abstract class Model {
   /// Fill the model with an array of attributes.
   ///
   /// Only fills attributes that are in the [fillable] list, unless [fillable]
-  /// is empty and [guarded] doesn't include `'*'`.
+  /// is empty and [guarded] doesn't include `'*'`. Inside [unguarded] every
+  /// attribute is filled.
   ///
   /// When [strict] is `true`, any attribute that fails the fillable guard
   /// throws [MassAssignmentException] instead of being silently dropped. Use
@@ -452,8 +453,68 @@ abstract class Model {
     }
   }
 
+  /// Whether [fill] currently ignores [fillable] and [guarded] on every model.
+  static bool _unguarded = false;
+
+  /// Whether mass-assignment protection is switched off for every model.
+  static bool get isUnguarded => _unguarded;
+
+  /// Switch mass-assignment protection off for every model until [reguard].
+  ///
+  /// Prefer [unguarded], which scopes the switch to one callback and restores
+  /// it even when the callback throws.
+  static void unguard([bool state = true]) {
+    _unguarded = state;
+  }
+
+  /// Switch mass-assignment protection back on for every model.
+  static void reguard() {
+    _unguarded = false;
+  }
+
+  /// Run [callback] with mass-assignment protection off, then restore it.
+  ///
+  /// Nested calls, and calls made while [unguard] is in effect, run the
+  /// callback without touching the switch, so the outer scope stays
+  /// unguarded. The callback must be synchronous: an async one would keep
+  /// running after the guard is restored, so its `fill` calls past the first
+  /// `await` would silently run guarded. That is caught by an assertion.
+  static T unguarded<T>(T Function() callback) {
+    if (_unguarded) {
+      return _runAssertingSync(callback);
+    }
+
+    unguard();
+
+    try {
+      return _runAssertingSync(callback);
+    } finally {
+      reguard();
+    }
+  }
+
+  /// Run [callback] and assert its result is not a [Future].
+  ///
+  /// Shared by both branches of [unguarded]: the nested/global-unguard early
+  /// return and the scoped guard/restore path must both catch an async
+  /// callback, or the assertion silently only fires from the scoped path.
+  static T _runAssertingSync<T>(T Function() callback) {
+    final result = callback();
+    assert(
+      result is! Future,
+      'Model.unguarded() needs a synchronous callback; the guard is '
+      'restored before an async one finishes.',
+    );
+
+    return result;
+  }
+
   /// Determine if the given attribute is fillable.
   bool _isFillable(String key) {
+    if (_unguarded) {
+      return true;
+    }
+
     // If fillable is explicitly defined, check if key is in it
     if (fillable.isNotEmpty) {
       return fillable.contains(key);

@@ -10,7 +10,11 @@ class {{ className }} extends Factory<Model> {
   // TODO: Import and use your model class. Example:
   //   import '../../app/models/{{ snakeName }}.dart';
   //   class {{ className }} extends Factory<{{ modelName }}> {
+  //   Factory<{{ modelName }}> newFactory() => {{ className }}();
   //   {{ modelName }} newInstance() => {{ modelName }}();
+  @override
+  Factory<Model> newFactory() => {{ className }}();
+
   @override
   Model newInstance() => throw UnimplementedError(
     'Import your model and override newInstance()',
@@ -23,10 +27,11 @@ class {{ className }} extends Factory<Model> {
       // Add more attributes here.
     };
   }
-
-  // Custom states:
-  //
-  // {{ className }} inactive() {
-  //   return state({'is_active': false}) as {{ className }};
-  // }
 }
+
+// Named states are extensions on the base type, so they chain with
+// state() and count(), which return a copy typed Factory<{{ modelName }}>:
+//
+// extension {{ className }}States on Factory<{{ modelName }}> {
+//   Factory<{{ modelName }}> inactive() => state({'is_active': false});
+// }
