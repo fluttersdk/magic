@@ -105,7 +105,10 @@ abstract class SyncFeed {
   ///
   /// Oldest first is required rather than tidy: the push advances its mark
   /// to the last row of each batch it sends, so a batch that did not end on
-  /// its newest row would move the mark past rows it never sent.
+  /// its newest row would move the mark past rows it never sent. Marks need
+  /// not be unique across rows, so a run of rows sharing one mark may
+  /// straddle a batch boundary; [_markAfterBatch] is what keeps that case
+  /// from losing the rows on the far side of the boundary.
   @protected
   Future<List<SyncPushRow>> pending({
     required String account,
@@ -134,6 +137,12 @@ abstract class SyncFeed {
     required String scope,
     required String account,
   }) async {
+    // Tracks rows the server has already accepted across every batch, so a
+    // throw from `pending`, `adoptRow` or the ledger after some batch landed
+    // still reports what actually got through instead of claiming nothing
+    // did.
+    int pushedSoFar = 0;
+
     try {
       // The raw `Http` methods hand the path to the driver untouched, and a
       // base URL with no trailing slash plus a resource with no leading one
@@ -148,6 +157,7 @@ abstract class SyncFeed {
         scope: scope,
         account: account,
         mark: bookmarks.pushMark,
+        onBatchAccepted: (int sent) => pushedSoFar += sent,
       );
 
       if (push.failure != null) {
@@ -191,7 +201,11 @@ abstract class SyncFeed {
         'stackTrace': stackTrace.toString(),
       });
 
-      return SyncReport(pushed: 0, adopted: 0, failure: 'sync failed: $error');
+      return SyncReport(
+        pushed: pushedSoFar,
+        adopted: 0,
+        failure: 'sync failed: $error',
+      );
     }
   }
 
@@ -205,6 +219,7 @@ abstract class SyncFeed {
     required String scope,
     required String account,
     required int mark,
+    required void Function(int sent) onBatchAccepted,
   }) async {
     final List<SyncPushRow> changed = await pending(
       account: account,
@@ -237,14 +252,55 @@ abstract class SyncFeed {
       }
 
       // Only past a 2xx: the batch is all or nothing on the server, so a
-      // mark advanced on a refused batch would lose every row in it.
-      reached = slice.last.mark;
+      // mark advanced on a refused batch would lose every row in it. The
+      // mark itself may still fall short of this slice's last row; see
+      // _markAfterBatch.
+      reached = _markAfterBatch(
+        slice: slice,
+        changed: changed,
+        end: end,
+        previousMark: reached,
+      );
       sent += slice.length;
+      onBatchAccepted(slice.length);
 
       await _adopt(account: account, body: response.data);
     }
 
     return _PushResult(sent: sent, mark: reached, failure: null);
+  }
+
+  /// The mark a batch that just landed may safely advance to.
+  ///
+  /// A mark is this device's local clock, not a row id, so it need not be
+  /// unique: a bulk write can stamp many rows with the same value. When the
+  /// next unsent row ([changed] at [end]) shares [slice]'s last mark, that
+  /// value has not finished sending yet, and advancing to it would make the
+  /// next run's `sinceMillis` filter (a strict `>`, per [pending]'s doc)
+  /// skip the rows still waiting at that mark forever. This falls back to
+  /// the greatest mark in [slice] strictly below the shared value, or to
+  /// [previousMark] when every row in [slice] carries it. Either way, the
+  /// rows the mark stops short of are resent on the next run, absorbed by
+  /// the server's own `>=` as a duplicate rather than lost.
+  int _markAfterBatch({
+    required List<SyncPushRow> slice,
+    required List<SyncPushRow> changed,
+    required int end,
+    required int previousMark,
+  }) {
+    final int lastMark = slice.last.mark;
+
+    if (end >= changed.length || changed[end].mark > lastMark) return lastMark;
+
+    int? safe;
+
+    for (final SyncPushRow row in slice) {
+      if (row.mark < lastMark && (safe == null || row.mark > safe)) {
+        safe = row.mark;
+      }
+    }
+
+    return safe ?? previousMark;
   }
 
   /// Walks every page the server has past [cursor], writing each row.
