@@ -55,6 +55,18 @@ export 'src/support/str.dart';
 export 'src/support/cast.dart';
 export 'src/support/arr.dart';
 export 'src/support/app_lifecycle.dart';
+export 'src/support/latest_read.dart';
+export 'src/support/poll.dart';
+export 'src/support/countdown.dart';
+export 'src/support/debouncer.dart';
+export 'src/support/url_generator.dart';
+
+// Actions
+export 'src/actions/magic_action.dart';
+export 'src/actions/runs_actions.dart';
+
+// Forms
+export 'src/forms/magic_form_object.dart';
 
 // Sync
 export 'src/sync/sync_feed.dart';
@@ -78,6 +90,7 @@ export 'src/http/request.dart';
 export 'src/http/rx_status.dart';
 export 'src/http/magic_controller.dart';
 export 'src/http/magic_paginator.dart';
+export 'src/http/owns_timers.dart';
 export 'src/http/kernel.dart';
 export 'src/http/middleware/magic_middleware.dart';
 export 'src/http/middleware/authorize_middleware.dart';
@@ -158,6 +171,10 @@ export 'src/database/eloquent/casts/enum_cast.dart';
 export 'src/database/eloquent/casts/list_cast.dart';
 export 'src/database/eloquent/exceptions/mass_assignment_exception.dart';
 
+// Data (id-keyed remote resource caches, over the Eloquent model shape)
+export 'src/data/repository.dart';
+export 'src/data/repository_query.dart';
+
 // Authentication
 export 'src/auth/authenticatable.dart';
 export 'src/auth/auth_result.dart';
@@ -201,12 +218,24 @@ export 'src/validation/validator.dart';
 export 'src/validation/form_validator.dart';
 export 'src/validation/form_request.dart';
 export 'src/concerns/validates_requests.dart';
+export 'src/validation/rules/uuid.dart';
+export 'src/validation/rules/boolean.dart';
+export 'src/validation/rules/numeric.dart';
+export 'src/validation/rules/integer.dart';
+export 'src/validation/rules/comparison.dart';
+export 'src/validation/rules/between.dart';
+export 'src/validation/rules/regex.dart';
+export 'src/validation/rules/date.dart';
+export 'src/validation/rules/nullable.dart';
+export 'src/validation/rules/required_if.dart';
+export 'src/validation/rules/array_rule.dart';
 
 // Events
 export 'src/events/magic_event.dart';
 export 'src/events/magic_listener.dart';
 export 'src/events/event_dispatcher.dart';
 export 'src/events/base_event_service_provider.dart';
+export 'src/events/reports_breadcrumb.dart';
 export 'src/facades/event.dart';
 
 // Framework Events
@@ -228,6 +257,8 @@ export 'src/facades/pick.dart';
 
 // Session
 export 'src/session/session_store.dart';
+export 'src/session/session_scoped.dart';
+export 'src/session/session_scope.dart';
 export 'src/facades/session.dart';
 
 // Authorization (Gate)
@@ -266,4 +297,6 @@ export 'src/broadcasting/contracts/broadcast_interceptor.dart';
 export 'src/broadcasting/contracts/broadcast_presence_channel.dart';
 export 'src/broadcasting/drivers/null_broadcast_driver.dart';
 export 'src/broadcasting/drivers/reverb_broadcast_driver.dart';
+export 'src/broadcasting/broadcast_listeners.dart';
+export 'src/broadcasting/listens_to_broadcasts.dart';
 export 'src/facades/echo.dart';

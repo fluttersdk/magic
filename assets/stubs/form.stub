@@ -1,0 +1,23 @@
+import 'package:magic/magic.dart';
+
+{{ requestImport }}
+
+/// {{ className }}
+///
+/// A form object for the {{ modelName }} screen (see [MagicFormObject]).
+class {{ className }} extends MagicFormObject {
+  {{ className }}();
+
+  @override
+  Map<String, dynamic> get initial => {
+    // 'name': '',
+  };
+
+  @override
+  FormRequest get request => {{ requestExpression }};
+
+  @override
+  Future<bool> persist(Map<String, dynamic> validated) async {
+    throw UnimplementedError('Persist the validated payload.');
+  }
+}

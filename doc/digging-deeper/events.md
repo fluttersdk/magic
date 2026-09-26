@@ -10,6 +10,7 @@ Magic's event system provides a simple observer implementation, letting you deco
 - [Registering Events & Listeners](#registering-events--listeners)
 - [Dispatching Events](#dispatching-events)
 - [Inline Listeners](#inline-listeners)
+- [Wildcard Listeners and ReportsBreadcrumb](#wildcard-listeners)
 - [Framework Events](#framework-events)
 
 <a name="introduction"></a>
@@ -194,6 +195,37 @@ Event.listen<OrderShipped>(() => LogOrderShipped());
 
 > [!TIP]
 > Register `Event.listen` calls in your `EventServiceProvider`'s `register()` method, not `boot()`: a guard can dispatch `AuthLogin` during `AuthServiceProvider.boot`, before a later provider's `boot()` runs. Registrations last until `MagicApp.flush()`.
+
+<a name="wildcard-listeners"></a>
+## Wildcard Listeners and ReportsBreadcrumb
+
+`Event.listenAny(callback)` registers a callback that runs on EVERY dispatched event, regardless of type, after every typed listener has already run (Laravel's `Event::listen('*')`). It answers a remover:
+
+```dart
+final remove = Event.listenAny((event) => Log.debug('dispatched: ${event.runtimeType}'));
+remove(); // stop listening
+```
+
+`ReportsBreadcrumb` is a contract an event implements to opt into a crash reporter's breadcrumb trail without the reporter needing to know the event exists: a wildcard listener checks `event is ReportsBreadcrumb` on every dispatch and translates a match into a breadcrumb.
+
+```dart
+class DeeplinkOpened extends MagicEvent implements ReportsBreadcrumb {
+  DeeplinkOpened(this.path);
+
+  final String path;
+
+  @override
+  String get breadcrumbCategory => 'navigation';
+
+  @override
+  String get breadcrumbMessage => 'Deeplink opened';
+
+  @override
+  Map<String, Object?> get breadcrumbData => {'path': path};
+}
+```
+
+`breadcrumbData` is a WHITELIST, not a dump of the event: it never carries a URL with a query string, an auth token, or a raw payload value, since a breadcrumb trail is uploaded to a third party. A wildcard listener's own throw is caught and logged the same way a typed listener's is; it never stops the caller or another wildcard callback.
 
 <a name="framework-events"></a>
 ## Framework Events

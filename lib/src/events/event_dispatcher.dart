@@ -33,6 +33,10 @@ class EventDispatcher {
   /// and to avoid reflection.
   final Map<Type, List<MagicListener Function()>> _listeners = {};
 
+  /// Callbacks registered via [listenAny], run on every dispatched event
+  /// regardless of its type.
+  final List<void Function(MagicEvent event)> _wildcardListeners = [];
+
   // ---------------------------------------------------------------------------
   // Registration
   // ---------------------------------------------------------------------------
@@ -54,6 +58,23 @@ class EventDispatcher {
     _listeners[eventType]!.addAll(listeners);
   }
 
+  /// Register a wildcard listener, run after the typed listeners on every
+  /// dispatched event (Laravel's `Event::listen('*')`).
+  ///
+  /// Returns a remover: call it to stop [callback] from running on later
+  /// dispatches. A crash reporter (`magic_sentry`) uses this to watch every
+  /// event for a `ReportsBreadcrumb` match without registering per event
+  /// type.
+  ///
+  /// ```dart
+  /// final remove = dispatcher.listenAny((event) => print(event));
+  /// remove(); // stop listening
+  /// ```
+  void Function() listenAny(void Function(MagicEvent event) callback) {
+    _wildcardListeners.add(callback);
+    return () => _wildcardListeners.remove(callback);
+  }
+
   // ---------------------------------------------------------------------------
   // Dispatching
   // ---------------------------------------------------------------------------
@@ -72,28 +93,39 @@ class EventDispatcher {
   ///
   /// There is no switch to make it rethrow. This docstring used to say the
   /// behaviour "can be configured", which was never true.
+  ///
+  /// Wildcard listeners registered via [listenAny] run AFTER the typed
+  /// listeners above, isolated the same way: a throwing wildcard callback is
+  /// logged and does not stop the remaining wildcard callbacks or the caller.
   Future<void> dispatch(MagicEvent event) async {
     final eventType = event.runtimeType;
+    final listeners = _listeners[eventType];
 
-    // Check strict match
-    if (!_listeners.containsKey(eventType)) {
-      return;
+    if (listeners != null) {
+      for (final listenerFactory in listeners) {
+        try {
+          final listener = listenerFactory();
+          await (listener as dynamic).handle(event);
+        } catch (e, stack) {
+          Log.error('Error handling event $eventType: $e\n$stack');
+        }
+      }
     }
 
-    final listeners = _listeners[eventType]!;
-
-    for (final listenerFactory in listeners) {
+    for (final wildcard in List.of(_wildcardListeners)) {
       try {
-        final listener = listenerFactory();
-        await (listener as dynamic).handle(event);
+        wildcard(event);
       } catch (e, stack) {
-        Log.error('Error handling event $eventType: $e\n$stack');
+        Log.error(
+          'Error handling wildcard listener for $eventType: $e\n$stack',
+        );
       }
     }
   }
 
-  /// Clear all listeners.
+  /// Clear all listeners, including wildcard ones.
   void clear() {
     _listeners.clear();
+    _wildcardListeners.clear();
   }
 }

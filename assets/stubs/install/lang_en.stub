@@ -6,14 +6,49 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": "Delete",
-    "edit": "Edit"
+    "edit": "Edit",
+    "error_occurred": "Something went wrong"
   },
   "validation": {
     "required": "The :attribute field is required.",
     "email": "The :attribute must be a valid email address.",
     "min": "The :attribute must be at least :min characters.",
     "max": "The :attribute may not be greater than :max characters.",
-    "confirmed": "The :attribute confirmation does not match."
+    "confirmed": "The :attribute confirmation does not match.",
+    "uuid": "The :attribute must be a valid UUID.",
+    "boolean": "The :attribute field must be true or false.",
+    "numeric": "The :attribute must be a number.",
+    "integer": "The :attribute must be an integer.",
+    "gt": {
+      "numeric": "The :attribute must be greater than :value.",
+      "string": "The :attribute must be greater than :value characters.",
+      "list": "The :attribute must have more than :value items."
+    },
+    "gte": {
+      "numeric": "The :attribute must be greater than or equal to :value.",
+      "string": "The :attribute must be greater than or equal to :value characters.",
+      "list": "The :attribute must have :value items or more."
+    },
+    "lt": {
+      "numeric": "The :attribute must be less than :value.",
+      "string": "The :attribute must be less than :value characters.",
+      "list": "The :attribute must have less than :value items."
+    },
+    "lte": {
+      "numeric": "The :attribute must be less than or equal to :value.",
+      "string": "The :attribute must be less than or equal to :value characters.",
+      "list": "The :attribute must not have more than :value items."
+    },
+    "between": {
+      "string": "The :attribute must be between :min and :max characters.",
+      "numeric": "The :attribute must be between :min and :max.",
+      "list": "The :attribute must have between :min and :max items."
+    },
+    "regex": "The :attribute format is invalid.",
+    "date": "The :attribute is not a valid date.",
+    "nullable": "The :attribute may be empty.",
+    "required_if": "The :attribute field is required when :other is :value.",
+    "array": "The :attribute must be an array."
   },
   "time": {
     "just_now": "Just now",

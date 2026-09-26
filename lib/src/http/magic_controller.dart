@@ -31,6 +31,10 @@ abstract class MagicController extends ChangeNotifier {
   bool _initialized = false;
   bool _disposed = false;
 
+  /// Whether [ChangeNotifier.dispose] has run. Separate from [_disposed],
+  /// which a manual [onClose] sets without releasing the notifier.
+  bool _notifierDisposed = false;
+
   /// Whether the controller has been initialized.
   bool get initialized => _initialized;
 
@@ -53,8 +57,16 @@ abstract class MagicController extends ChangeNotifier {
     _disposed = true;
   }
 
+  /// Runs [onClose] if it has not run yet, then releases the notifier.
+  ///
+  /// Safe to call twice: `Magic.delete` disposes the controller it removes,
+  /// and an owner that also disposes it must not trip the notifier's
+  /// used-after-dispose assertion.
   @override
   void dispose() {
+    if (_notifierDisposed) return;
+    _notifierDisposed = true;
+
     if (!_disposed) {
       onClose();
     }

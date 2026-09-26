@@ -6,6 +6,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import '../database/seeding/seeder.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
+import '../http/magic_controller.dart';
 import '../logging/log_manager.dart';
 import '../routing/magic_router.dart';
 import '../support/service_provider.dart';
@@ -234,13 +235,23 @@ class Magic {
     return controller as T;
   }
 
-  /// Delete a controller.
+  /// Delete a controller, disposing it when it is a [MagicController].
+  ///
+  /// The removed instance is released for good; do not delete a controller a
+  /// mounted view still holds. To refresh one for a new session, reset it in
+  /// place through `SessionScoped` instead.
   ///
   /// ```dart
   /// Magic.delete<UserController>();
   /// ```
   static void delete<T>() {
-    _controllers.remove(T);
+    final Object? removed = _controllers.remove(T);
+
+    // dispose() is idempotent, so a controller its owner already disposed is
+    // left untouched.
+    if (removed is MagicController) {
+      removed.dispose();
+    }
   }
 
   /// Check if a controller exists.

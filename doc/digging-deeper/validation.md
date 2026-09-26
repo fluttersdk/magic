@@ -158,6 +158,17 @@ Rules are evaluated in order. If any rule fails, validation stops and the error 
 | `Accepted()` | Must be true/1/"yes"/"on" | `[Accepted()]` |
 | `In<T>(values)` | Value must appear in whitelist | `[In<String>(['public', 'private'])]` |
 | `InList<T extends Enum>(values)` | Value must match an enum (name or instance) | `[InList(Severity.values)]` |
+| `Uuid()` | Valid RFC 4122 UUID, any version | `[Uuid()]` |
+| `Boolean()` | `true`/`false`/`0`/`1`/`'0'`/`'1'` | `[Boolean()]` |
+| `Numeric()` | A `num` or a numeric string | `[Numeric()]` |
+| `Integer()` | An integer, an integer-looking string, or a whole-number double | `[Integer()]` |
+| `Gt(n)` / `Gte(n)` / `Lt(n)` / `Lte(n)` | Size strictly greater/at least/strictly less/at most `n` (numeric, string length, or list length) | `[Gt(0)]` |
+| `Between(min, max)` | Size within an inclusive range | `[Between(8, 64)]` |
+| `Regex(pattern)` | Matches a plain Dart `RegExp` pattern (no delimiters) | `[Regex(r'^[A-Z]{3}-\d{4}$')]` |
+| `Date()` | A `DateTime` or a string `DateTime.tryParse` accepts | `[Date()]` |
+| `Nullable()` | Marker rule; always passes | `[Nullable(), Numeric()]` |
+| `RequiredIf(other, value)` | Required only when `other` equals `value` | `[RequiredIf('type', 'company')]` |
+| `ArrayRule()` | Value must be a `List` | `[ArrayRule()]` |
 
 <a name="the-url-rule"></a>
 ### The Url Rule
@@ -532,6 +543,13 @@ Define validation messages in your language files:
     },
     "confirmed": "The :attribute confirmation does not match.",
     "accepted": "The :attribute must be accepted.",
+    "uuid": "The :attribute must be a valid UUID.",
+    "gt": {
+      "numeric": "The :attribute must be greater than :value."
+    },
+    "between": {
+      "numeric": "The :attribute must be between :min and :max."
+    },
     "strong_password": "The :attribute must contain uppercase, lowercase, number, and special character."
   }
 }

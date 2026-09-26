@@ -1,0 +1,26 @@
+import 'package:magic/magic.dart';
+
+import '../models/{{ modelSnakeName }}.dart';
+
+/// {{ className }}
+///
+/// Caches [{{ modelName }}] rows fetched from `{{ resourceName }}` (see [Repository]).
+class {{ className }} extends Repository<{{ modelName }}> {
+  {{ className }}._();
+
+  static {{ className }}? _instance;
+
+  /// Lazily-created singleton. Never register a [Repository] via
+  /// `Magic.put`/`findOrPut`: its constructor registers it with
+  /// [SessionScope], which is how a session reset reaches it.
+  static {{ className }} get instance => _instance ??= {{ className }}._();
+
+  @override
+  String get resource => '{{ resourceName }}';
+
+  @override
+  {{ modelName }} Function(Map<String, dynamic>) get fromMap => {{ modelName }}.fromMap;
+
+  @override
+  Set<String> get showOnlyKeys => const <String>{};
+}
