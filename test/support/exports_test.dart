@@ -3,8 +3,10 @@ import 'package:magic/magic.dart';
 
 /// Pins that the new Support surface (Number, Str, Cast, Arr), the two UI
 /// mixins (RefetchesOnMount, SubmitsOnce), CollapsesIndexedErrorKeys,
-/// Env.filled and Carbon.shortDiffForHumans all reach a consumer through
-/// `package:magic/magic.dart` alone, not only through `package:magic/src/...`.
+/// Env.filled, Carbon.shortDiffForHumans, the sync skeleton (SyncFeed,
+/// SyncLedger, CreateSyncCursorsTable), Str.ascii/squish, and AppLifecycle
+/// all reach a consumer through `package:magic/magic.dart` alone, not only
+/// through `package:magic/src/...`.
 void main() {
   setUp(() {
     MagicApp.reset();
@@ -45,5 +47,26 @@ void main() {
     final event = reference.subMinutes(14);
 
     expect(event.shortDiffForHumans(reference), '14m ago');
+  });
+
+  test(
+    'SyncFeed, SyncLedger, CreateSyncCursorsTable resolve through the public barrel',
+    () {
+      expect(SyncFeed, isNotNull);
+      expect(const SyncLedger(), isNotNull);
+      expect(CreateSyncCursorsTable(), isNotNull);
+
+      final report = SyncReport(pushed: 1, adopted: 2);
+      expect(report.complete, isTrue);
+    },
+  );
+
+  test('Str.ascii and Str.squish resolve through the public barrel', () {
+    expect(Str.ascii('çalışan'), 'calisan');
+    expect(Str.squish('  a   b  '), 'a b');
+  });
+
+  test('AppLifecycle.states resolves through the public barrel', () {
+    expect(AppLifecycle.states(), isNotNull);
   });
 }

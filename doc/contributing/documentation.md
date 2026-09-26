@@ -55,7 +55,7 @@ Pages live under `doc/` in one of these subdirectories. Do not create new subdir
 | `security/` | Authentication, authorization, encryption, vault |
 | `database/` | Getting started with the DB facade, migrations, seeding |
 | `eloquent/` | Eloquent ORM getting started, mutators, serialization |
-| `digging-deeper/` | Broadcasting, cache, events, validation, localization, logging, file storage, file picker, launch, session, encryption, carbon |
+| `digging-deeper/` | Broadcasting, cache, events, validation, localization, logging, file storage, file picker, launch, session, encryption, carbon, helpers, sync |
 | `testing/` | Getting started with testing, HTTP tests, database testing, facade fakes |
 | `packages/` | Magic CLI, devtools (dusk + telescope), and other first-party integrations |
 | `contributing/` | Contribution guide (code) and this authoring guide (docs) |
@@ -110,6 +110,7 @@ When a facade or framework feature changes, apply this checklist before marking 
 | `Schema` facade / migrations | `doc/database/migrations.md` |
 | `Session` facade | `doc/digging-deeper/session.md` |
 | `Storage` facade | `doc/digging-deeper/file-storage.md` |
+| `SyncFeed` / `SyncLedger` / sync skeleton | `doc/digging-deeper/sync.md` |
 | `Vault` facade | `doc/security/vault.md` |
 | Eloquent model / ORM | `doc/eloquent/getting-started.md` |
 | Service providers / container | `doc/architecture/service-container.md` and `doc/getting-started/service-providers.md` |

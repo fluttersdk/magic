@@ -18,6 +18,7 @@ Complete reference for Magic framework utility systems: Cache, Events, Logging, 
 - [Launch (URL Launcher)](#launch-url-launcher)
 - [Pick (File & Image Selection)](#pick-file--image-selection)
 - [Broadcasting](#broadcasting)
+- [Sync](#sync)
 - [Key Gotchas](#key-gotchas)
 
 ## Support Helpers (Number, Str, Arr, Cast)
@@ -45,6 +46,8 @@ Locale-aware casing. `String.toUpperCase()`/`toLowerCase()` get Turkish/Azerbaij
 | `Str.upper(value, {locale})` / `Str.lower(value, {locale})` | Dotted-i aware casing. `İ` maps to a plain `i` in EVERY locale (not only tr/az) to avoid the web's combining-dot lowercase. |
 | `Str.initials(value, {limit, capitalize, locale})` | First letter of each whitespace-separated word; `limit` keeps only the first N words. |
 | `Str.unwrap(value, before, [after])` | Strips `before` from the start and `after` (default `before`) from the end, each checked/stripped independently (Laravel's `Str::unwrap`); a prefix-only match (`'"x'`) still loses the leading quote. |
+| `Str.ascii(value)` | Folds Latin-1 Supplement, Latin Extended-A, the Romanian comma-below letters, `ẞ`, and U+212B to their plain ASCII base, for a search key. A Latin letter outside that coverage (Vietnamese, ...) and every other script pass through untouched; combining marks (U+0300-U+036F) are always dropped. Diverging from Laravel's `Str::ascii`, which transliterates every script it has a table for. |
+| `Str.squish(value)` | Trims and collapses every run of whitespace to one space (Laravel's `Str::squish`), over Dart's `\s` class plus two Hangul filler code points. |
 
 ### Arr
 
@@ -79,6 +82,16 @@ Total, throw-free readers for a loosely-typed wire value (a nested-map field, no
 |:-------|:------------|
 | `Env.filled(key, fallback)` | Treats absent, blank, AND quote-only the same way, all resolving to `fallback`. Strips one wrapping quote pair + surrounding whitespace from a present value (an inner apostrophe survives). Use for anything that becomes a URL, a title, or a link. |
 | `Env.getOrFail(key)` | Throws `StateError` only when `key` is entirely absent; still returns `''` for a present-but-empty value. |
+
+### AppLifecycle
+
+`AppLifecycle.states()` (`lib/src/support/app_lifecycle.dart`) answers a `Stream<AppLifecycleState>`, for a reader constructed before a `WidgetsBinding` necessarily exists (a service provider's `register()`, for instance, where `WidgetsBinding.instance` throws). Each subscription adds its own observer on `listen` and removes it on `cancel`; nothing before the first `listen` touches the binding. Prefer Flutter's own `AppLifecycleListener` for a widget-lifetime reader.
+
+```dart
+final subscription = AppLifecycle.states().listen((state) {
+  if (state == AppLifecycleState.paused) Log.info('app paused');
+});
+```
 
 ## Cache System
 
@@ -1210,6 +1223,36 @@ Echo.onReconnect.listen((_) {
 // Custom driver
 BroadcastManager.extend('pusher', (config) => PusherBroadcastDriver(config));
 ```
+
+## Sync
+
+`SyncFeed` (`lib/src/sync/sync_feed.dart`) runs a push-then-pull skeleton over one REST resource: push everything written locally since this device's own mark (`POST '$resource/sync'`, batched at `batchSize`, default 500), then pull every page past the server's own cursor (`GET resource`, up to `maxPages`, default 100), never throwing (an exception becomes `SyncReport.failure`, logged via `Log.error`).
+
+A subclass supplies `feed` (the ledger key), `resource`/`envelopeKey` (the wire endpoint), `pending({account, sinceMillis, scope})` (rows to push, oldest first), and `adoptRow({account, row})` (write one pulled row, answering whether it was newer). Use `Cast.intOrNull`/`doubleOrNull`/`boolOrNull` inside `adoptRow` for a numeric/boolean field whose wire type is not guaranteed (web's `int`/`double` share one float).
+
+```dart
+class ItemsSyncFeed extends SyncFeed {
+  @override String get feed => 'items';
+  @override String get resource => 'items';
+  @override String get envelopeKey => 'items';
+
+  @override
+  Future<List<SyncPushRow>> pending({required String account, required int sinceMillis, required String scope}) async {
+    // return locally-written rows newer than sinceMillis, oldest first
+  }
+
+  @override
+  Future<bool> adoptRow({required String account, required Map<String, dynamic> row}) async {
+    // write the row locally, return true when it was newer than what was held
+  }
+}
+
+final SyncReport report = await ItemsSyncFeed().run(scope: 'team-42', account: userId);
+```
+
+**Two clocks, only one advances locally.** The push mark is this device's own `updated_at` epoch millis; the pull cursor is the server's opaque text, read and rewritten unread. A row adopted from a pull carries the originating device's clock, so the push mark never advances to it; the row is simply re-sent once and rejected by the server's own `>=` check.
+
+`SyncLedger` (`lib/src/sync/sync_ledger.dart`) is the bookmark store behind `SyncFeed.run`: `read`/`write` over a `(scope, feed)` pair, upserted by delete-then-insert inside a `SAVEPOINT`/`RELEASE` (not `DB.transaction`, since `BEGIN` does not nest and a feed may already run inside a caller's own transaction; a savepoint does). `CreateSyncCursorsTable` (`lib/src/sync/create_sync_cursors_table.dart`) creates the `sync_cursors` table it reads; magic has no migration discovery, so list it in the app's own `Migrator().run([...])` call. Scope derivation, salt, and run scheduling stay app-side. Full reference: `doc/digging-deeper/sync.md`.
 
 ## Key Gotchas
 

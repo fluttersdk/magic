@@ -1,12 +1,13 @@
 # Helpers
 
-`Str`, `Number`, and `Arr` are static namespace helpers modelled on Laravel's Support layer, and `Cast` is magic's own, together covering locale-aware casing, locale-aware number formatting, dot-path map access, and defensive type reading for loosely-typed wire data.
+`Str`, `Number`, and `Arr` are static namespace helpers modelled on Laravel's Support layer, and `Cast` is magic's own, together covering locale-aware casing, locale-aware number formatting, dot-path map access, and defensive type reading for loosely-typed wire data. `AppLifecycle` is a small, unrelated static namespace for reading the app lifecycle as a stream from code that runs before a `WidgetsBinding` necessarily exists.
 
 - [Str](#str)
 - [Number](#number)
 - [Arr](#arr)
 - [Cast](#cast)
 - [Composing Arr and Cast](#composing-arr-and-cast)
+- [AppLifecycle](#applifecycle)
 
 <a name="str"></a>
 ## Str
@@ -33,6 +34,19 @@ Str.initials('ismail kaya', limit: 2, capitalize: true, locale: 'tr'); // 'İK'
 Str.unwrap('"quoted"', '"');       // 'quoted'
 Str.unwrap('"x', '"');             // 'x', prefix-only match still strips
 Str.unwrap('[value]', '[', ']');   // 'value'
+```
+
+`Str.ascii(value)` folds Latin-1 Supplement and Latin Extended-A letters, the Romanian comma-below letters `Ș ș Ț ț`, `ẞ`, and the Angstrom sign U+212B to their plain ASCII base, for building a search key. Combining marks (U+0300-U+036F) are always dropped, whatever letter they decorate. A Latin letter outside that coverage (Vietnamese, the rest of Latin Extended-B/Additional) and every other script pass through untouched; magic folds Latin only, unlike Laravel's `Str::ascii`, which transliterates every script it has a table for and would otherwise collapse a non-Latin word to `?` or a phonetic guess.
+
+```dart
+Str.ascii('çalışan izleyiciler'); // 'calisan izleyiciler'
+Str.ascii('Ångström');            // 'Angstrom'
+```
+
+`Str.squish(value)` trims `value` and collapses every run of whitespace to one space, mirroring Laravel's `Str::squish`. The whitespace class is Dart's `\s` plus the two Hangul filler code points (U+3164, U+1160) a rendered blank can carry without registering as `\s`; both ends of `value` are checked against the same class, so a boundary and a middle occurrence of the same code point fold the same way.
+
+```dart
+Str.squish('  hello   world  '); // 'hello world'
 ```
 
 <a name="number"></a>
@@ -126,3 +140,19 @@ Cast.idOrNull(true);                  // null
 final priority = Cast.intOr(Arr.get(payload, 'meta.priority'), 0);
 final label = Cast.stringOrNull(Arr.get(payload, 'meta.label'));
 ```
+
+<a name="applifecycle"></a>
+## AppLifecycle
+
+`AppLifecycle.states()` exposes the app lifecycle as a `Stream<AppLifecycleState>`, for a reader constructed before a `WidgetsBinding` necessarily exists. A dependency built inside a service provider's `register()` runs before the app has bound anything, so reaching for `WidgetsBinding.instance` at construction time throws; `AppLifecycle.states()` defers that lookup to the moment a listener actually subscribes.
+
+```dart
+final subscription = AppLifecycle.states().listen((state) {
+  if (state == AppLifecycleState.paused) Log.info('app paused');
+});
+
+// Later, when done:
+await subscription.cancel();
+```
+
+Each subscription owns its own observer: it is added to the binding on `listen` and removed on `cancel`, so nothing outlives its reader and nothing before the first `listen` touches the binding at all. Prefer Flutter's own `AppLifecycleListener` when the reader is a widget-lifetime object; reach for `AppLifecycle.states()` only when construction has to happen before a binding is guaranteed to exist.
