@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart'
 import '../facades/config.dart';
 import '../network/drivers/dio_network_driver.dart';
 import '../support/service_provider.dart';
+import '../support/str.dart';
 
 /// The Network Service Provider.
 ///
@@ -82,13 +83,14 @@ class NetworkServiceProvider extends ServiceProvider {
   /// connect the two. Measured against the same `HttpClient` path Dio's IO
   /// adapter uses: `Invalid HTTP header field value`.
   ///
-  /// Accented Latin letters are folded to their base letter rather than
-  /// dropped, because dropping leaves a mangled word where the adopter would
-  /// have picked a plain-ASCII name. The table covers every letter in Latin-1
-  /// Supplement and Latin Extended-A, so Turkish, German, French, Spanish,
-  /// Nordic, Polish, Czech and Dutch names survive legibly, and a test walks
-  /// both ranges so the claim checks itself. A script with no Latin base (CJK,
-  /// Arabic, Cyrillic) has nothing to fold to and is dropped.
+  /// [Str.ascii] folds accented Latin letters to their base letter rather
+  /// than dropping them, because dropping leaves a mangled word where the
+  /// adopter would have picked a plain-ASCII name. It covers every letter in
+  /// Latin-1 Supplement and Latin Extended-A, so Turkish, German, French,
+  /// Spanish, Nordic, Polish, Czech and Dutch names survive legibly, and a
+  /// test walks both ranges so the claim checks itself. A script with no
+  /// Latin base (CJK, Arabic, Cyrillic) has nothing to fold to and is left
+  /// as-is by [Str.ascii], then dropped below by the printable-ASCII filter.
   ///
   /// Everything still outside printable ASCII goes, which also closes the
   /// injection shape: a name carrying a carriage return or newline cannot split
@@ -99,15 +101,10 @@ class NetworkServiceProvider extends ServiceProvider {
   static String _headerSafeAppName(String name) {
     final StringBuffer folded = StringBuffer();
 
-    for (final int rune in name.runes) {
-      final String? base = _latinFolding[rune];
-
-      if (base != null) {
-        folded.write(base);
-        continue;
-      }
-
-      // Printable ASCII only: 0x20 (space) through 0x7E (tilde).
+    for (final int rune in Str.ascii(name).runes) {
+      // Printable ASCII only: 0x20 (space) through 0x7E (tilde). [Str.ascii]
+      // folds Latin diacritics but leaves non-Latin scripts and control code
+      // points in place, so this filter still has to run.
       if (rune >= 0x20 && rune <= 0x7E) folded.write(String.fromCharCode(rune));
     }
 
@@ -117,80 +114,6 @@ class NetworkServiceProvider extends ServiceProvider {
         .trim();
 
     return cleaned.isEmpty ? _fallbackAppName : cleaned;
-  }
-
-  /// Accented Latin letters to their base letter, keyed by rune.
-  ///
-  /// Built from grouped strings rather than entry by entry, so the coverage of
-  /// each base letter is readable at a glance and a missing accent is visible
-  /// rather than buried in sixty lines of map literal.
-  static final Map<int, String> _latinFolding = _buildFolding(<String, String>{
-    'A': 'ÀÁÂÃÄÅĀĂĄ',
-    'a': 'àáâãäåāăąª',
-    'C': 'ÇĆĈĊČ',
-    'c': 'çćĉċč',
-    'D': 'ÐĎĐ',
-    'd': 'ðďđ',
-    'E': 'ÈÉÊËĒĔĖĘĚ',
-    'e': 'èéêëēĕėęě',
-    'G': 'ĜĞĠĢ',
-    'g': 'ĝğġģ',
-    'H': 'ĤĦ',
-    'h': 'ĥħ',
-    'I': 'ÌÍÎÏĨĪĬĮİ',
-    'i': 'ìíîïĩīĭįı',
-    'J': 'Ĵ',
-    'j': 'ĵ',
-    'K': 'Ķ',
-    'k': 'ķĸ',
-    'L': 'ĹĻĽĿŁ',
-    'l': 'ĺļľŀł',
-    'N': 'ÑŃŅŇŊ',
-    'n': 'ñńņňŉŋ',
-    'O': 'ÒÓÔÕÖØŌŎŐ',
-    'o': 'òóôõöøōŏőº',
-    'R': 'ŔŖŘ',
-    'r': 'ŕŗř',
-    'S': 'ŚŜŞŠ',
-    's': 'śŝşšſ',
-    'T': 'ŢŤŦ',
-    't': 'ţťŧ',
-    'U': 'ÙÚÛÜŨŪŬŮŰŲ',
-    'u': 'ùúûüũūŭůűųµ',
-    'W': 'Ŵ',
-    'w': 'ŵ',
-    'Y': 'ÝŶŸ',
-    'y': 'ýÿŷ',
-    'Z': 'ŹŻŽ',
-    'z': 'źżž',
-    'AE': 'ÆǼ',
-    'ae': 'æǽ',
-    'OE': 'Œ',
-    'oe': 'œ',
-    'ss': 'ß',
-    'TH': 'Þ',
-    'th': 'þ',
-    // The two ligatures, the only entries whose base is two letters and so the
-    // only ones that cannot join a group above. The kra, the eng and the long s
-    // were missing for the same reason and are folded into `k`, `N`/`n` and `s`
-    // rather than added here: a repeated key in a Dart map literal takes the
-    // LAST value, so a fresh `'n': 'ŋ'` would have silently replaced the five
-    // accented n's above it.
-    'IJ': 'Ĳ',
-    'ij': 'ĳ',
-  });
-
-  /// Inverts the grouped folding table into a rune-keyed lookup.
-  static Map<int, String> _buildFolding(Map<String, String> groups) {
-    final Map<int, String> table = <int, String>{};
-
-    groups.forEach((String base, String accented) {
-      for (final int rune in accented.runes) {
-        table[rune] = base;
-      }
-    });
-
-    return table;
   }
 
   /// The platform name a server can read, in the casing Apple and Google use.

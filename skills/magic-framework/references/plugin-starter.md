@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.36 | Updated: 2026-09-23 -->
+<!-- magic_starter v0.0.36 | Updated: 2026-09-26 -->
 
 # magic_starter Plugin
 
@@ -19,6 +19,7 @@ Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`
 - [Plan upgrade wall](#plan-upgrade-wall)
 - [Page geometry](#page-geometry)
 - [Controllers](#controllers)
+- [Guest Claim](#guest-claim)
 - [Layouts & Notification Integration](#layouts--notification-integration)
 - [Gate Abilities](#gate-abilities)
 - [Gotchas](#gotchas)
@@ -687,6 +688,26 @@ await MagicStarterAuthController.instance.logout();
 ```
 
 The preference matrix is `NotificationPreferencesController` in `magic_notifications` now; see `plugin-notifications.md`.
+
+## Guest Claim
+
+**Unreleased (next release): not shipped by the `magic_starter v0.0.36` stamped above.**
+
+With `features.guest_auth` on, `MagicStarterGuestClaim` moves what a guest accumulated onto the account they sign in to next, wired by `MagicStarterServiceProvider` to magic's auth events. `GuestClaimOutcome` is `none` (nothing settled: signed out, still the guest, no record, a keychain refusal, or an unreachable API; every one of these keeps the record for the next attempt), `claimed` (the server accepted the claim), `refused` (the server's 422, final, no retry), or `promoted` (the signed-in account IS the recorded guest, promoted in place by registration; nothing to move).
+
+1. **Guest sign-in** (`AuthLogin` for a user whose `is_guest` is `true`): the guest's bearer token and user id are written to `Vault` under `MagicStarterGuestClaim.tokenKey` (`guest_claim_token`) and `MagicStarterGuestClaim.userKey` (`guest_claim_user`), awaited.
+2. **Sign-in or restore of a real account** (`AuthLogin` for a non-guest, or `AuthRestored`): `MagicStarterGuestClaim.instance.claimIfPending()` runs unawaited, posting `POST /auth/guest/claim` with `{'guest_token': ...}` authenticated as the target account. A claim already in flight hands every caller the same future.
+3. **Sign-out** (`AuthLogout`): `MagicStarterGuestClaim.forget()` deletes the record before `Auth.logout()` returns, so the next person on the device cannot claim the previous viewer's rows.
+
+Every outcome but `none` reaches the host through `onGuestClaimed`, set via `MagicStarter.bootstrap(onGuestClaimed:)` or `MagicStarter.useGuestClaimed(callback)`:
+
+```dart
+MagicStarter.useGuestClaimed((outcome) async {
+  if (outcome == GuestClaimOutcome.claimed) await Library.refresh();
+});
+```
+
+The claim does not ride the `Http` facade or its interceptors: it posts on a bare `DioNetworkDriver` built straight from `network.drivers.api`, since its body is the guest's still-live bearer token and the facade driver is what `magic_devtools` records request bodies from in debug/profile builds. Full contract: `doc/basics/authentication.md#guest-claim` (magic_starter's own doc).
 
 ## Layouts & Notification Integration
 

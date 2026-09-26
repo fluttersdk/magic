@@ -56,6 +56,50 @@ void main() {
     expect(Str.lower('IŞIK', locale: 'tr-TR'), 'ışık');
   });
 
+  group('Str.ascii', () {
+    test('folds Latin diacritics while preserving case', () {
+      expect(Str.ascii('Çağrı İşık Şeyma'), 'Cagri Isik Seyma');
+    });
+
+    test('folds ß to ss and its capital ẞ to SS', () {
+      expect(Str.ascii('Straße'), 'Strasse');
+      expect(Str.ascii('ẞ'), 'SS');
+    });
+
+    test('folds the Romanian s/t-with-comma letters (U+0219/U+021B)', () {
+      expect(Str.ascii('Ștefan'), 'Stefan');
+    });
+
+    test('leaves non-Latin scripts untouched', () {
+      expect(Str.ascii('Москва'), 'Москва');
+    });
+
+    test('folds the Turkish i family, matching Str.lower/Str.upper naming', () {
+      expect(Str.ascii('İ'), 'I');
+      expect(Str.ascii('ı'), 'i');
+    });
+
+    test('folds the ligatures and the Angstrom sign to a plain letter', () {
+      expect(Str.ascii('æ'), 'ae');
+      expect(Str.ascii('œ'), 'oe');
+      expect(Str.ascii('Å'), 'A');
+    });
+
+    test('strips a combining mark that survived without composing', () {
+      expect(Str.ascii('é'), 'e');
+    });
+  });
+
+  group('Str.squish', () {
+    test('trims and collapses runs of whitespace to one space', () {
+      expect(Str.squish('  a \t\n b  '), 'a b');
+    });
+
+    test('collapses the two Hangul filler code points as whitespace too', () {
+      expect(Str.squish('aㅤᅠb'), 'a b');
+    });
+  });
+
   group('Str.unwrap', () {
     test('strips a matching before/after pair', () {
       expect(Str.unwrap('"x"', '"'), 'x');

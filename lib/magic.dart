@@ -54,6 +54,12 @@ export 'src/support/number.dart';
 export 'src/support/str.dart';
 export 'src/support/cast.dart';
 export 'src/support/arr.dart';
+export 'src/support/app_lifecycle.dart';
+
+// Sync
+export 'src/sync/sync_feed.dart';
+export 'src/sync/sync_ledger.dart';
+export 'src/sync/create_sync_cursors_table.dart';
 
 // Routing
 export 'src/routing/magic_platform_page.dart';
