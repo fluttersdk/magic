@@ -1,6 +1,7 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
 import '../helpers/magic_stub_loader.dart';
+import '../helpers/run_child.dart';
 
 import 'make_controller_command.dart';
 import 'make_factory_command.dart';
@@ -135,7 +136,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
       final tableName = StringHelper.toPlural(
         StringHelper.toSnakeCase(className),
       );
-      await _runChild(MakeMigrationCommand(testRoot: _testRoot), [
+      await RunChild.run(MakeMigrationCommand(testRoot: _testRoot), [
         'create_${tableName}_table',
         '--create=$tableName',
       ], ctx);
@@ -143,19 +144,21 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
 
     // 4. Generate Factory.
     if (doAll || ctx.input.hasOption('factory')) {
-      await _runChild(MakeFactoryCommand(testRoot: _testRoot), [
+      await RunChild.run(MakeFactoryCommand(testRoot: _testRoot), [
         className,
       ], ctx);
     }
 
     // 5. Generate Seeder.
     if (doAll || ctx.input.hasOption('seeder')) {
-      await _runChild(MakeSeederCommand(testRoot: _testRoot), [className], ctx);
+      await RunChild.run(MakeSeederCommand(testRoot: _testRoot), [
+        className,
+      ], ctx);
     }
 
     // 6. Generate Policy.
     if (doAll || ctx.input.hasOption('policy')) {
-      await _runChild(MakePolicyCommand(testRoot: _testRoot), [
+      await RunChild.run(MakePolicyCommand(testRoot: _testRoot), [
         className,
         '--model=$className',
       ], ctx);
@@ -165,7 +168,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
     if (doAll || ctx.input.hasOption('controller')) {
       final controllerArgs = [className];
       if (doAll) controllerArgs.add('--resource');
-      await _runChild(
+      await RunChild.run(
         MakeControllerCommand(testRoot: _testRoot),
         controllerArgs,
         ctx,
@@ -173,24 +176,5 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
     }
 
     return 0;
-  }
-
-  /// Runs a sibling artisan command programmatically.
-  ///
-  /// Parses [args] against the child's own [ArgParser], wraps the result in an
-  /// [ArgvInput], and reuses the parent's [ArtisanOutput] so the user sees a
-  /// single uninterrupted stream of feedback.
-  ///
-  /// The child runs in a [ArtisanContext.bare] — chained `make:*` commands
-  /// never need a VM Service connection.
-  Future<int> _runChild(
-    ArtisanCommand command,
-    List<String> args,
-    ArtisanContext parentCtx,
-  ) async {
-    final parser = ArgParser();
-    command.configure(parser);
-    final input = ArgvInput.parse(parser, args);
-    return command.handle(ArtisanContext.bare(input, parentCtx.output));
   }
 }

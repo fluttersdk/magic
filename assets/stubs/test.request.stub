@@ -1,0 +1,12 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+import 'package:{{ packageName }}/{{ importPath }}';
+
+void main() {
+  test('{{ className }}.rules() returns a rule map', () {
+    final {{ className }} request = {{ className }}(<String, dynamic>{});
+
+    expect(request.rules(), isA<Map<String, List<Rule>>>());
+  });
+}

@@ -1,0 +1,28 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+import 'package:{{ packageName }}/{{ importPath }}';
+
+void main() {
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+    Http.fake();
+  });
+
+  tearDown(() {
+    MagicApp.reset();
+    Magic.flush();
+  });
+
+  test('{{ className }}.instance registers and returns a singleton', () {
+    final {{ className }} first = {{ className }}.instance;
+    final {{ className }} second = {{ className }}.instance;
+
+    expect(identical(first, second), isTrue);
+  });
+
+  test('resetForSession clears cached rows', () async {
+    await {{ className }}.instance.resetForSession();
+  });
+}

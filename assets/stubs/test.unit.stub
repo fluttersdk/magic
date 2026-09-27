@@ -1,0 +1,10 @@
+import 'package:flutter_test/flutter_test.dart';
+
+// TODO: import the class under test
+// import 'package:{{ packageName }}/...';
+
+void main() {
+  test('{{ className }}', () {
+    // TODO: implement test
+  });
+}

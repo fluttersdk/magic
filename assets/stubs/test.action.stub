@@ -1,0 +1,33 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+import 'package:{{ packageName }}/{{ importPath }}';
+
+void main() {
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+    Http.fake();
+  });
+
+  tearDown(() {
+    MagicAction.flush();
+    MagicApp.reset();
+    Magic.flush();
+  });
+
+  test('{{ className }} runs without throwing', () async {
+    await MagicAction.resolve({{ className }}.new).handle(null);
+  });
+
+  // TODO: assert the network call {{ className }} makes, e.g.:
+  // test('sends the expected request', () async {
+  //   final fake = Http.fake({
+  //     'resource/path': Http.response(<String, dynamic>{}),
+  //   });
+  //
+  //   await const {{ className }}().handle(null);
+  //
+  //   fake.assertSent((r) => r.method == 'POST' && r.url == '/resource/path');
+  // });
+}

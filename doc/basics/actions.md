@@ -90,6 +90,24 @@ WButton(
 
 `common.error_occurred` ships in every fresh app's `assets/lang/en.json` (from the `magic:install` stub); override the key in your own catalogue to change the wording.
 
+`ActionRequestFailed` is the exception a resource action's `handle` throws for a refused write that is not a 422: the backend answered non-2xx, or an ORM write's `save()`/`delete()` answered `false` with no field errors to raise as a `ValidationException`. Its static `ActionRequestFailed.refusalOf(action, errors, [response])` picks the right exception for you: a `ValidationException` holding the first message per field when `errors` is non-empty, otherwise an `ActionRequestFailed` carrying `response`.
+
+```dart
+class PauseMonitor extends MagicAction<String, void> {
+  const PauseMonitor();
+
+  @override
+  Future<void> handle(String monitorId) async {
+    final response = await Http.update('monitors', monitorId, {'status': 'paused'});
+    if (!response.successful) {
+      throw ActionRequestFailed.refusalOf('pause monitor', response.errors, response);
+    }
+  }
+}
+```
+
+`ActionRequestFailed` exposes `statusCode` and `message` read off `response` (a message given through `ActionRequestFailed.withMessage` wins over the response's own), and `retryAfterSeconds`, read from a 429 body's `retry_after_seconds`, falling back to `1` when the body carries no usable value so a button waiting on it still recovers.
+
 <a name="swapping-an-action-in-tests"></a>
 ## Swapping an Action in Tests
 

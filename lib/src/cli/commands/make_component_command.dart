@@ -2,6 +2,7 @@ import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/magic_stub_loader.dart';
+import '../helpers/run_child.dart';
 import 'previews_refresh_command.dart';
 
 /// `make:component <Name> [--variants=intent,size] [--slots]`: scaffolds an
@@ -142,7 +143,7 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
     ctx.output.success('Created component: $componentDir');
 
     // 5. Chain previews:refresh so the new preview lands in _previews.g.dart.
-    await _runChild(
+    await RunChild.run(
       PreviewsRefreshCommand(projectRoot: getProjectRoot()),
       const <String>[],
       ctx,
@@ -217,20 +218,5 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
     }
     buf.writeln('    },');
     return buf.toString();
-  }
-
-  /// Runs a sibling artisan command programmatically (the `make:model --all`
-  /// chaining pattern): parse [args] against the child's own [ArgParser], wrap
-  /// in an [ArgvInput], reuse the parent [ArtisanOutput] so the user sees one
-  /// uninterrupted feedback stream.
-  Future<int> _runChild(
-    ArtisanCommand command,
-    List<String> args,
-    ArtisanContext parentCtx,
-  ) async {
-    final parser = ArgParser();
-    command.configure(parser);
-    final input = ArgvInput.parse(parser, args);
-    return command.handle(ArtisanContext.bare(input, parentCtx.output));
   }
 }
