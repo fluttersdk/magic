@@ -6,6 +6,7 @@ Magic provides a client-side validation system that integrates with Flutter form
 - [Quick Start](#quick-start)
 - [Defining Validation Rules](#defining-validation-rules)
 - [Available Rules](#available-rules)
+    - [Sizing a Numeric String](#sizing-a-numeric-string)
     - [The Url Rule](#the-url-rule)
     - [Custom Messages](#custom-messages)
 - [Form Requests](#form-request)
@@ -169,6 +170,18 @@ Rules are evaluated in order. If any rule fails, validation stops and the error 
 | `Nullable()` | Marker rule; always passes | `[Nullable(), Numeric()]` |
 | `RequiredIf(other, value)` | Required only when `other` equals `value` | `[RequiredIf('type', 'company')]` |
 | `ArrayRule()` | Value must be a `List` | `[ArrayRule()]` |
+
+<a name="sizing-a-numeric-string"></a>
+### Sizing a Numeric String
+
+`Min`, `Max`, `Between`, `Gt`, `Gte`, `Lt` and `Lte` measure a number by its value, a list by its item count, and a string by its length, except that a string is read as a number when the same field also carries `Numeric()` or `Integer()`. That is Laravel's `getSize`, and it matters because form input is always a string:
+
+```dart
+'quantity': [Required(), Numeric(), Between(1, 100)], // "500" fails: 500 > 100
+'password': [Required(), Between(8, 64)],              // "12345678" passes: 8 characters
+```
+
+The rules cannot see each other, so `Validator` and `FormValidator` pass the answer in through `SizeRule.passesSized`. A custom rule that sizes a value extends `SizeRule` to be read the same way; calling `passes()` on one directly, with no rule list around it, always sizes a string by its length.
 
 <a name="the-url-rule"></a>
 ### The Url Rule

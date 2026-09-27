@@ -1,10 +1,11 @@
-import '../contracts/rule.dart';
+import '../contracts/size_rule.dart';
 
 /// The Between Rule.
 ///
 /// Validates that a string's length, a numeric value, or a list's item
 /// count falls within an inclusive `[min, max]` range. Mirrors Laravel's
-/// `between:min,max` rule, and [Min]/[Max]'s type split.
+/// `between:min,max` rule, and [Min]/[Max]'s type split: a string is sized
+/// by its value only beside `Numeric` or `Integer` (see [SizeRule]).
 ///
 /// ## Usage
 ///
@@ -13,7 +14,7 @@ import '../contracts/rule.dart';
 ///   'password': [Required(), Between(8, 64)],
 /// });
 /// ```
-class Between extends Rule {
+class Between extends SizeRule {
   /// The inclusive lower bound.
   final num min;
 
@@ -29,26 +30,22 @@ class Between extends Rule {
   Between(this.min, this.max);
 
   @override
-  bool passes(String attribute, dynamic value, Map<String, dynamic> data) {
+  bool passesSized(
+    String attribute,
+    dynamic value,
+    Map<String, dynamic> data, {
+    required bool numeric,
+  }) {
     if (value == null) return true; // Let Required handle null
-
-    if (value is String) {
-      _type = 'string';
-      if (value.isEmpty) return true; // Let Required handle empty
-      return value.length >= min && value.length <= max;
+    if (value is String && value.isEmpty) {
+      return true; // Let Required handle empty
     }
 
-    if (value is num) {
-      _type = 'numeric';
-      return value >= min && value <= max;
-    }
+    final sized = sizeOf(value, numeric: numeric);
+    if (sized == null) return false;
 
-    if (value is List) {
-      _type = 'list';
-      return value.length >= min && value.length <= max;
-    }
-
-    return false;
+    _type = sized.$2;
+    return sized.$1 >= min && sized.$1 <= max;
   }
 
   @override
