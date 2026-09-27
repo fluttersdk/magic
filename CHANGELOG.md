@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`references/plugin-sentry.md`, the skill's page for `magic_sentry` 0.0.1.** The ecosystem plugin table, the reference index and the skill's trigger line now name the package, and the page covers the boot order (`MagicSentry.run` before `Magic.init`), what `SentryServiceProvider.boot()` wires, how `SentryNetworkInterceptor` sorts an HTTP failure into an event or a breadcrumb, the scope user, `ReportsBreadcrumb` events, and the published `.env` config. (`skills/magic-framework/`)
+
 ## [0.0.22] - 2026-09-27
 
 ### BREAKING
