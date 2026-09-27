@@ -26,8 +26,10 @@ class MonitorController extends MagicController
     with MagicStateMixin<List<Monitor>>, RunsActions {
   static MonitorController get instance => Magic.findOrPut(MonitorController.new);
 
-  Future<void> pause(String id) =>
-      runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+  Future<void> pause(String id) async {
+    final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+    if (!outcome.succeeded) return;
+  }
 }
 ```
 

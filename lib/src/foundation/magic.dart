@@ -245,14 +245,18 @@ class Magic {
   /// upward into it: any registered controller disposes correctly as long as
   /// it is a [ChangeNotifier], which `MagicController` already is.
   ///
+  /// This disposes ANY registered [ChangeNotifier], not only a
+  /// [MagicController]: the caller must not dispose it again afterwards.
+  /// `MagicController.dispose` is idempotent, so a controller its owner
+  /// already disposed is left untouched; a plain [ChangeNotifier] is not
+  /// idempotent, so a second `dispose()` call on it throws.
+  ///
   /// ```dart
   /// Magic.delete<UserController>();
   /// ```
   static void delete<T>() {
     final Object? removed = _controllers.remove(T);
 
-    // dispose() is idempotent on MagicController, so a controller its owner
-    // already disposed is left untouched.
     if (removed is ChangeNotifier) {
       removed.dispose();
     }

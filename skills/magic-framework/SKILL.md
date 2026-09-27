@@ -266,7 +266,10 @@ class PauseMonitor extends MagicAction<String, void> {
   @override Future<void> handle(String id) async { /* ... */ }
 }
 class MonitorController extends MagicController with RunsActions, OwnsTimers, ListensToBroadcasts {
-  Future<void> pause(String id) => runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+  Future<void> pause(String id) async {
+    final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+    if (!outcome.succeeded) return;
+  }
 
   // Repository<T>: one row per id, shared by every RepositoryQuery built over it.
   late final query = RepositoryQuery<Monitor>(repository: MonitorRepository.instance);

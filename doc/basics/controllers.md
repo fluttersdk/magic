@@ -288,8 +288,10 @@ Three mixins close the gaps a controller doing more than read-and-render runs in
 ```dart
 class MonitorController extends MagicController
     with RunsActions, OwnsTimers, ListensToBroadcasts {
-  Future<void> pause(String id) =>
-      runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);   // doc/basics/actions.md
+  Future<void> pause(String id) async {
+    final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);   // doc/basics/actions.md
+    if (!outcome.succeeded) return;
+  }
 
   void startCooldown(String id) => own(Countdown()).start(id, 30);     // cancelled on close automatically
 

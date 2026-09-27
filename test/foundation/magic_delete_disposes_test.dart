@@ -14,6 +14,11 @@ class _CountingController extends MagicController {
 
 class _PlainService {}
 
+/// A bare [ChangeNotifier], not a [MagicController]: its dispose is NOT
+/// idempotent, so pinning [Magic.delete]'s behaviour on it also pins that a
+/// caller must not dispose it again.
+class _PlainNotifier extends ChangeNotifier {}
+
 /// True once [ChangeNotifier.dispose] has run: a disposed notifier refuses
 /// new listeners in debug mode.
 bool _notifierDisposed(ChangeNotifier notifier) {
@@ -51,6 +56,16 @@ void main() {
       controller.dispose();
 
       expect(controller.closeCount, 1);
+    });
+
+    test('disposes a plain ChangeNotifier that is not a MagicController', () {
+      final notifier = Magic.put(_PlainNotifier());
+
+      Magic.delete<_PlainNotifier>();
+
+      expect(Magic.isRegistered<_PlainNotifier>(), isFalse);
+      expect(_notifierDisposed(notifier), isTrue);
+      expect(() => notifier.dispose(), throwsFlutterError);
     });
 
     test('removes a value that is not a MagicController', () {
