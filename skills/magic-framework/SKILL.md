@@ -1,11 +1,11 @@
 ---
 name: magic-framework
-description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
-when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
-version: 0.1.49
+description: "Write correct, idiomatic code in a Flutter app that depends on the `magic` framework (Laravel-inspired: IoC container, 18 facades, Eloquent-style ORM, service providers, reactive controllers, GoRouter routing, validation, auth, broadcasting, MagicAction writes, Repository row caches, SessionScope tenant resets). Use whenever code imports `package:magic/magic.dart` or `package:magic/testing.dart`, or the work touches Magic.init, MagicApp, a facade (Auth/Http/Cache/DB/Echo/Event/Gate/Config/Lang/Launch/Log/Pick/MagicRoute/Schema/Session/Storage/Vault/Crypt), a Model, MagicController, a MagicView, MagicFormData, FormRequest, MagicAction, MagicFormObject, Repository, SessionScope, BroadcastListeners, a ServiceProvider, a migration, or the artisan make:* CLI. UI styling is Wind (separate wind-ui skill). Do NOT use for plain Flutter or Wind-only work with no magic import."
+when_to_use: "Use proactively when editing or scaffolding a magic app: Magic.init / a facade / a Model / a MagicController or MagicView / a form (MagicFormData, FormRequest, Validator, MagicFormObject) / a write (MagicAction, RunsActions) / a resource cache (Repository, RepositoryQuery) / a tenant boundary (SessionScope, SessionScoped) / a shared realtime channel (BroadcastListeners, ListensToBroadcasts) / a ServiceProvider / a route or MagicMiddleware / a migration / MagicStateMixin + RxStatus + fetchList / Session flash + old() + trans() / testing with MagicTest + Http.fake/Auth.fake / the artisan make:* CLI / the magic_deeplink, magic_notifications, magic_social_auth, magic_starter, magic_payments, or magic_devtools plugins. Trigger even when the user does not say the word 'magic'. Do NOT trigger for plain Flutter or Wind-only UI with no package:magic import."
+version: 0.1.50
 ---
 
-<!-- magic 0.0.21 | Skill v0.1.49 (2026-09-26). API surface verified against lib/src. -->
+<!-- magic 0.0.21 | Skill v0.1.50 (2026-09-26). API surface verified against lib/src. -->
 
 # Magic Framework
 
@@ -255,6 +255,40 @@ Mix `CollapsesIndexedErrorKeys` on top of `ValidatesRequests` to collapse a back
 
 `BaseGuard.startSession`/`logout()` (and `Auth.fake()`'s fake guard) dispatch `AuthLogin`/`AuthLogout` through `Event`: `AuthLogin` at the end of a successful `startSession`, `AuthLogout` after the state bump on every `logout()` including a guest's, never on a restore (`AuthRestored` covers that, API-confirmed sync only). `AuthChannelSubscription(channelName:, listeners:, onReconnect:)` reconciles a private broadcast channel whose name tracks auth state (wire `sync` to `Auth.stateNotifier`); see `doc/digging-deeper/broadcasting.md#auth-scoped-subscriptions`.
 
+### Actions, Repositories, SessionScope, BroadcastListeners
+
+Four primitives divide a write-heavy screen the way Laravel divides a controller-heavy one; full pages: `doc/architecture/application-structure.md` (the map), `doc/basics/actions.md`, `doc/eloquent/repositories.md`, `doc/digging-deeper/session-scope.md`, `doc/digging-deeper/broadcasting.md#broadcast-listeners`.
+
+```dart
+// A write: stateless, resolved through MagicAction.resolve so a test can MagicAction.bind a fake.
+class PauseMonitor extends MagicAction<String, void> {
+  const PauseMonitor();
+  @override Future<void> handle(String id) async { /* ... */ }
+}
+class MonitorController extends MagicController with RunsActions, OwnsTimers, ListensToBroadcasts {
+  Future<void> pause(String id) async {
+    final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+    if (!outcome.succeeded) return;
+  }
+
+  // Repository<T>: one row per id, shared by every RepositoryQuery built over it.
+  late final query = RepositoryQuery<Monitor>(repository: MonitorRepository.instance);
+
+  // ListensToBroadcasts: one AuthChannelSubscription per alias, fanned out to every listener.
+  @override Map<String, void Function(BroadcastEvent)> get listeners => {
+    'team:check.recorded': (event) => MonitorRepository.instance.patch(event.data['id'], event.data),
+  };
+
+  @override void onClose() { query.dispose(); super.onClose(); }
+}
+
+// SessionScope: attach LAST in boot(), after realtime/polling already point at the new identity.
+SessionScope.identity = () => Auth.check() ? '${Auth.id()}:$teamId' : null;
+SessionScope.attach();
+```
+
+`Repository` registers itself with `SessionScope` in its own constructor (never `Magic.put`/`findOrPut` it); a controller implementing `SessionScoped` needs no registration, `SessionScope.sync()` finds it via `Magic.controllers.whereType<SessionScoped>()`. `OwnsTimers.own(cancellable)` accepts a `PollHandle`/`Countdown`/`Debouncer`/`Timer`/`StreamSubscription` and cancels every one from `onClose`. `MagicFormObject` (create one per `State`, dispose from `onClose`, never register in the container) composes `MagicFormData` + `ValidatesRequests` + `RunsActions`; see `doc/basics/forms.md#magicformobject`.
+
 ### Support helpers
 
 `Number`/`Str`/`Arr`/`Cast` (`lib/src/support/`) are static namespaces, no facade or IoC binding needed:
@@ -270,7 +304,7 @@ Cast.intOr(Arr.get(payload, 'meta.priority'), 0);      // Arr does no type check
 
 `Env.filled(key, fallback)` treats an absent, blank, or quote-only `.env` value the same way, all resolving to `fallback` (`Env.get`/`env()` only fall back on a fully absent key). `Env.getOrFail(key)` throws a `StateError` only when the key is missing entirely. `Carbon.shortDiffForHumans([other])` is the compact-ladder sibling of `diffForHumans()` for dense tables (`'14m ago'`, `'1mo ago'`).
 
-Full reference: `${CLAUDE_SKILL_DIR}/references/secondary-systems.md` (Support helpers, Carbon, Env) and `doc/digging-deeper/helpers.md`, `doc/digging-deeper/validation.md`, `doc/basics/views.md`, `doc/getting-started/configuration.md`.
+Full reference: `${CLAUDE_SKILL_DIR}/references/secondary-systems.md` (Support helpers, Carbon, Env) and `doc/digging-deeper/helpers.md` (also `LatestRead`, `Poll`, `Countdown`, `Debouncer`, `UrlGenerator`/`url()`), `doc/digging-deeper/validation.md` (also `Uuid`, `Boolean`, `Numeric`, `Integer`, `Gt`/`Gte`/`Lt`/`Lte`, `Between`, `Regex`, `Date`, `Nullable`, `RequiredIf`, `ArrayRule`), `doc/basics/views.md`, `doc/getting-started/configuration.md`.
 
 ### Routing + resource
 
@@ -355,6 +389,8 @@ Before reporting a magic task done, verify (with evidence, not assumption):
 - [ ] Routes are registered in `register()`; routes have `.title(...)`.
 - [ ] `configFactories` used (not `configs`) when values read `env()`.
 - [ ] Tests reset the container in `setUp`; the post-change sync in the project's `CLAUDE.md` (CHANGELOG + doc/ + skill + example) is honored for `lib/` changes.
+- [ ] A `Repository` is a plain singleton, never registered via `Magic.put`/`findOrPut`; a `MagicFormObject` is created per `State` and disposed from `onClose`, never registered either.
+- [ ] `SessionScope.attach()` runs LAST in `boot()`, after realtime/polling already point at the session.
 
 ## 10. CLI
 
@@ -429,6 +465,10 @@ Every path below is relative to this skill's own directory, `${CLAUDE_SKILL_DIR}
 | `references/eloquent-orm.md` | models, casts, relations, mass assignment, hybrid persistence, query builder, migrations |
 | `references/controllers-views.md` | controllers, `MagicStateMixin`, `RxStatus`, views, `MagicBuilder`, `MagicSelector`, `MagicCan` |
 | `references/forms-validation.md` | `MagicFormData`, `FormRequest`, `ValidatesRequests`, rules, async validation, `Session` flash |
+| `doc/architecture/application-structure.md` | how controllers, actions, form objects, repositories, `SessionScope`, and broadcast listeners divide a screen |
+| `doc/basics/actions.md` | `MagicAction`, `RunsActions`, `MagicAction.bind`/`resolve`/`flush` |
+| `doc/eloquent/repositories.md` | `Repository`, `RepositoryQuery`, `showOnlyKeys`, session-reset behaviour |
+| `doc/digging-deeper/session-scope.md` | `SessionScope`, `SessionScoped`, the identity resolver, `attach`/`detach` |
 | `references/routing-navigation.md` | routes, `resource()`, middleware, params, stacking + back gestures, URL strategy, page titles, `Session.tick` wiring |
 | `references/http-network.md` | `Http`, `MagicResponse`, `MagicNetworkInterceptor`, `configureDriver`, network config, `MagicPaginator` (url + fetcher) + `MagicPage` + `MagicPaginatedListView` |
 | `references/auth-system.md` | `Auth`, guards, `Gate`, policies, `authorize()`, `Vault`, `Crypt` |

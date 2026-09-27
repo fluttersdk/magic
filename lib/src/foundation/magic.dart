@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-// url_strategy.dart uses internal conditional export — no-op on non-web.
+// url_strategy.dart uses internal conditional export: no-op on non-web.
 // No platform-split wrapper needed.
 import 'package:flutter_web_plugins/url_strategy.dart';
 
@@ -234,13 +234,32 @@ class Magic {
     return controller as T;
   }
 
-  /// Delete a controller.
+  /// Delete a controller, disposing it when it is a [ChangeNotifier].
+  ///
+  /// The removed instance is released for good; do not delete a controller a
+  /// mounted view still holds. To refresh one for a new session, reset it in
+  /// place through `SessionScoped` instead.
+  ///
+  /// Dispatched on the framework's own [ChangeNotifier] contract rather than
+  /// the `http` layer's `MagicController`, so this file never has to import
+  /// upward into it: any registered controller disposes correctly as long as
+  /// it is a [ChangeNotifier], which `MagicController` already is.
+  ///
+  /// This disposes ANY registered [ChangeNotifier], not only a
+  /// [MagicController]: the caller must not dispose it again afterwards.
+  /// `MagicController.dispose` is idempotent, so a controller its owner
+  /// already disposed is left untouched; a plain [ChangeNotifier] is not
+  /// idempotent, so a second `dispose()` call on it throws.
   ///
   /// ```dart
   /// Magic.delete<UserController>();
   /// ```
   static void delete<T>() {
-    _controllers.remove(T);
+    final Object? removed = _controllers.remove(T);
+
+    if (removed is ChangeNotifier) {
+      removed.dispose();
+    }
   }
 
   /// Check if a controller exists.
@@ -271,7 +290,7 @@ class Magic {
   /// Exposed as a read-only iterable for dev-tooling integrations
   /// (e.g. the dusk snapshot enricher walks this to surface a
   /// `MagicStateMixin` controller's `rxStatus` per snapshot).
-  /// Returns the live values — order matches Map iteration order over
+  /// Returns the live values: order matches Map iteration order over
   /// the underlying `Map<Type, dynamic>`.
   static Iterable<Object> get controllers =>
       _controllers.values.whereType<Object>();

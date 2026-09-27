@@ -1,0 +1,11 @@
+import 'package:magic/magic.dart';
+
+/// {{ className }}
+///
+/// A stateless, single-purpose write unit (see [MagicAction]).
+class {{ className }} extends MagicAction<Object?, void> {
+  const {{ className }}();
+
+  @override
+  Future<void> handle(Object? input) async {}
+}

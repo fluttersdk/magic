@@ -1,4 +1,4 @@
-import '../contracts/rule.dart';
+import '../contracts/size_rule.dart';
 
 /// The Max Rule.
 ///
@@ -16,10 +16,11 @@ import '../contracts/rule.dart';
 ///
 /// ## Type Handling
 ///
-/// - **String**: Checks character length
+/// - **String**: Checks character length, or its numeric value when the
+///   attribute also carries `Numeric` or `Integer` (see [SizeRule])
 /// - **num** (int/double): Checks numeric value
 /// - **List**: Checks item count
-class Max extends Rule {
+class Max extends SizeRule {
   /// The maximum value/length.
   final num max;
 
@@ -32,26 +33,22 @@ class Max extends Rule {
   Max(this.max);
 
   @override
-  bool passes(String attribute, dynamic value, Map<String, dynamic> data) {
+  bool passesSized(
+    String attribute,
+    dynamic value,
+    Map<String, dynamic> data, {
+    required bool numeric,
+  }) {
     if (value == null) return true; // Let Required handle null
-
-    if (value is String) {
-      _type = 'string';
-      if (value.isEmpty) return true; // Let Required handle empty
-      return value.length <= max;
+    if (value is String && value.isEmpty) {
+      return true; // Let Required handle empty
     }
 
-    if (value is num) {
-      _type = 'numeric';
-      return value <= max;
-    }
+    final sized = sizeOf(value, numeric: numeric);
+    if (sized == null) return false;
 
-    if (value is List) {
-      _type = 'list';
-      return value.length <= max;
-    }
-
-    return false;
+    _type = sized.$2;
+    return sized.$1 <= max;
   }
 
   @override

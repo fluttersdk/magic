@@ -28,6 +28,7 @@ Magic provides a Laravel Echo-equivalent broadcasting system for real-time WebSo
     - [Connection Timeout](#connection-timeout)
     - [Deduplication](#deduplication)
 - [Auth-Scoped Subscriptions with AuthChannelSubscription](#auth-scoped-subscriptions)
+- [One Subscription Per Alias with BroadcastListeners](#broadcast-listeners)
 - [Testing Broadcasting](#testing-broadcasting)
 
 <a name="introduction"></a>
@@ -609,6 +610,40 @@ void onClose() {
   subscription.dispose();
 }
 ```
+
+<a name="broadcast-listeners"></a>
+## One Subscription Per Alias with BroadcastListeners
+
+`AuthChannelSubscription` keeps ONE channel's name in sync with auth state; it says nothing about what happens when two controllers both want events off that same channel. Left to `Echo` directly, a second controller's `Echo.private(name).listen(event, ...)` REPLACES the first controller's handler for that event rather than adding a second one, and either controller closing would tear the channel down under the other. `BroadcastListeners` is the process-wide registry that fixes both: exactly one `AuthChannelSubscription` per declared alias, with every handler registered against an event fanned out from one stable callback.
+
+Declare the channel an alias resolves to once, typically from a provider's `boot()`:
+
+```dart
+BroadcastListeners.channel(
+  'team',
+  () => currentTeamId == null ? null : 'teams.$currentTeamId',
+  onReconnect: refetchAll,
+);
+await BroadcastListeners.sync(); // wired to Auth.stateNotifier, same as AuthChannelSubscription
+```
+
+A controller then mixes in `ListensToBroadcasts` and declares what it wants, keyed `'<alias>:<event>'`:
+
+```dart
+class MonitorController extends MagicController with ListensToBroadcasts {
+  @override
+  Map<String, void Function(BroadcastEvent)> get listeners => {
+    'team:check.recorded': (event) => MonitorRepository.instance.patch(
+      event.data['monitor_id'] as String,
+      {'last_status': event.data['status']},
+    ),
+  };
+}
+```
+
+`startListening()` runs automatically from `onInit()` for any controller mounted in a view; a controller read only through `.instance` and never mounted must call `startListening()` from its own constructor. `onClose()` removes every token this mixin registered and leaves any other controller listening on the same alias untouched: the underlying subscription and channel belong to `BroadcastListeners`, never to one controller.
+
+The aliases share the default `Echo` connection. A `null` name on one alias leaves only that alias's channel, and `BroadcastListeners.sync()` disconnects once no alias resolves a channel any more, so a user leaving their last team keeps receiving on the alias that still names them. Each alias's subscription is built with `disconnectOnTeardown: false`; a standalone `AuthChannelSubscription` keeps the default `true` and disconnects on its own `null` name.
 
 <a name="testing-broadcasting"></a>
 ## Testing Broadcasting

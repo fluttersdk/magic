@@ -19,6 +19,7 @@ Magic provides a complete form handling system: `MagicFormData` for centralized 
 - [Form Processing](#form-processing)
 - [Error Management](#error-management)
 - [Form Introspection](#form-introspection)
+- [MagicFormObject](#magicformobject)
 - [Complete Example](#complete-example)
 
 <a name="introduction"></a>
@@ -524,6 +525,56 @@ The `hasRelevantErrors` getter checks if the controller has validation errors th
 if (form.hasRelevantErrors) {
   // At least one of this form's fields has a server-side error
 }
+```
+
+<a name="magicformobject"></a>
+## MagicFormObject
+
+The pattern above (`MagicFormData` in a `State`, `ValidatesRequests` on the controller) is the right shape for a form that shares its controller with the rest of the screen. When a form is its own unit of work, unrelated to the screen's read state, `MagicFormObject` collapses `MagicFormData`, `ValidatesRequests`, `CollapsesIndexedErrorKeys`, and `RunsActions` into one class: a Livewire-style Form object.
+
+```dart
+class MonitorFormObject extends MagicFormObject {
+  MonitorFormObject({this.editing});
+
+  final Monitor? editing;
+
+  @override
+  Map<String, dynamic> get initial => {
+    'name': editing?.name ?? '',
+    'url': editing?.url ?? '',
+  };
+
+  @override
+  FormRequest get request =>
+      editing == null ? const StoreMonitorRequest() : const UpdateMonitorRequest();
+
+  @override
+  Future<bool> persist(Map<String, dynamic> validated) async {
+    final monitor = editing ?? Monitor();
+    monitor.fill(validated, strict: true);
+    return monitor.save();
+  }
+}
+```
+
+Create ONE instance per `State` and dispose it from that `State`'s `onClose`:
+
+```dart
+class _MonitorFormViewState extends MagicStatefulViewState<MonitorFormController, MonitorFormView> {
+  late final form = MonitorFormObject(editing: widget.editing);
+
+  @override
+  void onClose() => form.dispose();
+
+  void _submit() => form.submit();
+}
+```
+
+`submit()` clears stale errors, validates the current `data` against `request` (painting a failing client rule onto `data`'s fields and stopping before `persist` ever runs), then routes `persist` through `data.process` so `data.isProcessing` covers the write and a server-side `ValidationException` from `persist` is caught the same way a client-side failure is. Never register a `MagicFormObject` via `Magic.put`/`findOrPut`: it is scoped to a single screen's lifetime, and `onClose` asserts (in debug) that it never ended up in the container. See `doc/basics/actions.md` for the `RunsActions` half of the mix.
+
+```bash
+dart run magic:artisan make:form Monitor                          # -> MonitorFormObject
+dart run magic:artisan make:form Monitor --request=StoreMonitorRequest
 ```
 
 <a name="complete-example"></a>

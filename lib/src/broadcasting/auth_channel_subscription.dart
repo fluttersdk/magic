@@ -54,10 +54,13 @@ class AuthChannelSubscription {
   /// (re)subscribe. [onReconnect], when given, fires after a connection drop
   /// and after an explicit `Echo.onReconnect` signal, so a caller can refetch
   /// whatever a replay-less socket missed while it was down.
+  /// [disconnectOnTeardown] decides whether a `null` [channelName] also
+  /// disconnects the default connection; see the field.
   AuthChannelSubscription({
     required this.channelName,
     required this.listeners,
     this.onReconnect,
+    this.disconnectOnTeardown = true,
   });
 
   /// Re-read on every [sync]; `null` means no channel should be subscribed.
@@ -70,6 +73,17 @@ class AuthChannelSubscription {
   /// `connectionState` transition to `connected`), so a caller can refetch
   /// what the socket missed while it was down.
   final void Function()? onReconnect;
+
+  /// Whether a `null` [channelName] disconnects the default connection after
+  /// leaving the channel, rather than only leaving it.
+  ///
+  /// `true` by default, the right answer for the one subscription an app
+  /// signs out of. An owner of several subscriptions on the same connection
+  /// passes `false` and disconnects once none is live, the way
+  /// `BroadcastListeners` does: otherwise one of them resolving `null` drops
+  /// the socket under the rest, and each of those returns early on its
+  /// unchanged name and stays deaf.
+  final bool disconnectOnTeardown;
 
   /// The channel name last reconciled onto, or `null` when not subscribed.
   ///
@@ -185,8 +199,8 @@ class AuthChannelSubscription {
 
   /// Tears down the live subscription, connection, and reconnect listeners.
   ///
-  /// Disconnects the whole default connection (`Echo.disconnect()`), not
-  /// just this channel: any other channel the app subscribed through `Echo`
+  /// Unless [disconnectOnTeardown] is `false`, disconnects the whole default
+  /// connection (`Echo.disconnect()`), not just this channel: any other channel the app subscribed through `Echo`
   /// on the same connection is dropped too. Deliberate, since a signed-out
   /// app has no business staying on the socket.
   ///
@@ -199,7 +213,9 @@ class AuthChannelSubscription {
     _leaveCurrentChannel();
     _cancelReconnectListeners();
     _subscribedName = null;
-    await Echo.disconnect();
+    if (disconnectOnTeardown) {
+      await Echo.disconnect();
+    }
   }
 
   /// Leaves the current channel by its fully-qualified (prefixed) name.

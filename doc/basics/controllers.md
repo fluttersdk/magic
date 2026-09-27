@@ -11,6 +11,7 @@ Controllers extend `MagicController` (a `ChangeNotifier`) to hold reactive state
     - [Rendering State](#rendering-state)
     - [Fetch Helpers](#fetch-helpers)
 - [Validation Handling](#validation-handling)
+- [Running Writes, Timers, and Broadcasts](#running-writes-timers-and-broadcasts)
 - [Controller Lifecycle](#controller-lifecycle)
 - [Generating Controllers](#generating-controllers)
 
@@ -278,6 +279,30 @@ class AuthController extends MagicController
 
 > [!TIP]
 > Use `MagicFormData` in your view to collect form data. The validation errors automatically bind to form fields.
+
+<a name="running-writes-timers-and-broadcasts"></a>
+## Running Writes, Timers, and Broadcasts
+
+Three mixins close the gaps a controller doing more than read-and-render runs into: `RunsActions` for a write, `OwnsTimers` for anything on a `Timer`, and `ListensToBroadcasts` for a shared realtime channel. Each is documented in full at its own page; this is the controller-side shape.
+
+```dart
+class MonitorController extends MagicController
+    with RunsActions, OwnsTimers, ListensToBroadcasts {
+  Future<void> pause(String id) async {
+    final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);   // doc/basics/actions.md
+    if (!outcome.succeeded) return;
+  }
+
+  void startCooldown(String id) => own(Countdown()).start(id, 30);     // cancelled on close automatically
+
+  @override
+  Map<String, void Function(BroadcastEvent)> get listeners => {
+    'team:check.recorded': (event) => refreshUI(),                    // doc/digging-deeper/broadcasting.md
+  };
+}
+```
+
+`own(cancellable)` accepts a `PollHandle`, a `Countdown`, a `Debouncer`, a bare `Timer`, or a `StreamSubscription`, and hands it back so a call can chain (`final poll = own(Poll.until(...));`); `OwnsTimers.onClose` cancels every one of them, so a controller never hand-writes its own cancellation list. See `doc/digging-deeper/helpers.md` for `LatestRead`, `Poll`, `Countdown`, and `Debouncer` themselves.
 
 <a name="controller-lifecycle"></a>
 ## Controller Lifecycle

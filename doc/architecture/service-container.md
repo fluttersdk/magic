@@ -172,6 +172,8 @@ final controller = Magic.find<UserController>();
 Magic.delete<UserController>();
 ```
 
+`Magic.delete` disposes what it removes when it is a `ChangeNotifier`: every `MagicController`, and a plain `ChangeNotifier` or `ValueNotifier` registered with `Magic.put` too. Do not dispose such a notifier yourself as well; a second `dispose()` throws in a debug build. `Magic.flush()` clears the registry without disposing.
+
 ### Controller Lifecycle
 
 ```dart

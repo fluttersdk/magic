@@ -1,6 +1,7 @@
 import '../facades/lang.dart';
 import 'contracts/async_rule.dart';
 import 'contracts/rule.dart';
+import 'contracts/size_rule.dart';
 import 'exceptions/validation_exception.dart';
 
 /// The Validator Class.
@@ -175,9 +176,14 @@ class Validator {
       final attribute = entry.key;
       final rules = entry.value;
       final value = _data[attribute];
+      final bool numeric = SizeRule.numericIn(rules);
 
       for (final rule in rules) {
-        if (!rule.passes(attribute, value, _data)) {
+        final bool passed = rule is SizeRule
+            ? rule.passesSized(attribute, value, _data, numeric: numeric)
+            : rule.passes(attribute, value, _data);
+
+        if (!passed) {
           // Only record first error per field (Laravel behavior)
           if (!_errors.containsKey(attribute)) {
             _errors[attribute] = _resolveMessage(rule, attribute);

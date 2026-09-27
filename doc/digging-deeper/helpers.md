@@ -8,6 +8,11 @@
 - [Cast](#cast)
 - [Composing Arr and Cast](#composing-arr-and-cast)
 - [AppLifecycle](#applifecycle)
+- [LatestRead](#latestread)
+- [Poll](#poll)
+- [Countdown](#countdown)
+- [Debouncer](#debouncer)
+- [UrlGenerator](#urlgenerator)
 
 <a name="str"></a>
 ## Str
@@ -156,3 +161,93 @@ await subscription.cancel();
 ```
 
 Each subscription owns its own observer: it is added to the binding on `listen` and removed on `cancel`, so nothing outlives its reader and nothing before the first `listen` touches the binding at all. Prefer Flutter's own `AppLifecycleListener` when the reader is a widget-lifetime object; reach for `AppLifecycle.states()` only when construction has to happen before a binding is guaranteed to exist.
+
+<a name="latestread"></a>
+## LatestRead
+
+`LatestRead` drops a stale answer that lands after a newer read for the same key already started, in place of a hand-rolled read counter. `begin([key])` starts a new read and hands back a token; `isCurrent(token, [key])` answers whether that token is still the newest one issued.
+
+```dart
+final _reads = LatestRead();
+
+Future<void> loadChecks(String monitorId) async {
+  final token = _reads.begin(monitorId);
+  final checks = await Http.get('monitors/$monitorId/checks');
+
+  if (!_reads.isCurrent(token, monitorId)) return; // a newer read for this key already started
+
+  setChecks(checks.data);
+}
+```
+
+`invalidate([key])` bumps the counter without starting a new read, dropping whatever read is currently in flight for `key` when it lands.
+
+<a name="poll"></a>
+## Poll
+
+`Poll.until` re-reads on a fixed interval until a value is accepted or an attempt budget runs out, replacing a `Timer`-per-field polling loop hand-rolled once per screen.
+
+```dart
+final handle = Poll.until<CheckResult>(
+  read: () => Http.get('checks/$checkId').then((r) => r.successful ? CheckResult.fromMap(r.data) : null),
+  done: (result) => result.status != 'pending',
+  every: const Duration(seconds: 2),
+  maxAttempts: 15,
+);
+
+final outcome = await handle.result;
+switch (outcome) {
+  case PollSettled(value: final result):
+    setSuccess(result);
+  case PollExhausted():
+    setError('Check did not finish in time');
+  case PollCancelled():
+    break; // the caller cancelled; nothing to show
+}
+```
+
+The first read runs only after one `every` interval, never immediately, since the caller already has whatever state it polled before starting. A `null` read result is treated as "not landed yet" and never reaches `done`; a throwing read spends its attempt like a read that answered nothing, logged rather than propagated. `handle.cancel()` stops the pending read early and settles `PollCancelled`. Cancel a `Poll.until` handle from `OwnsTimers` (`own(Poll.until(...))`) so a controller never has to track it by hand.
+
+<a name="countdown"></a>
+## Countdown
+
+`Countdown` is a per-key clock ticking down to zero once a second, for something like a "check now" cooldown per monitor id, where several independent countdowns run without one key's clock interfering with another's.
+
+```dart
+final cooldowns = Countdown()..onTick = (key, remaining) => refreshUI();
+
+cooldowns.start(monitorId, 30);
+cooldowns.remaining(monitorId);  // seconds left, or null once finished
+cooldowns.isRunning(monitorId);
+cooldowns.cancel(monitorId);     // or cancelAll()
+```
+
+A key's countdown stops and forgets its own state the moment it reaches zero; it never ticks into negative numbers or keeps a finished timer running.
+
+<a name="debouncer"></a>
+## Debouncer
+
+`Debouncer` coalesces repeated calls under the same key into one delayed run of the LAST callback given, generalising a single-purpose reload debounce.
+
+```dart
+final debouncer = Debouncer();
+
+void onSearchChanged(String query) {
+  debouncer.run('search', const Duration(milliseconds: 300), () => search(query));
+}
+```
+
+Each call to `run` for a given key cancels that key's still-pending timer and arms a fresh one. `cancelAll()` cancels every pending run without firing any of them.
+
+<a name="urlgenerator"></a>
+## UrlGenerator
+
+`UrlGenerator` (and the top-level `url()` helper) builds an absolute URL against the app's configured origin, Laravel's `url()`/`URL::to`. It is not named `Url`: that name is already taken by the validation rule at `lib/src/validation/rules/url.dart`.
+
+```dart
+url('/terms');                              // 'https://example.com/terms'
+UrlGenerator.to('/terms', query: {'ref': 'app'});
+UrlGenerator.localized('/pricing');         // '/tr/pricing' under an active non-default locale
+```
+
+The origin is read from `Config.get(UrlGenerator.originKey, ...)` (`'app.url'` by default), falling back to `Env.filled('APP_URL', '')`. Override `UrlGenerator.originKey` once, before any call, for an app whose origin config lives under a different key (a marketing-site origin distinct from the API base URL). `localized()` prefixes the active language unless it is the configured default one, or degrades to the bare path when the active language is not in `localization.supported_locales`.

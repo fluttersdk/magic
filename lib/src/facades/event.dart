@@ -42,4 +42,19 @@ class Event {
   static void listen<T extends MagicEvent>(MagicListener Function() factory) {
     EventDispatcher.instance.register(T, [factory]);
   }
+
+  /// Register a wildcard listener, run on every dispatched event regardless
+  /// of type, as Laravel's `Event::listen('*')`.
+  ///
+  /// Returns a remover: call it to stop [callback] from running on later
+  /// dispatches. `magic_sentry`'s provider calls this from `boot()` to watch
+  /// every event for a `ReportsBreadcrumb` match.
+  ///
+  /// ```dart
+  /// final remove = Event.listenAny((event) => print(event));
+  /// remove(); // stop listening
+  /// ```
+  static void Function() listenAny(void Function(MagicEvent event) callback) {
+    return EventDispatcher.instance.listenAny(callback);
+  }
 }

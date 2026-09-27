@@ -6,6 +6,7 @@ Magic provides a client-side validation system that integrates with Flutter form
 - [Quick Start](#quick-start)
 - [Defining Validation Rules](#defining-validation-rules)
 - [Available Rules](#available-rules)
+    - [Sizing a Numeric String](#sizing-a-numeric-string)
     - [The Url Rule](#the-url-rule)
     - [Custom Messages](#custom-messages)
 - [Form Requests](#form-request)
@@ -158,6 +159,29 @@ Rules are evaluated in order. If any rule fails, validation stops and the error 
 | `Accepted()` | Must be true/1/"yes"/"on" | `[Accepted()]` |
 | `In<T>(values)` | Value must appear in whitelist | `[In<String>(['public', 'private'])]` |
 | `InList<T extends Enum>(values)` | Value must match an enum (name or instance) | `[InList(Severity.values)]` |
+| `Uuid()` | Valid RFC 4122 UUID, any version | `[Uuid()]` |
+| `Boolean()` | `true`/`false`/`0`/`1`/`'0'`/`'1'` | `[Boolean()]` |
+| `Numeric()` | A `num` or a numeric string | `[Numeric()]` |
+| `Integer()` | An integer, an integer-looking string, or a whole-number double | `[Integer()]` |
+| `Gt(n)` / `Gte(n)` / `Lt(n)` / `Lte(n)` | Size strictly greater/at least/strictly less/at most `n` (numeric, string length, or list length) | `[Gt(0)]` |
+| `Between(min, max)` | Size within an inclusive range | `[Between(8, 64)]` |
+| `Regex(pattern)` | Matches a plain Dart `RegExp` pattern (no delimiters) | `[Regex(r'^[A-Z]{3}-\d{4}$')]` |
+| `Date()` | A `DateTime` or a string `DateTime.tryParse` accepts | `[Date()]` |
+| `Nullable()` | Marker rule; always passes | `[Nullable(), Numeric()]` |
+| `RequiredIf(other, value)` | Required only when `other` equals `value` | `[RequiredIf('type', 'company')]` |
+| `ArrayRule()` | Value must be a `List` | `[ArrayRule()]` |
+
+<a name="sizing-a-numeric-string"></a>
+### Sizing a Numeric String
+
+`Min`, `Max`, `Between`, `Gt`, `Gte`, `Lt` and `Lte` measure a number by its value, a list by its item count, and a string by its length, except that a string is read as a number when the same field also carries `Numeric()` or `Integer()`. That is Laravel's `getSize`, and it matters because form input is always a string:
+
+```dart
+'quantity': [Required(), Numeric(), Between(1, 100)], // "500" fails: 500 > 100
+'password': [Required(), Between(8, 64)],              // "12345678" passes: 8 characters
+```
+
+The rules cannot see each other, so `Validator` and `FormValidator` pass the answer in through `SizeRule.passesSized`. A custom rule that sizes a value extends `SizeRule` to be read the same way; calling `passes()` on one directly, with no rule list around it, always sizes a string by its length.
 
 <a name="the-url-rule"></a>
 ### The Url Rule
@@ -532,6 +556,13 @@ Define validation messages in your language files:
     },
     "confirmed": "The :attribute confirmation does not match.",
     "accepted": "The :attribute must be accepted.",
+    "uuid": "The :attribute must be a valid UUID.",
+    "gt": {
+      "numeric": "The :attribute must be greater than :value."
+    },
+    "between": {
+      "numeric": "The :attribute must be between :min and :max."
+    },
     "strong_password": "The :attribute must contain uppercase, lowercase, number, and special character."
   }
 }

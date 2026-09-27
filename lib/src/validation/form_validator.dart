@@ -2,6 +2,7 @@ import '../concerns/validates_requests.dart';
 import '../facades/lang.dart';
 import '../http/magic_controller.dart';
 import '../validation/contracts/rule.dart';
+import '../validation/contracts/size_rule.dart';
 
 /// Form Validation Helper.
 ///
@@ -124,9 +125,16 @@ class FormValidator {
       // 2. Build data map with just this field
       final data = <String, dynamic>{field: value, ...?extraData};
 
-      // 3. Run each client-side rule
+      // 3. Run each client-side rule; a size rule reads a numeric string by
+      // value only when the list also makes the field numeric.
+      final bool numeric = SizeRule.numericIn(rules);
+
       for (final rule in rules) {
-        if (!rule.passes(field, value, data)) {
+        final bool passed = rule is SizeRule
+            ? rule.passesSized(field, value, data, numeric: numeric)
+            : rule.passes(field, value, data);
+
+        if (!passed) {
           return _resolveMessage(rule, field, messages?[rule.name]);
         }
       }

@@ -42,11 +42,14 @@ The `app` directory contains the core code of your application. Almost all of th
 
 ```
 lib/app/
+├── actions/                 # MagicAction writes (see doc/basics/actions.md)
 ├── controllers/             # Request handlers
+├── forms/                   # MagicFormObject form state (see doc/basics/forms.md)
 ├── middleware/              # Route middleware
 ├── models/                  # Eloquent models
 ├── policies/                # Authorization policies
 ├── providers/               # Service providers
+├── repositories/            # Repository row caches (see doc/eloquent/repositories.md)
 └── kernel.dart              # Application kernel
 ```
 
