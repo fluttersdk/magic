@@ -23,6 +23,15 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
   /// can consume it without re-reading the [ArtisanContext.input].
   String? _eventOption;
 
+  /// Optional project root override, injected in tests to avoid touching the
+  /// real filesystem.
+  final String? _testRoot;
+
+  /// Creates a [MakeListenerCommand].
+  ///
+  /// Pass [testRoot] to pin the project root to a temp directory during tests.
+  MakeListenerCommand({String? testRoot}) : _testRoot = testRoot;
+
   @override
   CommandBoot get boot => CommandBoot.none;
 
@@ -37,6 +46,9 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
 
   @override
   String getStub() => MagicStubLoader.load('listener');
+
+  @override
+  String getProjectRoot() => _testRoot ?? super.getProjectRoot();
 
   /// Registers the `--event` option in addition to the inherited `--force` flag.
   @override
@@ -71,7 +83,7 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
     final eventSnakeName = StringHelper.toSnakeCase(eventClass);
 
     // 2. When no custom event class is given, strip the local import line
-    //    entirely — MagicEvent is already exported by the framework package.
+    //    entirely; MagicEvent is already exported by the framework package.
     final eventImportLine = eventClass == 'MagicEvent'
         ? ''
         : "import '../events/$eventSnakeName.dart';";

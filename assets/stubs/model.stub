@@ -13,6 +13,9 @@ class {{ className }} extends Model with HasTimestamps, InteractsWithPersistence
   String get resource => '{{ resourceName }}';
 
   /// The attributes that are mass assignable.
+  ///
+  /// A strict fill (mass assignment via [fill]) only writes keys listed here;
+  /// add every field the create/edit form posts or it is silently dropped.
   @override
   List<String> get fillable => [];
 
@@ -42,4 +45,13 @@ class {{ className }} extends Model with HasTimestamps, InteractsWithPersistence
   /// Get all {{ className }} records.
   static Future<List<{{ className }}>> all() =>
       InteractsWithPersistence.allModels<{{ className }}>({{ className }}.new);
+
+  /// Create a [{{ className }}] from a [Map].
+  ///
+  /// Uses [setRawAttributes] to hydrate the model directly from raw API
+  /// data, bypassing mass-assignment protection (unlike [fillable], which
+  /// only takes effect through [fill]). The [exists] flag is set based on
+  /// whether the map contains an `id` key.
+  static {{ className }} fromMap(Map<String, dynamic> map) =>
+      {{ className }}()..setRawAttributes(map, sync: true)..exists = map.containsKey('id');
 }

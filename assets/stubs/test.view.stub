@@ -1,0 +1,17 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+import 'package:{{ packageName }}/{{ importPath }}';
+
+void main() {
+  testWidgets('{{ className }} builds without throwing', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WindTheme(data: WindThemeData(), child: const {{ className }}()),
+      ),
+    );
+
+    expect(find.byType({{ className }}), findsOneWidget);
+  });
+}

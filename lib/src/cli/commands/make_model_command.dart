@@ -1,11 +1,13 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
 import '../helpers/magic_stub_loader.dart';
+import '../helpers/run_child.dart';
 
 import 'make_controller_command.dart';
 import 'make_factory_command.dart';
 import 'make_migration_command.dart';
 import 'make_policy_command.dart';
+import 'make_repository_command.dart';
 import 'make_seeder_command.dart';
 
 /// The `make:model` generator command.
@@ -22,7 +24,7 @@ import 'make_seeder_command.dart';
 /// artisan make:model Monitor --all
 /// ```
 class MakeModelCommand extends ArtisanGeneratorCommand {
-  /// Optional test root override — enables isolation in unit tests.
+  /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Creates a [MakeModelCommand].
@@ -116,13 +118,14 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
 
     // 1. Generate the model class itself.
     final filePath = getPath(name);
+    //    An existing model without --force stops the run, as every other
+    //    generator does, so no companion file is written against it.
     if (FileHelper.fileExists(filePath) && !ctx.input.hasOption('force')) {
       ctx.output.error('File already exists at $filePath');
-    } else {
-      final content = buildClass(name);
-      FileHelper.writeFile(filePath, content);
-      ctx.output.success('Created: $filePath');
+      return 1;
     }
+    FileHelper.writeFile(filePath, buildClass(name));
+    ctx.output.success('Created: $filePath');
 
     // 2. Determine whether --all was passed.
     final doAll = ctx.input.hasOption('all');
@@ -135,7 +138,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
       final tableName = StringHelper.toPlural(
         StringHelper.toSnakeCase(className),
       );
-      await _runChild(MakeMigrationCommand(testRoot: _testRoot), [
+      await RunChild.run(MakeMigrationCommand(testRoot: _testRoot), [
         'create_${tableName}_table',
         '--create=$tableName',
       ], ctx);
@@ -143,29 +146,43 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
 
     // 4. Generate Factory.
     if (doAll || ctx.input.hasOption('factory')) {
-      await _runChild(MakeFactoryCommand(testRoot: _testRoot), [
+      await RunChild.run(MakeFactoryCommand(testRoot: _testRoot), [
         className,
       ], ctx);
     }
 
     // 5. Generate Seeder.
     if (doAll || ctx.input.hasOption('seeder')) {
-      await _runChild(MakeSeederCommand(testRoot: _testRoot), [className], ctx);
+      await RunChild.run(MakeSeederCommand(testRoot: _testRoot), [
+        className,
+      ], ctx);
     }
 
     // 6. Generate Policy.
     if (doAll || ctx.input.hasOption('policy')) {
-      await _runChild(MakePolicyCommand(testRoot: _testRoot), [
+      await RunChild.run(MakePolicyCommand(testRoot: _testRoot), [
         className,
         '--model=$className',
       ], ctx);
     }
 
-    // 7. Generate Controller.
+    // 7. Generate Repository (only for --all: a --resource controller reads
+    //    through one, so it must exist before the controller is chained).
+    if (doAll) {
+      await RunChild.run(MakeRepositoryCommand(testRoot: _testRoot), [
+        className,
+      ], ctx);
+    }
+
+    // 8. Generate Controller.
     if (doAll || ctx.input.hasOption('controller')) {
       final controllerArgs = [className];
-      if (doAll) controllerArgs.add('--resource');
-      await _runChild(
+      if (doAll) {
+        controllerArgs
+          ..add('--resource')
+          ..add('--model=$className');
+      }
+      await RunChild.run(
         MakeControllerCommand(testRoot: _testRoot),
         controllerArgs,
         ctx,
@@ -173,24 +190,5 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
     }
 
     return 0;
-  }
-
-  /// Runs a sibling artisan command programmatically.
-  ///
-  /// Parses [args] against the child's own [ArgParser], wraps the result in an
-  /// [ArgvInput], and reuses the parent's [ArtisanOutput] so the user sees a
-  /// single uninterrupted stream of feedback.
-  ///
-  /// The child runs in a [ArtisanContext.bare] — chained `make:*` commands
-  /// never need a VM Service connection.
-  Future<int> _runChild(
-    ArtisanCommand command,
-    List<String> args,
-    ArtisanContext parentCtx,
-  ) async {
-    final parser = ArgParser();
-    command.configure(parser);
-    final input = ArgvInput.parse(parser, args);
-    return command.handle(ArtisanContext.bare(input, parentCtx.output));
   }
 }

@@ -1,0 +1,36 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+import 'package:{{ packageName }}/{{ importPath }}';
+
+void main() {
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+    Http.fake();
+  });
+
+  tearDown(() {
+    MagicAction.flush();
+    MagicApp.reset();
+    Magic.flush();
+  });
+
+  test('{{ className }}.instance registers and returns a singleton', () {
+    final {{ className }} first = {{ className }}.instance;
+    final {{ className }} second = {{ className }}.instance;
+
+    expect(identical(first, second), isTrue);
+  });
+
+  // TODO: exercise {{ className }}'s actions against a faked backend, e.g.:
+  // test('does the thing', () async {
+  //   final fake = Http.fake({
+  //     'resource/path': Http.response(<String, dynamic>{}),
+  //   });
+  //
+  //   await {{ className }}.instance.someAction();
+  //
+  //   fake.assertSent((r) => r.method == 'POST' && r.url == '/resource/path');
+  // });
+}

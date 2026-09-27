@@ -5,13 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_repository_command.dart';
 import 'package:path/path.dart' as p;
 
-/// A bare [ArtisanContext] driving the command with [args].
-ArtisanContext _ctx(MakeRepositoryCommand cmd, List<String> args) {
-  final parser = ArgParser();
-  cmd.configure(parser);
-  final input = ArgvInput.parse(parser, args);
-  return ArtisanContext.bare(input, BufferedOutput());
-}
+import '_harness.dart';
 
 void main() {
   group('MakeRepositoryCommand metadata', () {
@@ -43,7 +37,9 @@ void main() {
 
     test('scaffolds a repository extending Repository<Model>', () async {
       final cmd = MakeRepositoryCommand(testRoot: projectRoot.path);
-      final code = await cmd.handle(_ctx(cmd, <String>['Monitor']));
+      final code = await cmd.handle(
+        buildCommandContext(cmd, <String>['Monitor']),
+      );
 
       expect(code, 0);
       final file = File(
@@ -76,7 +72,7 @@ void main() {
 
     test('does not double-suffix when Repository is already present', () async {
       final cmd = MakeRepositoryCommand(testRoot: projectRoot.path);
-      await cmd.handle(_ctx(cmd, <String>['MonitorRepository']));
+      await cmd.handle(buildCommandContext(cmd, <String>['MonitorRepository']));
 
       final file = File(
         p.join(
@@ -92,8 +88,34 @@ void main() {
 
     test('returns 1 when the name argument is missing', () async {
       final cmd = MakeRepositoryCommand(testRoot: projectRoot.path);
-      final code = await cmd.handle(_ctx(cmd, <String>[]));
+      final code = await cmd.handle(buildCommandContext(cmd, <String>[]));
       expect(code, 1);
+    });
+
+    test('--test chains make:test --kind=repository', () async {
+      final cmd = MakeRepositoryCommand(testRoot: projectRoot.path);
+      File(
+        p.join(projectRoot.path, 'pubspec.yaml'),
+      ).createSync(recursive: true);
+      File(
+        p.join(projectRoot.path, 'pubspec.yaml'),
+      ).writeAsStringSync('name: fixture_app\n');
+
+      final code = await cmd.handle(
+        buildCommandContext(cmd, <String>['Monitor', '--test']),
+      );
+
+      expect(code, 0);
+      final testFile = File(
+        p.join(
+          projectRoot.path,
+          'test',
+          'app',
+          'repositories',
+          'monitor_repository_test.dart',
+        ),
+      );
+      expect(testFile.existsSync(), isTrue);
     });
   });
 }

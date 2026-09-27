@@ -1,0 +1,32 @@
+import 'package:magic/magic.dart';
+
+/// {{ className }} enum.
+///
+/// Mirrors the backend's `{{ snakeName }}` wire values.
+enum {{ className }} {
+  /// Fallback for a wire value this enum does not recognise.
+  unknown('unknown'),
+
+  /// Example case; replace with the real backend values.
+  example('example');
+
+  const {{ className }}(this.wire);
+
+  /// The raw string value sent by the backend.
+  final String wire;
+
+  /// Decodes a backend [value] into a [{{ className }}].
+  ///
+  /// Never throws: an unrecognised or non-string [value] resolves to
+  /// [fallback] (default [{{ className }}.unknown]).
+  static {{ className }} fromWire(Object? value, {{{ className }} fallback = {{ className }}.unknown}) {
+    if (value is! String) return fallback;
+    return {{ className }}.values.firstWhere(
+      (e) => e.wire == value,
+      orElse: () => fallback,
+    );
+  }
+
+  /// Localized human-readable display label.
+  String get label => trans('enums.{{ snakeName }}.$name');
+}

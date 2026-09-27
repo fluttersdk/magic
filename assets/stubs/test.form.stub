@@ -1,0 +1,37 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+
+import 'package:{{ packageName }}/{{ importPath }}';
+
+void main() {
+  setUp(() {
+    MagicApp.reset();
+    Magic.flush();
+    Http.fake();
+  });
+
+  tearDown(() {
+    MagicAction.flush();
+    MagicApp.reset();
+    Magic.flush();
+  });
+
+  test('{{ className }}.initial seeds the form fields', () {
+    final {{ className }} form = {{ className }}();
+    addTearDown(form.dispose);
+
+    expect(form.initial, isA<Map<String, dynamic>>());
+  });
+
+  // TODO: exercise {{ className }}.persist against a faked backend, e.g.:
+  // test('persists the validated payload', () async {
+  //   final fake = Http.fake({
+  //     'resource/path': Http.response(<String, dynamic>{}),
+  //   });
+  //
+  //   final saved = await form.persist(<String, dynamic>{});
+  //
+  //   expect(saved, isTrue);
+  //   fake.assertSent((r) => r.method == 'POST');
+  // });
+}

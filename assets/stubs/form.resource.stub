@@ -1,0 +1,50 @@
+import 'package:magic/magic.dart';
+
+{{ modelImport }}
+{{ controllerImport }}
+{{ createActionImport }}
+{{ updateActionImport }}
+{{ storeRequestImport }}
+{{ updateRequestImport }}
+
+/// {{ className }}
+///
+/// A form object for the {{ modelName }} create and edit screens (see
+/// [MagicFormObject]). [editing] decides the mode: a blank form creates
+/// through [Store{{ modelName }}Request] and `Create{{ modelName }}`, a form
+/// over a {{ modelVariable }} edits through [Update{{ modelName }}Request] and
+/// `Update{{ modelName }}`. A create reloads the `--resource`
+/// [{{ modelName }}Controller] that `make:resource` writes beside it.
+class {{ className }} extends MagicFormObject {
+  {{ className }}({this.editing});
+
+  /// The {{ modelName }} being edited, or null when this form creates one.
+  final {{ modelName }}? editing;
+
+  @override
+  Map<String, dynamic> get initial =>
+      editing?.toArray() ?? const <String, dynamic>{};
+
+  @override
+  FormRequest get request => editing == null
+      ? const Store{{ modelName }}Request()
+      : const Update{{ modelName }}Request();
+
+  @override
+  Future<bool> persist(Map<String, dynamic> validated) async {
+    final {{ modelName }}? editing = this.editing;
+
+    if (editing == null) {
+      await MagicAction.resolve(Create{{ modelName }}.new).handle(validated);
+      // A new row has no place in the list's cursor yet, so re-read it.
+      await {{ modelName }}Controller.instance.reload();
+      return true;
+    }
+
+    final {{ modelName }}? saved = await MagicAction.resolve(
+      Update{{ modelName }}.new,
+    ).handle((id: '${editing.id}', fields: validated));
+
+    return saved != null;
+  }
+}

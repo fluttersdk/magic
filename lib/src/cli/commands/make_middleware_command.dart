@@ -17,6 +17,15 @@ import '../helpers/magic_stub_loader.dart';
 ///
 /// Creates a file in `lib/app/middleware/` with full nested path support.
 class MakeMiddlewareCommand extends ArtisanGeneratorCommand {
+  /// Optional project root override, injected in tests to avoid touching the
+  /// real filesystem.
+  final String? _testRoot;
+
+  /// Creates a [MakeMiddlewareCommand].
+  ///
+  /// Pass [testRoot] to pin the project root to a temp directory during tests.
+  MakeMiddlewareCommand({String? testRoot}) : _testRoot = testRoot;
+
   @override
   CommandBoot get boot => CommandBoot.none;
 
@@ -31,6 +40,9 @@ class MakeMiddlewareCommand extends ArtisanGeneratorCommand {
 
   @override
   String getStub() => MagicStubLoader.load('middleware');
+
+  @override
+  String getProjectRoot() => _testRoot ?? super.getProjectRoot();
 
   /// Returns placeholder replacements for the middleware stub.
   ///

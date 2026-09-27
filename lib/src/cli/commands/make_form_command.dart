@@ -1,14 +1,21 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:path/path.dart' as path;
 
+import '../helpers/creates_matching_test.dart';
 import '../helpers/magic_stub_loader.dart';
+import 'make_test_command.dart';
 
 /// The `make:form` generator command.
 ///
 /// Scaffolds a new [MagicFormObject] subclass inside `lib/app/forms/`. The
 /// `FormObject` suffix is deliberate: apps already name form WIDGETS
-/// `<Resource>Form` (uptizm's `MonitorForm` among them), so the object that
+/// `<Resource>Form` (a `MonitorForm` widget, say), so the object that
 /// backs one needs a distinct name.
+///
+/// `--resource=<Model>` scaffolds the full create/edit contract instead of
+/// the plain skeleton: an `editing` field, `initial` seeded from
+/// `editing?.toArray()`, `request` choosing between the model's Store/Update
+/// requests, and `persist` running the matching Create/Update action.
 ///
 /// ## Usage
 ///
@@ -16,9 +23,11 @@ import '../helpers/magic_stub_loader.dart';
 /// artisan make:form Monitor                          # -> MonitorFormObject
 /// artisan make:form MonitorFormObject                # Suffix already present
 /// artisan make:form Monitor --request=StoreMonitorRequest
+/// artisan make:form Monitor --resource=Monitor       # Full create/edit contract
 /// artisan make:form Monitor --force                  # Overwrite existing file
+/// artisan make:form Monitor --test                   # Also scaffold the test
 /// ```
-class MakeFormCommand extends ArtisanGeneratorCommand {
+class MakeFormCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
@@ -26,6 +35,10 @@ class MakeFormCommand extends ArtisanGeneratorCommand {
   /// Captures the parsed `--request` value during [handle] so
   /// [getReplacements] can consume it without re-reading [ArtisanContext.input].
   String? _requestOption;
+
+  /// Captures the parsed `--resource` value during [handle]; see
+  /// [_requestOption].
+  String? _resourceOption;
 
   /// Creates a [MakeFormCommand].
   ///
@@ -45,7 +58,10 @@ class MakeFormCommand extends ArtisanGeneratorCommand {
   String getDefaultNamespace() => 'lib/app/forms';
 
   @override
-  String getStub() => MagicStubLoader.load('form');
+  String getStub() {
+    if (_resourceOption != null) return MagicStubLoader.load('form.resource');
+    return MagicStubLoader.load('form');
+  }
 
   @override
   String getProjectRoot() => _testRoot ?? super.getProjectRoot();
@@ -57,14 +73,27 @@ class MakeFormCommand extends ArtisanGeneratorCommand {
       'request',
       help: 'The FormRequest class this form validates against',
     );
+    parser.addOption(
+      'resource',
+      help:
+          'The model this form creates/edits; scaffolds the full '
+          'editing + Store/Update + persist contract.',
+    );
   }
 
   @override
   Future<int> handle(ArtisanContext ctx) async {
-    // 1. Capture --request so [getReplacements] (called from [buildClass])
-    //    can use it without re-reading the context.
+    // 1. Capture --request/--resource so [getReplacements] (called from
+    //    [buildClass]) can use them without re-reading the context.
     _requestOption = ctx.input.option('request') as String?;
-    return super.handle(ctx);
+    _resourceOption = ctx.input.option('resource') as String?;
+
+    final int code = await super.handle(ctx);
+    if (code != 0 || !ctx.input.hasOption('test')) return code;
+
+    // 2. Chain the matching test onto a successful write.
+    final String name = ctx.input.argument(0)!;
+    return createMatchingTest(ctx, TestKind.form, name);
   }
 
   /// Normalises [name] so the last path segment always carries the
@@ -117,6 +146,9 @@ class MakeFormCommand extends ArtisanGeneratorCommand {
 
   @override
   Map<String, String> getReplacements(String name) {
+    final String? resource = _resourceOption;
+    if (resource != null) return _resourceReplacements(name, resource);
+
     // [name] is already normalised (FormObject-suffixed) at this point.
     final className = StringHelper.parseName(name).className;
     final modelName = className.replaceAll('FormObject', '');
@@ -128,6 +160,41 @@ class MakeFormCommand extends ArtisanGeneratorCommand {
       ),
       '{{ requestExpression }}': _renderRequestExpression(),
     };
+  }
+
+  /// Replacements for the `--resource` variant (`form.resource.stub`): the
+  /// `editing` field plus the Store/Update request and Create/Update action
+  /// imports, all relative to [name]'s own nesting under `lib/app/forms`.
+  Map<String, String> _resourceReplacements(String name, String resource) {
+    final parsed = StringHelper.parseName(name);
+    final String modelSnakeName = StringHelper.toSnakeCase(resource);
+    final String modelVariable = StringHelper.toCamelCase(resource);
+    final String pluralSnakeName = StringHelper.toPlural(modelSnakeName);
+    final String prefix = _importPrefix(parsed.directory);
+
+    return <String, String>{
+      '{{ modelName }}': resource,
+      '{{ modelVariable }}': modelVariable,
+      '{{ modelImport }}': "import '${prefix}models/$modelSnakeName.dart';",
+      '{{ controllerImport }}':
+          "import '${prefix}controllers/${modelSnakeName}_controller.dart';",
+      '{{ createActionImport }}':
+          "import '${prefix}actions/$pluralSnakeName/create_$modelSnakeName.dart';",
+      '{{ updateActionImport }}':
+          "import '${prefix}actions/$pluralSnakeName/update_$modelSnakeName.dart';",
+      '{{ storeRequestImport }}':
+          "import '${prefix}validation/requests/store_${modelSnakeName}_request.dart';",
+      '{{ updateRequestImport }}':
+          "import '${prefix}validation/requests/update_${modelSnakeName}_request.dart';",
+    };
+  }
+
+  /// The `../` prefix reaching `lib/app/` from a generated form file: one
+  /// level for [getDefaultNamespace]'s own `forms` segment, plus one more per
+  /// nested directory segment in [directory].
+  String _importPrefix(String directory) {
+    final int depth = 1 + (directory.isEmpty ? 0 : directory.split('/').length);
+    return '../' * depth;
   }
 
   /// Renders the request import line: a real import for the class named via

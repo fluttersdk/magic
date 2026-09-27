@@ -1,7 +1,9 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:path/path.dart' as path;
 
+import '../helpers/creates_matching_test.dart';
 import '../helpers/magic_stub_loader.dart';
+import 'make_test_command.dart';
 
 /// The `make:repository` generator command.
 ///
@@ -14,8 +16,10 @@ import '../helpers/magic_stub_loader.dart';
 /// artisan make:repository Monitor            # -> MonitorRepository
 /// artisan make:repository MonitorRepository  # Suffix already present
 /// artisan make:repository Monitor --force    # Overwrite existing file
+/// artisan make:repository Monitor --test     # Also scaffold the test
 /// ```
-class MakeRepositoryCommand extends ArtisanGeneratorCommand {
+class MakeRepositoryCommand extends ArtisanGeneratorCommand
+    with CreatesMatchingTest {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
@@ -42,6 +46,16 @@ class MakeRepositoryCommand extends ArtisanGeneratorCommand {
 
   @override
   String getProjectRoot() => _testRoot ?? super.getProjectRoot();
+
+  @override
+  Future<int> handle(ArtisanContext ctx) async {
+    final int code = await super.handle(ctx);
+    if (code != 0 || !ctx.input.hasOption('test')) return code;
+
+    // Chain the matching test onto a successful write.
+    final String name = ctx.input.argument(0)!;
+    return createMatchingTest(ctx, TestKind.repository, name);
+  }
 
   /// Normalises [name] so the last path segment always carries the
   /// `Repository` suffix. Used by both [getPath] and [buildClass] to keep

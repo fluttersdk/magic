@@ -1,6 +1,8 @@
 import 'package:fluttersdk_artisan/artisan.dart';
 
+import '../helpers/creates_matching_test.dart';
 import '../helpers/magic_stub_loader.dart';
+import 'make_test_command.dart' show TestKind;
 import 'package:path/path.dart' as path;
 
 /// The `make:request` generator command.
@@ -15,8 +17,9 @@ import 'package:path/path.dart' as path;
 /// artisan make:request StoreMonitorRequest      # Suffix already present
 /// artisan make:request StoreMonitor --force     # Overwrite existing file
 /// ```
-class MakeRequestCommand extends ArtisanGeneratorCommand {
-  /// Optional project root override — injected in tests to avoid touching the
+class MakeRequestCommand extends ArtisanGeneratorCommand
+    with CreatesMatchingTest {
+  /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
@@ -42,6 +45,16 @@ class MakeRequestCommand extends ArtisanGeneratorCommand {
 
   @override
   String getProjectRoot() => _testRoot ?? super.getProjectRoot();
+
+  /// Scaffolds the request class, then chains `make:test --kind=request`
+  /// when `--test` was passed.
+  @override
+  Future<int> handle(ArtisanContext ctx) async {
+    final code = await super.handle(ctx);
+    if (code != 0 || !ctx.input.hasOption('test')) return code;
+
+    return createMatchingTest(ctx, TestKind.request, ctx.input.argument(0)!);
+  }
 
   /// Normalises [name] so the last path segment always carries the `Request`
   /// suffix. Used by [buildClass] so the parent's internal class-name

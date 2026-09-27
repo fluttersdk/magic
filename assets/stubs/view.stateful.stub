@@ -1,54 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
 
-// TODO: Import your controller
-// import '../../../app/controllers/{{ snakeName }}_controller.dart';
+import '{{ controllerImportPath }}';{{ formImportLine }}
 
-/// {{ className }} View (stateful).
-class {{ className }}View extends StatefulWidget {
+/// {{ className }} View.
+class {{ className }}View extends MagicStatefulView<{{ controllerClassName }}> {
+  /// Creates the [{{ className }}View].
   const {{ className }}View({super.key});
 
   @override
   State<{{ className }}View> createState() => _{{ className }}ViewState();
 }
 
-class _{{ className }}ViewState extends State<{{ className }}View> {
-  @override
-  void initState() {
-    super.initState();
-    // Initialize resources here.
-  }
-
-  @override
-  void dispose() {
-    // Clean up resources before disposal.
-    super.dispose();
-  }
-
+/// State for [{{ className }}View].
+class _{{ className }}ViewState
+    extends MagicStatefulViewState<{{ controllerClassName }}, {{ className }}View>{{ mixinClause }} {
+{{ stateBody }}
   @override
   Widget build(BuildContext context) {
-    // Form submit buttons should load through the form's processingListenable
-    // so only the button rebuilds, not the whole view. This keeps inputs and
-    // dusk locators stable across a submit. Recommended pattern:
-    //
-    //   MagicForm(
-    //     formData: form,
-    //     child: Column(
-    //       children: [
-    //         WFormInput(form: form, name: 'name'),
-    //         MagicBuilder<bool>(
-    //           listenable: form.processingListenable,
-    //           builder: (isProcessing) => WButton(
-    //             isLoading: isProcessing,
-    //             onTap: isProcessing ? null : () => form.process(_submit),
-    //             child: WText(trans('common.save')),
-    //           ),
-    //         ),
-    //       ],
-    //     ),
-    //   )
-    //
-    // Prefer this over driving the button through a full-view setState/setLoading.
     return WDiv(
       className: 'flex flex-col p-6',
       children: [
