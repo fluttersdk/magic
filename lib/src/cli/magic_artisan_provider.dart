@@ -20,6 +20,7 @@ import 'commands/make_policy_command.dart';
 import 'commands/make_provider_command.dart';
 import 'commands/make_repository_command.dart';
 import 'commands/make_request_command.dart';
+import 'commands/make_resource_command.dart';
 import 'commands/make_seeder_command.dart';
 import 'commands/make_test_command.dart';
 import 'commands/make_view_command.dart';
@@ -38,7 +39,7 @@ import 'commands/previews_refresh_command.dart';
 /// };
 /// ```
 ///
-/// Ships the magic code-gen surface: 19 make:* generators + `previews:refresh`
+/// Ships the magic code-gen surface: 20 make:* generators + `previews:refresh`
 /// + `design:sync` + `design:lint` + `magic:install` + `key:generate`.
 class MagicArtisanProvider extends ArtisanServiceProvider {
   @override
@@ -64,6 +65,7 @@ class MagicArtisanProvider extends ArtisanServiceProvider {
     MakeActionCommand(),
     MakeFormCommand(),
     MakeRepositoryCommand(),
+    MakeResourceCommand(),
     MakeTestCommand(),
     PreviewsRefreshCommand(),
     DesignSyncCommand(),

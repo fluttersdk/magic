@@ -37,6 +37,9 @@ mixin CreatesMatchingTest on ArtisanGeneratorCommand {
     return RunChild.run(MakeTestCommand(testRoot: getProjectRoot()), <String>[
       name,
       '--kind=${kind.value}',
+      // A host run with --force regenerates its test too, rather than
+      // stopping on the test the previous run wrote.
+      if (ctx.input.hasOption('force')) '--force',
     ], ctx);
   }
 }
