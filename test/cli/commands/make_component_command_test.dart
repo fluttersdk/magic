@@ -378,6 +378,53 @@ class OtherPreview extends StatelessWidget {
         expect(content, contains('Avatar'));
       });
 
+      test('refuses a kept test without --force and writes nothing', () async {
+        File(testFilePath())
+          ..createSync(recursive: true)
+          ..writeAsStringSync('// filled in by hand\n');
+
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final code = await cmd.handle(
+          _ctx(cmd, <String>['Avatar', '--stubs-dir=$stubsDir']),
+        );
+
+        expect(code, 1);
+        expect(
+          File(testFilePath()).readAsStringSync(),
+          '// filled in by hand\n',
+        );
+        expect(
+          File(
+            p.join(
+              projectRoot.path,
+              'lib',
+              'ui',
+              'components',
+              'avatar',
+              'avatar.dart',
+            ),
+          ).existsSync(),
+          isFalse,
+        );
+      });
+
+      test('--force overwrites a kept test', () async {
+        File(testFilePath())
+          ..createSync(recursive: true)
+          ..writeAsStringSync('// filled in by hand\n');
+
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final code = await cmd.handle(
+          _ctx(cmd, <String>['Avatar', '--force', '--stubs-dir=$stubsDir']),
+        );
+
+        expect(code, 0);
+        expect(
+          File(testFilePath()).readAsStringSync(),
+          contains('package:app/ui/components/avatar/index.dart'),
+        );
+      });
+
       test('works for a --slots component too', () async {
         final cmd = MakeComponentCommand(testRoot: projectRoot.path);
         final code = await cmd.handle(

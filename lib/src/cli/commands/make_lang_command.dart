@@ -95,7 +95,15 @@ class MakeLangCommand extends ArtisanGeneratorCommand {
     }
 
     final from = ctx.input.option('from') as String? ?? 'en';
-    final content = _buildContent(from);
+    final String content;
+    try {
+      content = _buildContent(from);
+    } on FormatException catch (error) {
+      ctx.output.error(
+        'Cannot copy $from.json: it is not valid JSON (${error.message})',
+      );
+      return 1;
+    }
     FileHelper.writeFile(filePath, content);
     ctx.output.success('Created: $filePath');
     return 0;
@@ -106,6 +114,8 @@ class MakeLangCommand extends ArtisanGeneratorCommand {
   /// Copies [from]'s key tree verbatim (each leaf's value included) when
   /// `assets/lang/<from>.json` exists on disk and decodes to a JSON object;
   /// otherwise falls back to an empty map. Output is two-space indented.
+  ///
+  /// Throws a [FormatException] when the source file is not valid JSON.
   String _buildContent(String from) {
     final sourcePath = p.join(
       getProjectRoot(),

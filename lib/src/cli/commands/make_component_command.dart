@@ -113,6 +113,13 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
       return 1;
     }
 
+    // A kept test outlives a deleted component folder; it is somebody's work.
+    final testFile = _matchingTestPath(snakeName);
+    if (FileHelper.fileExists(testFile) && !ctx.input.hasOption('force')) {
+      ctx.output.error('Component test already exists at $testFile');
+      return 1;
+    }
+
     // 3. Parse the requested variant axes and the recipe shape (--slots).
     final variantAxes = _parseVariants(ctx.input.option('variants') as String?);
     final stubsDir = ctx.input.option('stubs-dir') as String?;
@@ -222,7 +229,15 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
       return;
     }
 
-    final packageName = FileHelper.readYamlFile(pubspecPath)['name'] as String;
+    final Object? packageName = FileHelper.readYamlFile(pubspecPath)['name'];
+    if (packageName is! String || packageName.isEmpty) {
+      ctx.output.warning(
+        'Skipped matching test: pubspec.yaml at $pubspecPath declares no '
+        'package name',
+      );
+      return;
+    }
+
     var content = stubsDir != null
         ? MagicStubLoader.loadFrom('component_test', stubsDir)
         : MagicStubLoader.load('component_test');
@@ -231,17 +246,21 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
         .replaceAll('{{ snakeName }}', snakeName)
         .replaceAll('{{ packageName }}', packageName);
 
-    final testPath = path.join(
-      getProjectRoot(),
-      'test',
-      'ui',
-      'components',
-      snakeName,
-      '${snakeName}_test.dart',
-    );
+    final testPath = _matchingTestPath(snakeName);
     FileHelper.writeFile(testPath, content);
     ctx.output.success('Created: $testPath');
   }
+
+  /// `test/ui/components/<snakeName>/<snakeName>_test.dart` under the
+  /// project root.
+  String _matchingTestPath(String snakeName) => path.join(
+    getProjectRoot(),
+    'test',
+    'ui',
+    'components',
+    snakeName,
+    '${snakeName}_test.dart',
+  );
 
   /// Whether [libDir] already carries a preview catalogue: any
   /// `*.preview.dart` file, or a `_previews.g.dart` index, anywhere in its

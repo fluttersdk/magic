@@ -151,6 +151,31 @@ void main() {
       expect(file.readAsStringSync(), '{}');
     });
 
+    test('returns 1 naming the source when it is not valid JSON', () async {
+      final source = File(
+        p.join(projectRoot.path, 'assets', 'lang', 'en.json'),
+      );
+      source.parent.createSync(recursive: true);
+      source.writeAsStringSync('{"common": ');
+
+      final cmd = MakeLangCommand(testRoot: projectRoot.path);
+      final parser = ArgParser();
+      cmd.configure(parser);
+      final output = BufferedOutput();
+      final code = await cmd.handle(
+        ArtisanContext.bare(ArgvInput.parse(parser, <String>['tr']), output),
+      );
+
+      expect(code, 1);
+      expect(output.content, contains('en.json'));
+      expect(
+        File(
+          p.join(projectRoot.path, 'assets', 'lang', 'tr.json'),
+        ).existsSync(),
+        isFalse,
+      );
+    });
+
     test('refuses to overwrite an existing target without --force', () async {
       seedLocale('en', <String, dynamic>{
         'common': <String, dynamic>{'back': 'Back'},
