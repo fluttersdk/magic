@@ -27,6 +27,29 @@ void main() {
   });
 
   group('BroadcastListeners.channel + sync', () {
+    test('one alias resolving null keeps the shared connection for the others, '
+        'and the last one going null disconnects it', () async {
+      String? teamName = 'teams.1';
+      String? userName = 'users.1';
+      BroadcastListeners.channel('team', () => teamName);
+      BroadcastListeners.channel('user', () => userName);
+
+      await BroadcastListeners.sync();
+      echo.assertConnected();
+
+      // The user leaves their last team: only the team alias goes null.
+      teamName = null;
+      await BroadcastListeners.sync();
+
+      echo.assertConnected();
+      echo.assertSubscribed('private-users.1');
+
+      userName = null;
+      await BroadcastListeners.sync();
+
+      echo.assertDisconnected();
+    });
+
     test('an alias whose resolver returns null subscribes nothing', () async {
       BroadcastListeners.channel('team', () => null);
 

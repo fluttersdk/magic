@@ -75,6 +75,7 @@ class _AliasChannel {
     channelName: () => currentName = resolveName(),
     listeners: subscriptionListeners,
     onReconnect: () => onReconnect?.call(),
+    disconnectOnTeardown: false,
   );
 }
 
@@ -102,10 +103,10 @@ class _AliasChannel {
 /// await BroadcastListeners.sync(); // wired to an auth state notifier
 /// ```
 ///
-/// A `null` name on one alias tears down the whole default `Echo` connection
-/// ([AuthChannelSubscription]'s own contract, unchanged here), so an app
-/// declaring several aliases must resolve them together: the connection is
-/// shared, not per-alias.
+/// The aliases share one default `Echo` connection. A `null` name on one
+/// alias only leaves that alias's channel; [sync] disconnects once no alias
+/// resolves a channel any more, so a user leaving their last team does not
+/// deafen the alias still naming them.
 class BroadcastListeners {
   BroadcastListeners._();
 
@@ -212,10 +213,28 @@ class BroadcastListeners {
   ///
   /// Safe to call on every auth-state change: each alias's own
   /// [AuthChannelSubscription.sync] is a no-op when its name has not moved.
+  /// Disconnects the default connection once the last live alias resolves
+  /// `null`, and never while another alias still names a channel.
   static Future<void> sync() async {
+    // 1. Whether this registry holds the connection open going in, so a
+    //    signed-out app that was never subscribed disconnects nothing.
+    final bool wasLive = _anyLive();
+
+    // 2. Each alias leaves or joins its own channel; none disconnects.
     for (final _AliasChannel channel in _aliases.values) {
       await channel.subscription.sync();
     }
+
+    // 3. The connection is shared, so it goes only with the last alias.
+    if (wasLive && !_anyLive()) {
+      await Echo.disconnect();
+    }
+  }
+
+  static bool _anyLive() {
+    return _aliases.values.any(
+      (_AliasChannel channel) => channel.currentName != null,
+    );
   }
 
   // ---------------------------------------------------------------------------

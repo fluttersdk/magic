@@ -643,7 +643,7 @@ class MonitorController extends MagicController with ListensToBroadcasts {
 
 `startListening()` runs automatically from `onInit()` for any controller mounted in a view; a controller read only through `.instance` and never mounted must call `startListening()` from its own constructor. `onClose()` removes every token this mixin registered and leaves any other controller listening on the same alias untouched: the underlying subscription and channel belong to `BroadcastListeners`, never to one controller.
 
-A `null` name on ONE alias tears down the whole default `Echo` connection (`AuthChannelSubscription`'s own contract, unchanged here), so an app declaring several aliases resolves them together: the connection is shared, not per-alias.
+The aliases share the default `Echo` connection. A `null` name on one alias leaves only that alias's channel, and `BroadcastListeners.sync()` disconnects once no alias resolves a channel any more, so a user leaving their last team keeps receiving on the alias that still names them. Each alias's subscription is built with `disconnectOnTeardown: false`; a standalone `AuthChannelSubscription` keeps the default `true` and disconnects on its own `null` name.
 
 <a name="testing-broadcasting"></a>
 ## Testing Broadcasting
