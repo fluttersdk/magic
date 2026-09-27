@@ -100,6 +100,23 @@ void main() {
     expect(_BarrelController(), isA<RunsActions>());
   });
 
+  test(
+    'ActionOutcome and its three cases resolve through the public barrel',
+    () async {
+      final _BarrelController controller = _BarrelController();
+
+      final ActionOutcome<void> outcome = await controller.runAction(
+        const _PauseRow(),
+        'row-1',
+      );
+
+      expect(outcome, isA<ActionSucceeded<void>>());
+      expect(outcome.succeeded, isTrue);
+      expect(const ActionFailed<void>('boom'), isA<ActionOutcome<void>>());
+      expect(const ActionRefused<void>(), isA<ActionOutcome<void>>());
+    },
+  );
+
   test('MagicFormObject resolves through the public barrel', () {
     final _BarrelForm form = _BarrelForm();
 

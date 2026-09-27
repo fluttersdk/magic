@@ -10,7 +10,7 @@
 ///   Future<void> handle(String monitorId) async {
 ///     final monitor = await Monitor.find(monitorId);
 ///     if (monitor == null) {
-///       throw const ValidationException({'id': 'Monitor not found.'});
+///       throw ValidationException({'id': 'Monitor not found.'});
 ///     }
 ///     monitor.status = 'paused';
 ///     await monitor.save();
@@ -44,6 +44,14 @@ abstract class MagicAction<I, O> {
   ///
   /// A test binds a fake in `setUp` and calls [flush] in `tearDown`; nothing
   /// else needs to know the swap happened.
+  ///
+  /// [A] must be given explicitly: `MagicAction.bind<PauseMonitor>(() =>
+  /// FakePauseMonitor())`. Left off, Dart infers [A] from the closure's
+  /// RETURN type (`FakePauseMonitor`, not `PauseMonitor`), so the binding is
+  /// keyed under the fake's own type. [resolve] then never finds it, since it
+  /// looks the binding up under the type the CALL SITE names, and the
+  /// override silently never applies: no error, the fallback just keeps
+  /// running.
   static void bind<A extends MagicAction>(A Function() factory) {
     _bindings[A] = factory;
   }

@@ -115,7 +115,18 @@ class RepositoryQuery<T extends Model> extends ChangeNotifier {
 
     if (!_startedFirstLoad) {
       _startedFirstLoad = true;
-      _firstLoad = result.whenComplete(() => _firstLoad = null);
+
+      // Identity-checked rather than an unconditional `_firstLoad = null`:
+      // a reset started while this load was in flight (see
+      // [_onSessionReset]) may already have let a NEWER first load start and
+      // occupy the slot by the time this one settles. Clearing unconditionally
+      // would strand that newer load's joiners into firing a request of
+      // their own instead of awaiting it.
+      Future<void>? firstLoad;
+      firstLoad = result.whenComplete(() {
+        if (identical(_firstLoad, firstLoad)) _firstLoad = null;
+      });
+      _firstLoad = firstLoad;
     }
 
     return result;

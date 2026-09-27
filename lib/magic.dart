@@ -62,6 +62,7 @@ export 'src/support/debouncer.dart';
 export 'src/support/url_generator.dart';
 
 // Actions
+export 'src/actions/action_outcome.dart';
 export 'src/actions/magic_action.dart';
 export 'src/actions/runs_actions.dart';
 

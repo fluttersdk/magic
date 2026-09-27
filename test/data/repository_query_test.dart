@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -405,5 +407,53 @@ void main() {
         expect(query.isFirstLoad, isTrue);
       },
     );
+
+    test('a second ensureFresh after a mid-flight reset joins the new first '
+        'load, not a stale one clearing it out from under it', () async {
+      final _TestRepository repo = _TestRepository();
+      final List<Completer<MagicResponse>> gates = <Completer<MagicResponse>>[];
+      final FakeNetworkDriver fake = Http.fake((_) {
+        final Completer<MagicResponse> gate = Completer<MagicResponse>();
+        gates.add(gate);
+        return gate.future;
+      });
+
+      final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
+        repository: repo,
+      );
+
+      // 1. The first reload (request A) is in flight when the session
+      // resets underneath it.
+      final Future<void> oldFirstLoad = query.reload();
+      await repo.resetForSession();
+
+      // 2. A new ensureFresh genuinely starts a new first load (request B):
+      // the reset cleared _startedFirstLoad, so this is not a join.
+      final Future<void> newFirstLoad = query.ensureFresh();
+      expect(gates, hasLength(2));
+
+      // 3. Request A lands after B has already started.
+      gates[0].complete(
+        _page(<Map<String, dynamic>>[
+          <String, dynamic>{'id': 'old', 'name': 'previous tenant'},
+        ]),
+      );
+      await oldFirstLoad;
+
+      // 4. A second ensureFresh, asked while B is still in flight, must
+      // JOIN it rather than firing a third GET: A completing must not have
+      // cleared the first-load slot B is still occupying.
+      final Future<void> joined = query.ensureFresh();
+
+      gates[1].complete(
+        _page(<Map<String, dynamic>>[
+          <String, dynamic>{'id': '1', 'name': 'a'},
+        ]),
+      );
+      await newFirstLoad;
+      await joined;
+
+      fake.assertSentCount(2);
+    });
   });
 }

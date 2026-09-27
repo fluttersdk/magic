@@ -42,22 +42,31 @@ await MagicAction.resolve(PauseMonitor.new).handle(monitorId);
 <a name="running-an-action-from-a-controller"></a>
 ## Running an Action from a Controller
 
-Mix `RunsActions` onto the controller and call `runAction`:
+Mix `RunsActions` onto the controller and call `runAction`, checking the `ActionOutcome` it answers:
 
 ```dart
 class MonitorController extends MagicController with RunsActions {
   Future<void> pause(String id) async {
-    await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+    final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+    if (!outcome.succeeded) return;
   }
 }
 ```
 
+`runAction` answers an `ActionOutcome<O>`, a sealed type with three cases, so a caller can no longer mistake a refused double-tap for a success by checking a `null` result:
+
+- `ActionSucceeded<O>`, carrying `value` (the action's own result), when `handle` ran to completion;
+- `ActionFailed<O>`, carrying `error` (the exception `handle` threw), on either failure mode below;
+- `ActionRefused<O>`, when `key` (or the shared unkeyed slot) was already running: the action never ran a second time.
+
+`ActionOutcome` also carries two convenience getters usable without a `switch`: `succeeded` (`true` only for `ActionSucceeded`) and `valueOrNull` (the value on success, `null` otherwise).
+
 `runAction`:
 
-- marks `key` (or a shared default slot when `key` is omitted) running for the call's duration, refusing a second call under the same key while the first is still in flight (answers `null` without running the action again);
-- on a `ValidationException`, paints its errors onto the host when the controller also mixes in `ValidatesRequests`;
-- on any other failure, calls `onFailure(error)` when given, so the caller owns the feedback (its own toast, a silent cooldown, nothing), and otherwise shows a toast titled `trans('common.error_occurred')` with `failureMessage` (or the exception's own text) as the body;
-- answers `null` on either failure, and the action's own result on success.
+- marks `key` (or a shared default slot when `key` is omitted) running for the call's duration, refusing a second call under the same key while the first is still in flight (answers `ActionRefused` without running the action again);
+- on a `ValidationException`, paints its errors onto the host when the controller also mixes in `ValidatesRequests`; on a host that does not, there is no error bag to paint it onto, so it falls back to the same feedback the generic-failure case gets;
+- on any other failure, calls `onFailure(error)` when given, so the caller owns the feedback (its own toast, a silent cooldown, nothing), and otherwise logs the exception and shows a toast titled `trans('common.error_occurred')` with `failureMessage` (or that same translated fallback, never the exception's own text, which may carry a raw transport message) as the body;
+- answers `ActionFailed` on either failure, and `ActionSucceeded` with the action's own result on success.
 
 `isRunning([key])` reads whether a key (or the shared unkeyed slot) is currently running, for gating a button's `isLoading`:
 
@@ -73,10 +82,11 @@ WButton(
 
 | What `handle` does | What `runAction` does |
 |---|---|
-| Throws `ValidationException` | Paints field errors via `setErrorsFromMap` when the host is `ValidatesRequests`; answers `null` |
-| Throws anything else | Shows an error toast titled `trans('common.error_occurred')`; answers `null` |
-| Runs to completion | Answers the action's own result |
-| Called again under a key already running | The second call is a no-op; answers `null` without invoking `handle` |
+| Throws `ValidationException`, host is `ValidatesRequests` | Paints field errors via `setErrorsFromMap`; answers `ActionFailed` |
+| Throws `ValidationException`, host is not `ValidatesRequests` | Falls back to the generic-failure toast below; answers `ActionFailed` |
+| Throws anything else | Logs the exception, shows an error toast titled and bodied with `trans('common.error_occurred')` (or `failureMessage` as the body when given); answers `ActionFailed` |
+| Runs to completion | Answers `ActionSucceeded` with the action's own result |
+| Called again under a key already running | The second call is a no-op; answers `ActionRefused` without invoking `handle` |
 
 `common.error_occurred` ships in every fresh app's `assets/lang/en.json` (from the `magic:install` stub); override the key in your own catalogue to change the wording.
 

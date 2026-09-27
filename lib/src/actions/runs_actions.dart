@@ -1,8 +1,10 @@
 import '../concerns/validates_requests.dart';
 import '../facades/lang.dart';
+import '../facades/log.dart';
 import '../foundation/magic.dart';
 import '../http/magic_controller.dart';
 import '../validation/exceptions/validation_exception.dart';
+import 'action_outcome.dart';
 import 'magic_action.dart';
 
 /// Runs a [MagicAction] from a controller, translating its two failure
@@ -12,7 +14,8 @@ import 'magic_action.dart';
 /// class MonitorController extends MagicController
 ///     with ValidatesRequests, RunsActions {
 ///   Future<void> pause(String id) async {
-///     await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+///     final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);
+///     if (!outcome.succeeded) return;
 ///   }
 /// }
 /// ```
@@ -20,16 +23,22 @@ import 'magic_action.dart';
 /// [runAction]:
 /// - marks [key] (or a shared default slot when [key] is omitted) running
 ///   for the call's duration, refusing a second call under the same key
-///   while the first is still in flight (returns `null` without running
-///   [action] again);
+///   while the first is still in flight, answering [ActionRefused] without
+///   running [action] again;
 /// - on a [ValidationException], paints its errors onto the host when it is
 ///   also a [ValidatesRequests] (through `setErrorsFromMap`, so
-///   [CollapsesIndexedErrorKeys] applies if mixed in on top);
+///   [CollapsesIndexedErrorKeys] applies if mixed in on top), otherwise
+///   routes it through the same fallback feedback as any other failure
+///   (since there is no error bag to paint it onto);
 /// - on any other failure, calls [onFailure] when given (the caller owns the
 ///   feedback: its own toast, a silent cooldown, nothing at all), otherwise
-///   shows a toast titled `trans('common.error_occurred')` with
-///   [failureMessage] (or the exception's own text) as the body;
-/// - answers `null` on either failure, and [action]'s own result on success.
+///   logs the exception and shows a toast titled `trans('common.error_occurred')`
+///   with [failureMessage] (or that same translated fallback, never the
+///   exception's own text) as the body;
+/// - answers [ActionSucceeded] with [action]'s own result on success,
+///   [ActionFailed] on either failure and [ActionRefused] on a same-key
+///   re-entry, so a caller can no longer mistake a refused double-tap for a
+///   success by checking a `null` result.
 mixin RunsActions on MagicController {
   /// Keys with an action currently in flight.
   final Set<Object> _runningKeys = {};
@@ -44,7 +53,7 @@ mixin RunsActions on MagicController {
   bool isRunning([Object? key]) => _runningKeys.contains(key ?? _unkeyedSlot);
 
   /// Runs [action] against [input]; see the mixin doc for the full contract.
-  Future<O?> runAction<I, O>(
+  Future<ActionOutcome<O>> runAction<I, O>(
     MagicAction<I, O> action,
     I input, {
     Object? key,
@@ -52,29 +61,55 @@ mixin RunsActions on MagicController {
     void Function(Object error)? onFailure,
   }) async {
     final runKey = key ?? _unkeyedSlot;
-    if (_runningKeys.contains(runKey)) return null;
+    if (_runningKeys.contains(runKey)) return ActionRefused<O>();
 
     _runningKeys.add(runKey);
     refreshUI();
     try {
-      return await action.handle(input);
+      final O value = await action.handle(input);
+      return ActionSucceeded<O>(value);
     } on ValidationException catch (e) {
       if (this is ValidatesRequests) {
         (this as ValidatesRequests).setErrorsFromMap(
           e.errors.map((field, message) => MapEntry(field, [message])),
         );
-      }
-      return null;
-    } catch (e) {
-      if (onFailure != null) {
-        onFailure(e);
       } else {
-        Magic.error(trans('common.error_occurred'), failureMessage ?? '$e');
+        // No error bag to paint this onto: fall back to the same feedback
+        // path a non-validation failure gets, rather than swallowing it.
+        _reportFailure(e, onFailure, failureMessage);
       }
-      return null;
+      return ActionFailed<O>(e);
+    } catch (e) {
+      _reportFailure(e, onFailure, failureMessage);
+      return ActionFailed<O>(e);
     } finally {
       _runningKeys.remove(runKey);
       refreshUI();
     }
+  }
+
+  /// Routes a failure to [onFailure] when given (the caller owns the
+  /// feedback entirely); otherwise logs [error] (guarded the way
+  /// `Poll.until` guards its own `Log.warning`, since a host under test may
+  /// have nothing bound under `'log'`) and shows a toast that never repeats
+  /// [error]'s own text, which may carry a raw Dio message with an internal
+  /// URL in it.
+  void _reportFailure(
+    Object error,
+    void Function(Object error)? onFailure,
+    String? failureMessage,
+  ) {
+    if (onFailure != null) {
+      onFailure(error);
+      return;
+    }
+
+    if (Magic.bound('log')) {
+      Log.error('[RunsActions] action failed: $error');
+    }
+    Magic.error(
+      trans('common.error_occurred'),
+      failureMessage ?? trans('common.error_occurred'),
+    );
   }
 }

@@ -34,8 +34,7 @@ class _Fails extends MagicAction<int, Object?> {
 }
 
 /// Succeeds immediately with a non-null value, so a caller can tell a real
-/// completion apart from the `null` [RunsActions.runAction] answers on
-/// refusal or failure.
+/// completion apart from an [ActionRefused] or [ActionFailed] outcome.
 class _Returns extends MagicAction<int, String> {
   const _Returns();
 
@@ -71,19 +70,24 @@ void main() {
       expect(controller.isRunning('k'), isFalse);
     });
 
-    test('refuses a second run under the same key, returning null', () async {
-      final controller = _ValidatingController();
-      final gate = Completer<void>();
-      final action = _Blocks(gate);
+    test(
+      'refuses a second run under the same key, answering ActionRefused',
+      () async {
+        final controller = _ValidatingController();
+        final gate = Completer<void>();
+        final action = _Blocks(gate);
 
-      final first = controller.runAction(action, 0, key: 'k');
-      final second = await controller.runAction(action, 0, key: 'k');
+        final first = controller.runAction(action, 0, key: 'k');
+        final second = await controller.runAction(action, 0, key: 'k');
 
-      expect(second, isNull);
+        expect(second, isA<ActionRefused<Object?>>());
+        expect(second.succeeded, isFalse);
+        expect(second.valueOrNull, isNull);
 
-      gate.complete();
-      await first;
-    });
+        gate.complete();
+        await first;
+      },
+    );
 
     test('two different keys run independently', () async {
       final controller = _ValidatingController();
@@ -112,13 +116,14 @@ void main() {
 
       // A distinct explicit key is unaffected by the still-running default
       // (unkeyed) slot: it actually runs and answers its real result, not
-      // the `null` a refusal would answer.
-      final keyedResult = await controller.runAction(
+      // an [ActionRefused] a same-key re-entry would answer.
+      final keyedOutcome = await controller.runAction(
         const _Returns(),
         0,
         key: 'k',
       );
-      expect(keyedResult, 'done');
+      expect(keyedOutcome, isA<ActionSucceeded<String>>());
+      expect(keyedOutcome.valueOrNull, 'done');
 
       gate.complete();
       await unkeyed;
@@ -126,32 +131,49 @@ void main() {
   });
 
   group('RunsActions.runAction, ValidationException', () {
-    test(
-      'paints the errors onto a ValidatesRequests controller and returns null',
-      () async {
-        final controller = _ValidatingController();
+    test('paints the errors onto a ValidatesRequests controller and answers '
+        'ActionFailed', () async {
+      final controller = _ValidatingController();
 
-        final result = await controller.runAction(
-          _Fails(ValidationException({'name': 'Required.'})),
-          0,
-        );
-
-        expect(result, isNull);
-        expect(controller.getError('name'), 'Required.');
-        expect(controller.isRunning(), isFalse);
-      },
-    );
-
-    test('never throws on a controller without ValidatesRequests', () async {
-      final controller = _PlainController();
-
-      final result = await controller.runAction(
+      final outcome = await controller.runAction(
         _Fails(ValidationException({'name': 'Required.'})),
         0,
       );
 
-      expect(result, isNull);
+      expect(outcome, isA<ActionFailed<Object?>>());
+      expect(outcome.succeeded, isFalse);
+      expect(controller.getError('name'), 'Required.');
+      expect(controller.isRunning(), isFalse);
     });
+
+    testWidgets(
+      'falls back to the same toast as any other failure on a controller '
+      'without ValidatesRequests',
+      (tester) async {
+        await tester.pumpWidget(
+          WindTheme(
+            data: WindThemeData(),
+            child: MaterialApp(
+              navigatorKey: MagicRouter.instance.navigatorKey,
+              home: const SizedBox.shrink(),
+            ),
+          ),
+        );
+        final controller = _PlainController();
+
+        final outcome = await controller.runAction(
+          _Fails(ValidationException({'name': 'Required.'})),
+          0,
+        );
+        await tester.pump();
+
+        expect(outcome, isA<ActionFailed<Object?>>());
+        expect(find.text('common.error_occurred'), findsNWidgets(2));
+
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+      },
+    );
   });
 
   group('RunsActions.runAction, other failures', () {
@@ -165,25 +187,33 @@ void main() {
       );
     }
 
-    testWidgets('shows a toast titled with the fallback translation key', (
-      tester,
-    ) async {
-      await tester.pumpWidget(harness());
-      final controller = _ValidatingController();
+    testWidgets(
+      'shows a toast titled with the fallback translation key, never the '
+      'exception\'s own text',
+      (tester) async {
+        await tester.pumpWidget(harness());
+        final controller = _ValidatingController();
 
-      final result = await controller.runAction(_Fails(Exception('boom')), 0);
-      await tester.pump();
+        final outcome = await controller.runAction(
+          _Fails(Exception('boom: https://internal.example/leak')),
+          0,
+        );
+        await tester.pump();
 
-      expect(result, isNull);
-      expect(find.text('common.error_occurred'), findsOneWidget);
+        expect(outcome, isA<ActionFailed<Object?>>());
+        // Title AND body both fall back to the one translated generic key
+        // magic already ships; the raw exception text never reaches the UI.
+        expect(find.text('common.error_occurred'), findsNWidgets(2));
+        expect(find.textContaining('internal.example'), findsNothing);
 
-      // Settle the toast's auto-dismiss timer so it does not outlive the
-      // test (see magic_feedback_test.dart for the same pattern).
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-    });
+        // Settle the toast's auto-dismiss timer so it does not outlive the
+        // test (see magic_feedback_test.dart for the same pattern).
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pumpAndSettle();
+      },
+    );
 
-    testWidgets('failureMessage overrides the exception text in the toast', (
+    testWidgets('failureMessage overrides the fallback body in the toast', (
       tester,
     ) async {
       await tester.pumpWidget(harness());
@@ -209,16 +239,37 @@ void main() {
       final controller = _ValidatingController();
       Object? seen;
 
-      final result = await controller.runAction(
+      final outcome = await controller.runAction(
         _Fails(Exception('boom')),
         0,
         onFailure: (Object error) => seen = error,
       );
       await tester.pump();
 
-      expect(result, isNull);
+      expect(outcome, isA<ActionFailed<Object?>>());
       expect(seen, isA<Exception>());
       expect(find.text('common.error_occurred'), findsNothing);
+    });
+
+    test('logs the exception when a log driver is bound', () async {
+      final fake = Log.fake();
+      final controller = _ValidatingController();
+
+      await controller.runAction(_Fails(Exception('boom')), 0);
+
+      fake.assertLoggedError('[RunsActions] action failed: Exception: boom');
+      Log.unfake();
+    });
+
+    test('never throws when nothing is bound under \'log\'', () async {
+      final controller = _PlainController();
+
+      final outcome = await controller.runAction(
+        _Fails(ValidationException({'name': 'Required.'})),
+        0,
+      );
+
+      expect(outcome, isA<ActionFailed<Object?>>());
     });
   });
 }

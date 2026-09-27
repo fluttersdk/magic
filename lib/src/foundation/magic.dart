@@ -1,12 +1,11 @@
 import 'package:flutter/widgets.dart';
-// url_strategy.dart uses internal conditional export — no-op on non-web.
+// url_strategy.dart uses internal conditional export: no-op on non-web.
 // No platform-split wrapper needed.
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 import '../database/seeding/seeder.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
-import '../http/magic_controller.dart';
 import '../logging/log_manager.dart';
 import '../routing/magic_router.dart';
 import '../support/service_provider.dart';
@@ -235,11 +234,16 @@ class Magic {
     return controller as T;
   }
 
-  /// Delete a controller, disposing it when it is a [MagicController].
+  /// Delete a controller, disposing it when it is a [ChangeNotifier].
   ///
   /// The removed instance is released for good; do not delete a controller a
   /// mounted view still holds. To refresh one for a new session, reset it in
   /// place through `SessionScoped` instead.
+  ///
+  /// Dispatched on the framework's own [ChangeNotifier] contract rather than
+  /// the `http` layer's `MagicController`, so this file never has to import
+  /// upward into it: any registered controller disposes correctly as long as
+  /// it is a [ChangeNotifier], which `MagicController` already is.
   ///
   /// ```dart
   /// Magic.delete<UserController>();
@@ -247,9 +251,9 @@ class Magic {
   static void delete<T>() {
     final Object? removed = _controllers.remove(T);
 
-    // dispose() is idempotent, so a controller its owner already disposed is
-    // left untouched.
-    if (removed is MagicController) {
+    // dispose() is idempotent on MagicController, so a controller its owner
+    // already disposed is left untouched.
+    if (removed is ChangeNotifier) {
       removed.dispose();
     }
   }
@@ -282,7 +286,7 @@ class Magic {
   /// Exposed as a read-only iterable for dev-tooling integrations
   /// (e.g. the dusk snapshot enricher walks this to surface a
   /// `MagicStateMixin` controller's `rxStatus` per snapshot).
-  /// Returns the live values — order matches Map iteration order over
+  /// Returns the live values: order matches Map iteration order over
   /// the underlying `Map<Type, dynamic>`.
   static Iterable<Object> get controllers =>
       _controllers.values.whereType<Object>();
