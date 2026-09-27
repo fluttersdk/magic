@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.23] - 2026-09-28
+
 ### BREAKING
 
 - **`make:controller`'s plain and `--resource` stubs, and `make:view`'s stateful stub, changed shape.** The resource controller stub dropped its own hand-rolled CRUD/state scaffolding in favour of the `RepositoryQuery`-backed read state `MakeControllerCommand` now assembles per flag (`--actions`, `--broadcasts`, `--timers`, `--validates`, plus a `resetForSession()` implementing `SessionScoped`); the plain controller stub gained the same `SessionScoped` shape with an empty `resetForSession()`. `make:view --stateful` now writes a `MagicStatefulView<<Name>Controller>` instead of a plain `StatefulWidget`, so the derived `<Name>Controller` has to exist (or be named with `--controller=<Name>`) for the view to compile; the new `--list` adds `RefetchesOnMount` over a `--resource` controller, and `--form=<FormObject>` adds a State-owned form object disposed in `onClose`. A controller or stateful view generated before this change keeps its old shape until regenerated; regenerating with `--force` overwrites any hand-edited body, so review the diff first. (`lib/src/cli/commands/make_controller_command.dart`, `lib/src/cli/commands/make_view_command.dart`, `assets/stubs/controller.stub`, `assets/stubs/controller.resource.stub`, `assets/stubs/view.stateful.stub`)
