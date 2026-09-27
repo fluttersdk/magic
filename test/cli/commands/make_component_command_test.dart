@@ -34,11 +34,27 @@ void main() {
     late Directory projectRoot;
     late String stubsDir;
 
+    /// Seeds `lib/_previews.g.dart` so preview auto-detection sees an
+    /// existing catalogue (the default assumption for tests that predate
+    /// detection and still expect a preview file).
+    void seedPreviewCatalogue() {
+      final libDir = Directory(p.join(projectRoot.path, 'lib'))
+        ..createSync(recursive: true);
+      File(p.join(libDir.path, '_previews.g.dart')).writeAsStringSync(
+        "List<Object> previewEntries() => const <Object>[];\n",
+      );
+    }
+
     setUp(() {
       projectRoot = Directory.systemTemp.createTempSync('make_component_');
       // The real stubs ship in magic's assets/stubs/; point the generator at
       // them via the env override the StubLoader honours.
       stubsDir = p.join(Directory.current.path, 'assets', 'stubs');
+      // The generator always attempts to write the matching widget test,
+      // which reads the target project's package name from pubspec.yaml.
+      File(
+        p.join(projectRoot.path, 'pubspec.yaml'),
+      ).writeAsStringSync('name: app\n');
     });
 
     tearDown(() {
@@ -46,6 +62,7 @@ void main() {
     });
 
     test('scaffolds the 4-file atomic component folder', () async {
+      seedPreviewCatalogue();
       final cmd = MakeComponentCommand(testRoot: projectRoot.path);
       final code = await cmd.handle(
         _ctx(cmd, <String>['Avatar', '--stubs-dir=$stubsDir']),
@@ -60,6 +77,7 @@ void main() {
     });
 
     test('names the component class unprefixed PascalCase', () async {
+      seedPreviewCatalogue();
       final cmd = MakeComponentCommand(testRoot: projectRoot.path);
       await cmd.handle(_ctx(cmd, <String>['Avatar', '--stubs-dir=$stubsDir']));
 
@@ -213,6 +231,183 @@ class SeedPreview extends StatelessWidget {
       );
       expect(generated.existsSync(), isTrue);
       expect(generated.readAsStringSync(), contains('AvatarPreview'));
+    });
+
+    group('preview auto-detection', () {
+      String avatarPreviewPath() => p.join(
+        projectRoot.path,
+        'lib',
+        'ui',
+        'components',
+        'avatar',
+        'avatar.preview.dart',
+      );
+
+      test('writes no preview and no _previews.g.dart when lib/ carries no '
+          'catalogue', () async {
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final output = BufferedOutput();
+        final parser = ArgParser();
+        cmd.configure(parser);
+        final input = ArgvInput.parse(parser, <String>[
+          'Avatar',
+          '--stubs-dir=$stubsDir',
+        ]);
+        final code = await cmd.handle(ArtisanContext.bare(input, output));
+
+        expect(code, 0);
+        expect(File(avatarPreviewPath()).existsSync(), isFalse);
+        expect(
+          File(
+            p.join(projectRoot.path, 'lib', '_previews.g.dart'),
+          ).existsSync(),
+          isFalse,
+        );
+        expect(output.content, contains('Preview: skipped'));
+      });
+
+      test(
+        'writes a preview when lib/_previews.g.dart already exists',
+        () async {
+          seedPreviewCatalogue();
+          final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+          final output = BufferedOutput();
+          final parser = ArgParser();
+          cmd.configure(parser);
+          final input = ArgvInput.parse(parser, <String>[
+            'Avatar',
+            '--stubs-dir=$stubsDir',
+          ]);
+          final code = await cmd.handle(ArtisanContext.bare(input, output));
+
+          expect(code, 0);
+          expect(File(avatarPreviewPath()).existsSync(), isTrue);
+          expect(output.content, contains('Preview: written'));
+        },
+      );
+
+      test(
+        'writes a preview when a nested *.preview.dart file already exists',
+        () async {
+          final nested = Directory(
+            p.join(projectRoot.path, 'lib', 'ui', 'components', 'other'),
+          )..createSync(recursive: true);
+          File(p.join(nested.path, 'other.preview.dart')).writeAsStringSync('''
+import 'package:flutter/widgets.dart';
+
+class OtherPreview extends StatelessWidget {
+  const OtherPreview({super.key});
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+''');
+
+          final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+          final code = await cmd.handle(
+            _ctx(cmd, <String>['Avatar', '--stubs-dir=$stubsDir']),
+          );
+
+          expect(code, 0);
+          expect(File(avatarPreviewPath()).existsSync(), isTrue);
+        },
+      );
+
+      test('--no-preview beats an existing catalogue', () async {
+        seedPreviewCatalogue();
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final output = BufferedOutput();
+        final parser = ArgParser();
+        cmd.configure(parser);
+        final input = ArgvInput.parse(parser, <String>[
+          'Avatar',
+          '--no-preview',
+          '--stubs-dir=$stubsDir',
+        ]);
+        final code = await cmd.handle(ArtisanContext.bare(input, output));
+
+        expect(code, 0);
+        expect(File(avatarPreviewPath()).existsSync(), isFalse);
+        expect(output.content, contains('Preview: skipped'));
+        expect(output.content, contains('--no-preview'));
+      });
+
+      test('--preview beats an absent catalogue', () async {
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final output = BufferedOutput();
+        final parser = ArgParser();
+        cmd.configure(parser);
+        final input = ArgvInput.parse(parser, <String>[
+          'Avatar',
+          '--preview',
+          '--stubs-dir=$stubsDir',
+        ]);
+        final code = await cmd.handle(ArtisanContext.bare(input, output));
+
+        expect(code, 0);
+        expect(File(avatarPreviewPath()).existsSync(), isTrue);
+        expect(output.content, contains('Preview: written'));
+        expect(output.content, contains('--preview'));
+      });
+    });
+
+    group('matching widget test', () {
+      String testFilePath() => p.join(
+        projectRoot.path,
+        'test',
+        'ui',
+        'components',
+        'avatar',
+        'avatar_test.dart',
+      );
+
+      test('writes test/ui/components/<name>/<name>_test.dart importing '
+          'packageName', () async {
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final code = await cmd.handle(
+          _ctx(cmd, <String>['Avatar', '--stubs-dir=$stubsDir']),
+        );
+
+        expect(code, 0);
+        final file = File(testFilePath());
+        expect(file.existsSync(), isTrue);
+        final content = file.readAsStringSync();
+        expect(
+          content,
+          contains("package:app/ui/components/avatar/index.dart"),
+        );
+        expect(content, contains('Avatar'));
+      });
+
+      test('works for a --slots component too', () async {
+        final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+        final code = await cmd.handle(
+          _ctx(cmd, <String>['Avatar', '--slots', '--stubs-dir=$stubsDir']),
+        );
+
+        expect(code, 0);
+        expect(File(testFilePath()).existsSync(), isTrue);
+      });
+
+      test(
+        'skips the test file with a printed note when pubspec.yaml is absent',
+        () async {
+          File(p.join(projectRoot.path, 'pubspec.yaml')).deleteSync();
+
+          final cmd = MakeComponentCommand(testRoot: projectRoot.path);
+          final output = BufferedOutput();
+          final parser = ArgParser();
+          cmd.configure(parser);
+          final input = ArgvInput.parse(parser, <String>[
+            'Avatar',
+            '--stubs-dir=$stubsDir',
+          ]);
+          final code = await cmd.handle(ArtisanContext.bare(input, output));
+
+          expect(code, 0);
+          expect(File(testFilePath()).existsSync(), isFalse);
+          expect(output.content, contains('pubspec.yaml'));
+        },
+      );
     });
   });
 }

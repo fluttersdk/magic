@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fluttersdk_artisan/artisan.dart';
 import 'package:path/path.dart' as path;
 
@@ -5,16 +7,26 @@ import '../helpers/magic_stub_loader.dart';
 import '../helpers/run_child.dart';
 import 'previews_refresh_command.dart';
 
-/// `make:component <Name> [--variants=intent,size] [--slots]`: scaffolds an
-/// atomic 4-file component folder (`<name>.dart`, `<name>.recipe.dart`,
-/// `<name>.preview.dart`, `index.dart`) under `lib/ui/components/<name>/`, then
-/// chains `previews:refresh` so the new preview lands in `_previews.g.dart`.
+/// `make:component <Name> [--variants=intent,size] [--slots] [--preview|--no-preview]`:
+/// scaffolds an atomic component folder (`<name>.dart`, `<name>.recipe.dart`,
+/// `index.dart`, and conditionally `<name>.preview.dart`) under
+/// `lib/ui/components/<name>/`, plus its matching widget test at
+/// `test/ui/components/<name>/<name>_test.dart`.
 ///
 /// The component class is unprefixed PascalCase (`make:component Avatar` ->
 /// `class Avatar`); the folder + files are `lower_snake_case`. The recipe is
 /// seeded with the requested `--variants` axes (each value left empty for the
 /// author to fill with token classNames). `--slots` seeds a [WindSlotRecipe]
 /// shape instead of a single-element [WindRecipe].
+///
+/// ## Preview auto-detection
+///
+/// The preview file (and the chained `previews:refresh`) is only scaffolded
+/// when the target project already maintains a preview catalogue: any
+/// `*.preview.dart` file or a `_previews.g.dart` index anywhere under `lib/`.
+/// `--preview` / `--no-preview` override the detection in either direction;
+/// the flag wins because it was explicitly given, not merely because it
+/// parsed truthy ([ArgvInput.hasOption] reports a negated flag as present).
 ///
 /// Chaining follows the `make:model --all` pattern: a child command is parsed
 /// against its own [ArgParser] and handled with a bare context that reuses the
@@ -59,6 +71,12 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
       'slots',
       help: 'Scaffold a multi-part WindSlotRecipe instead of a single recipe.',
       negatable: false,
+    );
+    parser.addFlag(
+      'preview',
+      help:
+          'Force the preview file (and previews:refresh) on/off, overriding '
+          'catalogue auto-detection.',
     );
     // Test seam: point the stub loader at a checkout-local assets/stubs dir
     // without setting a process-wide env var.
@@ -109,8 +127,9 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
       '{{ defaultVariants }}': _renderDefaultVariants(variantAxes),
     };
 
-    // 4. Write the four atomic files from their stubs. --slots swaps the
-    //    single-element recipe + component for the WindSlotRecipe variants.
+    // 4. Write the three always-on atomic files from their stubs. --slots
+    //    swaps the single-element recipe + component for the WindSlotRecipe
+    //    variants. The preview is conditional (see step 5).
     _writeStub(
       slots ? 'component.slots' : 'component',
       '$snakeName.dart',
@@ -126,13 +145,6 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
       stubsDir,
     );
     _writeStub(
-      'preview',
-      '$snakeName.preview.dart',
-      componentDir,
-      replacements,
-      stubsDir,
-    );
-    _writeStub(
       'component_index',
       'index.dart',
       componentDir,
@@ -142,14 +154,109 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
 
     ctx.output.success('Created component: $componentDir');
 
-    // 5. Chain previews:refresh so the new preview lands in _previews.g.dart.
-    await RunChild.run(
-      PreviewsRefreshCommand(projectRoot: getProjectRoot()),
-      const <String>[],
-      ctx,
-    );
+    // 5. Only scaffold the preview (and chain previews:refresh) when the
+    //    project already maintains a preview catalogue, unless --preview /
+    //    --no-preview explicitly overrides the detection.
+    final libDir = path.join(getProjectRoot(), 'lib');
+    final previewGiven = ctx.input.hasOption('preview');
+    final bool writePreview;
+    final String previewReason;
+    if (previewGiven) {
+      writePreview = ctx.input.option('preview') as bool;
+      previewReason = writePreview
+          ? '--preview forced it on'
+          : '--no-preview forced it off';
+    } else {
+      writePreview = _hasPreviewCatalogue(libDir);
+      previewReason = writePreview
+          ? 'an existing *.preview.dart or _previews.g.dart catalogue was '
+                'found under lib/'
+          : 'no *.preview.dart or _previews.g.dart catalogue was found '
+                'under lib/';
+    }
+
+    if (writePreview) {
+      _writeStub(
+        'preview',
+        '$snakeName.preview.dart',
+        componentDir,
+        replacements,
+        stubsDir,
+      );
+      ctx.output.info('Preview: written ($previewReason)');
+      await RunChild.run(
+        PreviewsRefreshCommand(projectRoot: getProjectRoot()),
+        const <String>[],
+        ctx,
+      );
+    } else {
+      ctx.output.info('Preview: skipped ($previewReason)');
+    }
+
+    // 6. Scaffold the matching widget test, unless the target project has no
+    //    pubspec.yaml to resolve its package name from.
+    _writeMatchingTest(ctx, className, snakeName, stubsDir);
 
     return 0;
+  }
+
+  /// Writes `test/ui/components/<snakeName>/<snakeName>_test.dart` from
+  /// `component_test.stub`, importing the component through
+  /// `package:<packageName>/ui/components/<snakeName>/index.dart`.
+  ///
+  /// [packageName] is read from the target project's own `pubspec.yaml`;
+  /// when that file is absent, the test is skipped with a printed note
+  /// rather than failing the whole command (the component itself already
+  /// landed).
+  void _writeMatchingTest(
+    ArtisanContext ctx,
+    String className,
+    String snakeName,
+    String? stubsDir,
+  ) {
+    final pubspecPath = path.join(getProjectRoot(), 'pubspec.yaml');
+    if (!FileHelper.fileExists(pubspecPath)) {
+      ctx.output.warning(
+        'Skipped matching test: no pubspec.yaml found at $pubspecPath',
+      );
+      return;
+    }
+
+    final packageName = FileHelper.readYamlFile(pubspecPath)['name'] as String;
+    var content = stubsDir != null
+        ? MagicStubLoader.loadFrom('component_test', stubsDir)
+        : MagicStubLoader.load('component_test');
+    content = content
+        .replaceAll('{{ className }}', className)
+        .replaceAll('{{ snakeName }}', snakeName)
+        .replaceAll('{{ packageName }}', packageName);
+
+    final testPath = path.join(
+      getProjectRoot(),
+      'test',
+      'ui',
+      'components',
+      snakeName,
+      '${snakeName}_test.dart',
+    );
+    FileHelper.writeFile(testPath, content);
+    ctx.output.success('Created: $testPath');
+  }
+
+  /// Whether [libDir] already carries a preview catalogue: any
+  /// `*.preview.dart` file, or a `_previews.g.dart` index, anywhere in its
+  /// tree.
+  bool _hasPreviewCatalogue(String libDir) {
+    final dir = Directory(libDir);
+    if (!dir.existsSync()) return false;
+    for (final entity in dir.listSync(recursive: true)) {
+      if (entity is! File) continue;
+      final base = path.basename(entity.path);
+      if (base.endsWith('.preview.dart') || base == '_previews.g.dart') {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Loads [stubName], applies [replacements], and writes the rendered content

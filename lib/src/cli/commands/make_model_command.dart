@@ -7,6 +7,7 @@ import 'make_controller_command.dart';
 import 'make_factory_command.dart';
 import 'make_migration_command.dart';
 import 'make_policy_command.dart';
+import 'make_repository_command.dart';
 import 'make_seeder_command.dart';
 
 /// The `make:model` generator command.
@@ -117,13 +118,14 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
 
     // 1. Generate the model class itself.
     final filePath = getPath(name);
+    //    An existing model without --force stops the run, as every other
+    //    generator does, so no companion file is written against it.
     if (FileHelper.fileExists(filePath) && !ctx.input.hasOption('force')) {
       ctx.output.error('File already exists at $filePath');
-    } else {
-      final content = buildClass(name);
-      FileHelper.writeFile(filePath, content);
-      ctx.output.success('Created: $filePath');
+      return 1;
     }
+    FileHelper.writeFile(filePath, buildClass(name));
+    ctx.output.success('Created: $filePath');
 
     // 2. Determine whether --all was passed.
     final doAll = ctx.input.hasOption('all');
@@ -164,10 +166,22 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
       ], ctx);
     }
 
-    // 7. Generate Controller.
+    // 7. Generate Repository (only for --all: a --resource controller reads
+    //    through one, so it must exist before the controller is chained).
+    if (doAll) {
+      await RunChild.run(MakeRepositoryCommand(testRoot: _testRoot), [
+        className,
+      ], ctx);
+    }
+
+    // 8. Generate Controller.
     if (doAll || ctx.input.hasOption('controller')) {
       final controllerArgs = [className];
-      if (doAll) controllerArgs.add('--resource');
+      if (doAll) {
+        controllerArgs
+          ..add('--resource')
+          ..add('--model=$className');
+      }
       await RunChild.run(
         MakeControllerCommand(testRoot: _testRoot),
         controllerArgs,

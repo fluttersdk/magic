@@ -1,0 +1,38 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+import 'package:{{ packageName }}/ui/components/{{ snakeName }}/index.dart';
+
+/// Widget test for [{{ className }}], scaffolded by `make:component`.
+void main() {
+  /// Wraps [widget] in a [MaterialApp] with a default [WindTheme] so
+  /// W-widgets can resolve Wind styles without a running Magic app.
+  Widget wrap(Widget widget) {
+    return MaterialApp(
+      home: WindTheme(data: WindThemeData(), child: Scaffold(body: widget)),
+    );
+  }
+
+  testWidgets('{{ className }} renders its child', (tester) async {
+    await tester.pumpWidget(
+      wrap({{ className }}(child: const Text('{{ className }}'))),
+    );
+
+    expect(find.text('{{ className }}'), findsOneWidget);
+  });
+
+  testWidgets("{{ className }} applies its recipe's base className", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap({{ className }}(child: const Text('{{ className }}'))),
+    );
+
+    final divs = tester.widgetList<WDiv>(find.byType(WDiv));
+    expect(
+      divs.any((w) => w.className?.contains('flex') ?? false),
+      isTrue,
+      reason: "no WDiv carries {{ className }}Recipe()'s base className",
+    );
+  });
+}

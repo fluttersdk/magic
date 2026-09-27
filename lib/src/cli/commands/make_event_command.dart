@@ -18,6 +18,15 @@ import '../helpers/magic_stub_loader.dart';
 /// Creates a file in `lib/app/events/` with a dispatchable event class
 /// that extends `MagicEvent`.
 class MakeEventCommand extends ArtisanGeneratorCommand {
+  /// Optional project root override — injected in tests to avoid touching the
+  /// real filesystem.
+  final String? _testRoot;
+
+  /// Creates a [MakeEventCommand].
+  ///
+  /// Pass [testRoot] to pin the project root to a temp directory during tests.
+  MakeEventCommand({String? testRoot}) : _testRoot = testRoot;
+
   @override
   CommandBoot get boot => CommandBoot.none;
 
@@ -32,6 +41,9 @@ class MakeEventCommand extends ArtisanGeneratorCommand {
 
   @override
   String getStub() => MagicStubLoader.load('event');
+
+  @override
+  String getProjectRoot() => _testRoot ?? super.getProjectRoot();
 
   /// Returns placeholder replacements for the event stub.
   ///

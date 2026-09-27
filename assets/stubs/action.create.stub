@@ -1,0 +1,24 @@
+import 'package:magic/magic.dart';
+
+{{ modelImport }}
+
+/// {{ className }}
+///
+/// Creates a [{{ modelName }}] from an already-validated field map (see
+/// [MagicAction]). A refused save throws [ActionRequestFailed] carrying the
+/// field errors from `validationErrors`.
+class {{ className }} extends MagicAction<Map<String, dynamic>, {{ modelName }}> {
+  const {{ className }}();
+
+  @override
+  Future<{{ modelName }}> handle(Map<String, dynamic> fields) async {
+    final {{ modelName }} {{ modelVariable }} = {{ modelName }}()
+      ..fill(fields, strict: true);
+    if (await {{ modelVariable }}.save()) return {{ modelVariable }};
+
+    throw ActionRequestFailed.refusalOf(
+      'create',
+      {{ modelVariable }}.validationErrors,
+    );
+  }
+}

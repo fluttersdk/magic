@@ -19,6 +19,15 @@ import '../helpers/magic_stub_loader.dart';
 ///
 /// Creates a file in `lib/app/providers/` with `register()` and `boot()` stubs.
 class MakeProviderCommand extends ArtisanGeneratorCommand {
+  /// Optional project root override — injected in tests to avoid touching the
+  /// real filesystem.
+  final String? _testRoot;
+
+  /// Creates a [MakeProviderCommand].
+  ///
+  /// Pass [testRoot] to pin the project root to a temp directory during tests.
+  MakeProviderCommand({String? testRoot}) : _testRoot = testRoot;
+
   @override
   CommandBoot get boot => CommandBoot.none;
 
@@ -33,6 +42,9 @@ class MakeProviderCommand extends ArtisanGeneratorCommand {
 
   @override
   String getStub() => MagicStubLoader.load('provider');
+
+  @override
+  String getProjectRoot() => _testRoot ?? super.getProjectRoot();
 
   /// Normalises [name] so the last path segment always carries the
   /// `ServiceProvider` suffix. Used by both [getPath] and [buildClass] to keep

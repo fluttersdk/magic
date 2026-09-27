@@ -16,8 +16,10 @@ void main() {
     Magic.flush();
   });
 
-  test('{{ className }} runs without throwing', () async {
-    await MagicAction.resolve({{ className }}.new).handle(null);
+  // Resolving rather than handling keeps this skeleton valid whatever the
+  // action's input type is; replace it with a real call below.
+  test('{{ className }} resolves', () {
+    expect(MagicAction.resolve({{ className }}.new), isA<{{ className }}>());
   });
 
   // TODO: assert the network call {{ className }} makes, e.g.:

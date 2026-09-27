@@ -1,0 +1,30 @@
+import 'package:magic/magic.dart';
+
+{{ modelImport }}
+
+/// {{ className }}
+///
+/// Saves an edit to a [{{ modelName }}] from an already-validated field map.
+/// Answers the saved {{ modelName }}, or null when it no longer resolves (no
+/// field to flag, so nothing is written). A refused save throws
+/// [ActionRequestFailed] carrying the field errors from `validationErrors`.
+class {{ className }}
+    extends MagicAction<({String id, Map<String, dynamic> fields}), {{ modelName }}?> {
+  const {{ className }}();
+
+  @override
+  Future<{{ modelName }}?> handle(
+    ({String id, Map<String, dynamic> fields}) input,
+  ) async {
+    final {{ modelName }}? {{ modelVariable }} = await {{ modelName }}.find(input.id);
+    if ({{ modelVariable }} == null) return null;
+
+    {{ modelVariable }}.fill(input.fields, strict: true);
+    if (await {{ modelVariable }}.save()) return {{ modelVariable }};
+
+    throw ActionRequestFailed.refusalOf(
+      'update ${input.id}',
+      {{ modelVariable }}.validationErrors,
+    );
+  }
+}

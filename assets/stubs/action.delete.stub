@@ -1,0 +1,21 @@
+import 'package:magic/magic.dart';
+
+{{ modelImport }}
+{{ repositoryImport }}
+
+/// {{ className }}
+///
+/// Deletes a [{{ modelName }}] through the ORM and evicts it from
+/// [{{ repositoryName }}], so every screen reading the inventory loses the
+/// row at once.
+class {{ className }} extends MagicAction<{{ modelName }}, void> {
+  const {{ className }}();
+
+  @override
+  Future<void> handle({{ modelName }} {{ modelVariable }}) async {
+    final bool deleted = await {{ modelVariable }}.delete();
+    if (!deleted) throw ActionRequestFailed('delete {{ modelIdInterpolation }}');
+
+    {{ repositoryName }}.instance.evict({{ modelVariable }}.id);
+  }
+}
