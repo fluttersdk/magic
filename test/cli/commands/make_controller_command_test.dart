@@ -81,6 +81,7 @@ void main() {
           content,
           contains('Future<void> ensureFresh() => _query.ensureFresh();'),
         );
+        expect(content, contains('Future<void> reload() => _query.reload();'));
         expect(content, contains("import '../models/monitor.dart';"));
         expect(
           content,
@@ -245,6 +246,30 @@ void main() {
           "import 'package:fixture_app/app/controllers/monitor_controller.dart';",
         ),
       );
+    });
+
+    test('--test propagates a refused test write as exit 1', () async {
+      File(
+        p.join(projectRoot.path, 'pubspec.yaml'),
+      ).writeAsStringSync('name: fixture_app\n');
+      File(
+          p.join(
+            projectRoot.path,
+            'test',
+            'app',
+            'controllers',
+            'monitor_controller_test.dart',
+          ),
+        )
+        ..createSync(recursive: true)
+        ..writeAsStringSync('// hand-written\n');
+
+      final cmd = MakeControllerCommand(testRoot: projectRoot.path);
+      final code = await cmd.handle(
+        buildCommandContext(cmd, <String>['Monitor', '--test']),
+      );
+
+      expect(code, 1);
     });
 
     test('returns 1 when the name argument is missing', () async {

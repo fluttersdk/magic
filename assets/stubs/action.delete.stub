@@ -16,6 +16,7 @@ class {{ className }} extends MagicAction<{{ modelName }}, void> {
     final bool deleted = await {{ modelVariable }}.delete();
     if (!deleted) throw ActionRequestFailed('delete {{ modelIdInterpolation }}');
 
-    {{ repositoryName }}.instance.evict({{ modelVariable }}.id);
+    // The repository keys rows by the id's string form, whatever its type.
+    {{ repositoryName }}.instance.evict('{{ modelIdInterpolation }}');
   }
 }

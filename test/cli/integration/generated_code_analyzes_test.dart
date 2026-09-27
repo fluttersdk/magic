@@ -34,7 +34,7 @@ import '../commands/_harness.dart';
 /// `test/cli/docs_generator_count_test.dart`'s `_repoRoot`), which is also
 /// where [MagicStubLoader] resolves `assets/stubs/` from via
 /// `.dart_tool/package_config.json`'s self-referencing `magic` entry. That
-/// resolution is untouched by the generators writing into [_ProbeProject] —
+/// resolution is untouched by the generators writing into [_ProbeProject];
 /// only their OUTPUT path is redirected there via each command's `testRoot`.
 String get _magicRoot => Directory.current.path;
 
@@ -140,8 +140,8 @@ void _seedEnglishLangFile(String root) {
 /// [root]: `make:resource` composes its own CRUD vertical (with its own
 /// chained tests); the standalone `Probe` model plus one source file per
 /// `TestKind` gives every `make:test --kind=<kind>` call a real class to
-/// import (see the briefing's Notes — a kind with no matching source would
-/// otherwise fail the analyzer on a missing import, not a generator defect).
+/// import: a kind with no matching source would otherwise fail the analyzer
+/// on a missing import, which is not a generator defect.
 Future<void> _generateEverything(String root) async {
   // 1. The composed CRUD vertical.
   await _run(MakeResourceCommand(testRoot: root), <String>['Monitor']);

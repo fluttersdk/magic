@@ -23,7 +23,7 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
   /// can consume it without re-reading the [ArtisanContext.input].
   String? _eventOption;
 
-  /// Optional project root override — injected in tests to avoid touching the
+  /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
@@ -83,7 +83,7 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
     final eventSnakeName = StringHelper.toSnakeCase(eventClass);
 
     // 2. When no custom event class is given, strip the local import line
-    //    entirely — MagicEvent is already exported by the framework package.
+    //    entirely; MagicEvent is already exported by the framework package.
     final eventImportLine = eventClass == 'MagicEvent'
         ? ''
         : "import '../events/$eventSnakeName.dart';";

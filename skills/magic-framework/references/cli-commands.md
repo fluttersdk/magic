@@ -234,7 +234,7 @@ class MonitorController extends MagicController implements SessionScoped {
 }
 ```
 
-**Resource controller stub** (with `--resource`): owns a `RepositoryQuery<Monitor>` over `MonitorRepository.instance`, exposes `items`, starts the first read from `onInit()`, disposes the query from `onClose()`, and `resetForSession()` resets the repository and reloads the query.
+**Resource controller stub** (with `--resource`): owns a `RepositoryQuery<Monitor>` over `MonitorRepository.instance`, exposes `items`, `ensureFresh()` and `reload()`, starts the first read from `onInit()`, disposes the query from `onClose()`, and `resetForSession()` resets the repository and reloads the query.
 
 ### `dart run magic:artisan make:view`
 
@@ -617,7 +617,7 @@ flutter:
 
 ### `dart run magic:artisan make:component`
 
-Scaffolds an atomic 4-file component folder under `lib/ui/components/<name>/`.
+Scaffolds an atomic component folder under `lib/ui/components/<name>/`, plus its widget test at `test/ui/components/<name>/<name>_test.dart` (the barrel imported with a prefix, so a name like `Badge` stays unambiguous).
 
 ```bash
 dart run magic:artisan make:component Avatar
@@ -625,7 +625,7 @@ dart run magic:artisan make:component Avatar --variants=intent,size
 dart run magic:artisan make:component Panel --slots
 ```
 
-**Output** (for `Avatar`): `lib/ui/components/avatar/avatar.dart` (`class Avatar`, unprefixed PascalCase), `avatar.recipe.dart` (a `WindRecipe`, or a `WindSlotRecipe` under `--slots`, seeded with the requested `--variants` axes), `avatar.preview.dart` (a single public `AvatarPreview` matrix), and `index.dart` (re-exports the component + recipe, NOT the preview).
+**Output** (for `Avatar`): `lib/ui/components/avatar/avatar.dart` (`class Avatar`, unprefixed PascalCase), `avatar.recipe.dart` (a `WindRecipe`, or a `WindSlotRecipe` under `--slots`, seeded with the requested `--variants` axes), `index.dart` (re-exports the component + recipe, NOT the preview), and conditionally `avatar.preview.dart` (a single public `AvatarPreview` matrix).
 
 The preview file (`avatar.preview.dart`) and the chained `previews:refresh` are only scaffolded when the target project already maintains a preview catalogue: any `*.preview.dart` file or a `_previews.g.dart` index anywhere under `lib/`. `--preview`/`--no-preview` override the auto-detection in either direction.
 
@@ -672,11 +672,13 @@ dart run magic:artisan make:action Monitors/PauseMonitor --test       # + matchi
 | `--model=Name` | The model this action writes; required alongside `--kind` |
 | `--test` | Also scaffold `test/app/actions/<name>_test.dart` |
 
+The kinds: `create` fills and saves a new model; `update` takes `({String id, Map<String, dynamic> fields})`, saves, and writes the row into `<Model>Repository` via `upsertFromShow`; `delete` deletes and evicts the row. A refused save throws `ActionRequestFailed.refusalOf(...)`.
+
 **Output**: `lib/app/actions/pause_monitor.dart`
 
 ### `dart run magic:artisan make:form`
 
-Creates a `MagicFormObject` subclass in `lib/app/forms/`. The `FormObject` suffix is deliberate: apps already name form widgets `<Resource>Form`, so the object backing one needs a distinct name. `--resource=<Model>` scaffolds the full create/edit contract instead of the plain skeleton: an `editing` field, `initial` seeded from `editing?.toArray()`, `request` choosing between the model's Store/Update requests, and `persist` running the matching Create/Update action.
+Creates a `MagicFormObject` subclass in `lib/app/forms/`. The `FormObject` suffix is deliberate: apps already name form widgets `<Resource>Form`, so the object backing one needs a distinct name. `--resource=<Model>` scaffolds the full create/edit contract instead of the plain skeleton: an `editing` field, `initial` seeded from `editing?.toArray()`, `request` choosing between the model's Store/Update requests, and `persist` running the matching Create/Update action. A create then calls `<Model>Controller.instance.reload()`, so the form expects the `--resource` controller `make:resource` writes beside it.
 
 ```bash
 dart run magic:artisan make:form Monitor                          # → MonitorFormObject

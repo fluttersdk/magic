@@ -28,7 +28,7 @@ import 'make_test_command.dart';
 /// The `Controller` suffix is appended automatically when omitted.
 class MakeControllerCommand extends ArtisanGeneratorCommand
     with CreatesMatchingTest {
-  /// Optional test root override — enables isolation in unit tests.
+  /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Captures the parsed flags at [handle] time so [getStub] and
@@ -106,7 +106,7 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
 
   /// Provides the placeholder replacements the controller stubs need beyond
   /// `{{ className }}` (already handled by the base class): the class
-  /// header, the class body, and — for `--resource` — the model's class
+  /// header, the class body, and (for `--resource`) the model's class
   /// name and its two relative imports.
   ///
   /// [name] is the BASE name without the `Controller` suffix, matching what
@@ -170,7 +170,7 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
     }
 
     // 5. Build stub content using the BASE name so {{ className }} resolves
-    //    correctly — the stub appends "Controller" to the placeholder itself.
+    //    correctly; the stub appends "Controller" to the placeholder itself.
     final content = buildClass(baseName);
     FileHelper.writeFile(filePath, content);
 
@@ -179,7 +179,7 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
     // 6. Chain make:test when --test was passed, mirroring this class's own
     //    (possibly nested) name.
     if (ctx.input.hasOption('test')) {
-      await createMatchingTest(ctx, TestKind.controller, rawName);
+      return createMatchingTest(ctx, TestKind.controller, rawName);
     }
 
     return 0;
@@ -194,8 +194,8 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
 
   /// Builds the `extends ... [with ...] implements SessionScoped` clause.
   ///
-  /// Mixins are selected in a FIXED order — never the order flags were
-  /// passed — so any combination of `--actions`/`--broadcasts`/`--timers`/
+  /// Mixins are selected in a FIXED order, never the order flags were
+  /// passed, so any combination of `--actions`/`--broadcasts`/`--timers`/
   /// `--validates` produces one stable header. `ValidatesRequests` must
   /// precede `CollapsesIndexedErrorKeys` in the `with` list, since the
   /// latter is constrained `on ValidatesRequests`.
@@ -264,6 +264,10 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
   /// The read a newly mounted view should ask for: joins the initial load
   /// while in flight, refetches once it has settled.
   Future<void> ensureFresh() => _query.ensureFresh();
+
+  /// Re-reads the first page, for a write that adds a row the current
+  /// cursor has no place for (a create).
+  Future<void> reload() => _query.reload();
 
   /// Releases the query before the mixins clean up what they own.
   @override

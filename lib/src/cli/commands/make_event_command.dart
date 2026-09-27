@@ -18,7 +18,7 @@ import '../helpers/magic_stub_loader.dart';
 /// Creates a file in `lib/app/events/` with a dispatchable event class
 /// that extends `MagicEvent`.
 class MakeEventCommand extends ArtisanGeneratorCommand {
-  /// Optional project root override — injected in tests to avoid touching the
+  /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 

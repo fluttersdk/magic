@@ -104,10 +104,9 @@ class MakeActionCommand extends ArtisanGeneratorCommand
     final int code = await super.handle(ctx);
     if (code != 0 || !ctx.input.hasOption('test')) return code;
 
-    // 4. Chain the matching test onto a successful write. The default action
-    //    test stub calls `.handle(null)`, which only compiles for the
-    //    untyped default action; combined with --kind it still writes that
-    //    default test (see wave-1 wisdom in the plan briefing).
+    // 4. Chain the matching test onto a successful write. The action test
+    //    stub only asserts the class resolves, so it compiles for every
+    //    --kind as well as the untyped default.
     final String name = ctx.input.argument(0)!;
     return createMatchingTest(ctx, TestKind.action, name);
   }
@@ -129,10 +128,14 @@ class MakeActionCommand extends ArtisanGeneratorCommand
       '{{ modelImport }}': "import '${prefix}models/$modelSnakeName.dart';",
     };
 
-    if (kind == 'delete') {
+    // The update and delete actions keep the repository cache current.
+    if (kind == 'update' || kind == 'delete') {
       replacements['{{ repositoryName }}'] = '${model}Repository';
       replacements['{{ repositoryImport }}'] =
           "import '${prefix}repositories/${modelSnakeName}_repository.dart';";
+    }
+
+    if (kind == 'delete') {
       replacements['{{ modelIdInterpolation }}'] = '\${$modelVariable.id}';
     }
 

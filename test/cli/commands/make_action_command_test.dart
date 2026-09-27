@@ -160,6 +160,14 @@ void main() {
         ),
       );
       expect(content, contains('await Monitor.find(input.id)'));
+      expect(
+        content,
+        contains("import '../../repositories/monitor_repository.dart';"),
+      );
+      expect(
+        content,
+        contains('MonitorRepository.instance.upsertFromShow(monitor)'),
+      );
       expect(content, contains('ActionRequestFailed.refusalOf('));
     });
 
@@ -202,7 +210,7 @@ void main() {
         );
         expect(
           content,
-          contains('MonitorRepository.instance.evict(monitor.id)'),
+          contains("MonitorRepository.instance.evict('\${monitor.id}')"),
         );
       },
     );

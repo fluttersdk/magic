@@ -1,6 +1,7 @@
 import 'package:magic/magic.dart';
 
 {{ modelImport }}
+{{ controllerImport }}
 {{ createActionImport }}
 {{ updateActionImport }}
 {{ storeRequestImport }}
@@ -12,7 +13,8 @@ import 'package:magic/magic.dart';
 /// [MagicFormObject]). [editing] decides the mode: a blank form creates
 /// through [Store{{ modelName }}Request] and `Create{{ modelName }}`, a form
 /// over a {{ modelVariable }} edits through [Update{{ modelName }}Request] and
-/// `Update{{ modelName }}`.
+/// `Update{{ modelName }}`. A create reloads the `--resource`
+/// [{{ modelName }}Controller] that `make:resource` writes beside it.
 class {{ className }} extends MagicFormObject {
   {{ className }}({this.editing});
 
@@ -34,12 +36,14 @@ class {{ className }} extends MagicFormObject {
 
     if (editing == null) {
       await MagicAction.resolve(Create{{ modelName }}.new).handle(validated);
+      // A new row has no place in the list's cursor yet, so re-read it.
+      await {{ modelName }}Controller.instance.reload();
       return true;
     }
 
     final {{ modelName }}? saved = await MagicAction.resolve(
       Update{{ modelName }}.new,
-    ).handle((id: editing.id, fields: validated));
+    ).handle((id: '${editing.id}', fields: validated));
 
     return saved != null;
   }

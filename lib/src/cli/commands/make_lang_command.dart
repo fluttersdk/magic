@@ -57,7 +57,7 @@ class MakeLangCommand extends ArtisanGeneratorCommand {
   /// Overrides to produce a `.json` path instead of the default `.dart`.
   ///
   /// The [name] is a language code (e.g., `tr`, `en`). The file is placed
-  /// directly inside [getDefaultNamespace] — no nested path support needed.
+  /// directly inside [getDefaultNamespace]; no nested path support needed.
   @override
   String getPath(String name) {
     final projectRoot = getProjectRoot();
@@ -66,7 +66,7 @@ class MakeLangCommand extends ArtisanGeneratorCommand {
     return '$projectRoot/$namespace/$name.json';
   }
 
-  /// No placeholder replacements — the lang stub is already valid JSON (`{}`).
+  /// No placeholder replacements; the lang stub is already valid JSON (`{}`).
   @override
   Map<String, String> getReplacements(String name) => const {};
 

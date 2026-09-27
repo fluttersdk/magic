@@ -8,9 +8,14 @@ The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic 
     - [install](#install)
     - [key:generate](#keygenerate)
 - [Make Commands](#make-commands)
+    - [make:resource](#makeresource)
     - [make:model](#makemodel)
     - [make:controller](#makecontroller)
     - [make:view](#makeview)
+    - [make:repository](#makerepository)
+    - [make:action](#makeaction)
+    - [make:form](#makeform)
+    - [make:test](#maketest)
     - [make:migration](#makemigration)
     - [make:seeder](#makeseeder)
     - [make:factory](#makefactory)
@@ -125,7 +130,41 @@ APP_KEY=base64:randomGeneratedKey...
 
 All `make:*` commands support the `--force` flag to overwrite existing files. Nested paths are supported via slash syntax (e.g., `Admin/Dashboard`), which creates subdirectories automatically.
 
-Commands that auto-append a suffix (Controller, View, Factory, Seeder, Policy, ServiceProvider, Request) handle duplicates gracefully — `make:controller UserController` will not produce `UserControllerController`.
+Commands that auto-append a suffix (Controller, View, Factory, Seeder, Policy, ServiceProvider, Request, Repository, FormObject) handle duplicates gracefully: `make:controller UserController` will not produce `UserControllerController`.
+
+`make:controller`, `make:view`, `make:repository`, `make:action`, `make:form` and `make:request` accept `--test`, which chains [make:test](#maketest) so the matching test lands in the same run. `--force` on the command forwards to the chained test, and a refused test write fails the command with exit 1.
+
+<a name="makeresource"></a>
+### make:resource
+
+Scaffolds a full CRUD vertical for one model, magic's analogue of Laravel's `make:model --all`:
+
+```bash
+dart run magic:artisan make:resource Monitor
+dart run magic:artisan make:resource Monitor --no-views
+dart run magic:artisan make:resource Monitor --no-model
+dart run magic:artisan make:resource Monitor --force
+```
+
+For `Monitor` it writes, each through its own generator:
+
+- the model and its factory (kept when they already exist)
+- `MonitorRepository`
+- the `CreateMonitor`, `UpdateMonitor` and `DeleteMonitor` actions under `lib/app/actions/monitors/`
+- `StoreMonitorRequest` and `UpdateMonitorRequest`
+- `MonitorFormObject` (the `--resource` form)
+- `MonitorController` (`--resource --actions`)
+- the `MonitorsListView` and `MonitorFormView` views
+- tests for the actions, the form and the controller
+
+The run is all-or-nothing: every target path is checked first, and any clash other than a kept model or factory fails the run with nothing written unless `--force` is passed. The index and create route lines are printed for your `RouteServiceProvider.boot()`; the command never edits it.
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--no-views` | Stop after the data and write layers (no views, no printed routes) |
+| `--no-model` | Leave the model and factory out |
 
 <a name="makemodel"></a>
 ### make:model
@@ -149,54 +188,159 @@ dart run magic:artisan make:model Order --all
 | `--factory` | `-f` | Create a model factory |
 | `--seeder` | `-s` | Create a database seeder |
 | `--policy` | `-p` | Create an authorization policy |
-| `--all` | `-a` | Create migration, seeder, factory, policy, and resource controller |
+| `--all` | `-a` | Create migration, seeder, factory, policy, repository, and resource controller |
 
 > [!NOTE]
-> The `-mcfsp` shorthand combines all five flags: migration, controller, factory, seeder, and policy. The `--all` flag does the same but also makes the controller a resource controller with CRUD methods.
+> The `-mcfsp` shorthand combines all five flags: migration, controller, factory, seeder, and policy. The `--all` flag also writes the model's repository and makes the controller a `--resource --model=<Model>` controller reading through it. For the write layer and views as well, use [make:resource](#makeresource).
+
+The model carries a static `fromMap(Map<String, dynamic>)` that hydrates it from raw API data. The command exits 1 when the model already exists and `--force` was not passed, without generating any companion.
 
 **Output:** `lib/app/models/<name>.dart`
 
 <a name="makecontroller"></a>
 ### make:controller
 
-Creates a controller class:
+Creates a `MagicController` with a `Magic.findOrPut` singleton accessor that implements `SessionScoped`:
 
 ```bash
 dart run magic:artisan make:controller User
 dart run magic:artisan make:controller UserController
 dart run magic:artisan make:controller Admin/Dashboard
 dart run magic:artisan make:controller Post --resource
-dart run magic:artisan make:controller Post --resource --model=Post
+dart run magic:artisan make:controller Post --resource --model=Post --actions
+dart run magic:artisan make:controller Uptime --broadcasts --timers --test
 ```
+
+A `--resource` controller owns the read state as one `RepositoryQuery` over `<Model>Repository`: it exposes `items`, `ensureFresh()` (for a view's `RefetchesOnMount`) and `reload()`, and its `resetForSession()` clears the repository and refetches. Writes belong on a `MagicAction`, not on the controller.
 
 #### Options
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--resource` | `-r` | Generate a resource controller with CRUD methods |
-| `--model` | `-m` | The model the controller applies to |
+| `--resource` | `-r` | Own a `RepositoryQuery` over the model's repository |
+| `--model` | `-m` | The model a `--resource` controller reads (defaults to the controller's own name) |
+| `--actions` | | Mix in `RunsActions` |
+| `--broadcasts` | | Mix in `ListensToBroadcasts`, with an empty `listeners` map |
+| `--timers` | | Mix in `OwnsTimers` |
+| `--validates` | | Mix in `ValidatesRequests` and `CollapsesIndexedErrorKeys` |
+| `--test` | | Also write the matching controller test |
+
+The mixins are always written in one fixed order, whatever order the flags were passed in.
 
 **Output:** `lib/app/controllers/<name>_controller.dart`
 
 <a name="makeview"></a>
 ### make:view
 
-Creates a view class:
+Creates a view class: a `StatelessWidget` by default, or a `MagicStatefulView<T>` bound to a controller:
 
 ```bash
 dart run magic:artisan make:view Login
 dart run magic:artisan make:view LoginView
 dart run magic:artisan make:view Auth/Register
 dart run magic:artisan make:view Dashboard --stateful
+dart run magic:artisan make:view Monitor --controller=Monitor
+dart run magic:artisan make:view Monitors/List --controller=Monitor --list --form=MonitorFormObject
 ```
 
 #### Options
 
 | Option | Description |
 |--------|-------------|
-| `--stateful` | Generate a stateful view with lifecycle hooks |
+| `--stateful` | Bind a `MagicStatefulView` to the controller derived from the view's name (`Dashboard` -> `DashboardController`), which has to exist |
+| `--controller` | Bind the view to this controller (suffix optional); implies `--stateful` |
+| `--list` | Add `RefetchesOnMount`; expects a `--resource` controller, which exposes `ensureFresh()` |
+| `--form` | Add a State-owned form object field (suffix optional), disposed in `onClose`; implies `--stateful` |
+| `--test` | Also write the matching view test |
 
 **Output:** `lib/resources/views/<name>_view.dart`
+
+<a name="makerepository"></a>
+### make:repository
+
+Creates a `Repository<T>` subclass with a static `instance`, the row cache every screen reading the model shares:
+
+```bash
+dart run magic:artisan make:repository Monitor
+dart run magic:artisan make:repository MonitorRepository --test
+```
+
+**Output:** `lib/app/repositories/<name>_repository.dart`
+
+<a name="makeaction"></a>
+### make:action
+
+Creates a `MagicAction`, the one place a write lives:
+
+```bash
+dart run magic:artisan make:action PauseMonitor
+dart run magic:artisan make:action Monitors/PauseMonitor --test
+dart run magic:artisan make:action Monitors/CreateMonitor --kind=create --model=Monitor
+dart run magic:artisan make:action Monitors/UpdateMonitor --kind=update --model=Monitor
+dart run magic:artisan make:action Monitors/DeleteMonitor --kind=delete --model=Monitor
+```
+
+Without `--kind` the action is an empty `handle()` skeleton. The write kinds:
+
+- `create` fills and saves a new model from a validated field map.
+- `update` takes `({String id, Map<String, dynamic> fields})`, saves the edit and writes it into `<Model>Repository`, answering null when the id no longer resolves.
+- `delete` deletes the model and evicts it from `<Model>Repository`.
+
+A refused save throws `ActionRequestFailed` (a `ValidationException` when the model carries field errors).
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--kind` | `create`, `update` or `delete`; requires `--model` |
+| `--model` | The model the action writes |
+| `--test` | Also write the matching action test |
+
+**Output:** `lib/app/actions/<name>.dart`
+
+<a name="makeform"></a>
+### make:form
+
+Creates a `MagicFormObject` (the `FormObject` suffix is appended; form widgets keep the `Form` name):
+
+```bash
+dart run magic:artisan make:form Monitor
+dart run magic:artisan make:form Monitor --request=StoreMonitorRequest
+dart run magic:artisan make:form Monitor --resource=Monitor
+```
+
+`--resource=<Model>` writes the full create/edit contract: an `editing` field, `initial` seeded from `editing?.toArray()`, a `request` choosing the Store or Update request, and a `persist` running `Create<Model>` or `Update<Model>`. After a create it reloads the `--resource` `<Model>Controller`, so it expects the controller [make:resource](#makeresource) writes beside it.
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--request` | The `FormRequest` class the form validates against |
+| `--resource` | The model the form creates and edits |
+| `--test` | Also write the matching form test |
+
+**Output:** `lib/app/forms/<name>_form_object.dart`
+
+<a name="maketest"></a>
+### make:test
+
+Creates a test skeleton mirroring where another generator writes its class, from `lib/` to `test/`:
+
+```bash
+dart run magic:artisan make:test Monitor --kind=controller
+dart run magic:artisan make:test Monitors/PauseMonitor --kind=action
+dart run magic:artisan make:test Monitor --kind=repository --force
+```
+
+The test imports the class as `package:<name>/...`, with `<name>` read from the project's `pubspec.yaml`.
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--kind` | `controller`, `action`, `form`, `repository`, `request`, `view` or `unit` |
+
+**Output:** for example `test/app/controllers/<name>_controller_test.dart`
 
 <a name="makemigration"></a>
 ### make:migration
@@ -296,7 +440,10 @@ Creates a string-backed enum with `fromValue()` factory and `selectOptions` gett
 ```bash
 dart run magic:artisan make:enum MonitorType
 dart run magic:artisan make:enum Status/OrderStatus
+dart run magic:artisan make:enum IncidentSeverity --wire
 ```
+
+`--wire` writes an enum mirroring a backend string value instead: an `unknown` fallback case, a `fromWire()` factory that never throws on an unrecognised value, and a `trans()`-backed `label` getter.
 
 **Output:** `lib/app/enums/<name>.dart`
 
@@ -334,11 +481,11 @@ dart run magic:artisan make:listener Auth/RestoreSession
 <a name="makerequest"></a>
 ### make:request
 
-Creates a form request class with a typed `rules()` method for request validation:
+Creates a `FormRequest` subclass with a `const` constructor and a `rules()` override, which `MagicFormObject.request` and `ValidatesRequests.validateRequest` both accept:
 
 ```bash
 dart run magic:artisan make:request StoreMonitor
-dart run magic:artisan make:request StoreMonitorRequest
+dart run magic:artisan make:request StoreMonitorRequest --test
 ```
 
 The `Request` suffix is appended automatically when omitted.
@@ -353,35 +500,40 @@ Creates a language JSON file:
 ```bash
 dart run magic:artisan make:lang tr
 dart run magic:artisan make:lang es
-dart run magic:artisan make:lang de
+dart run magic:artisan make:lang de --from=tr
 ```
+
+`--from=<locale>` (default `en`) copies that file's key tree with each value verbatim, a complete catalogue for a translator; when it does not exist the new file is `{}`.
 
 **Output:** `assets/lang/<locale>.json`
 
 <a name="makecomponent"></a>
 ### make:component
 
-Scaffolds an atomic 4-file component folder under `lib/ui/components/<name>/`:
+Scaffolds an atomic component folder under `lib/ui/components/<name>/`, plus its widget test:
 
 ```bash
 dart run magic:artisan make:component Avatar
 dart run magic:artisan make:component Avatar --variants=intent,size
 dart run magic:artisan make:component Panel --slots
+dart run magic:artisan make:component Badge --no-preview
 ```
 
 **Output** (for `Avatar`):
 
 - `lib/ui/components/avatar/avatar.dart` (`class Avatar`, unprefixed PascalCase)
 - `lib/ui/components/avatar/avatar.recipe.dart` (a `WindRecipe`, or a `WindSlotRecipe` under `--slots`, seeded with the requested `--variants` axes)
-- `lib/ui/components/avatar/avatar.preview.dart` (a single public `AvatarPreview` matrix)
 - `lib/ui/components/avatar/index.dart` (re-exports the component + recipe, NOT the preview)
+- `test/ui/components/avatar/avatar_test.dart` (imports the barrel with a prefix, so a name like `Badge` stays unambiguous)
+- `lib/ui/components/avatar/avatar.preview.dart` (a single public `AvatarPreview` matrix), only when the project already keeps a preview catalogue
 
-After scaffolding, `make:component` chains `previews:refresh` so the new preview lands in `_previews.g.dart` automatically.
+The preview file, and the chained `previews:refresh` that lands it in `_previews.g.dart`, are written only when the project already has a `*.preview.dart` file or a `_previews.g.dart` index under `lib/`. `--preview` or `--no-preview` overrides that detection.
 
 #### Options
 
 - `--variants=a,b`: seed the named variant axes into the recipe (values left empty to fill in).
 - `--slots`: scaffold a multi-part `WindSlotRecipe` instead of a single-element `WindRecipe`.
+- `--preview` / `--no-preview`: force the preview file on or off.
 - `--force`: overwrite an existing component.
 
 <a name="previewsrefresh"></a>

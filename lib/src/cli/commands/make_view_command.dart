@@ -29,7 +29,7 @@ typedef _SuffixedName = ({String className, String directory});
 /// a controller made with `make:controller --resource`, which exposes the
 /// `ensureFresh()` method [RefetchesOnMount] calls.
 class MakeViewCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
-  /// Optional test root override — enables isolation in unit tests.
+  /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Captures the parsed `--stateful` flag at [handle] time so [getStub] can
@@ -193,7 +193,7 @@ class MakeViewCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
     }
 
     // 5. Build stub content using the BASE name so {{ className }} resolves
-    //    correctly — the stub appends "View" to the placeholder itself.
+    //    correctly; the stub appends "View" to the placeholder itself.
     final content = buildClass(baseName);
     FileHelper.writeFile(filePath, content);
 

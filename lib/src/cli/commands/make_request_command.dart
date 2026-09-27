@@ -19,7 +19,7 @@ import 'package:path/path.dart' as path;
 /// ```
 class MakeRequestCommand extends ArtisanGeneratorCommand
     with CreatesMatchingTest {
-  /// Optional project root override — injected in tests to avoid touching the
+  /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 

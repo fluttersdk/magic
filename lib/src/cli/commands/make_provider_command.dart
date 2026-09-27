@@ -19,7 +19,7 @@ import '../helpers/magic_stub_loader.dart';
 ///
 /// Creates a file in `lib/app/providers/` with `register()` and `boot()` stubs.
 class MakeProviderCommand extends ArtisanGeneratorCommand {
-  /// Optional project root override — injected in tests to avoid touching the
+  /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 

@@ -75,7 +75,7 @@ class _KindSpec {
 /// where `<name>` is read from the target project's own `pubspec.yaml`
 /// (relative `../lib/` imports would trip `avoid_relative_lib_imports`).
 class MakeTestCommand extends ArtisanGeneratorCommand {
-  /// Optional test root override — enables isolation in unit tests.
+  /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Creates a [MakeTestCommand].

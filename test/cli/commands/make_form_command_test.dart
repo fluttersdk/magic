@@ -181,6 +181,12 @@ void main() {
             "import '../validation/requests/update_monitor_request.dart';",
           ),
         );
+        expect(
+          content,
+          contains("import '../controllers/monitor_controller.dart';"),
+        );
+        expect(content, contains('await MonitorController.instance.reload();'));
+        expect(content, contains("(id: '\${editing.id}', fields: validated)"));
         expect(content, contains('final Monitor? editing;'));
         expect(
           content,

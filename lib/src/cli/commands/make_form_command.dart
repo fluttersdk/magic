@@ -176,6 +176,8 @@ class MakeFormCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
       '{{ modelName }}': resource,
       '{{ modelVariable }}': modelVariable,
       '{{ modelImport }}': "import '${prefix}models/$modelSnakeName.dart';",
+      '{{ controllerImport }}':
+          "import '${prefix}controllers/${modelSnakeName}_controller.dart';",
       '{{ createActionImport }}':
           "import '${prefix}actions/$pluralSnakeName/create_$modelSnakeName.dart';",
       '{{ updateActionImport }}':
