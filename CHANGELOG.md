@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.22] - 2026-09-27
+
 ### BREAKING
 
 - **`Min` and `Max` read a numeric string as a number when the field also carries `Numeric` or `Integer`.** Form input is always a string, and both rules used to measure it by length whatever the field was: `[Numeric(), Max(100)]` accepted `"500"` (three characters) and `[Integer(), Min(3)]` refused `"12"`. Both now compare the value, as Laravel's `getSize` does beside a numeric rule. A field without `Numeric` or `Integer` is unchanged and still measured by length, so `[Min(8)]` on a password is unaffected. A direct `passes()` call, with no rule list to read, also sizes a string by length. (`lib/src/validation/contracts/size_rule.dart`, `lib/src/validation/rules/min.dart`, `lib/src/validation/rules/max.dart`, `lib/src/validation/validator.dart`, `lib/src/validation/form_validator.dart`, `doc/digging-deeper/validation.md`)
@@ -46,6 +48,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **The `fluttersdk_wind` floor moves `^1.6.4` to `^1.7.0`.** The old range already admitted 1.7.0, so a fresh `pub get` resolves nothing differently; what changes is that the floor names the release this package is verified against. 1.7.0 only adds `contrastRatio` and `contrastForeground`, which magic re-exports and does not call. (`pubspec.yaml`)
+- **`magic:install --with-devtools` writes `magic_devtools: ^0.0.7`, up from `^0.0.6`.** 0.0.7 re-pins devtools to this batch (magic 0.0.22, dusk 0.0.16, wind 1.7.0). The installer's constant, `install.yaml`'s printed message and `doc/packages/magic-devtools.md` move together, held by the parity test. (`lib/src/cli/commands/magic_install_command.dart`, `install.yaml`, `doc/packages/magic-devtools.md`)
 - **A factory fills its models unguarded, as Laravel's does.** `make()` and `create()` used to run `fill()` under the model's `fillable` list, so `id`, `last_status` and every other key the model does not mass-assign silently vanished, and a factory could not build a model the way the API returns it. Only the `fill()` is unguarded; `create()` saves with the guard back on. `make()` leaves `exists` false and every attribute dirty. `create()` now sends every definition key, including `id` and timestamps, to the persistence layer (`Http.store` / `QueryBuilder.insert`), and throws a `StateError` naming the model type when `save()` refuses the model (any result other than `true`), including the model's `validationErrors` when it exposes them. (`lib/src/database/seeding/factory.dart`)
 
 ### Fixed
