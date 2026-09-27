@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
-import 'package:{{ packageName }}/ui/components/{{ snakeName }}/index.dart';
+// Prefixed: a component may share its name with a Material widget (Badge,
+// Card, Chip), and an unprefixed import would make every use ambiguous.
+import 'package:{{ packageName }}/ui/components/{{ snakeName }}/index.dart'
+    as component;
 
-/// Widget test for [{{ className }}], scaffolded by `make:component`.
+/// Widget test for [component.{{ className }}], scaffolded by `make:component`.
 void main() {
   /// Wraps [widget] in a [MaterialApp] with a default [WindTheme] so
   /// W-widgets can resolve Wind styles without a running Magic app.
@@ -15,7 +18,7 @@ void main() {
 
   testWidgets('{{ className }} renders its child', (tester) async {
     await tester.pumpWidget(
-      wrap({{ className }}(child: const Text('{{ className }}'))),
+      wrap(component.{{ className }}(child: const Text('{{ className }}'))),
     );
 
     expect(find.text('{{ className }}'), findsOneWidget);
@@ -25,7 +28,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      wrap({{ className }}(child: const Text('{{ className }}'))),
+      wrap(component.{{ className }}(child: const Text('{{ className }}'))),
     );
 
     final divs = tester.widgetList<WDiv>(find.byType(WDiv));

@@ -37,3 +37,22 @@ jobs:
         with:
           files: coverage/lcov.info
           fail_ci_if_error: false
+
+  generated-code-analyzes:
+    name: Generated code analyzes
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run every make:* generator and analyze its output
+        run: flutter test --tags integration --run-skipped

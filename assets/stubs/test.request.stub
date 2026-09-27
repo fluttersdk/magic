@@ -5,7 +5,7 @@ import 'package:{{ packageName }}/{{ importPath }}';
 
 void main() {
   test('{{ className }}.rules() returns a rule map', () {
-    final {{ className }} request = {{ className }}(<String, dynamic>{});
+    const {{ className }} request = {{ className }}();
 
     expect(request.rules(), isA<Map<String, List<Rule>>>());
   });

@@ -44,7 +44,7 @@ Standard Flutter commands (`flutter test`, `dart analyze`, `dart format .`, `flu
 | `flutter test test/<module>` | Single module |
 | `dart pub publish --dry-run` | Pre-release validation |
 | `dart run <app>:artisan magic:install` | One-shot consumer bootstrap (hybrid installer) |
-| `dart run <app>:artisan make:model User -mcf` | Generators: 14 `make:*` + `key:generate` |
+| `dart run <app>:artisan make:model User -mcf` | Generators: 20 `make:*` + `key:generate` |
 
 Magic's CLI is an `fluttersdk_artisan` plugin (`MagicArtisanProvider`); a consumer runs it through its own artisan dispatcher (`dart run <app>:artisan <cmd>`), not as a global activate. There is no standalone magic executable beyond the artisan plugin surface.
 
@@ -67,7 +67,7 @@ lib/
     ├── http/                # MagicController, middleware pipeline, Kernel
     ├── concerns/            # ValidatesRequests mixin (import from here, NOT http/)
     ├── localization/  logging/  routing/  support/  validation/  ui/
-    └── cli/                 # magic:install + 14 make:* generators on fluttersdk_artisan
+    └── cli/                 # magic:install + 20 make:* generators on fluttersdk_artisan
 ```
 
 ## Testing rule that catches everyone
