@@ -236,6 +236,25 @@ void main() {
       expect(code, 1);
     });
 
+    test('returns 1 when pubspec.yaml carries no name', () async {
+      File(
+        p.join(projectRoot.path, 'pubspec.yaml'),
+      ).writeAsStringSync('description: nameless\n');
+
+      final cmd = MakeTestCommand(testRoot: projectRoot.path);
+      final parser = ArgParser();
+      cmd.configure(parser);
+      final input = ArgvInput.parse(parser, <String>[
+        'Monitor',
+        '--kind=controller',
+      ]);
+      final output = BufferedOutput();
+      final code = await cmd.handle(ArtisanContext.bare(input, output));
+
+      expect(code, 1);
+      expect(output.content, contains('name'));
+    });
+
     test('returns 1 and lists the kinds when --kind is unknown', () async {
       final cmd = MakeTestCommand(testRoot: projectRoot.path);
       final parser = ArgParser();

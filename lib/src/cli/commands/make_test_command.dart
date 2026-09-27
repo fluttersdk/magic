@@ -189,7 +189,11 @@ class MakeTestCommand extends ArtisanGeneratorCommand {
       ctx.output.error('pubspec.yaml not found at $pubspecPath');
       return 1;
     }
-    final packageName = FileHelper.readYamlFile(pubspecPath)['name'] as String;
+    final Object? packageName = FileHelper.readYamlFile(pubspecPath)['name'];
+    if (packageName is! String || packageName.isEmpty) {
+      ctx.output.error('pubspec.yaml at $pubspecPath declares no package name');
+      return 1;
+    }
 
     // 4. Resolve the output path and class name for this kind.
     final spec = _specs[kind]!;

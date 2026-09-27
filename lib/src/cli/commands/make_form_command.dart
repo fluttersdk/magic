@@ -9,7 +9,7 @@ import 'make_test_command.dart';
 ///
 /// Scaffolds a new [MagicFormObject] subclass inside `lib/app/forms/`. The
 /// `FormObject` suffix is deliberate: apps already name form WIDGETS
-/// `<Resource>Form` (uptizm's `MonitorForm` among them), so the object that
+/// `<Resource>Form` (a `MonitorForm` widget, say), so the object that
 /// backs one needs a distinct name.
 ///
 /// `--resource=<Model>` scaffolds the full create/edit contract instead of
