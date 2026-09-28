@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
+
 import 'magic_event.dart';
 import 'magic_listener.dart';
 import '../facades/log.dart';
+import '../perf/magic_perf_hooks.dart';
 
 /// The Event Dispatcher.
 ///
@@ -98,6 +101,26 @@ class EventDispatcher {
   /// listeners above, isolated the same way: a throwing wildcard callback is
   /// logged and does not stop the remaining wildcard callbacks or the caller.
   Future<void> dispatch(MagicEvent event) async {
+    if (MagicPerfHooks.sink == null) return _deliver(event);
+
+    final int startUs = FlutterTimeline.now;
+    final int listenerCount =
+        (_listeners[event.runtimeType]?.length ?? 0) +
+        _wildcardListeners.length;
+    await _deliver(event);
+    if (MagicPerfHooks.sink != null) {
+      MagicPerfHooks.emit(
+        EventDispatched(
+          event.runtimeType,
+          listenerCount,
+          startUs,
+          FlutterTimeline.now,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deliver(MagicEvent event) async {
     final eventType = event.runtimeType;
     final listeners = _listeners[eventType];
 

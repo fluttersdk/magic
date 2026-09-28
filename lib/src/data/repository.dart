@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../database/eloquent/model.dart';
 import '../facades/http.dart';
 import '../network/magic_response.dart';
+import '../perf/magic_perf_hooks.dart';
 import '../session/session_scope.dart';
 import '../session/session_scoped.dart';
 
@@ -107,6 +108,9 @@ abstract class Repository<T extends Model> extends ChangeNotifier
       _rows[key] = row;
     }
 
+    if (MagicPerfHooks.sink != null) {
+      MagicPerfHooks.emit(RepositoryUpserted(T, rows.length));
+    }
     _notify();
   }
 
@@ -115,6 +119,9 @@ abstract class Repository<T extends Model> extends ChangeNotifier
   /// so nothing needs carrying forward here.
   void upsertFromShow(T row) {
     _rows['${row.id}'] = row;
+    if (MagicPerfHooks.sink != null) {
+      MagicPerfHooks.emit(RepositoryUpserted(T, 1));
+    }
     _notify();
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 
 import '../facades/echo.dart';
 import '../facades/log.dart';
+import '../perf/magic_perf_hooks.dart';
 import 'auth_channel_subscription.dart';
 import 'broadcast_event.dart';
 
@@ -256,21 +257,38 @@ class BroadcastListeners {
       final List<_ListenerEntry> entries = List<_ListenerEntry>.from(
         channel.entriesByEvent[event] ?? const <_ListenerEntry>[],
       );
-      for (final _ListenerEntry entry in entries) {
-        try {
-          entry.handler(broadcastEvent);
-        } catch (error, stackTrace) {
-          // One controller's handler must never take another's down with it:
-          // the channel is shared, so an uncaught throw here would escape
-          // into the driver's own dispatch and stop every later handler for
-          // this event from running.
-          Log.error(
-            '[BroadcastListeners] listener for "$event" on "${channel.alias}" '
-            'failed: $error\n$stackTrace',
-          );
-        }
+      if (MagicPerfHooks.sink == null) {
+        _dispatch(channel, event, entries, broadcastEvent);
+        return;
       }
+      MagicPerfHooks.emit(BroadcastReceived(event));
+      MagicPerfHooks.runWithCause(
+        MagicNotifyCause.broadcast,
+        () => _dispatch(channel, event, entries, broadcastEvent),
+      );
     };
+  }
+
+  static void _dispatch(
+    _AliasChannel channel,
+    String event,
+    List<_ListenerEntry> entries,
+    BroadcastEvent broadcastEvent,
+  ) {
+    for (final _ListenerEntry entry in entries) {
+      try {
+        entry.handler(broadcastEvent);
+      } catch (error, stackTrace) {
+        // One controller's handler must never take another's down with it:
+        // the channel is shared, so an uncaught throw here would escape
+        // into the driver's own dispatch and stop every later handler for
+        // this event from running.
+        Log.error(
+          '[BroadcastListeners] listener for "$event" on "${channel.alias}" '
+          'failed: $error\n$stackTrace',
+        );
+      }
+    }
   }
 
   static _AliasChannel _requireAlias(String alias) {

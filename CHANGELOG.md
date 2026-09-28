@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### BREAKING
+
+- **`MagicController.onRefreshUI` is removed; `MagicPerfHooks.sink` replaces it.** The single controller hook saw that a controller repainted but not why, and nothing else magic does at runtime. There is no alias: tooling that assigned `onRefreshUI` assigns `MagicPerfHooks.sink` and reads `ControllerNotified.controller` instead. A published `magic_devtools` that still assigns the old static does not compile against this release. (`lib/src/http/magic_controller.dart`, `lib/src/perf/magic_perf_hooks.dart`)
+
+### Added
+
+- **`MagicPerfHooks.sink`: one opt-in observer for controllers, repositories, queries, actions, events, casts, timers and broadcasts.** A sealed `MagicPerfEvent` hierarchy (`ControllerNotified`, `RepositoryUpserted`, `QueryReloaded`, `ActionRan`, `EventDispatched`, `AttributeCast`, `TimerTicked`, `BroadcastReceived`) carries `FlutterTimeline.now` microseconds where a span matters. `ControllerNotified.cause` names the outermost path the notification ran inside (`setState`, `repositoryQuery`, `timerTick`, `broadcast`, or `direct` when none), so a report can say a controller rebuilt because a timer ticked rather than only that it rebuilt. With no sink installed each site costs one null check and builds no event; a sink that throws is reported and ignored, never allowed to stop a repaint. (`lib/src/perf/magic_perf_hooks.dart`, `lib/src/http/magic_controller.dart`, `lib/src/support/countdown.dart`, `lib/src/support/poll.dart`, `lib/src/support/debouncer.dart`, `lib/src/broadcasting/broadcast_listeners.dart`, `lib/src/data/repository.dart`, `lib/src/data/repository_query.dart`, `lib/src/actions/runs_actions.dart`, `lib/src/events/event_dispatcher.dart`, `lib/src/database/eloquent/model.dart`, `doc/digging-deeper/perf-hooks.md`)
+- **`MagicRequest.id`, `MagicResponse.id` and `MagicError.id`: a per-request id that survives the interceptor bridge.** `DioNetworkDriver` stamps a process-unique id into `RequestOptions.extra` before any interceptor runs, and every `MagicRequest`, `MagicResponse` and `MagicError` it builds carries it. The bridge used to rebuild each response with no link to its request, so a consumer pairing concurrent requests could only assume FIFO completion, which a slow first request breaks. A hand-built or faked request or response answers `null`. (`lib/src/network/magic_response.dart`, `lib/src/network/drivers/dio_network_driver.dart`, `test/network/request_id_loopback_test.dart`)
+
 ## [0.0.23] - 2026-09-28
 
 ### BREAKING

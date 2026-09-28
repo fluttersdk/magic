@@ -355,16 +355,22 @@ void main() {
     });
   });
 
-  group('MagicController.onRefreshUI hook', () {
+  group('MagicPerfHooks.sink observing refreshUI', () {
+    late List<MagicController> notified;
+
+    setUp(() {
+      notified = <MagicController>[];
+      MagicPerfHooks.sink = (MagicPerfEvent event) {
+        if (event is ControllerNotified) notified.add(event.controller);
+      };
+    });
+
     tearDown(() {
-      // Restore the static so later tests never see a leaked hook.
-      MagicController.onRefreshUI = null;
+      // Restore the static so later tests never see a leaked sink.
+      MagicPerfHooks.sink = null;
     });
 
     test('fires once per notifyListeners, but not after dispose', () {
-      var hookCalls = 0;
-      MagicController.onRefreshUI = (controller) => hookCalls++;
-
       final controller = TestController();
       var listenerCalls = 0;
       controller.addListener(() => listenerCalls++);
@@ -372,27 +378,24 @@ void main() {
       controller.setState('a');
       controller.setState('b');
 
-      expect(hookCalls, equals(2));
+      expect(notified, hasLength(2));
       expect(listenerCalls, equals(2));
 
       controller.dispose();
       controller.refreshUI();
 
-      expect(hookCalls, equals(2));
+      expect(notified, hasLength(2));
     });
 
-    test('a validation notification fires the hook too', () {
+    test('a validation notification reaches the sink too', () {
       // ValidatesRequests is a mixin ON MagicController and used to call
       // notifyListeners() directly at five sites, so a controller that set
-      // validation errors repainted without the hook ever firing and a
+      // validation errors repainted without the seam ever firing and a
       // diagnostic built on it under-counted exactly the form-validation
       // rebuilds it was most likely to be pointed at. Routing those sites
       // through refreshUI() also put them behind the disposed guard, which
       // they never had: notifyListeners() on a disposed ChangeNotifier
       // throws.
-      var hookCalls = 0;
-      MagicController.onRefreshUI = (controller) => hookCalls++;
-
       final controller = _ValidatingController();
 
       expect(
@@ -406,29 +409,10 @@ void main() {
       );
 
       // Once to clear the previous errors, once to publish the new ones.
-      expect(hookCalls, equals(2));
+      expect(notified, hasLength(2));
 
       controller.clearErrors();
-      expect(hookCalls, equals(3));
-    });
-
-    test('a hook that throws does not stop the repaint', () {
-      // The hook is set by tooling outside this package and runs BEFORE
-      // notifyListeners(). Unguarded, a diagnostic bug would freeze the view
-      // for every later setSuccess and setError on that path. A broken
-      // observer costs its own numbers, never the app's frames.
-      MagicController.onRefreshUI = (_) =>
-          throw StateError('observer is broken');
-
-      final controller = TestController();
-      var listenerCalls = 0;
-      controller.addListener(() => listenerCalls++);
-
-      expect(() => controller.setState('a'), returnsNormally);
-      expect(listenerCalls, equals(1));
-
-      expect(() => controller.setState('b'), returnsNormally);
-      expect(listenerCalls, equals(2));
+      expect(notified, hasLength(3));
     });
   });
 

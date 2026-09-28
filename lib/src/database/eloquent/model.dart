@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../perf/magic_perf_hooks.dart';
 import '../../support/carbon.dart';
 import 'casts/casts_attributes.dart';
 import 'exceptions/mass_assignment_exception.dart';
@@ -185,6 +186,9 @@ abstract class Model {
     if (value == null) return null;
 
     if (castType is CastsAttributes) {
+      if (MagicPerfHooks.sink != null) {
+        MagicPerfHooks.emit(AttributeCast('${castType.runtimeType}'));
+      }
       return castType.get(this, key, value);
     }
 
@@ -212,6 +216,9 @@ abstract class Model {
       case 'bool':
       case 'int':
       case 'double':
+        if (MagicPerfHooks.sink != null) {
+          MagicPerfHooks.emit(AttributeCast(castType!));
+        }
         final computed = _applyBuiltInCast(castType!, value);
         // A cast that changed nothing is not worth a map entry, and storing
         // it would make every plain attribute pay for the cache.
@@ -219,6 +226,9 @@ abstract class Model {
         return computed;
       case 'json':
         // Cast on every read, cached never. See the note above.
+        if (MagicPerfHooks.sink != null) {
+          MagicPerfHooks.emit(AttributeCast('json'));
+        }
         return _applyBuiltInCast('json', value);
       default:
         return value;

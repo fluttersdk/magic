@@ -17,12 +17,19 @@ class MagicRequest {
   /// Query parameters.
   Map<String, dynamic>? queryParameters;
 
+  /// The id the driver stamped on this request, unique per process, and the
+  /// same value the [MagicResponse] or [MagicError] it produces carries.
+  /// Pairs concurrent requests with their answers regardless of completion
+  /// order. Null for a request no driver has sent (a hand-built one).
+  final int? id;
+
   MagicRequest({
     required this.url,
     this.method = 'GET',
     this.headers = const {},
     this.data,
     this.queryParameters,
+    this.id,
   });
 }
 
@@ -45,6 +52,9 @@ class MagicError {
   /// Is this a 401 Unauthorized error?
   bool get isUnauthorized => statusCode == 401;
 
+  /// The id of the request that failed; see [MagicRequest.id].
+  int? get id => request?.id ?? response?.id;
+
   MagicError({this.request, this.response, this.message});
 }
 
@@ -66,12 +76,17 @@ class MagicResponse {
   /// An optional message (useful for errors).
   final String? message;
 
+  /// The id of the request this answers; see [MagicRequest.id]. Null for a
+  /// response no driver produced (a fake, a hand-built one).
+  final int? id;
+
   /// Creates a new MagicResponse instance.
   MagicResponse({
     required this.data,
     required this.statusCode,
     this.headers = const {},
     this.message,
+    this.id,
   });
 
   /// Check if the response was successful (2xx status code).
