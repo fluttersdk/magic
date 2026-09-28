@@ -690,6 +690,85 @@ void main() {
       expect(guard.user<MockUser>()?.name, 'Fresh User');
     });
 
+    group('AuthRestored.changed', () {
+      // Every sync answer used to be dispatched as a change, and magic_starter
+      // answers each `AuthRestored` with `Magic.reload()`: a warm cold boot
+      // remounted the whole app about a second after it first rendered, for a
+      // user identical to the cached one, tearing down any open overlay.
+      late _RecordingListener<AuthRestored> restored;
+
+      final cachedAttributes = <String, dynamic>{
+        'id': 7,
+        'name': 'Cached User',
+        'current_team': {'id': 3, 'name': 'Acme'},
+        'all_teams': [
+          {'id': 3, 'name': 'Acme'},
+        ],
+      };
+
+      setUp(() {
+        Log.fake();
+        EventDispatcher.instance.clear();
+        restored = _RecordingListener<AuthRestored>();
+        EventDispatcher.instance.register(AuthRestored, [() => restored]);
+      });
+
+      tearDown(() {
+        EventDispatcher.instance.clear();
+      });
+
+      Future<void> restoreAnswering(
+        Map<String, dynamic> answer, {
+        Map<String, dynamic>? cached,
+      }) async {
+        Vault.fake({
+          'auth_token': 'stored-token',
+          'auth_user': ?(cached == null ? null : jsonEncode(cached)),
+        });
+        final gate = Completer<void>()..complete();
+        Magic.singleton(
+          'network',
+          () => _HeldDriver(gate, MagicResponse(data: answer, statusCode: 200)),
+        );
+
+        await _CacheFirstGuard().restore();
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      test('is false when the sync confirms the cached user', () async {
+        // Same values, built fresh and in a different key order, so neither
+        // identity nor a shallow map comparison can pass this.
+        await restoreAnswering({
+          'all_teams': [
+            {'name': 'Acme', 'id': 3},
+          ],
+          'current_team': {'name': 'Acme', 'id': 3},
+          'name': 'Cached User',
+          'id': 7,
+        }, cached: cachedAttributes);
+
+        expect(restored.received, hasLength(1));
+        expect(restored.received.single.changed, isFalse);
+      });
+
+      test('is true when a nested attribute moved', () async {
+        await restoreAnswering({
+          ...cachedAttributes,
+          'current_team': {'id': 3, 'name': 'Acme Renamed'},
+        }, cached: cachedAttributes);
+
+        expect(restored.received, hasLength(1));
+        expect(restored.received.single.changed, isTrue);
+      });
+
+      test('is true on a cold start with no cached user', () async {
+        await restoreAnswering(cachedAttributes);
+
+        expect(restored.received, hasLength(1));
+        expect(restored.received.single.changed, isTrue);
+      });
+    });
+
     group('when a sign-in lands while the boot sync is in the air', () {
       // `restore()` sets the cached user and fires the sync unawaited with the
       // token restored at boot. A sign-in can store a new token and set a new

@@ -468,6 +468,11 @@ abstract class BaseGuard implements Guard {
   /// session on the first refusal alone left a viewer holding a token the
   /// server had just refused, when the interceptor's own refresh-and-retry of
   /// this request was the thing refused.
+  ///
+  /// An applied 200 dispatches [AuthRestored] with `changed` false when the
+  /// answer serializes the same as the user held before it, so a listener
+  /// that remounts or refetches on it can skip a sync that only confirmed the
+  /// cache.
   Future<void> _syncUserFromApi({bool afterRotation = false}) async {
     if (userEndpoint == null || userFactory == null) {
       Log.debug(
@@ -527,6 +532,12 @@ abstract class BaseGuard implements Guard {
       final userData = extractUserData(response.data);
       if (userData != null) {
         final user = userFactory!(userData);
+
+        // Judged before [setUser] replaces the held user. The session checks
+        // above passed, so [_user] is still the one this sync was sent for.
+        final held = _user;
+        final changed = held == null || !_sameValue(held.toMap(), user.toMap());
+
         setUser(user);
         await cacheUser(user);
 
@@ -543,12 +554,39 @@ abstract class BaseGuard implements Guard {
         Log.info('Auth: User synced from API');
 
         // Dispatch updated event
-        await Event.dispatch(AuthRestored(user));
+        await Event.dispatch(AuthRestored(user, changed: changed));
       }
     } catch (e) {
       Log.error('Auth: Sync failed: $e');
       // Keep cached user if sync fails
     }
+  }
+
+  /// Deep structural equality over serialized attribute values: maps compare
+  /// by key set and per-key value regardless of order, lists element by
+  /// element, and anything else with `==`.
+  bool _sameValue(Object? a, Object? b) {
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+
+      for (final key in a.keys) {
+        if (!b.containsKey(key) || !_sameValue(a[key], b[key])) return false;
+      }
+
+      return true;
+    }
+
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+
+      for (var i = 0; i < a.length; i++) {
+        if (!_sameValue(a[i], b[i])) return false;
+      }
+
+      return true;
+    }
+
+    return a == b;
   }
 
   // ---------------------------------------------------------------------------

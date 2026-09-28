@@ -238,7 +238,7 @@ Magic fires several system events automatically.
 |-------|------------|
 | `AuthLogin` | A guard's `startSession` finishes: the token (when given) is persisted, the user is set and cached. Not fired on a restore. |
 | `AuthLogout` | A guard's `logout()` ends the in-memory session, guest logout included. Not a promise the credentials are gone: it fires even when a Vault delete failed, so a listener releasing server-side state must gate on `Auth.hasToken()`. |
-| `AuthRestored` | An API-confirmed sync (`BaseGuard`'s background `/user` fetch) sets the user; not fired for the cache-only step of `Auth.restore()`. |
+| `AuthRestored` | An API-confirmed sync (`BaseGuard`'s background `/user` fetch) sets the user; not fired for the cache-only step of `Auth.restore()`. `changed` is `false` when the sync only confirmed the user already held. |
 
 > [!NOTE]
 > `AuthFailed` is defined, not dispatched by the guards: no code path in `lib/` fires it automatically. Dispatch it yourself from a failed login flow, e.g. `Event.dispatch(AuthFailed(credentials, guard: 'web'));` in the `catch` branch around your `Auth.login()` call.
