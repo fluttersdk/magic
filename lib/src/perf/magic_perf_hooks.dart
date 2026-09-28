@@ -30,7 +30,10 @@ enum MagicNotifyCause {
 /// behind a `MagicPerfHooks.sink != null` check.
 sealed class MagicPerfEvent {
   MagicPerfEvent() {
-    debugEventsConstructed++;
+    assert(() {
+      debugEventsConstructed++;
+      return true;
+    }());
   }
 
   /// How many events have been constructed since the last reset; a test
