@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 import 'package:magic/src/events/event_dispatcher.dart' as magic_events;
@@ -10,6 +12,13 @@ import 'package:magic/src/events/event_dispatcher.dart' as magic_events;
 class _StateController extends MagicController with MagicStateMixin<String> {
   _StateController() {
     onInit();
+  }
+
+  /// A reload in the shape a real controller writes: the state moves only
+  /// after the awaited read.
+  Future<void> reload() async {
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    setSuccess('reloaded');
   }
 }
 
@@ -229,6 +238,115 @@ void main() {
       );
       expect(causesFor(controller), <MagicNotifyCause>[
         MagicNotifyCause.broadcast,
+      ]);
+    });
+
+    test('a Debouncer fn that awaits before its setSuccess still reports '
+        'timerTick', () async {
+      final _StateController controller = _StateController();
+
+      Debouncer().run('reload', const Duration(milliseconds: 10), () async {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        controller.setSuccess('a');
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      expect(causesFor(controller), <MagicNotifyCause>[
+        MagicNotifyCause.timerTick,
+      ]);
+    });
+
+    test(
+      'a Debouncer armed by a broadcast handler reports timerTick for the '
+      'reload it later fires: a root site replaces the inherited cause',
+      () async {
+        final FakeBroadcastManager echo = Echo.fake();
+        Log.fake();
+        addTearDown(() {
+          BroadcastListeners.reset();
+          Echo.unfake();
+          Log.unfake();
+        });
+        final _StateController controller = _StateController();
+        final Debouncer debouncer = Debouncer();
+        BroadcastListeners.channel('team', () => 'teams.1');
+        await BroadcastListeners.sync();
+        BroadcastListeners.add(
+          'team',
+          'check.recorded',
+          // Still running when the Debouncer fires, so the broadcast scope
+          // the timer was armed in is open: only a root site that replaces
+          // it reports timerTick.
+          (BroadcastEvent _) async {
+            debouncer.run(
+              'reload',
+              const Duration(milliseconds: 10),
+              controller.reload,
+            );
+            await Future<void>.delayed(const Duration(milliseconds: 40));
+          },
+        );
+
+        echo.dispatch(
+          'private-teams.1',
+          'check.recorded',
+          const <String, dynamic>{'id': '1'},
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+
+        expect(causesFor(controller), <MagicNotifyCause>[
+          MagicNotifyCause.timerTick,
+        ]);
+      },
+    );
+
+    test(
+      'an async broadcast handler reports broadcast after its await',
+      () async {
+        final FakeBroadcastManager echo = Echo.fake();
+        Log.fake();
+        addTearDown(() {
+          BroadcastListeners.reset();
+          Echo.unfake();
+          Log.unfake();
+        });
+        final _StateController controller = _StateController();
+        BroadcastListeners.channel('team', () => 'teams.1');
+        await BroadcastListeners.sync();
+        BroadcastListeners.add(
+          'team',
+          'check.recorded',
+          (BroadcastEvent _) => controller.reload(),
+        );
+
+        echo.dispatch(
+          'private-teams.1',
+          'check.recorded',
+          const <String, dynamic>{'id': '1'},
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        expect(causesFor(controller), <MagicNotifyCause>[
+          MagicNotifyCause.broadcast,
+        ]);
+      },
+    );
+
+    test('a stream subscription opened inside a cause reports direct for a '
+        'later delivery: the cause closes with the callback', () async {
+      final _StateController controller = _StateController();
+      final StreamController<int> source = StreamController<int>.broadcast();
+      addTearDown(source.close);
+
+      Debouncer().run('subscribe', const Duration(milliseconds: 5), () {
+        source.stream.listen((int _) => controller.refreshUI());
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      source.add(1);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(causesFor(controller), <MagicNotifyCause>[
+        MagicNotifyCause.direct,
       ]);
     });
 

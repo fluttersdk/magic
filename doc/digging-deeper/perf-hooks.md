@@ -52,17 +52,19 @@ MagicPerfHooks.sink = null;
 <a name="notification-causes"></a>
 ## Notification Causes
 
-`ControllerNotified.cause` is a `MagicNotifyCause`, read from a static "current cause" each instrumented path sets synchronously around the callback it invokes:
+`ControllerNotified.cause` is a `MagicNotifyCause`, carried by a zone value each instrumented path sets around the callback it invokes, so it follows that callback across its `await`s:
 
-| Cause | Set around |
-|---|---|
-| `setState` | `MagicStateMixin.setState`, so every `setSuccess`, `setError`, `setLoading`, `setEmpty` |
-| `repositoryQuery` | a `RepositoryQuery` notifying its listeners |
-| `timerTick` | a `Countdown` `onTick`, a `Debouncer` callback, a `Poll` read |
-| `broadcast` | a `BroadcastListeners` fan-out |
-| `direct` | nothing: the app called `refreshUI()` on its own |
+| Cause | Set around | Kind |
+|---|---|---|
+| `setState` | `MagicStateMixin.setState`, so every `setSuccess`, `setError`, `setLoading`, `setEmpty` | derived |
+| `repositoryQuery` | a `RepositoryQuery` notifying its listeners | derived |
+| `timerTick` | a `Countdown` `onTick`, a `Debouncer` callback, a `Poll` read | root |
+| `broadcast` | each `BroadcastListeners` handler for one realtime message | root |
+| `direct` | nothing: the app called `refreshUI()` on its own | |
 
-The outermost cause wins. A `setSuccess` called from a `Countdown.onTick` reports `timerTick`, because the tick is why the state moved. The cause is synchronous only: work that resumes after an `await` inside one of those callbacks runs outside it and reports whatever path it resumes in.
+A root cause replaces whatever it inherits, because a timer firing or a message arriving is where new work starts: a `Debouncer` armed inside a broadcast handler reports `timerTick` when it fires. A derived cause keeps an inherited one and applies only when there is none, so a `setSuccess` after an `await` inside a `Debouncer` callback still reports `timerTick`.
+
+A cause lasts until its callback returns, or until the `Future` it returns completes. A timer or stream subscription registered inside it runs in the same zone later, but reports `direct`: it is no longer part of the work that set the cause. A callback that starts async work without returning its `Future` (`() { reload(); }` rather than `reload`) closes the cause at once, and a `setSuccess` after its first `await` reports `setState`.
 
 <a name="pairing-http-requests"></a>
 ## Pairing HTTP Requests

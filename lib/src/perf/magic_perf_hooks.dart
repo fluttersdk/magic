@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../actions/action_outcome.dart';
@@ -48,8 +50,8 @@ final class ControllerNotified extends MagicPerfEvent {
 
   final MagicController controller;
 
-  /// The outermost instrumented path the notification ran inside; see
-  /// [MagicPerfHooks.runWithCause].
+  /// The instrumented path the notification ran inside; see
+  /// [MagicPerfHooks.runWithCause] and [MagicPerfHooks.runWithRootCause].
   final MagicNotifyCause cause;
 }
 
@@ -141,10 +143,18 @@ abstract final class MagicPerfHooks {
   /// Receives every [MagicPerfEvent] while set.
   static void Function(MagicPerfEvent event)? sink;
 
-  static MagicNotifyCause _currentCause = MagicNotifyCause.direct;
+  /// The zone value key a cause scope is stored under.
+  static final Object _causeKey = Object();
 
-  /// The cause a [ControllerNotified] built right now would carry.
-  static MagicNotifyCause get currentCause => _currentCause;
+  /// The cause a [ControllerNotified] built right now would carry: the cause
+  /// of the innermost open scope in the current zone, or
+  /// [MagicNotifyCause.direct] when there is none.
+  static MagicNotifyCause get currentCause {
+    final _CauseScope? scope = Zone.current[_causeKey] as _CauseScope?;
+    if (scope == null || scope.closed) return MagicNotifyCause.direct;
+
+    return scope.cause;
+  }
 
   /// Delivers [event] to [sink].
   ///
@@ -163,27 +173,72 @@ abstract final class MagicPerfHooks {
     }
   }
 
-  /// Runs [body] with [cause] as the [currentCause], restoring it after.
+  /// Runs [body] under the DERIVED [cause]: an open inherited cause is kept,
+  /// and [cause] applies only when there is none.
   ///
-  /// The OUTERMOST cause wins: a `setState` inside a timer tick reports
-  /// [MagicNotifyCause.timerTick], because the tick is why the state moved.
-  /// Call sites reach this only once they have seen a non-null [sink].
+  /// A `setState` inside a timer tick reports [MagicNotifyCause.timerTick],
+  /// because the tick is why the state moved. Call sites reach this only once
+  /// they have seen a non-null [sink].
   static R runWithCause<R>(MagicNotifyCause cause, R Function() body) {
-    if (_currentCause != MagicNotifyCause.direct) return body();
+    if (currentCause != MagicNotifyCause.direct) return body();
 
-    _currentCause = cause;
-    try {
-      return body();
-    } finally {
-      _currentCause = MagicNotifyCause.direct;
-    }
+    return _runInScope(cause, body);
+  }
+
+  /// Runs [body] under the ROOT [cause], replacing any inherited one.
+  ///
+  /// A root site is where work starts anew (a timer firing, a realtime
+  /// message arriving), so a [Debouncer] armed during a broadcast reports
+  /// [MagicNotifyCause.timerTick] when it fires, not the broadcast that armed
+  /// it. Call sites reach this only once they have seen a non-null [sink].
+  static R runWithRootCause<R>(MagicNotifyCause cause, R Function() body) {
+    return _runInScope(cause, body);
+  }
+
+  /// Runs [body] in a zone carrying a fresh [_CauseScope] for [cause], so the
+  /// cause follows [body] across its awaits.
+  ///
+  /// The scope closes when [body] returns, or when the Future it returns
+  /// completes. A timer or stream subscription registered inside the zone
+  /// keeps the zone for good, but a delivery after the close reads
+  /// [MagicNotifyCause.direct]: it is not part of the work that opened the
+  /// scope. A Future [body] returns is handed back chained through the close,
+  /// so its error still reaches whoever awaits it, or the zone when nobody
+  /// does, exactly once.
+  static R _runInScope<R>(MagicNotifyCause cause, R Function() body) {
+    final _CauseScope scope = _CauseScope(cause);
+
+    return runZoned<R>(() {
+      bool closesLater = false;
+      try {
+        final R result = body();
+        if (result is Future<Object?>) {
+          closesLater = true;
+          return result.whenComplete(scope.close) as R;
+        }
+        return result;
+      } finally {
+        if (!closesLater) scope.close();
+      }
+    }, zoneValues: <Object, Object>{_causeKey: scope});
   }
 
   /// Reports a tick of a timer owned by [ownerType] and runs [fire] under
-  /// [MagicNotifyCause.timerTick]. Call sites reach this only once they have
-  /// seen a non-null [sink].
+  /// the root cause [MagicNotifyCause.timerTick]. Call sites reach this only
+  /// once they have seen a non-null [sink].
   static R timerTick<R>(Type ownerType, R Function() fire) {
     emit(TimerTicked(ownerType));
-    return runWithCause(MagicNotifyCause.timerTick, fire);
+    return runWithRootCause(MagicNotifyCause.timerTick, fire);
   }
+}
+
+/// The zone value a cause scope stores: [cause] until [close] runs.
+final class _CauseScope {
+  _CauseScope(this.cause);
+
+  final MagicNotifyCause cause;
+
+  bool closed = false;
+
+  void close() => closed = true;
 }

@@ -262,22 +262,30 @@ class BroadcastListeners {
         return;
       }
       MagicPerfHooks.emit(BroadcastReceived(event));
-      MagicPerfHooks.runWithCause(
-        MagicNotifyCause.broadcast,
-        () => _dispatch(channel, event, entries, broadcastEvent),
-      );
+      _dispatch(channel, event, entries, broadcastEvent, observed: true);
     };
   }
 
+  /// Runs every handler in [entries]; when [observed], each under its own
+  /// root [MagicNotifyCause.broadcast] scope, so an async handler keeps the
+  /// cause until the Future it returns completes.
   static void _dispatch(
     _AliasChannel channel,
     String event,
     List<_ListenerEntry> entries,
-    BroadcastEvent broadcastEvent,
-  ) {
+    BroadcastEvent broadcastEvent, {
+    bool observed = false,
+  }) {
     for (final _ListenerEntry entry in entries) {
       try {
-        entry.handler(broadcastEvent);
+        if (observed) {
+          MagicPerfHooks.runWithRootCause(
+            MagicNotifyCause.broadcast,
+            () => entry.handler(broadcastEvent),
+          );
+        } else {
+          entry.handler(broadcastEvent);
+        }
       } catch (error, stackTrace) {
         // One controller's handler must never take another's down with it:
         // the channel is shared, so an uncaught throw here would escape

@@ -15,7 +15,7 @@ import 'casts_attributes.dart';
 ///
 /// class Monitor extends Model {
 ///   @override
-///   Map<String, dynamic> get casts => {
+///   Map<String, dynamic> get casts => const {
 ///     'statuses': ListCast(EnumCast(MonitorStatus.values)),
 ///   };
 /// }
