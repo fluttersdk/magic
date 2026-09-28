@@ -84,17 +84,17 @@ if (kDebugMode) MagicDuskIntegration.install();
 
 ## MagicPerfIntegration: the performance data path (0.0.4+)
 
-The one assembly point for performance diagnostics, because it is the only place dusk, telescope, wind and magic are visible at once. Dusk's frozen dependency contract forbids it from importing any of the packages whose data it reports, so it declares four function pointers with no-op defaults and someone else has to assign them. That someone is this class.
+The one assembly point for performance diagnostics, because it is the only place dusk, telescope, wind and magic are visible at once. Dusk's frozen dependency contract forbids it from importing any of the packages whose data it reports, so it declares function pointers with no-op defaults and someone else has to assign them. That someone is this class.
 
 `MagicDevtools.installPre()` installs it. There is nothing else to wire.
 
 | What it touches | Package | Why |
 |:----------------|:--------|:----|
-| `MagicController.onRefreshUI` | magic | Counts `refreshUI()` per controller runtime type, so a report can name which controller rebuilds the screen. |
+| `MagicPerfHooks.sink` | magic | Set only for an attribution session: counts notifies by controller and cause, query reloads, actions, event dispatches, casts, timer ticks and broadcasts, each linked to the dusk interaction open at the time. |
 | `MagicRouter.addObserver` | magic | A `NavigatorObserver` that times each route push to the first post-frame callback after the new route builds. Last 200 transitions retained. |
 | `Wind.installPerfResolver()` | wind | Arms `WindPerfCounters` (parse-path and class-cache counts). Counting stays OFF until a session begins. |
 | `TelescopePlugin.registerWatcher(FramePerfWatcher())` | telescope | Frame timings into telescope's frame buffer. |
-| `framePerfReader`, `perfExtrasReader`, `perfSessionBeginHook`, `perfSessionEndHook` | dusk | The four pointers dusk reads all of the above through. |
+| `framePerfReader`, `perfExtrasReader`, `perfSessionBeginHook`, `perfSessionEndHook`, `perfTimelineReader`, `perfInsightContributors` | dusk | The pointers dusk reads all of the above through: frames, magic counters, session start (with its mode) and end, the trace rows, and the wind and magic insight rules. |
 
 | API | Signature | Notes |
 |:----|:----------|:------|
