@@ -4,13 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-### Changed
-
-- **`ActionRequestFailed.message` reads the JSON body's `message` only.** It fell back to `MagicResponse.message`, which the driver writes itself: "The connection errored: ..." for a status 0 and a multi-line paragraph about `validateStatus` for a non-JSON error page (a 502 during a deploy), and both ended up in toasts. A caller that toasts `message ?? its own copy` now shows its own copy for either. `toString()` keeps the driver text for the log line. (`lib/src/actions/action_request_failed.dart`)
+## [0.0.25] - 2026-09-30
 
 ### Added
 
 - **`Model.lastRemoteResponse` and `ActionRequestFailed.isTransportFailure`: a refused ORM write can say it got no readable answer.** `save()` and `delete()` answer a bare `bool` and consumed their response, so a `false` from a 500 and a `false` from a request that got no readable answer (the driver's status 0) left the caller the same empty `validationErrors`, and uptizm told an operator whose connection had dropped to "check the form fields". Both writes now keep the response they received (`null` before one ran, when the driver threw, and after a `delete()` on a model that does not exist), `refusalOf` carries it as before, and `isTransportFailure` is true for status 0 only: no readable answer, which covers a failed or dropped connection, a timeout, a cross-origin error page and an undecodable 2xx, so the write may or may not have landed. The `make:action --kind` create, update and delete stubs pass `lastRemoteResponse`; an action generated before this change keeps refusing without it until edited. (`lib/src/database/eloquent/concerns/interacts_with_persistence.dart`, `lib/src/actions/action_request_failed.dart`, `assets/stubs/action.*.stub`, `doc/basics/actions.md`, `doc/eloquent/getting-started.md`, `skills/magic-framework/`)
+
+### Changed
+
+- **`ActionRequestFailed.message` reads the JSON body's `message` only.** It fell back to `MagicResponse.message`, which the driver writes itself: "The connection errored: ..." for a status 0 and a multi-line paragraph about `validateStatus` for a non-JSON error page (a 502 during a deploy), and both ended up in toasts. A caller that toasts `message ?? its own copy` now shows its own copy for either. `toString()` keeps the driver text for the log line. (`lib/src/actions/action_request_failed.dart`)
+
 
 ## [0.0.24] - 2026-09-29
 
