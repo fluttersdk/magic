@@ -6,6 +6,7 @@ Views extend `MagicView` or `MagicStatefulView` to give each screen a typed cont
 - [Creating Views](#creating-views)
     - [Stateless Views](#stateless-views)
     - [Stateful Views](#stateful-views)
+    - [Rebuilds While a Route Is Covered](#covered-routes)
 - [Form Handling](#form-handling)
 - [Rendering Async State](#rendering-async-state)
 - [Refetching Data on Mount](#refetching-on-mount)
@@ -128,6 +129,21 @@ class _LoginViewState extends MagicStatefulViewState<AuthController, LoginView> 
   }
 }
 ```
+
+<a name="covered-routes"></a>
+### Rebuilds While a Route Is Covered
+
+A `MagicStatefulViewState` rebuilds on every controller notification, except while nobody can see it. Flutter disables the tickers of content it does not paint: when an opaque route is pushed over the view (a detail page over a list), the `Overlay` disables them for everything underneath, and go_router does the same for an inactive `StatefulShellRoute` branch. The view reads that `TickerMode`, and while it is disabled a notification only marks the view as stale. When the route is uncovered, the view rebuilds once with the controller's current state, however many notifications arrived in between, and not at all when none did.
+
+A detail page that notifies its controller six times during a "check now" therefore no longer rebuilds the fifty-row list underneath six times; it rebuilds it once, as the detail page pops.
+
+A dialog, a bottom sheet or a popover is not opaque: the page under it stays painted, keeps its tickers and rebuilds on every notification as before. So does a view outside any `Navigator`.
+
+> [!WARNING]
+> The signal is the ticker mode, not visibility. If you wrap a painted view in `TickerMode(enabled: false)` to freeze its animations, its controller rebuilds freeze with them until the tickers are re-enabled.
+
+> [!NOTE]
+> Only the view's own rebuild is deferred. A `MagicSelector`, `MagicBuilder` or `ListenableBuilder` inside the view listens for itself and still rebuilds its own subtree while covered.
 
 <a name="form-handling"></a>
 ## Form Handling
