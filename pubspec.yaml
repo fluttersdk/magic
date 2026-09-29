@@ -1,6 +1,6 @@
 name: magic
 description: "A Laravel-inspired Flutter framework with Eloquent ORM, routing, and MVC architecture."
-version: 0.0.23
+version: 0.0.24
 homepage: https://magic.fluttersdk.com
 repository: https://github.com/fluttersdk/magic
 issue_tracker: https://github.com/fluttersdk/magic/issues
@@ -29,8 +29,9 @@ dependencies:
   # `bg-surface` alias an app actually paints its canvas with. On 1.6.0 that is
   # #FFFFFF over #F9FAFB in light and #111827 over #07090C in dark, on every
   # screen, and the dark one is not subtle. Nothing fails to compile below it,
-  # which is exactly why the floor has to say so.
-  fluttersdk_wind: ^1.7.0
+  # which is exactly why the floor has to say so. The 2026-09-29 batch moves
+  # it to 1.8.0, the release this version is verified against.
+  fluttersdk_wind: ^1.8.0
   meta: ^1.16.0
   more: ^4.7.0
   dio: ^5.9.0
@@ -56,7 +57,7 @@ dependencies:
   faker: ^2.2.0
   web_socket_channel: ^3.0.0
   yaml: ^3.1.3
-  fluttersdk_artisan: ^0.0.16
+  fluttersdk_artisan: ^0.0.17
   flutter_test:
     sdk: flutter
 
