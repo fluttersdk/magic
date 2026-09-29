@@ -533,6 +533,91 @@ void main() {
       expect(user.validationError('name'), isNull);
     });
   });
+
+  group('InteractsWithPersistence lastRemoteResponse', () {
+    setUp(() {
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    tearDown(() {
+      Http.unfake();
+      MagicApp.reset();
+      Magic.flush();
+    });
+
+    test('is null before any remote write ran', () {
+      expect(_RemoteUser().lastRemoteResponse, isNull);
+    });
+
+    test('save keeps a transport failure readable as status 0', () async {
+      // The driver answers a request nobody responded to with statusCode 0 and
+      // no body. save() still answers a bare false, and before this getter the
+      // caller could not tell that from a 500: both left validationErrors empty.
+      Http.fake((MagicRequest request) => Http.response(null, 0));
+
+      final user = _RemoteUser()..fill({'name': 'Offline'});
+
+      expect(await user.save(), isFalse);
+      expect(user.validationErrors, isEmpty);
+      expect(user.lastRemoteResponse?.statusCode, 0);
+    });
+
+    test('save replaces the previous response on every remote write', () async {
+      Http.fake((MagicRequest request) => Http.response({'message': 'x'}, 500));
+      final user = _RemoteUser()..fill({'name': 'Retry'});
+      await user.save();
+
+      Http.fake(
+        (MagicRequest request) => Http.response({
+          'data': {'id': 9, 'name': 'Retry'},
+        }, 201),
+      );
+
+      expect(await user.save(), isTrue);
+      expect(user.lastRemoteResponse?.statusCode, 201);
+    });
+
+    test('save forgets the previous response when the driver throws', () async {
+      Http.fake((MagicRequest request) => Http.response({'message': 'x'}, 500));
+      final user = _RemoteUser()..fill({'name': 'Throws'});
+      await user.save();
+
+      Http.fake((MagicRequest request) => throw StateError('driver blew up'));
+
+      expect(await user.save(), isFalse);
+      expect(
+        user.lastRemoteResponse,
+        isNull,
+        reason: 'a stale 500 would describe a request that is not the last one',
+      );
+    });
+
+    test(
+      'delete on a model that never existed forgets the last response',
+      () async {
+        // delete() answers false before any request when the model does not
+        // exist, and a status 0 left over from its failed create would otherwise
+        // make that local no-op read as a network failure.
+        Http.fake((MagicRequest request) => Http.response(null, 0));
+        final user = _RemoteUser()..fill({'name': 'Never saved'});
+        await user.save();
+
+        expect(await user.delete(), isFalse);
+        expect(user.lastRemoteResponse, isNull);
+      },
+    );
+
+    test('delete keeps its response readable too', () async {
+      Http.fake((MagicRequest request) => Http.response(null, 0));
+      final user = _RemoteUser()
+        ..setRawAttributes({'id': 3, 'name': 'Gone'}, sync: true)
+        ..exists = true;
+
+      expect(await user.delete(), isFalse);
+      expect(user.lastRemoteResponse?.statusCode, 0);
+    });
+  });
 }
 
 /// A remote-only model for testing the validation-error surface on [save].

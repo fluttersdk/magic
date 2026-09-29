@@ -262,7 +262,16 @@ if (!await monitor.save()) {
 }
 ```
 
-`validationErrors` is cleared at the start of every remote save, so it stays empty after a save that succeeded or returned no field errors. A save that failed on the transport (no response at all) also leaves it empty, which is how you tell a field-validation failure from a network failure: an empty map plus a `false` return means "show a generic error".
+`validationErrors` is cleared at the start of every remote save, so it stays empty after a save that succeeded or returned no field errors. An empty map plus a `false` return means "not a field failure", and that covers two different things: the backend refused (a 500, a 403) or the client got no readable answer at all. `lastRemoteResponse` tells them apart. It holds the response the latest remote `save()` or `delete()` received, with the driver's `statusCode` 0 when the client got no readable answer, and is `null` before any remote write, when the driver threw, and after a `delete()` on a model that does not exist:
+
+```dart
+if (!await monitor.save()) {
+  final int? status = monitor.lastRemoteResponse?.statusCode;
+  // 0: no readable answer, so not the form's fault; 500: the server failed.
+}
+```
+
+In an action, hand it to `ActionRequestFailed.refusalOf(action, model.validationErrors, model.lastRemoteResponse)` so the refusal carries it; see [Actions](../basics/actions.md).
 
 The map is deeply unmodifiable, and it tracks the remote leg rather than the return value. A [hybrid](#hybrid-persistence) model whose remote save 422s while its local write succeeds returns `true` and still carries the errors, so check the map even after a successful save when local persistence is on.
 

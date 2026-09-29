@@ -14,7 +14,12 @@ class {{ className }} extends MagicAction<{{ modelName }}, void> {
   @override
   Future<void> handle({{ modelName }} {{ modelVariable }}) async {
     final bool deleted = await {{ modelVariable }}.delete();
-    if (!deleted) throw ActionRequestFailed('delete {{ modelIdInterpolation }}');
+    if (!deleted) {
+      throw ActionRequestFailed(
+        'delete {{ modelIdInterpolation }}',
+        {{ modelVariable }}.lastRemoteResponse,
+      );
+    }
 
     // The repository keys rows by the id's string form, whatever its type.
     {{ repositoryName }}.instance.evict('{{ modelIdInterpolation }}');

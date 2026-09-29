@@ -78,6 +78,21 @@ mixin InteractsWithPersistence on Model {
   /// mutated through this getter.
   Map<String, List<String>> get validationErrors => _validationErrors;
 
+  /// The response of the most recent remote [save] or [delete].
+  MagicResponse? _lastRemoteResponse;
+
+  /// The response the most recent remote [save] or [delete] received, or
+  /// `null` before one ran, when the model does not write remotely, when the
+  /// driver threw instead of answering, and after a [delete] on a model that
+  /// does not exist (it sends nothing).
+  ///
+  /// Both writes answer a bare `bool`, and a `false` from a 500 and a `false`
+  /// from a request that got no readable answer (the driver's `statusCode` 0)
+  /// looked the same to the caller: [validationErrors] is empty for both. This
+  /// is how a caller tells them apart, typically by handing it to
+  /// `ActionRequestFailed.refusalOf` so the refusal carries its status.
+  MagicResponse? get lastRemoteResponse => _lastRemoteResponse;
+
   /// The first validation message for [field], or `null` when [field] has none.
   ///
   /// A convenience over [validationErrors] for the common form case of showing
@@ -269,8 +284,10 @@ mixin InteractsWithPersistence on Model {
 
     // Save to remote
     if (useRemote) {
-      // Drop any field errors from a prior save before the round trip.
+      // Drop any field errors and response from a prior save before the round
+      // trip, so a throw below cannot leave a stale one describing it.
       _validationErrors = const {};
+      _lastRemoteResponse = null;
       try {
         MagicResponse response;
         if (exists) {
@@ -278,6 +295,7 @@ mixin InteractsWithPersistence on Model {
         } else {
           response = await Http.store(resource, data);
         }
+        _lastRemoteResponse = response;
 
         if (response.successful) {
           success = true;
@@ -353,6 +371,9 @@ mixin InteractsWithPersistence on Model {
   /// print(user.exists); // false
   /// ```
   Future<bool> delete() async {
+    // Forget the previous response first, so the early return below cannot
+    // leave a failed create's status 0 describing a delete that sent nothing.
+    _lastRemoteResponse = null;
     if (!exists) return false;
 
     var success = false;
@@ -361,6 +382,7 @@ mixin InteractsWithPersistence on Model {
     if (useRemote) {
       try {
         final response = await Http.destroy(resource, id.toString());
+        _lastRemoteResponse = response;
         if (response.successful) {
           success = true;
         }

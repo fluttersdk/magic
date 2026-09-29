@@ -6,7 +6,9 @@ import 'package:magic/magic.dart';
 ///
 /// Creates a [{{ modelName }}] from an already-validated field map (see
 /// [MagicAction]). A refused save throws [ActionRequestFailed] carrying the
-/// field errors from `validationErrors`.
+/// field errors from `validationErrors` and the response from
+/// `lastRemoteResponse`, so a caller can tell a request that got no readable
+/// answer (`isTransportFailure`) from one the backend refused.
 class {{ className }} extends MagicAction<Map<String, dynamic>, {{ modelName }}> {
   const {{ className }}();
 
@@ -19,6 +21,7 @@ class {{ className }} extends MagicAction<Map<String, dynamic>, {{ modelName }}>
     throw ActionRequestFailed.refusalOf(
       'create',
       {{ modelVariable }}.validationErrors,
+      {{ modelVariable }}.lastRemoteResponse,
     );
   }
 }

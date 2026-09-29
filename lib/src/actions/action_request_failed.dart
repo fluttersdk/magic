@@ -13,10 +13,10 @@ import 'package:magic/src/validation/exceptions/validation_exception.dart';
 /// Named apart from magic's `ActionFailed`, the `ActionOutcome` case that
 /// carries one of these (or a [ValidationException]) as its `error`.
 class ActionRequestFailed implements Exception {
-  /// The response that refused the write, or null when there was none: the
-  /// ORM consumed it internally (a `save()` or `delete()` that answered
-  /// `false`), or the message came from elsewhere (see
-  /// [ActionRequestFailed.withMessage]).
+  /// The response that refused the write, or null when there was none: an ORM
+  /// write whose caller did not pass the model's `lastRemoteResponse`, a
+  /// driver that threw instead of answering, or a message that came from
+  /// elsewhere (see [ActionRequestFailed.withMessage]).
   final MagicResponse? response;
 
   /// What was attempted, for the log line.
@@ -40,9 +40,39 @@ class ActionRequestFailed implements Exception {
   /// The refusing response's status code, or null when there was none.
   int? get statusCode => response?.statusCode;
 
-  /// The backend's own message, or null when it sent none. A message given
-  /// through [ActionRequestFailed.withMessage] wins.
-  String? get message => _messageOverride ?? response?.errorMessage;
+  /// Whether the client got no readable answer: the driver reports status 0
+  /// for a connection that failed or dropped, a timeout, a cross-origin error
+  /// page the browser would not expose, and a 2xx whose body could not be
+  /// decoded. False when there is no response at all, which is unknown rather
+  /// than proof of either.
+  ///
+  /// Worth its own branch in a caller, because the right copy differs: nothing
+  /// judged the input, so "check the form" is a wrong diagnosis. The write may
+  /// or may not have landed, so "try again" is right for a read or an
+  /// idempotent write and worth a refresh first for a create.
+  bool get isTransportFailure => response?.statusCode == 0;
+
+  /// The backend's own message (a JSON body's non-blank `message`), or null
+  /// when it sent none. A message given through
+  /// [ActionRequestFailed.withMessage] wins.
+  ///
+  /// Only the body is read, never [MagicResponse.message]: the driver writes
+  /// its own diagnosis there for a status 0 ("The connection errored: ...")
+  /// and for a non-JSON error page (a multi-line paragraph about
+  /// `validateStatus`), and neither is the backend's word or written for the
+  /// person reading a toast. [toString] still carries it for the log line.
+  String? get message {
+    if (_messageOverride != null) return _messageOverride;
+
+    final Object? data = response?.data;
+    if (data is! Map<String, dynamic>) return null;
+
+    // A blank message is no message: `abort(404)` answers `{"message": ""}`,
+    // and an empty string would win over a caller's `?? its own copy`.
+    final Object? message = data['message'];
+
+    return message is String && message.trim().isNotEmpty ? message : null;
+  }
 
   /// Seconds until a refused request may run again, read from a 429 body's
   /// `retry_after_seconds` (the manual-check cooldown), or 1 when the body
@@ -60,8 +90,8 @@ class ActionRequestFailed implements Exception {
   /// an [ActionRequestFailed] for [action] carrying [response].
   ///
   /// [errors] is the raw wire map, read off an ORM write's own error-tracking
-  /// (whose `save()` consumes its own response, so [response] stays null) or
-  /// off `MagicResponse.errors` for a raw `Http` write.
+  /// (pass the model's `lastRemoteResponse` as [response], since `save()`
+  /// consumes its own) or off `MagicResponse.errors` for a raw `Http` write.
   static Exception refusalOf(
     String action,
     Map<String, List<String>> errors, [
@@ -75,8 +105,11 @@ class ActionRequestFailed implements Exception {
     });
   }
 
+  /// The log line, which keeps the driver's own diagnosis that [message]
+  /// withholds from a toast: a status 0 merges connection errors, timeouts and
+  /// decode failures, and that text is what tells them apart.
   @override
   String toString() =>
       'ActionRequestFailed($action: ${statusCode ?? 'no response'} '
-      '${message ?? ''})';
+      '${_messageOverride ?? response?.errorMessage ?? ''})';
 }
