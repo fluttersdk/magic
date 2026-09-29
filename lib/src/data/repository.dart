@@ -183,6 +183,11 @@ abstract class Repository<T extends Model> extends ChangeNotifier
   /// Notifies only when the merge changed the row: a broadcast that restates
   /// values already cached (the same reading arriving twice, or a refetch
   /// having landed first) rebuilds nothing.
+  ///
+  /// The comparison takes a shallow copy of the row first, so pass a nested
+  /// Map or List as a new object: one read off the cached row, changed in
+  /// place and patched back is the same object on both sides and reads as
+  /// unchanged.
   void patch(String id, Map<String, dynamic> attributes) {
     final T? row = find(id);
     if (row == null) return;

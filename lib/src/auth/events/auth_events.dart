@@ -62,6 +62,10 @@ class AuthRestored extends MagicEvent {
   /// True when an attribute moved, and when the guard held no user at all (a
   /// cold start with an empty cache). Defaults to true, so an event built
   /// without it keeps meaning "the user may have changed".
+  ///
+  /// `toMap()` leaves out the model's `hidden` attributes, and the user cache
+  /// stores the same map, so a change to a hidden attribute alone reads as
+  /// unchanged. Keep anything a listener must react to out of `hidden`.
   final bool changed;
 
   AuthRestored(this.user, {this.guard = 'web', this.changed = true});
