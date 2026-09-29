@@ -89,7 +89,7 @@ The `casts` property provides automatic type conversion for attributes:
 ```dart
 class Task extends Model {
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
     'is_completed': 'bool',
     'priority': 'int',
     'progress': 'double',
@@ -126,7 +126,7 @@ enum MonitorStatus { active, paused, failed }
 
 class Monitor extends Model {
   @override
-  Map<String, dynamic> get casts => {
+  Map<String, dynamic> get casts => const {
     'status': EnumCast(MonitorStatus.values),         // enum round-trip
     'statuses': ListCast(EnumCast(MonitorStatus.values)), // list of enums
     'created_at': 'datetime',                         // built-ins still work
@@ -166,7 +166,7 @@ Date attributes are automatically converted to Carbon instances:
 ```dart
 class Event extends Model {
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
     'starts_at': 'datetime',
     'ends_at': 'datetime',
     'published_at': 'datetime',
@@ -216,7 +216,7 @@ JSON attributes are serialized/deserialized automatically:
 ```dart
 class Monitor extends Model {
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
     'settings': 'json',
     'tags': 'json',
   };

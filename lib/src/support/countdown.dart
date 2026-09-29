@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../perf/magic_perf_hooks.dart';
+
 /// Per-key clock ticking down to zero once a second, replacing the manual
 /// per-monitor cooldown timer `MonitorController` used to hand-roll
 /// (`monitor_controller.dart:672-728`).
@@ -34,13 +36,24 @@ class Countdown {
         timer.cancel();
         _timers.remove(key);
         _remaining.remove(key);
-        onTick?.call(key, 0);
+        _tick(key, 0);
         return;
       }
 
       _remaining[key] = next;
-      onTick?.call(key, next);
+      _tick(key, next);
     });
+  }
+
+  void _tick(Object key, int remaining) {
+    final void Function(Object key, int remaining)? tick = onTick;
+    if (tick == null) return;
+
+    if (MagicPerfHooks.sink == null) {
+      tick(key, remaining);
+      return;
+    }
+    MagicPerfHooks.timerTick(Countdown, () => tick(key, remaining));
   }
 
   /// [key]'s remaining seconds, or null when it is not currently running.

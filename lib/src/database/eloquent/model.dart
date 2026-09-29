@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../perf/magic_perf_hooks.dart';
 import '../../support/carbon.dart';
 import 'casts/casts_attributes.dart';
 import 'exceptions/mass_assignment_exception.dart';
@@ -20,7 +21,7 @@ import 'exceptions/mass_assignment_exception.dart';
 ///   List<String> get fillable => ['name', 'email'];
 ///
 ///   @override
-///   Map<String, String> get casts => {'born_at': 'datetime'};
+///   Map<String, String> get casts => const {'born_at': 'datetime'};
 ///
 ///   // Typed accessors
 ///   String get name => getAttribute('name');
@@ -131,7 +132,10 @@ abstract class Model {
   ///
   /// Class-based casts ship with Magic: `EnumCast`, `ListCast`. Implement
   /// [CastsAttributes] to build your own.
-  Map<String, dynamic> get casts => {};
+  ///
+  /// Return a const literal: [getAttribute] reads this on every call, so a
+  /// non-const map literal allocates on every attribute read.
+  Map<String, dynamic> get casts => const {};
 
   /// The model relationships for automatic casting.
   ///
@@ -185,6 +189,9 @@ abstract class Model {
     if (value == null) return null;
 
     if (castType is CastsAttributes) {
+      if (MagicPerfHooks.sink != null) {
+        MagicPerfHooks.emit(AttributeCast('${castType.runtimeType}'));
+      }
       return castType.get(this, key, value);
     }
 
@@ -212,6 +219,9 @@ abstract class Model {
       case 'bool':
       case 'int':
       case 'double':
+        if (MagicPerfHooks.sink != null) {
+          MagicPerfHooks.emit(AttributeCast(castType!));
+        }
         final computed = _applyBuiltInCast(castType!, value);
         // A cast that changed nothing is not worth a map entry, and storing
         // it would make every plain attribute pay for the cache.
@@ -219,6 +229,9 @@ abstract class Model {
         return computed;
       case 'json':
         // Cast on every read, cached never. See the note above.
+        if (MagicPerfHooks.sink != null) {
+          MagicPerfHooks.emit(AttributeCast('json'));
+        }
         return _applyBuiltInCast('json', value);
       default:
         return value;

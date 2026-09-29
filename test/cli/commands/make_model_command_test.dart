@@ -52,7 +52,7 @@ void main() {
         expect(content, contains("String get table => 'monitors';"));
         expect(content, contains("String get resource => 'monitors';"));
         expect(content, contains('List<String> get fillable => [];'));
-        expect(content, contains('Map<String, String> get casts => {};'));
+        expect(content, contains('Map<String, String> get casts => const {};'));
         expect(content, contains('static Monitor fromMap('));
       },
     );

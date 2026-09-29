@@ -735,7 +735,7 @@ The app layout (`layout.app`) auto-manages notification polling:
 - `initState` calls `Notify.startPolling()` when `features.notifications` is enabled
 - `dispose` calls `Notify.stopPolling()` as a safety net
 - The header bell is `NotificationDropdown` from `magic_notifications`, wired to `Notify.notifications()`, `markAsRead`, `markAllAsRead`, the row's `actionUrl`, and the notifications route
-- `MagicStarterServiceProvider` registers an `AuthRestored` listener that calls `Magic.reload()` after a confirmed `Auth.restore()` sync. A team switch no longer goes through it (0.0.37); team-scoped screens reset through `SessionScope` instead
+- `MagicStarterServiceProvider` registers an `AuthRestored` listener that calls `Magic.reload()` after a confirmed `Auth.restore()` sync that CHANGED the user (`AuthRestored.changed`); a sync that only confirms the cached user, the usual cold boot, reloads nothing. A team switch no longer goes through it (0.0.37); team-scoped screens reset through `SessionScope` instead
 
 Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startRealtime(channel: ...)` from your own auth wiring if the backend broadcasts; `startPolling()` is a no-op while it is live. See `plugin-notifications.md`.
 

@@ -10,6 +10,14 @@ import '../magic_response.dart';
 ///
 /// Translates between Dio types and Magic types for interceptors.
 class DioNetworkDriver implements NetworkDriver {
+  /// Where a request's id travels in [RequestOptions.extra], so every hop
+  /// that only sees Dio's options (an error, a response) can still name it.
+  static const String _requestIdKey = 'magic.request_id';
+
+  /// Process-wide rather than per driver: two drivers must never hand the
+  /// same id to two different requests a consumer is pairing.
+  static int _lastRequestId = 0;
+
   late final Dio _dio;
   final String baseUrl;
   final int timeout;
@@ -34,6 +42,18 @@ class DioNetworkDriver implements NetworkDriver {
         preserveHeaderCase: true,
       ),
     );
+
+    // Added first so every interceptor after it, and every response or
+    // error the request produces, sees the id. `putIfAbsent` keeps it when
+    // Dio re-runs the same options through the chain.
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+          options.extra.putIfAbsent(_requestIdKey, () => ++_lastRequestId);
+          handler.next(options);
+        },
+      ),
+    );
   }
 
   @override
@@ -48,6 +68,7 @@ class DioNetworkDriver implements NetworkDriver {
             headers: Map<String, dynamic>.from(options.headers),
             data: options.data,
             queryParameters: options.queryParameters,
+            id: _requestId(options),
           );
 
           final result = await interceptor.onRequest(magicRequest);
@@ -79,6 +100,7 @@ class DioNetworkDriver implements NetworkDriver {
             headers: Map<String, dynamic>.from(error.requestOptions.headers),
             data: error.requestOptions.data,
             queryParameters: error.requestOptions.queryParameters,
+            id: _requestId(error.requestOptions),
           );
 
           MagicResponse? magicResponse;
@@ -365,12 +387,16 @@ class DioNetworkDriver implements NetworkDriver {
   // Helpers
   // ---------------------------------------------------------------------------
 
+  int? _requestId(RequestOptions options) =>
+      options.extra[_requestIdKey] as int?;
+
   MagicResponse _toMagicResponse(Response response) {
     return MagicResponse(
       data: response.data,
       statusCode: response.statusCode ?? 0,
       headers: response.headers.map.map((k, v) => MapEntry(k, v.join(', '))),
       message: response.statusMessage,
+      id: _requestId(response.requestOptions),
     );
   }
 
@@ -382,6 +408,7 @@ class DioNetworkDriver implements NetworkDriver {
           e.response?.headers.map.map((k, v) => MapEntry(k, v.join(', '))) ??
           {},
       message: e.message,
+      id: _requestId(e.requestOptions),
     );
   }
 }

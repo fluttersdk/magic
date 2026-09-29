@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../perf/magic_perf_hooks.dart';
+
 /// Coalesces repeated calls under the same key into one delayed run,
 /// generalising the single-purpose reload debounce `RealtimeService` used to
 /// hand-roll for itself (`realtime_service.dart:252-256`).
@@ -17,7 +19,11 @@ class Debouncer {
     _timers[key]?.cancel();
     _timers[key] = Timer(duration, () {
       _timers.remove(key);
-      fn();
+      if (MagicPerfHooks.sink == null) {
+        fn();
+        return;
+      }
+      MagicPerfHooks.timerTick(Debouncer, fn);
     });
   }
 

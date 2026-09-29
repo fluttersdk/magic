@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart' show FlutterTimeline;
+
 import '../concerns/validates_requests.dart';
 import '../facades/lang.dart';
 import '../facades/log.dart';
 import '../foundation/magic.dart';
 import '../http/magic_controller.dart';
+import '../perf/magic_perf_hooks.dart';
 import '../validation/exceptions/validation_exception.dart';
 import 'action_outcome.dart';
 import 'magic_action.dart';
@@ -65,6 +68,34 @@ mixin RunsActions on MagicController {
 
     _runningKeys.add(runKey);
     refreshUI();
+    if (MagicPerfHooks.sink == null) {
+      return _settle(action, input, runKey, failureMessage, onFailure);
+    }
+
+    final int startUs = FlutterTimeline.now;
+    final ActionOutcome<O> outcome = await _settle(
+      action,
+      input,
+      runKey,
+      failureMessage,
+      onFailure,
+    );
+    if (MagicPerfHooks.sink != null) {
+      MagicPerfHooks.emit(
+        ActionRan(action.runtimeType, startUs, FlutterTimeline.now, outcome),
+      );
+    }
+    return outcome;
+  }
+
+  /// Runs [action] and translates its failure modes; see the mixin doc.
+  Future<ActionOutcome<O>> _settle<I, O>(
+    MagicAction<I, O> action,
+    I input,
+    Object runKey,
+    String? failureMessage,
+    void Function(Object error)? onFailure,
+  ) async {
     try {
       final O value = await action.handle(input);
       return ActionSucceeded<O>(value);

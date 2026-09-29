@@ -275,7 +275,7 @@ Carbon integrates seamlessly with Eloquent models through attribute casting:
 ```dart
 class Post extends Model with HasTimestamps {
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
     'published_at': 'datetime',
     'expires_at': 'datetime',
   };

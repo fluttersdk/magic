@@ -274,6 +274,160 @@ void main() {
     });
   });
 
+  group('Repository notifies only on a real change', () {
+    _TestRow row(Map<String, dynamic> map) => _TestRow.fromMap(map);
+
+    ({_TestRepository repo, int Function() count}) seeded() {
+      final _TestRepository repo = _TestRepository();
+      repo.upsertFromShow(
+        row(<String, dynamic>{
+          'id': '1',
+          'name': 'first',
+          'measured': <String, dynamic>{'p50': 10, 'p95': 20},
+        }),
+      );
+      int notifies = 0;
+      repo.addListener(() => notifies++);
+
+      return (repo: repo, count: () => notifies);
+    }
+
+    test('patch with the values already cached notifies zero times', () {
+      final seed = seeded();
+
+      seed.repo.patch('1', <String, dynamic>{
+        'name': 'first',
+        'measured': <String, dynamic>{'p95': 20, 'p50': 10},
+      });
+
+      expect(seed.count(), 0);
+    });
+
+    test('patch with one changed value notifies once', () {
+      final seed = seeded();
+
+      seed.repo.patch('1', <String, dynamic>{
+        'name': 'second',
+        'measured': <String, dynamic>{'p50': 10, 'p95': 20},
+      });
+
+      expect(seed.count(), 1);
+      expect(seed.repo.find('1')!.getAttribute('name'), 'second');
+    });
+
+    test('patch that adds a key the row lacked notifies once', () {
+      final _TestRepository repo = _TestRepository();
+      repo.upsertFromShow(row(<String, dynamic>{'id': '1'}));
+      int notifies = 0;
+      repo.addListener(() => notifies++);
+
+      repo.patch('1', <String, dynamic>{'name': null});
+
+      expect(notifies, 1, reason: 'an absent key and a null key differ');
+    });
+
+    test('upsertFromShow with an identical answer notifies zero times', () {
+      final seed = seeded();
+
+      seed.repo.upsertFromShow(
+        row(<String, dynamic>{
+          'measured': <String, dynamic>{'p95': 20, 'p50': 10},
+          'name': 'first',
+          'id': '1',
+        }),
+      );
+
+      expect(seed.count(), 0);
+    });
+
+    test('upsertFromShow with a changed nested attribute notifies once', () {
+      final seed = seeded();
+
+      seed.repo.upsertFromShow(
+        row(<String, dynamic>{
+          'id': '1',
+          'name': 'first',
+          'measured': <String, dynamic>{'p50': 10, 'p95': 21},
+        }),
+      );
+
+      expect(seed.count(), 1);
+    });
+
+    test('upsertFromShow for an unknown id notifies once', () {
+      final seed = seeded();
+
+      seed.repo.upsertFromShow(row(<String, dynamic>{'id': '2'}));
+
+      expect(seed.count(), 1);
+      expect(seed.repo.find('2'), isNotNull);
+    });
+
+    test('an identical upsertFromShow still stores the answered row', () {
+      final seed = seeded();
+      final _TestRow answer = row(<String, dynamic>{
+        'id': '1',
+        'name': 'first',
+        'measured': <String, dynamic>{'p50': 10, 'p95': 20},
+      });
+
+      seed.repo.upsertFromShow(answer);
+
+      expect(identical(seed.repo.find('1'), answer), isTrue);
+    });
+
+    test('an unchanged refresh notifies zero times', () async {
+      final seed = seeded();
+      Http.fake(
+        (_) => Http.response(<String, dynamic>{
+          'data': <String, dynamic>{
+            'id': '1',
+            'name': 'first',
+            'measured': <String, dynamic>{'p50': 10, 'p95': 20},
+          },
+        }, 200),
+      );
+
+      await seed.repo.refresh('1');
+
+      expect(seed.count(), 0);
+    });
+
+    test('upsertFromList with identical rows notifies zero times', () {
+      final seed = seeded();
+
+      seed.repo.upsertFromList(<_TestRow>[
+        row(<String, dynamic>{'id': '1', 'name': 'first', 'measured': null}),
+      ]);
+
+      expect(
+        seed.count(),
+        0,
+        reason: 'the null showOnlyKeys field is carried forward before judging',
+      );
+    });
+
+    test('upsertFromList with one new row notifies once', () {
+      final seed = seeded();
+
+      seed.repo.upsertFromList(<_TestRow>[
+        row(<String, dynamic>{'id': '1', 'name': 'first', 'measured': null}),
+        row(<String, dynamic>{'id': '2', 'name': 'second'}),
+      ]);
+
+      expect(seed.count(), 1);
+    });
+
+    test('evict notifies once, and an absent id not at all', () {
+      final seed = seeded();
+
+      seed.repo.evict('missing');
+      seed.repo.evict('1');
+
+      expect(seed.count(), 1);
+    });
+  });
+
   group('Repository session scope', () {
     test(
       'registers itself and clears every row on an identity change',

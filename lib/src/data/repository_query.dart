@@ -6,6 +6,7 @@ import '../database/eloquent/model.dart';
 import '../facades/http.dart';
 import '../http/magic_paginator.dart';
 import '../network/magic_response.dart';
+import '../perf/magic_perf_hooks.dart';
 import 'repository.dart';
 
 /// One ordered, filtered, paginated view over a [Repository].
@@ -105,12 +106,16 @@ class RepositoryQuery<T extends Model> extends ChangeNotifier {
 
   /// Rereads the collection from its first page, replacing what is held.
   Future<void> reload() {
+    final int? startUs = MagicPerfHooks.sink == null
+        ? null
+        : FlutterTimeline.now;
     final int asked = repository.epoch;
     final Future<void>
     result = _deferringStart(_paginator.refresh).whenComplete(() {
       // A reload that straddled a session reset resolved nothing for the new
       // session, which still has to show its first-load skeleton.
       if (asked == repository.epoch) _resolvedOnce = true;
+      if (startUs != null) _reportReload(startUs, fromCache: false);
     });
 
     if (!_startedFirstLoad) {
@@ -139,7 +144,22 @@ class RepositoryQuery<T extends Model> extends ChangeNotifier {
   /// The read a newly mounted screen should ask for: joins the first
   /// [reload] while it is in flight, otherwise reloads (mirrors
   /// `MonitorController.ensureFresh`).
-  Future<void> ensureFresh() => _firstLoad ?? reload();
+  Future<void> ensureFresh() {
+    final Future<void>? inFlight = _firstLoad;
+    if (inFlight == null) return reload();
+    if (MagicPerfHooks.sink == null) return inFlight;
+
+    final int startUs = FlutterTimeline.now;
+    return inFlight.whenComplete(() => _reportReload(startUs, fromCache: true));
+  }
+
+  void _reportReload(int startUs, {required bool fromCache}) {
+    if (MagicPerfHooks.sink == null) return;
+
+    MagicPerfHooks.emit(
+      QueryReloaded(T, startUs, FlutterTimeline.now, fromCache),
+    );
+  }
 
   /// Replaces [filters] and reloads from the first page: a filter is a
   /// different question about the collection, not a narrowing of the rows
@@ -284,7 +304,16 @@ class RepositoryQuery<T extends Model> extends ChangeNotifier {
   }
 
   void _notify() {
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+
+    if (MagicPerfHooks.sink == null) {
+      notifyListeners();
+      return;
+    }
+    MagicPerfHooks.runWithCause(
+      MagicNotifyCause.repositoryQuery,
+      notifyListeners,
+    );
   }
 
   @override

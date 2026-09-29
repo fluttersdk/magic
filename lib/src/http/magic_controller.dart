@@ -3,6 +3,7 @@ import 'package:fluttersdk_wind/fluttersdk_wind.dart';
 
 import '../facades/gate.dart';
 import '../facades/http.dart';
+import '../perf/magic_perf_hooks.dart';
 import '../validation/exceptions/authorization_exception.dart';
 import 'rx_status.dart';
 
@@ -73,33 +74,21 @@ abstract class MagicController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Observes every [refreshUI] call across every [MagicController] in the
-  /// app. Defaults to null so the cost when unset is one null check and the
-  /// branch tree-shakes away entirely for consumers who never set it.
-  ///
-  /// This is the single seam a diagnostic reads controller activity through,
-  /// which is why [ValidatesRequests] routes its own notifications back
-  /// through [refreshUI] rather than calling `notifyListeners()` directly.
-  static void Function(MagicController controller)? onRefreshUI;
-
   /// Refresh the UI by notifying listeners.
+  ///
+  /// The single seam every controller notification goes through, which is
+  /// why [ValidatesRequests] routes its own notifications back here rather
+  /// than calling `notifyListeners()` directly: a [ControllerNotified] built
+  /// here is the only record a diagnostic has of a controller repainting.
   void refreshUI() {
-    if (!_disposed) {
-      // Contained deliberately, not swallowed. The hook is set by tooling
-      // outside this package, and an unguarded call would let a diagnostic
-      // bug take the UI with it: a throw here happens BEFORE
-      // notifyListeners(), so the screen stops repainting for every later
-      // setSuccess and setError on that path. A broken observer should cost
-      // its own numbers, never the app's frames.
-      try {
-        onRefreshUI?.call(this);
-      } catch (e, stack) {
-        debugPrint(
-          'MagicController.onRefreshUI threw and was ignored: $e\n$stack',
-        );
-      }
-      notifyListeners();
+    if (_disposed) return;
+
+    if (MagicPerfHooks.sink != null) {
+      MagicPerfHooks.emit(
+        ControllerNotified(this, MagicPerfHooks.currentCause),
+      );
     }
+    notifyListeners();
   }
 
   /// Authorize an action against the current [Auth.user] via the [Gate].
@@ -190,9 +179,13 @@ mixin MagicStateMixin<T> on MagicController {
     if (status != null) {
       _status = status;
     }
-    if (notify) {
+    if (!notify) return;
+
+    if (MagicPerfHooks.sink == null) {
       refreshUI();
+      return;
     }
+    MagicPerfHooks.runWithCause(MagicNotifyCause.setState, refreshUI);
   }
 
   // ---------------------------------------------------------------------------

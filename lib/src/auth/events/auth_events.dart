@@ -43,6 +43,9 @@ class AuthFailed extends MagicEvent {
 }
 
 /// Fired when authentication state is restored.
+///
+/// Dispatched by `BaseGuard.restore()`'s user sync once the API confirmed the
+/// user, on a cold boot and on every later `Auth.restore()` call alike.
 class AuthRestored extends MagicEvent {
   /// The user who was restored.
   final Authenticatable user;
@@ -50,5 +53,20 @@ class AuthRestored extends MagicEvent {
   /// The guard name used.
   final String guard;
 
-  AuthRestored(this.user, {this.guard = 'web'});
+  /// Whether the confirmed user differs from the one the guard held before
+  /// the sync, compared on their serialized attributes (`toMap()`).
+  ///
+  /// False when the API only confirmed the cached user, which is what a cold
+  /// boot with a warm cache usually hears: a listener that rebuilds screens
+  /// from the user (a soft reload, a refetch) has nothing to refresh then.
+  /// True when an attribute moved, and when the guard held no user at all (a
+  /// cold start with an empty cache). Defaults to true, so an event built
+  /// without it keeps meaning "the user may have changed".
+  ///
+  /// `toMap()` leaves out the model's `hidden` attributes, and the user cache
+  /// stores the same map, so a change to a hidden attribute alone reads as
+  /// unchanged. Keep anything a listener must react to out of `hidden`.
+  final bool changed;
+
+  AuthRestored(this.user, {this.guard = 'web', this.changed = true});
 }

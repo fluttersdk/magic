@@ -11,7 +11,7 @@ import '../model.dart';
 ///
 /// class Monitor extends Model {
 ///   @override
-///   Map<String, dynamic> get casts => {
+///   Map<String, dynamic> get casts => const {
 ///     'status': EnumCast(MonitorStatus.values),
 ///     'created_at': 'datetime',
 ///   };

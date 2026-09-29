@@ -341,6 +341,51 @@ void main() {
       expect(notified, isTrue);
     });
 
+    test('an unchanged patch does not reach its listeners', () async {
+      final _TestRepository repo = _TestRepository();
+      Http.fake(
+        (_) => _page(<Map<String, dynamic>>[
+          <String, dynamic>{'id': '1', 'name': 'a'},
+        ]),
+      );
+      final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
+        repository: repo,
+      );
+      await query.reload();
+
+      int notifies = 0;
+      query.addListener(() => notifies++);
+
+      repo.patch('1', <String, dynamic>{'name': 'a'});
+
+      expect(notifies, 0);
+    });
+
+    test('an unchanged reload still notifies once the page lands', () async {
+      final _TestRepository repo = _TestRepository();
+      Http.fake(
+        (_) => _page(<Map<String, dynamic>>[
+          <String, dynamic>{'id': '1', 'name': 'a'},
+        ]),
+      );
+      final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
+        repository: repo,
+      );
+      await query.reload();
+
+      int notifies = 0;
+      query.addListener(() => notifies++);
+
+      await query.reload();
+
+      expect(
+        notifies,
+        greaterThan(0),
+        reason: 'the paginator settling is what a waiting screen hears',
+      );
+      expect(query.isFirstLoad, isFalse);
+    });
+
     test('dispose stops forwarding repository notifications', () async {
       final _TestRepository repo = _TestRepository();
       Http.fake(

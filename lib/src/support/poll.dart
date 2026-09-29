@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../facades/log.dart';
 import '../foundation/magic.dart';
+import '../perf/magic_perf_hooks.dart';
 
 /// The three ways a [Poll.until] run can end.
 sealed class PollOutcome<T> {
@@ -89,7 +90,9 @@ abstract final class Poll {
         // would be an unhandled async error with the poll left open forever.
         T? value;
         try {
-          value = await read();
+          value = await (MagicPerfHooks.sink == null
+              ? read()
+              : MagicPerfHooks.timerTick(Poll, read));
         } catch (error) {
           if (Magic.bound('log')) {
             Log.warning('[Poll] read failed, counted as a miss: $error');

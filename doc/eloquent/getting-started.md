@@ -77,7 +77,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
   List<String> get fillable => ['name', 'email', 'avatar'];
 
   @override
-  Map<String, String> get casts => {
+  Map<String, String> get casts => const {
     'email_verified_at': 'datetime',
     'is_active': 'bool',
     'settings': 'json',
@@ -152,11 +152,11 @@ user.fill(validated, strict: true); // throws if validated contains a non-fillab
 <a name="attribute-casting"></a>
 ## Attribute Casting
 
-The `casts` property converts attributes to common data types:
+The `casts` property converts attributes to common data types. Return a `const` literal: `getAttribute` reads `casts` on every call, so a non-const map literal allocates on every attribute read.
 
 ```dart
 @override
-Map<String, String> get casts => {
+Map<String, String> get casts => const {
   'created_at': 'datetime',   // Returns Carbon
   'updated_at': 'datetime',
   'is_active': 'bool',        // Returns bool

@@ -31,7 +31,7 @@ abstract class MagicController extends ChangeNotifier
 | `onInit()` | `void` | Called on first creation. Override to fetch data or init resources. `@mustCallSuper`. |
 | `onClose()` | `void` | Called before dispose. Override to clean up timers, streams, etc. `@mustCallSuper`. |
 | `refreshUI()` | `void` | Calls `notifyListeners()` safely (no-op if disposed). Every controller notification goes through it, including `ValidatesRequests`. |
-| `MagicController.onRefreshUI` | `void Function(MagicController)?` | Static, null by default. Debug tooling sets it to observe every notification; a hook that throws is contained and cannot stop the repaint. |
+| `MagicPerfHooks.sink` | `void Function(MagicPerfEvent)?` | Static, null by default. Tooling sets it to observe every notification as a `ControllerNotified(controller, cause)`, plus repository, query, action, event, cast, timer and broadcast activity; a sink that throws is contained and cannot stop the repaint. See `doc/digging-deeper/perf-hooks.md`. |
 | `initialized` | `bool` | Whether `onInit()` has been called. |
 | `isDisposed` | `bool` | Whether the controller has been disposed. |
 

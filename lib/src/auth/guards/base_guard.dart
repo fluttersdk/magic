@@ -8,6 +8,7 @@ import '../../facades/event.dart';
 import '../../facades/http.dart';
 import '../../facades/log.dart';
 import '../../facades/vault.dart';
+import '../../support/same_value.dart';
 import '../authenticatable.dart';
 import '../contracts/guard.dart';
 import '../events/auth_events.dart';
@@ -468,6 +469,11 @@ abstract class BaseGuard implements Guard {
   /// session on the first refusal alone left a viewer holding a token the
   /// server had just refused, when the interceptor's own refresh-and-retry of
   /// this request was the thing refused.
+  ///
+  /// An applied 200 dispatches [AuthRestored] with `changed` false when the
+  /// answer serializes the same as the user held before it, so a listener
+  /// that remounts or refetches on it can skip a sync that only confirmed the
+  /// cache.
   Future<void> _syncUserFromApi({bool afterRotation = false}) async {
     if (userEndpoint == null || userFactory == null) {
       Log.debug(
@@ -527,6 +533,12 @@ abstract class BaseGuard implements Guard {
       final userData = extractUserData(response.data);
       if (userData != null) {
         final user = userFactory!(userData);
+
+        // Judged before [setUser] replaces the held user. The session checks
+        // above passed, so [_user] is still the one this sync was sent for.
+        final held = _user;
+        final changed = held == null || !sameValue(held.toMap(), user.toMap());
+
         setUser(user);
         await cacheUser(user);
 
@@ -543,7 +555,7 @@ abstract class BaseGuard implements Guard {
         Log.info('Auth: User synced from API');
 
         // Dispatch updated event
-        await Event.dispatch(AuthRestored(user));
+        await Event.dispatch(AuthRestored(user, changed: changed));
       }
     } catch (e) {
       Log.error('Auth: Sync failed: $e');

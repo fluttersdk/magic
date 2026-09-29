@@ -67,6 +67,9 @@ export 'src/actions/action_request_failed.dart';
 export 'src/actions/magic_action.dart';
 export 'src/actions/runs_actions.dart';
 
+// Perf
+export 'src/perf/magic_perf_hooks.dart';
+
 // Forms
 export 'src/forms/magic_form_object.dart';
 

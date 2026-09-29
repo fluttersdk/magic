@@ -45,6 +45,15 @@ class TestUser extends Model with HasTimestamps, InteractsWithPersistence {
       InteractsWithPersistence.allModels<TestUser>(TestUser.new);
 }
 
+/// A model that declares no casts, so it reads the base [Model.casts].
+class _Uncast extends Model {
+  @override
+  String get table => 'uncast';
+
+  @override
+  String get resource => 'uncast';
+}
+
 void main() {
   group('Model Attributes', () {
     test('can fill and retrieve attributes', () {
@@ -105,6 +114,17 @@ void main() {
   });
 
   group('Model Casting', () {
+    test('a model declaring no casts reads one shared const map', () {
+      final _Uncast first = _Uncast();
+      final _Uncast second = _Uncast();
+
+      expect(first.casts, isEmpty);
+      // getAttribute reads casts on every call; a fresh map per read is an
+      // allocation per attribute read.
+      expect(identical(first.casts, first.casts), isTrue);
+      expect(identical(first.casts, second.casts), isTrue);
+    });
+
     test('casts datetime to Carbon', () {
       final user = TestUser();
       user.bornAt = Carbon.parse('2000-01-15T10:30:00');
