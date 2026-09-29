@@ -249,7 +249,9 @@ abstract class MagicStatefulViewState<T extends MagicController,
     V extends MagicStatefulView<T>> extends State<V>
 ```
 
-`MagicStatefulViewState` wires `_controller.addListener(_rebuild)` in `initState` and removes it in `dispose`. On init it also silently clears any stale validation errors and `RxStatus.error` state (mimicking Laravel's per-request error clearing).
+`MagicStatefulViewState` wires `_controller.addListener(_onControllerChanged)` in `initState` and removes it in `dispose`. On init it also silently clears any stale validation errors and `RxStatus.error` state (mimicking Laravel's per-request error clearing).
+
+A notification rebuilds the view only while its `TickerMode` is enabled. Under an opaque route (a detail page pushed over a list) or in an inactive go_router shell branch the tickers are disabled, so the notification is remembered and the view rebuilds once when it is uncovered, and not at all if nothing notified. A view under a dialog, bottom sheet or popover stays enabled and rebuilds as before. The signal is the ticker mode, not visibility: a painted view wrapped in `TickerMode(enabled: false)` also stops rebuilding until tickers return; a `MagicSelector` or `ListenableBuilder` inside the view listens for itself and is not deferred. Do not add a manual `ModalRoute.isCurrent` check to skip work under a cover: a page under a dialog is not current but is still painted.
 
 | Member | Type | Purpose |
 | :--- | :--- | :--- |
