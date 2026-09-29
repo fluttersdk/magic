@@ -96,6 +96,8 @@ A field outside `showOnlyKeys` that the list sends as `null` DOES become `null`:
 
 `refresh`'s 404-evicts, other-failure-keeps split matters: a fault of ours (a timeout, a 500) is never a verdict about the row, so only a confirmed "this row is gone" clears the cache.
 
+Every write path notifies its listeners (and so every `RepositoryQuery` over it) only when the cache actually changed: a row that was not cached, an evicted row, or an attribute whose stored value differs, compared deeply and with map keys in any order. A broadcast `patch` that restates what is cached, or a `refresh` that answers the row already held, rebuilds nothing. `upsertFromShow` still stores the answered instance, so `find(id)` is the row `refresh` returned. A controller that needs to repaint once a read settles (to clear its own loading flag) calls its own `refreshUI()` after the `await`; it cannot count on the repository's notify, which a failed read never sent either. A `RepositoryQuery` reload is unaffected: its page landing notifies through the paginator whether or not the rows changed.
+
 <a name="session-resets"></a>
 ## Session Resets
 

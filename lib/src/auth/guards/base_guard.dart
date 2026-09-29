@@ -8,6 +8,7 @@ import '../../facades/event.dart';
 import '../../facades/http.dart';
 import '../../facades/log.dart';
 import '../../facades/vault.dart';
+import '../../support/same_value.dart';
 import '../authenticatable.dart';
 import '../contracts/guard.dart';
 import '../events/auth_events.dart';
@@ -536,7 +537,7 @@ abstract class BaseGuard implements Guard {
         // Judged before [setUser] replaces the held user. The session checks
         // above passed, so [_user] is still the one this sync was sent for.
         final held = _user;
-        final changed = held == null || !_sameValue(held.toMap(), user.toMap());
+        final changed = held == null || !sameValue(held.toMap(), user.toMap());
 
         setUser(user);
         await cacheUser(user);
@@ -560,33 +561,6 @@ abstract class BaseGuard implements Guard {
       Log.error('Auth: Sync failed: $e');
       // Keep cached user if sync fails
     }
-  }
-
-  /// Deep structural equality over serialized attribute values: maps compare
-  /// by key set and per-key value regardless of order, lists element by
-  /// element, and anything else with `==`.
-  bool _sameValue(Object? a, Object? b) {
-    if (a is Map && b is Map) {
-      if (a.length != b.length) return false;
-
-      for (final key in a.keys) {
-        if (!b.containsKey(key) || !_sameValue(a[key], b[key])) return false;
-      }
-
-      return true;
-    }
-
-    if (a is List && b is List) {
-      if (a.length != b.length) return false;
-
-      for (var i = 0; i < a.length; i++) {
-        if (!_sameValue(a[i], b[i])) return false;
-      }
-
-      return true;
-    }
-
-    return a == b;
   }
 
   // ---------------------------------------------------------------------------

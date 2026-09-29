@@ -6,6 +6,7 @@ import '../network/magic_response.dart';
 import '../perf/magic_perf_hooks.dart';
 import '../session/session_scope.dart';
 import '../session/session_scoped.dart';
+import '../support/same_value.dart';
 
 /// An id-keyed cache of one remote resource's rows (Eloquent's identity map).
 ///
@@ -31,6 +32,13 @@ import '../session/session_scoped.dart';
 /// [RepositoryQuery] built over this repository writes every page it fetches
 /// in here, and reads its own `items` back out live, so a [patch] or an
 /// [evict] shows up in every query without a refetch.
+///
+/// Every write path notifies only when the cache actually changed: a row that
+/// was not cached, an evicted row, or an attribute whose raw value differs
+/// (compared deeply, map keys in any order). A broadcast patch or a refetch
+/// that answers what is already held rebuilds nothing. A caller that must
+/// repaint after a read regardless (to clear its own loading flag) notifies
+/// through its own controller, never by relying on this one.
 ///
 /// [resetForSession] drops every cached row on a login or a team switch (see
 /// [SessionScoped]); the constructor registers this repository with
@@ -91,7 +99,12 @@ abstract class Repository<T extends Model> extends ChangeNotifier
   /// erasing it, because the list endpoint never measured it in the first
   /// place. A field outside [showOnlyKeys] that [rows] sends as null DOES
   /// become null; the list is the source of truth for it.
+  ///
+  /// Notifies once when any row is new or differs from its cached copy, and
+  /// not at all when the whole page answers what the cache already holds.
   void upsertFromList(List<T> rows) {
+    bool changed = false;
+
     for (final T row in rows) {
       final String key = '${row.id}';
       final T? cached = _rows[key];
@@ -105,24 +118,34 @@ abstract class Repository<T extends Model> extends ChangeNotifier
         }
       }
 
+      // Judged after the carry-forward above, so a list that omits a
+      // show-only value the cache kept does not read as a change.
+      changed = changed || !_sameRow(cached, row);
       _rows[key] = row;
     }
 
     if (MagicPerfHooks.sink != null) {
       MagicPerfHooks.emit(RepositoryUpserted(T, rows.length));
     }
-    _notify();
+    if (changed) _notify();
   }
 
   /// Replaces the cached row for [row]'s id with [row], authoritative for
   /// every field: a show endpoint measures everything [showOnlyKeys] names,
   /// so nothing needs carrying forward here.
+  ///
+  /// [row] is stored even when it matches the cached copy, so [find] answers
+  /// the same instance [refresh] returned; only the notification is skipped,
+  /// since nothing a listener reads has changed. A new id always notifies.
   void upsertFromShow(T row) {
-    _rows['${row.id}'] = row;
+    final String key = '${row.id}';
+    final bool changed = !_sameRow(_rows[key], row);
+
+    _rows[key] = row;
     if (MagicPerfHooks.sink != null) {
       MagicPerfHooks.emit(RepositoryUpserted(T, 1));
     }
-    _notify();
+    if (changed) _notify();
   }
 
   /// Re-reads [id] from `GET $resource/$id` and updates the cache.
@@ -156,15 +179,22 @@ abstract class Repository<T extends Model> extends ChangeNotifier
   /// Merges [attributes] onto the row cached for [id]. A no-op when nothing
   /// is cached for [id]: there is nothing to patch onto, and manufacturing a
   /// row from a partial patch would fabricate fields nobody fetched.
+  ///
+  /// Notifies only when the merge changed the row: a broadcast that restates
+  /// values already cached (the same reading arriving twice, or a refetch
+  /// having landed first) rebuilds nothing.
   void patch(String id, Map<String, dynamic> attributes) {
     final T? row = find(id);
     if (row == null) return;
 
+    // Snapshotted before the merge, since [Model.setAttribute] mutates the
+    // cached row in place and there is no second copy to compare against.
+    final Map<String, dynamic> before = row.attributes;
     for (final MapEntry<String, dynamic> entry in attributes.entries) {
       row.setAttribute(entry.key, entry.value);
     }
 
-    _notify();
+    if (!sameValue(before, row.attributes)) _notify();
   }
 
   /// Drops the cached row for [id], if any.
@@ -208,6 +238,16 @@ abstract class Repository<T extends Model> extends ChangeNotifier
 
     final Object? nested = data['data'];
     return nested is Map<String, dynamic> ? nested : data;
+  }
+
+  /// Whether [incoming] leaves the cache as [cached] had it, compared on the
+  /// raw stored attributes (hidden ones included), not on [Model.toMap], which
+  /// drops hidden keys and would miss a change to one. No cached row is always
+  /// a change.
+  bool _sameRow(T? cached, T incoming) {
+    if (cached == null) return false;
+
+    return sameValue(cached.attributes, incoming.attributes);
   }
 
   void _notify() {

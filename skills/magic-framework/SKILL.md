@@ -287,7 +287,7 @@ SessionScope.identity = () => Auth.check() ? '${Auth.id()}:$teamId' : null;
 SessionScope.attach();
 ```
 
-`Repository` registers itself with `SessionScope` in its own constructor (never `Magic.put`/`findOrPut` it); a controller implementing `SessionScoped` needs no registration, `SessionScope.sync()` finds it via `Magic.controllers.whereType<SessionScoped>()`. `OwnsTimers.own(cancellable)` accepts a `PollHandle`/`Countdown`/`Debouncer`/`Timer`/`StreamSubscription` and cancels every one from `onClose`. `MagicFormObject` (create one per `State`, dispose from `onClose`, never register in the container) composes `MagicFormData` + `ValidatesRequests` + `RunsActions`; see `doc/basics/forms.md#magicformobject`.
+`Repository` registers itself with `SessionScope` in its own constructor (never `Magic.put`/`findOrPut` it). Its write paths (`upsertFromList`, `upsertFromShow`, `patch`, `evict`) notify only when the cache actually changed, so a controller that must repaint after a read to clear its own loading flag calls its own `refreshUI()` rather than relying on the repository's notify. a controller implementing `SessionScoped` needs no registration, `SessionScope.sync()` finds it via `Magic.controllers.whereType<SessionScoped>()`. `OwnsTimers.own(cancellable)` accepts a `PollHandle`/`Countdown`/`Debouncer`/`Timer`/`StreamSubscription` and cancels every one from `onClose`. `MagicFormObject` (create one per `State`, dispose from `onClose`, never register in the container) composes `MagicFormData` + `ValidatesRequests` + `RunsActions`; see `doc/basics/forms.md#magicformobject`.
 
 ### Support helpers
 
