@@ -106,7 +106,22 @@ class PauseMonitor extends MagicAction<String, void> {
 }
 ```
 
-`ActionRequestFailed` exposes `statusCode` and `message` read off `response` (a message given through `ActionRequestFailed.withMessage` wins over the response's own), and `retryAfterSeconds`, read from a 429 body's `retry_after_seconds`, falling back to `1` when the body carries no usable value so a button waiting on it still recovers.
+An ORM write consumes its own response, so pass the model's `lastRemoteResponse` as the third argument (the `make:action --kind` stubs do):
+
+```dart
+final Monitor monitor = Monitor()..fill(fields, strict: true);
+if (await monitor.save()) return monitor;
+
+throw ActionRequestFailed.refusalOf(
+  'create',
+  monitor.validationErrors,
+  monitor.lastRemoteResponse,
+);
+```
+
+`ActionRequestFailed` exposes `statusCode` read off `response`; `message`, the JSON body's own `message` (a message given through `ActionRequestFailed.withMessage` wins); and `retryAfterSeconds`, read from a 429 body's `retry_after_seconds`, falling back to `1` when the body carries no usable value so a button waiting on it still recovers. `message` never returns the text the driver writes on the response (its "The connection errored: ..." or its paragraph about a non-JSON error page): that is not the backend's word, so it stays in `toString()` for the log line and out of a toast.
+
+`isTransportFailure` is true when the response is the driver's status 0: no readable answer, whether the connection failed, timed out, hit a cross-origin error page, or returned a 2xx the client could not decode. Nothing judged the input, so "check the form" is the wrong copy. The write may or may not have landed, so a create is worth a refresh before the operator presses again. With no response at all, `isTransportFailure` is `false`: unknown is not proof.
 
 <a name="swapping-an-action-in-tests"></a>
 ## Swapping an Action in Tests

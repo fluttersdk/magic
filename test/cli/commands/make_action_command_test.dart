@@ -128,6 +128,7 @@ void main() {
       );
       expect(content, contains('ActionRequestFailed.refusalOf('));
       expect(content, contains('monitor.validationErrors'));
+      expect(content, contains('monitor.lastRemoteResponse'));
     });
 
     test('--kind=update --model wires a record-input update action', () async {
@@ -169,6 +170,7 @@ void main() {
         contains('MonitorRepository.instance.upsertFromShow(monitor)'),
       );
       expect(content, contains('ActionRequestFailed.refusalOf('));
+      expect(content, contains('monitor.lastRemoteResponse'));
     });
 
     test(
@@ -206,7 +208,9 @@ void main() {
         );
         expect(
           content,
-          contains("throw ActionRequestFailed('delete \${monitor.id}')"),
+          contains(
+            "throw ActionRequestFailed(\n        'delete \${monitor.id}',\n        monitor.lastRemoteResponse,\n      )",
+          ),
         );
         expect(
           content,
