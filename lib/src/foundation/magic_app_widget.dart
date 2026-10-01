@@ -383,6 +383,7 @@ class _MagicApplicationState extends State<MagicApplication> {
         : controller.toThemeData().copyWith(
             pageTransitionsTheme: widget.pageTransitionsTheme,
           );
+    TitleManager.instance.setPrimaryColor(theme.primaryColor);
 
     return MaterialApp.router(
       onGenerateTitle: (_) => TitleManager.instance.effectiveTitle,

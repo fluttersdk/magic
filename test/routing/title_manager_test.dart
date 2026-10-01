@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
@@ -449,6 +450,88 @@ void main() {
 
       expect(titles, hasLength(1));
       expect(titles.first, 'App');
+    });
+  });
+
+  group('TitleManager: application switcher color', () {
+    /// The arguments of every `setApplicationSwitcherDescription` call the
+    /// platform channel receives while [body] runs.
+    Future<List<Map<Object?, Object?>>> captureSwitcherCalls(
+      void Function() body,
+    ) async {
+      final calls = <Map<Object?, Object?>>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'SystemChrome.setApplicationSwitcherDescription') {
+          calls.add(call.arguments as Map<Object?, Object?>);
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      body();
+      await Future<void>.delayed(Duration.zero);
+
+      return calls;
+    }
+
+    test(
+      'sends an integer primaryColor when no color is known, never null',
+      () async {
+        // Android decodes this map with `JSONObject.getInt("primaryColor")`,
+        // which throws on null; 0 is its documented "use the system default".
+        final calls = await captureSwitcherCalls(
+          () => TitleManager.instance.setAppTitle('App'),
+        );
+
+        expect(calls, hasLength(1));
+        expect(calls.single['label'], 'App');
+        expect(calls.single['primaryColor'], 0);
+      },
+    );
+
+    test('carries the color set through setPrimaryColor', () async {
+      final calls = await captureSwitcherCalls(
+        () => TitleManager.instance
+          ..setPrimaryColor(const Color(0xFF0E7C66))
+          ..setAppTitle('App'),
+      );
+
+      expect(calls.last['primaryColor'], 0xFF0E7C66);
+    });
+
+    test('sends the color opaque, as MaterialApp\'s own Title does', () {
+      final colors = <int?>[];
+      TitleManager.configure(onTitleChanged: (_, color) => colors.add(color));
+
+      TitleManager.instance
+        ..setPrimaryColor(const Color(0x800E7C66))
+        ..setAppTitle('App');
+
+      expect(colors, [0xFF0E7C66]);
+    });
+
+    test('hands the color to a configured callback', () {
+      final colors = <int?>[];
+      TitleManager.configure(onTitleChanged: (_, color) => colors.add(color));
+
+      TitleManager.instance
+        ..setPrimaryColor(const Color(0xFF0E7C66))
+        ..setAppTitle('App');
+
+      expect(colors, [0xFF0E7C66]);
+    });
+
+    test('setPrimaryColor stores the color without emitting a title', () {
+      final titles = <String>[];
+      TitleManager.configure(onTitleChanged: (title, _) => titles.add(title));
+
+      TitleManager.instance.setPrimaryColor(const Color(0xFF0E7C66));
+
+      expect(titles, isEmpty);
     });
   });
 }

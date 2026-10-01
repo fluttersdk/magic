@@ -667,6 +667,8 @@ Observers are passed directly to GoRouter and receive all navigation events (`di
 
 Magic provides automatic page title management via `SystemChrome.setApplicationSwitcherDescription` — updates the browser tab title on web and the app switcher description on mobile.
 
+On Android the switcher card also carries a color, and on web the same value becomes the `theme-color` meta. `MagicApplication` hands its theme's `primaryColor` to `TitleManager.instance.setPrimaryColor()`, the color `MaterialApp` uses, so once the app has built a title change keeps that color.
+
 ### Title Suffix
 
 Set a global suffix via `MagicApplication`:

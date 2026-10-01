@@ -55,6 +55,9 @@ class TitleManager {
   /// Defaults to `' - '` and is configurable via [setSeparator].
   String _separator = ' - ';
 
+  /// The ARGB color sent with every title, or `null` until [setPrimaryColor].
+  int? _primaryColor;
+
   /// Callback invoked whenever the effective title changes.
   ///
   /// Defaults to [SystemChrome.setApplicationSwitcherDescription] when not
@@ -110,6 +113,18 @@ class TitleManager {
   TitleManager setSeparator(String separator) {
     _separator = separator;
     _applyTitle();
+    return this;
+  }
+
+  /// Set the color the OS shows behind this app in its task switcher.
+  ///
+  /// [MagicApplication] passes its theme's `primaryColor`, and the color is
+  /// made opaque the way `MaterialApp` makes the one it gives its own `Title`,
+  /// so once the app has built a page title keeps the recents card's color.
+  /// Stored only: it rides the next title change rather than emitting one,
+  /// because it is set while the app builds.
+  TitleManager setPrimaryColor(Color? color) {
+    _primaryColor = color?.withAlpha(0xFF).toARGB32();
     return this;
   }
 
@@ -193,10 +208,16 @@ class TitleManager {
   void _applyTitle() {
     final title = effectiveTitle;
     if (_onTitleChanged != null) {
-      _onTitleChanged(title, null);
+      _onTitleChanged(title, _primaryColor);
     } else {
+      // Never null: Android decodes this with `JSONObject.getInt`, which
+      // throws on a null `primaryColor` and fails every title change with a
+      // PlatformException. 0 is the engine's own "use the system default".
       SystemChrome.setApplicationSwitcherDescription(
-        ApplicationSwitcherDescription(label: title),
+        ApplicationSwitcherDescription(
+          label: title,
+          primaryColor: _primaryColor ?? 0,
+        ),
       );
     }
   }
