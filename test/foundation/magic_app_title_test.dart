@@ -174,6 +174,21 @@ void main() {
       expect(titles, isEmpty);
     });
   });
+
+  group('MagicApplication: application switcher color', () {
+    testWidgets('the title carries the theme primary color', (tester) async {
+      final colors = <int?>[];
+      TitleManager.configure(onTitleChanged: (_, color) => colors.add(color));
+
+      await pumpApp(tester, title: 'App');
+      TitleManager.instance.setRouteTitle('Home');
+
+      // The color `MaterialApp`'s own `Title` sends, so this description does
+      // not reset the recents card to the system default.
+      final theme = tester.widget<MaterialApp>(find.byType(MaterialApp)).theme;
+      expect(colors.last, theme!.primaryColor.toARGB32());
+    });
+  });
 }
 
 /// Test double feeding a fixed sentence map to the [Translator].

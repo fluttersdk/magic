@@ -25,4 +25,5 @@ paths: "lib/src/routing/**/*.dart"
 - `MagicRoute.currentTitle` — getter returning effective title without suffix
 - Route listener uses `GoRouter.routerDelegate.addListener` (NOT NavigatorObserver) — fires on all navigation types including `go()`
 - `TitleManager.configure(onTitleChanged: callback)` — injectable callback for testing. Defaults to `SystemChrome.setApplicationSwitcherDescription`
+- `TitleManager.instance.setPrimaryColor(color)`: the task-switcher color, set by `MagicApplication` from `theme.primaryColor` and sent opaque; the callback receives it as its second argument, and `0` (system default) goes to the platform until it is set, because Android rejects a null color
 - `TitleManager.reset()` — clears singleton. Called by `MagicRouter.reset()` automatically
