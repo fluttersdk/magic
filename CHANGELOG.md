@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.26] - 2026-10-02
+
+### Changed
+
+- **The `magic-framework` skill reference stamps magic_notifications 0.3.7** and lists `Notify.openPushSettings()`, the open-settings route that release adds. (`skills/magic-framework/references/plugin-notifications.md`)
+
 ### Fixed
 
 - **A page title no longer throws on Android.** `TitleManager` sent the switcher description without a `primaryColor`, and Android's engine reads that field with `JSONObject.getInt`, so every title change failed with `PlatformException(error, Value null at primaryColor ...)`. It now sends the color `MagicApplication` takes from its theme's `primaryColor`, made opaque like the one `MaterialApp`'s own `Title` sends, so the recents card keeps the app's color, and `0`, the engine's "system default", when none is set. On web the same change stops every title from resetting the `theme-color` meta to black: it now follows the theme's primary color, as `Title` sets it. The new `TitleManager.setPrimaryColor` stores the color without emitting a title, and a `configure(onTitleChanged:)` callback now receives it instead of `null`. (`lib/src/routing/title_manager.dart`, `lib/src/foundation/magic_app_widget.dart`)
