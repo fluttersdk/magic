@@ -1,8 +1,10 @@
-<!-- magic_starter v0.0.38 | Updated: 2026-09-29 -->
+<!-- magic_starter v0.0.39 | Updated: 2026-10-05 -->
 
 # magic_starter Plugin
 
 Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.38 every sibling floor names the newest release at that point: `magic ^0.0.24`, `magic_notifications ^0.3.6`, `magic_payments ^0.0.7`, `fluttersdk_wind ^1.8.0` and `fluttersdk_artisan ^0.0.17`. The magic floor is a real requirement: 0.0.38 reads `AuthRestored.changed`, which magic 0.0.24 introduces, to skip the app reload when a restore left the user unchanged. Underneath it sit older ones: `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+
+0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
 
 Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
@@ -19,6 +21,8 @@ Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`
 - [Plan upgrade wall](#plan-upgrade-wall)
 - [Page geometry](#page-geometry)
 - [Controllers](#controllers)
+- [Social login and connected accounts](#social-login-and-connected-accounts)
+- [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion)
 - [Guest Claim](#guest-claim)
 - [Layouts & Notification Integration](#layouts--notification-integration)
 - [Gate Abilities](#gate-abilities)
@@ -216,9 +220,8 @@ All sub-theme classes live in `lib/src/configuration/magic_starter_theme.dart`. 
 | `useGuestClaimed(callback)` | `void` | 0.0.37+. See [Guest Claim](#guest-claim). |
 | `useHeader(builder)` | `void` | Replace the default app layout header. Builder receives `(context, isDesktop)`. |
 | `useSidebarFooter(builder)` | `void` | Add widget between navigation and user menu in sidebar/drawer. Builder receives `(context)`. |
-| `useSocialLogin(builder)` | `void` | Register custom social login buttons (requires `features.social_login`). Builder receives `(context, isLoading)`. |
-| `hasSocialLogin` | `bool` | Whether social login builder is registered. |
-| `socialLoginBuilder` | `SocialLoginBuilder?` | Get registered builder, or `null`. |
+| `useSocialAuth(bridge)` | `void` | 0.0.39+. Register the app's `MagicStarterSocialAuth` bridge (requires `features.social_login`). The starter renders the buttons itself; see [Social login and connected accounts](#social-login-and-connected-accounts). |
+| `socialAuth` | `MagicStarterSocialAuth?` | The registered bridge, or `null`. |
 | `useGuestAuthEntry(builder)` | `void` | Register custom widget for guest/anonymous login flows (requires `features.guest_auth`). |
 | `guestAuthEntryBuilder` | `Widget Function()?` | Get registered builder, or `null`. |
 | `useNewsletterLabel(label)` | `void` | Override the default newsletter checkbox label. |
@@ -266,7 +269,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'newsletter': false,
     'email_verification': false,
     'extended_profile': true,
-    'social_login': true,
+    'social_login': true,      // buttons, Connected accounts page and provider confirmation; needs a bridge (0.0.39+)
     'notifications': true,
     'timezones': false,
     'billing': false,          // gates `teams.billing` (alpha.23+ ships it in the generated stub)
@@ -344,7 +347,7 @@ MagicStarter.view.registerModal('modal.confirm', () => CustomConfirmDialog());
 
 ### Routes push, except where they deliberately do not (0.0.29+)
 
-Eleven routes are registered `.stacked()`, so they push and can be popped: the eight settings spokes, `teams/create`, `teams/settings`, and both notification screens. `MagicRoute.to()` otherwise calls `go()`, which replaces the Navigator's whole page list, and a settings app was then never more than one page deep: no iOS edge swipe, and on Android the embedder unregisters its own back callback at a stack depth of one, so the system back button LEFT THE APP from a sub-page.
+Eleven routes are registered `.stacked()`, so they push and can be popped: the eight settings spokes, `teams/create`, `teams/settings`, and both notification screens. The Connected accounts page (0.0.39) is stacked too. `MagicRoute.to()` otherwise calls `go()`, which replaces the Navigator's whole page list, and a settings app was then never more than one page deep: no iOS edge swipe, and on Android the embedder unregisters its own back callback at a stack depth of one, so the system back button LEFT THE APP from a sub-page.
 
 Three groups keep replacing, each for a reason: the settings hub (a host commonly points a nav destination at it, and a pushing destination grows the stack per tab tap), `/invitations/:token/accept` (an arrival from an emailed link, with nothing behind it), and the six auth routes.
 
@@ -363,11 +366,12 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `settings.hub` | always | `MagicStarterSettingsHubView` |
 | `profile.profile` | always | `MagicStarterProfileSubPageView` |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
-| `settings.security.password` | always | `MagicStarterPasswordView` |
+| `settings.security.password` | always | `MagicStarterPasswordView`. For an account with `has_password` false it renders the Set password form instead of the change form (0.0.39+). |
 | `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
 | `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
 | `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
 | `settings.security.two_factor` | `features.two_factor` | `MagicStarterTwoFactorView` |
+| `settings.security.connected_accounts` | `features.social_login` | `MagicStarterConnectedAccountsView` (0.0.39+). The route is registered on the feature alone; the settings hub row also needs a bridge from `useSocialAuth`. |
 | `settings.security.sessions` | `features.sessions` | `MagicStarterSessionsView`. Reads `profile.unknown_device`, one of the keys no package supplies; see [Notifications](#notifications), where the rest of that list lives. |
 | `teams.create` | `features.teams` | `MagicStarterTeamCreateView` |
 | `teams.settings` | `features.teams` | `MagicStarterTeamSettingsView` |
@@ -523,6 +527,8 @@ The starter-specific widgets, exported from the same barrel. These are not desig
 |:-------|:--------|
 | `MagicStarterTwoFactorModal` | Multi-step 2FA wizard (QR setup, OTP confirm, recovery codes) |
 | `MagicStarterPasswordConfirmDialog` | Password-confirm dialog with inline error display, `ConfirmDialogVariant` support |
+| `MagicStarterSocialButtons` | 0.0.39+. One "Continue with" button per provider the bridge offers, rendered on login and register. Takes `socialAuth`, `onSelected`, `isLoading` and `busyProvider`; calls `onSelected` synchronously from the tap so a web popup can open. |
+| `MagicStarterStepUpDialog` | 0.0.39+. Identity confirmation for a password-less account: a TOTP `code` field and one "Confirm with <provider>" button per linked provider. Opened through `confirmIdentity`, which a host rarely bypasses. |
 | `MagicStarterTimezoneSelect` | Searchable timezone dropdown backed by `GET /timezones` (async search, never local data). Pages through the endpoint since 0.0.28: it asks for the next page on scroll, resets its cursor through `WSelect.onOpen` when the menu reopens, and drops any response whose list epoch has moved. |
 | `MagicStarterAuthFormCard` | Centered card wrapper for auth-adjacent screens |
 | `MagicStarterHideBottomNav` | `InheritedWidget` that signals `MagicStarterAppLayout` to hide the mobile bottom nav for fullscreen routes |
@@ -669,10 +675,10 @@ All controllers use the `Magic.findOrPut(ControllerClass.new)` singleton pattern
 
 | Controller | Singleton | Responsibilities |
 |:-----------|:----------|:----------------|
-| `MagicStarterAuthController` | `.instance` | Login, register, forgot/reset password, 2FA challenge, logout |
+| `MagicStarterAuthController` | `.instance` | Login, social sign-in, register, forgot/reset password, 2FA challenge, logout |
 | `MagicStarterGuestAuthController` | `.instance` | Guest/anonymous login flows |
 | `MagicStarterOtpController` | `.instance` | Phone OTP verification |
-| `MagicStarterProfileController` | `.instance` | Profile info, password change, sessions, account deletion |
+| `MagicStarterProfileController` | `.instance` | Profile info, password change and first password, sessions, two-factor, connected accounts, account deletion |
 | `MagicStarterTeamController` | `.instance` | Team create, settings, member management, team switching |
 | `MagicStarterNewsletterController` | `.instance` | Newsletter subscription management |
 | `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails. It takes `usageCopy` and `formatNumber` as required arguments (and optional `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
@@ -696,6 +702,9 @@ await MagicStarterAuthController.instance.doRegister(
   subscribeNewsletter: true,
 );
 
+// Social sign-in (needs a bridge); call it straight from the tap, no await before it
+MagicStarterAuthController.instance.doSocialSignIn('google');
+
 // 2FA
 await MagicStarterAuthController.instance.doTwoFactorChallenge(
   twoFactorToken: tokenFromLoginResponse,
@@ -707,6 +716,88 @@ await MagicStarterAuthController.instance.logout();
 ```
 
 The preference matrix is `NotificationPreferencesController` in `magic_notifications` now; see `plugin-notifications.md`.
+
+## Social login and connected accounts
+
+Since 0.0.39. Needs `magic-starter-laravel` with its `social-login` feature on. The starter owns the screens and what a sign-in concludes (a session, a two-factor challenge, a cancelled deletion); a BRIDGE the app registers owns the provider SDKs and the backend calls, so this package depends on no social login package. `magic_social_auth` 0.0.8 publishes the bridge (see `plugin-social-auth.md`); `starter:install` with `social_login` on leaves a comment in the generated provider telling you to register one.
+
+```dart
+// From a provider listed after the auth and starter providers. The published bridge registers in register(),
+// because it sits after RouteServiceProvider, whose routes must already see it; boot() starts its auth listener.
+MagicStarter.useSocialAuth(AppSocialAuth());
+```
+
+```dart
+abstract class MagicStarterSocialAuth {
+  List<String> providers();                       // display order: google, apple, ...
+  String label(String provider);                  // 'Google'
+  Widget icon(String provider);
+
+  Future<Map<String, dynamic>> signIn(String provider);
+
+  Future<Future<Map<String, dynamic>> Function()> beginConnect(
+    String provider,
+    Map<String, String> proof,
+  );
+
+  Future<String> confirm(String provider);        // the confirmation token
+  Future<void> signOut();
+}
+```
+
+| Method | Contract |
+|:-------|:---------|
+| `signIn(provider)` | Answers the backend's body untouched: a session (`{data: {user, token}}`, plus `data.deletion_cancelled` when the sign-in cancelled a scheduled deletion) or a challenge (`{two_factor: true, two_factor_token}`). Called synchronously from the tap with no `await` before it, so a web popup can open. A newer call supersedes a pending one. |
+| `beginConnect(provider, proof)` | The network half of a connect (the backend link ticket). Answers the call that opens the provider and then answers `{data: {provider, email}}`. `proof` is minted fresh per call and empty for a guest. |
+| `confirm(provider)` | Re-authenticates with a linked provider and answers the confirmation token. |
+| `signOut()` | Ends provider SDK sessions. The starter never calls it: the bridge must sign Google out itself whenever `Auth.stateNotifier` goes to signed-out; the published bridge does. |
+
+Every failure is a `MagicStarterSocialException(code:, message:, cancelled:)`. `cancelled` is the user backing out and shows nothing; otherwise the starter shows the `social.<code>` sentence (`socialFailureMessage`) and falls back to `message`.
+
+While a bridge is set and `features.social_login` is on:
+
+- Login and register render `MagicStarterSocialButtons`, one per `providers()` entry. `MagicStarterAuthController.doSocialSignIn(provider)` signs in and concludes through `CompletesSignIn`, the one completion every sign-in uses (password, social, two-factor challenge, OTP, guest): a challenge opens the two-factor route, a session logs in and goes home, and `data.deletion_cancelled` shows the "Account deletion cancelled" toast. The tapped provider shows a spinner (`pendingSocialProvider`) but stays tappable.
+- The Connected accounts page lives at `MagicStarterConfig.settingsConnectedAccountsRoute()` (`<profile_prefix>/security/connected-accounts`), view key `settings.security.connected_accounts`. The route needs only the feature flag; the settings hub row also needs the bridge, and a page opened without one lists no provider.
+- Connect confirms identity first (see below), then `MagicStarterProfileController.beginSocialConnect(provider, proof:)` asks the bridge to begin and answers the opener (or `null` when refused or cancelled). `doConnectSocialAccount(opener)` runs it and restores the user. On the web the page shows a "Continue with <provider>" button for a second tap, because a popup opened after the awaits behind the proof and the ticket is blocked. Every retry mints a new proof, link ticket and PKCE pair.
+- `doDisconnectSocialAccount(provider)` sends `DELETE /user/social-accounts/{provider}` and restores the user, asking no proof. The page disables it for a password-less account with one active link; the backend's 422 `last_login_method` is the real guard.
+- A password-less account sees Set password on the Security password page: `MagicStarterProfileController.doSetPassword(password:, passwordConfirmation:, proof:)` sends `POST /user/password/set` and restores the user, which flips `has_password` and the page to the change form. `password_already_set` and `password_not_set` restore the user and show the form that applies.
+
+`MagicStarterAuthUser` gains `hasPassword` (true when a backend that predates social login omits the field), `isGuest`, `socialAccounts` (`provider`, `email_at_link`, `created_at`, `revoked_at`; a revoked link is not a way in) and `deletionScheduledAt`.
+
+Language keys no package supplies: a `social.*` group (`continue_with`, `connect`, `disconnect`, `connected_accounts`, `confirm_identity`, `confirm_with`, `step_up_required`, `deletion_cancelled`, `deletion_scheduled` and one sentence per backend refusal code), `profile.set_password`, `profile.set_password_description`, `profile.password_set`, `profile.password_set_failed` and `magic_starter.titles.connected_accounts`. A fresh `starter:install` writes them; an upgrading app with a hand-written catalogue merges them from `assets/stubs/install/en.stub`, or each renders as its own key.
+
+## Identity confirmation and account deletion
+
+Since 0.0.39. A few actions make the backend ask the caller to prove who they are again: two-factor enable and disable, viewing and regenerating recovery codes, revoking a session, deleting the account, linking a provider and setting a first password. The proof reaches the controller as a `Map<String, String>` spread into the request body, minted per call and never kept (a confirmation token is single use).
+
+| Account | Proof |
+|:--------|:------|
+| Has a password | `{'password': ...}` from `MagicStarterPasswordConfirmDialog` |
+| No password, not a guest | `MagicStarterStepUpDialog`: `{'code': <TOTP>}` when two-factor is on, or `{'confirmation_token': ...}` from a linked provider through the bridge's `confirm` |
+| Guest (`is_guest`, no password) | `{}`, no dialog |
+
+These `MagicStarterProfileController` methods take `proof:` where they took `password:` (BREAKING; `{'password': password}` keeps the old behaviour for a password account): `doEnableTwoFactor`, `doDisableTwoFactor`, `getRecoveryCodes`, `doRegenerateRecoveryCodes`, `doRevokeSession(tokenId:, ...)`, `doRevokeOtherSessions`, `doDeleteAccount` and `doSetPassword`.
+
+`confirmIdentity` and `confirmAndRun` (in `lib/src/support/confirms_identity.dart`) and `MagicStarterStepUpDialog` are exported, so a host that overrides a registry view confirms a password-less account the same way:
+
+```dart
+final success = await confirmAndRun(
+  context,
+  controller,
+  title: trans('magic_starter.profile.delete_account.title'),
+  action: (proof) => controller.doDeleteAccount(proof: proof),
+);
+```
+
+`confirmIdentity(context, {variant, title, description, accepts, attempt})` answers the proof, or `null` on cancel; with `attempt` a returned error string is shown inline and the dialog stays open for a fresh proof. `confirmAndRun` runs the gated `action(proof)` inside the dialog; the dialog stays open only while the server refuses the proof itself (`step_up_required`, or a field error on `password`, `code` or `confirmation_token`), and the call answers `true` only when the action succeeded. A 422 `step_up_required` narrows the dialog to the proofs in `accepts` (`MagicStarterProfileController.stepUpAccepts`).
+
+Refusals are read by `code`, never by message: `step_up_required`, `password_already_set`, `password_not_set`, `last_login_method`, and for deletion `owns_shared_teams`, `team_has_active_subscription`, `subscription_active`. Each has its own `social.*` sentence.
+
+**Account deletion** is `doDeleteAccount({required Map<String, String> proof, bool immediately = false})`, `POST /user` with `_method: DELETE`, the proof spread in, and `immediately: true` added when asked.
+
+- Scheduled (the default): the backend answers `202` with `data.deletion_scheduled_at` and a sentence that says how to cancel, revokes every token at once and purges the account after a grace period (30 days by default). Signing in again by any method within it cancels the deletion, and that sign-in's answer carries `data.deletion_cancelled`.
+- Immediate (`immediately: true`): no grace period; the same refusals and the same proof apply.
+- Either way the controller shows the backend's sentence as a toast, calls `Auth.logout()` and goes to the login route. No before-logout hooks run, since the server has already revoked the tokens. A refusal keeps the user signed in and shows its own sentence.
 
 ## Guest Claim
 
@@ -763,7 +854,12 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 | `useUserModel()` not called | Starter falls back to `MagicStarterAuthUser`. Always register before `MagicStarterServiceProvider` boots. |
 | View key not registered | `MagicStarter.view.make(key)` throws `StateError`. Conditional views (`two_factor`, `phone_otp`, `billing`, teams) are only registered when their feature flag is `true`. |
 | Overriding a notification screen on the wrong registry | `notifications.list` and `notifications.preferences` live on `Notify.view`, not `MagicStarter.view`. Registering on the starter's registry mounts nothing. |
-| `features.social_login` enabled but no `useSocialLogin()` builder | The feature flag gates the UI section; without a builder, the social login area renders nothing. |
+| `features.social_login` enabled but no `useSocialAuth()` bridge | The flag gates the feature; without a bridge the login and register buttons and the settings hub row are absent. The Connected accounts route still exists, and a page opened without a bridge lists no provider. |
+| Looking for a builder to render social buttons | There is none. Register a `MagicStarterSocialAuth` with `MagicStarter.useSocialAuth(...)`; the starter renders the buttons. |
+| `password:` rejected by `doDeleteAccount`, `doRevokeSession`, `doEnableTwoFactor` and the other gated calls | They take `proof:` since 0.0.39. Pass `{'password': password}`, or get a proof from `confirmIdentity`. |
+| A web provider popup blocked | The popup must open in the tap's own run. Call `doSocialSignIn` straight from the tap with no `await` before it; a connect needs the second "Continue with" tap the Connected accounts page shows. |
+| A bridge that leaves Google signed in | The starter never calls `signOut()`. The bridge signs Google out on every transition to signed-out, or the next sign-in skips the account picker. |
+| Account deletion treated as instant | By default it schedules: the user is signed out at once, but the account is purged after a grace period and a sign-in within it cancels the deletion. Pass `immediately: true` to skip the grace period. |
 | Custom logout without stopping Notify polling | If you override `useLogout()`, call `Notify.logoutPush()` and `Notify.stopPolling()` manually. See `plugin-notifications.md`. Before-logout hooks (the push-state release included) still run ahead of it from 0.0.37. |
 | `SessionScopedController` / `SessionScopeSync` not found | Removed in 0.0.37. Implement magic's `SessionScoped` and call magic's `SessionScope.attach()`. |
 | A page of your own cut off at the window after upgrading | 0.0.37's shell content box no longer scrolls. Wrap the page in `MSPageScaffold` or `SingleChildScrollView(primary: false)`. |
