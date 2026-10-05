@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **The `magic-framework` skill documents the redesigned social client stack.** `plugin-social-auth.md` is rewritten for magic_social_auth 0.0.8 (native ID-token sign-in for Google and Apple, the backend-hosted PKCE flow for the rest, `SocialAuthResult`, `social:install` and `social:doctor`), and `plugin-starter.md` covers magic_starter 0.0.39 (the `MagicStarterSocialAuth` bridge, connected accounts, step-up proofs, set password, scheduled and immediate account deletion). Stamps: magic_social_auth v0.0.8, magic_starter v0.0.39; the skill moves to v0.1.60. (`skills/magic-framework/SKILL.md`, `skills/magic-framework/references/plugin-social-auth.md`, `skills/magic-framework/references/plugin-starter.md`)
+
 ## [0.0.26] - 2026-10-02
 
 ### Changed
