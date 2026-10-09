@@ -1,10 +1,10 @@
-<!-- magic_social_auth v0.0.8 | Updated: 2026-10-05 -->
+<!-- magic_social_auth v0.0.9 | Updated: 2026-10-09 -->
 
 # magic_social_auth Plugin
 
 Social authentication for Magic Framework against the `magic-starter-laravel` backend: native Google and Apple sheets on mobile, a backend-hosted browser flow with PKCE for GitHub, Microsoft and everything else, on iOS, Android and web. The package never logs the app in: a driver answers a `SocialAuthResult` and the caller decides what a session, a 2FA challenge or a cancelled deletion means.
 
-0.0.8 is a breaking rewrite: there is no token model and no handler, only drivers that answer a `SocialAuthResult`. It needs `magic ^0.0.24`, `fluttersdk_artisan ^0.0.18`, Dart `^3.12.0` and Flutter `>=3.44.0`, and a backend with the `social-login` feature on.
+0.0.8 is a breaking rewrite: there is no token model and no handler, only drivers that answer a `SocialAuthResult`. It needs `magic ^0.0.24`, `fluttersdk_artisan ^0.0.18`, Dart `^3.12.0` and Flutter `>=3.44.0`, and a backend with the `social-login` feature on. 0.0.9 changes no API: its floors move to `magic ^0.0.27` and `fluttersdk_artisan ^0.0.19`.
 
 ## Contents
 

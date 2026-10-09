@@ -1,8 +1,8 @@
-<!-- magic_starter v0.0.39 | Updated: 2026-10-05 -->
+<!-- magic_starter v0.0.40 | Updated: 2026-10-09 -->
 
 # magic_starter Plugin
 
-Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.38 every sibling floor names the newest release at that point: `magic ^0.0.24`, `magic_notifications ^0.3.6`, `magic_payments ^0.0.7`, `fluttersdk_wind ^1.8.0` and `fluttersdk_artisan ^0.0.17`. The magic floor is a real requirement: 0.0.38 reads `AuthRestored.changed`, which magic 0.0.24 introduces, to skip the app reload when a restore left the user unchanged. Underneath it sit older ones: `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
+Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team management, profile settings, billing, and responsive app/guest layouts with an opt-in feature flag system. The notification UI moved to `magic_notifications` in alpha.25; this package mounts it. From 0.0.40 every sibling floor names the newest release at that point: `magic ^0.0.27`, `magic_notifications ^0.3.8`, `magic_payments ^0.0.8`, `fluttersdk_wind ^1.8.1` and `fluttersdk_artisan ^0.0.19`. The `magic_payments` floor is a real requirement: the billing screen purchases by catalogue product key and reads `StoreBillingService.products()`, `store` and `lastChangeTiming`, all new in 0.0.8, so 0.0.40 does not compile against 0.0.7 (see [Billing](#billing)). The real `magic` requirement is 0.0.24: the starter reads `AuthRestored.changed` to skip the app reload when a restore left the user unchanged. Underneath it sit older ones: `SessionScope`, `SessionScoped`, the keyed `LatestRead` and `BaseGuard.cacheUser` arrive in magic 0.0.22, `Notify.pushState` in magic_notifications 0.3.5, and `StoreIdentitySync` in magic_payments 0.0.5. Two more carry a requirement older than the batch that set them. Wind is declared DIRECTLY, rather than taken through `magic`, so a floor exists to raise when this package calls a new Wind API: 0.0.28 passes `WSelect.onOpen`, which 1.6.0 adds. And `magic` has needed 0.0.12 since 0.0.29, for two reasons rather than one: `RouteDefinition.stacked()` exists in no release below it, and 0.0.12 is also where a routed page stopped being transparent, which is the defect stacking a route would otherwise expose.
 
 0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
 
@@ -19,6 +19,7 @@ Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`
 - [Session scope (cross-tenant leak guard)](#session-scope-cross-tenant-leak-guard)
 - [Route middleware](#route-middleware)
 - [Plan upgrade wall](#plan-upgrade-wall)
+- [Billing](#billing)
 - [Page geometry](#page-geometry)
 - [Controllers](#controllers)
 - [Social login and connected accounts](#social-login-and-connected-accounts)
@@ -303,8 +304,11 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'external_id_prefix': 'user_',  // must equal the backend's own prefix (0.0.27+)
   },
   'legal': {
-    'terms_url': null,    // Shows ToS link on register page when set
-    'privacy_url': null,  // Shows Privacy link on register page when set
+    'terms_url': null,    // ToS link on the register page and in the store billing disclosure
+    'privacy_url': null,  // Privacy link on the register page and in the store billing disclosure
+  },
+  'account': {
+    'deletion_url': null, // 0.0.40+: where a card-billed subscription is cancelled and the account deleted
   },
 },
 ```
@@ -659,6 +663,44 @@ The marker is REQUIRED on purpose: a `403` without it is an authorization denial
 
 Copy comes from the `common.upgrade`, `common.upgrade_available_on`, and `common.upgrade_dialog_not_now` lang keys, added to the published `en` stub. An app that installed an earlier stub adds those three keys itself.
 
+## Billing
+
+`teams.billing` (`MagicStarterBillingView`, gated on `features.billing`) is the ready-made screen over `magic_payments`; the contract itself is in `references/plugin-payments.md`. 0.0.40 is BREAKING here. It needs `magic_payments` 0.0.8, whose rails purchase by catalogue product key, and a `magic-starter-laravel` whose `GET /billing/plans` rows carry `products` with `sellable` and `store_ids`. Both rails now buy a PRODUCT: web checkout sends `checkout(productKey:)` and a store build calls `purchase(productKey, context:)` for the product the selected tier sells on the selected cycle. Nothing sends a plan id and a cycle separately any more, so a host fake that implements `WebBillingService` or `StoreBillingService` adopts the new signatures.
+
+### Plans and products
+
+`MagicStarterPlan.fromMap(row)` decodes one catalogue row into `id`, `name`, `tagline`, `features`, `recommended`, `cycles`, `products` and `raw`. A tier carries NO price of its own: `MagicStarterPlan.monthly`, `annual` and `currency` are removed, because the producer's rows no longer send a tier price. A plan slot that read them reads `plan.products` or `plan.raw`.
+
+| Member | Answers |
+|:-------|:--------|
+| `cycles` | `List<BillingCycle>`: the cycles the WEB rail sells this tier on. Empty for a free, custom or store-only tier. |
+| `products` | Every subscription product of the tier, grandfathered ones (`sellable: false`) included so a held product can be ranked. |
+| `sellableProducts` | The sellable subscription products with a cycle: the only ones a purchase, checkout or price read may name. |
+| `productFor(cycle)` | The sellable product on `cycle`, else the tier's first sellable product, else `null`. |
+| `webProductFor(cycle)` | The same, among the products on one of `cycles`. `null` for a tier the web does not sell. |
+| `storeProducts(store)` | The sellable products that have an id in `store` (`ManageVia.appStore` or `ManageVia.playStore`). |
+| `storeProductFor(cycle, store)` | The same pick as `productFor`, among `storeProducts(store)`. |
+
+`MagicStarterProduct` (exported through `magic_starter_plan.dart`) is one entry of a row's `products`: `key` (the value a purchase, checkout and swap send), `type` (`ProductType?`), `tier`, `cycle` (`BillingCycle?`; an unknown word is `null`, never monthly), `sellable` (absent reads `true`), `storeIds` (`MagicStarterStoreIds`, a record `(appStore, play)`, Play as `subscriptionId:basePlanId`) and `webPrices` (`Map<String, MagicStarterWebPrice>` keyed by ISO 4217 code, each `(amountMinor, display)`).
+
+How a card is priced: the first row, when it sells no product, is the free floor (`plan_price_free`), and a tier above it with no sellable product is custom (`plan_price_custom`). A web card shows the selected product's first web price `display` (`29.00 USD`), `plan_price_checkout` when it has none, and `plan_price_app` for a tier the web does not sell. A store card shows the store's own `StoreProductOffer.priceString`, with `plan_price_store` ("Price shown in the store") until or unless the store prices it, and a tier its store carries nothing of says `plan_store_unsold` instead of a price (except on the held tier's own card). A store build offers and prices only products with an id in ITS store, and the cycle toggle, now rendered on store builds too, hides when that store sells only one cycle. `renewal_text` and `renewal_ends` lost their `/mo`, since the figure is the product's price for its whole period. A store card also renders the subscription disclosure (price per period, auto-renewal, where to cancel) with Terms and Privacy links from `legal.terms_url` and `legal.privacy_url`; an unset url is left out.
+
+### The controller's purchase surface
+
+| Member | Type | Behaviour |
+|:-------|:-----|:----------|
+| `purchaseContext` | `PurchaseContext` | Built from `plans` on every read: `tierOrder` in catalogue order, `tierOfProduct` for every product key, and `tierOfStoreProduct` for every App Store and Play id the rows list, grandfathered products included. |
+| `storeOffers` | `Map<String, StoreProductOffer>` | The store's prices, filled by `loadStoreProducts()`, which asks only for keys the store has an id for. A key missing from it renders with no figure, never a guessed one. |
+| `purchaseInStore(product)` | `Future<bool>` | Calls `purchase(product.key, context: purchaseContext)`. Throws `BillingException` with `BillingErrorCode.pending` when a purchase is already waiting, and `UnsupportedPlatformException` with no store rail. |
+| `purchaseInStoreAndWait(product)` | `Future<MagicStarterStorePurchaseOutcome>` | Buys, then waits for the backend: `dismissed`, `confirmed` (the entitlement moved), `deferred` (`lastChangeTiming` is `atRenewal`, nothing polled), `processing` (not reflected within the 60 s wait; the webhook may still land) or `abandoned` (the wait was cancelled). |
+| `awaitingProductKey` | `String?` | Holds the store gate shut so a second tap cannot charge twice. Clears on an entitlement read that differs from the pre-sheet snapshot, 60 s after the store reported, or on a session reset. |
+| `entitlementSnapshot` | `MagicStarterEntitlementSnapshot` | `(plan, product, provider, currentPeriodEnd)`, compared as a whole to see a purchase land. |
+| `cancelWait()` | `void` | Stops a running wait (screen closed, team switched); the gate stays shut on the terms above. |
+
+`canPurchaseViaStore` refuses a subscription the OTHER store sold, read from `storeRail.store` against the entitlement's `manageVia` and never from the platform, and refuses while `awaitingProductKey` is set. A store failure toasts `magic_starter.billing.errors.<snake_case code>` (`not_configured`, `unmapped_active_product`, ...), one sentence per `BillingErrorCode` (`unknown` keeps `toast_failed_text`); `pending` is shown as information, not as a failure. The free tier's Downgrade never renders once the subscription has stopped renewing; otherwise it opens the billing portal on a web build where `portalAvailable`, or the store's own subscription page for a store-billed team with a `manageUrl` and an owner (or an unresolved membership), and renders no button anywhere else.
+
+An app that installed an earlier `en` stub adds, under `magic_starter.billing`, `errors.*`, `plan_price_free`, `plan_price_app`, `plan_price_checkout`, `plan_store_unsold`, the `store_disclosure_*` keys, `wait_processing` and `wait_takes_effect_on`, drops `plan_price_monthly`, removes the `/mo` from its `renewal_text` and `renewal_ends` values (or an annual card reads `290.00 USD/mo`), and adds the `social.deletion_blocking_teams*` and `social.subscription_*` keys below. A fresh `starter:install` already ships them.
+
 ## Page geometry
 
 `MagicStarter.manager.pageContainerClassName` carries the WHOLE geometry `MSPageContainer` applies: width cap, horizontal edge margins, vertical rhythm. It defaults to `MagicStarterManager.defaultPageContainerClassName` (`'max-w-7xl px-4 lg:px-8 pt-6 sm:pt-8 pb-16'`). Set it once, from the same string the host's own pages use, or starter pages and host pages centre at different widths inside the same shell:
@@ -681,7 +723,7 @@ All controllers use the `Magic.findOrPut(ControllerClass.new)` singleton pattern
 | `MagicStarterProfileController` | `.instance` | Profile info, password change and first password, sessions, two-factor, connected accounts, account deletion |
 | `MagicStarterTeamController` | `.instance` | Team create, settings, member management, team switching |
 | `MagicStarterNewsletterController` | `.instance` | Newsletter subscription management |
-| `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails. It takes `usageCopy` and `formatNumber` as required arguments (and optional `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
+| `MagicStarterBillingController` | constructed, not `.instance` | Plans, usage meters, the web and store rails, and product-keyed store purchases (`purchaseInStore`, `purchaseInStoreAndWait`; see [Billing](#billing)). It takes `usageCopy` and `formatNumber` as required arguments (and optional `storeFundedTeamReader` / `isOwnerReader`), so the host registers its own instance with `Magic.put`. |
 
 ### Auth Controller Key Methods
 
@@ -793,6 +835,12 @@ final success = await confirmAndRun(
 
 Refusals are read by `code`, never by message: `step_up_required`, `password_already_set`, `password_not_set`, `last_login_method`, and for deletion `owns_shared_teams`, `team_has_active_subscription`, `subscription_active`. Each has its own `social.*` sentence.
 
+A deletion refusal that names teams (`team_ids`) appends them through `social.deletion_blocking_teams`, or `social.deletion_blocking_teams_count` when the host's team resolver cannot name every one. From 0.0.40 `team_has_active_subscription` reads `team_providers` and keeps the one action that clears it in `MagicStarterProfileController.refusalAction` (a `MagicStarterRefusalAction`, `(label, run)`, or `null`):
+
+- `app_store` or `play_store`: `social.subscription_store`, with "Manage subscription" (the store's own subscription page) only when `Payments.store?.store` is the store that sold it. On the web or on the other store's device the sentence stands alone.
+- `stripe`: `social.subscription_stripe` with an action that opens `magic_starter.account.deletion_url` (`MagicStarterConfig.accountDeletionUrl()`, blank reads as unset), or `social.subscription_stripe_no_link` with no action when the host set none.
+- anything else: the generic `social.team_has_active_subscription`.
+
 **Account deletion** is `doDeleteAccount({required Map<String, String> proof, bool immediately = false})`, `POST /user` with `_method: DELETE`, the proof spread in, and `immediately: true` added when asked.
 
 - Scheduled (the default): the backend answers `202` with `data.deletion_scheduled_at` and a sentence that says how to cancel, revokes every token at once and purges the account after a grace period (30 days by default). Signing in again by any method within it cancels the deletion, and that sign-in's answer carries `data.deletion_cancelled`.
@@ -861,6 +909,9 @@ Realtime is NOT wired here: the layout arms the poller only. Call `Notify.startR
 | A bridge that leaves Google signed in | The starter never calls `signOut()`. The bridge signs Google out on every transition to signed-out, or the next sign-in skips the account picker. |
 | Account deletion treated as instant | By default it schedules: the user is signed out at once, but the account is purged after a grace period and a sign-in within it cancels the deletion. Pass `immediately: true` to skip the grace period. |
 | Custom logout without stopping Notify polling | If you override `useLogout()`, call `Notify.logoutPush()` and `Notify.stopPolling()` manually. See `plugin-notifications.md`. Before-logout hooks (the push-state release included) still run ahead of it from 0.0.37. |
+| `MagicStarterPlan.monthly`, `annual` or `currency` not found | Removed in 0.0.40: a tier has no price. Read `plan.products` (`webPrices`, `productFor(cycle)`) or `plan.raw`. |
+| A billing fake calling `purchase(plan: ...)` or `checkout(plan:, cycle:)` | 0.0.40 needs `magic_payments` 0.0.8: `purchase(productKey, {context})`, `checkout(productKey:, ...)`, `swap(productKey:)`, plus `products()`, `store` and `lastChangeTiming` on a store fake. |
+| Offering a `sellable: false` product | Read `sellableProducts`, `webProductFor` or `storeProductFor`; the raw `products` list includes grandfathered products, kept only for ranking. |
 | `SessionScopedController` / `SessionScopeSync` not found | Removed in 0.0.37. Implement magic's `SessionScoped` and call magic's `SessionScope.attach()`. |
 | A page of your own cut off at the window after upgrading | 0.0.37's shell content box no longer scrolls. Wrap the page in `MSPageScaffold` or `SingleChildScrollView(primary: false)`. |
 | `onSwitch` calling `MagicStarterTeamController.instance.switchTeam` directly | Works, but skips the store-rail re-identify. Use `MagicStarter.switchTeam('$teamId')`. |
