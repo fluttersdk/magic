@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.41 | Updated: 2026-10-10 -->
+<!-- magic_starter v0.0.42 | Updated: 2026-10-11 -->
 
 # magic_starter Plugin
 
@@ -710,6 +710,16 @@ A web free trial needs magic-starter-laravel 0.0.23, whose `GET /billing/plans` 
 - A web plan card whose sale product has `trialDays > 0` states `trial_card_required` ("Free for 14 days. Card required, then 18.49 USD per month.") above a `trial_cta` ("Start free trial") button. Checkout is unchanged; the backend starts the trial.
 - The store disclosure states `store_disclosure_intro_free` ("Free for 2 weeks, then ... per month") only when `StoreProductOffer.introEligible` is true, the intro price is `0` and `introPeriod` is one whole ISO 8601 unit. A paid intro keeps the plain price line, because the wire carries one period of the offer and no cycle count. The billed price stays the large figure on every card, as Apple requires.
 - New `en` stub keys under `magic_starter.billing`: `trial_badge`, `trial_line_renews`, `trial_line_cycleless`, `trial_line_store`, `trial_line_ends`, `trial_days_left_one`, `trial_days_left_other`, `trial_card_required`, `trial_cta`, `store_disclosure_intro_free`, and `period_day`, `period_week`, `period_month`, `period_year` with `_one` and `_other` (the translator has no plural API, so the view picks the form).
+
+### Changing a web plan (0.0.42+)
+
+A team that already holds a web (Stripe) subscription changes plan through `POST billing/swap`, not a new checkout: the backend refuses a second subscription with 409 `subscription_exists`. Needs `magic_payments ^0.0.10` and, for the charge behaviour below, magic-starter-laravel 0.0.29.
+
+- `MagicStarterBillingController.holdsWebSubscription` is true for a granting Stripe subscription (`trialing`, `active`, `pastDue`, `grace`), read from the provider and status, never from a resolved `plan`.
+- Tapping another paid tier opens an `MSConfirmDialog` (`swap_confirm_title`) whose body says what happens: `swap_confirm_trial` while the trial runs (charged when it ends), `swap_confirm_charge_now` for an upgrade or an unrankable tier (prorated difference now), `swap_confirm_period_now` for a downgrade onto another cycle (new period billed at once, less unused time), `swap_confirm_credit` for a same-cycle downgrade (credited to the next invoice). Confirm calls `web.swap(productKey:)`, toasts `toast_swap_description`, and waits for the webhook with `awaitEntitlementChange(before)` (60 s).
+- The backend answers a charged change the card refuses with 402; magic_payments 0.0.10 maps `payment_failed` to `BillingErrorCode.paymentDeclined` and `payment_requires_action` (3D Secure, which an in-place change cannot show) to `paymentRequiresAction`, toasted as `errors.payment_declined` and `errors.payment_requires_action` under `toast_swap_failed_title`. Nothing changed in either case.
+- Downgrade to the free floor still opens the billing portal; a team with no web subscription still checks out.
+- New `en` stub keys under `magic_starter.billing`: `swap_confirm_title`, `swap_confirm_trial`, `swap_confirm_charge_now`, `swap_confirm_period_now`, `swap_confirm_credit`, `swap_confirm_button`, `swap_cancel_button`, `toast_swap_description`, `toast_swap_failed_title`, `errors.payment_declined`, `errors.payment_requires_action`.
 
 ## Page geometry
 
