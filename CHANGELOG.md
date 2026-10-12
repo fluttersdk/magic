@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.28] - 2026-10-13
+
+### Changed
+
+- **Every sibling floor names this batch's release, and the devtools install pins move with it.** `fluttersdk_artisan` moves `^0.0.19` to `^0.0.20` and `fluttersdk_wind` `^1.8.1` to `^1.8.4`. The old ranges already admitted both, so a fresh `pub get` resolves nothing differently; what changes is that the floors name the releases magic is verified against. Neither release is breaking for magic: artisan 0.0.20 makes a connected command that reaches an extension the app has not registered yet print one retry line and exit 75 instead of an RPC stack, and wind 1.8.2 to 1.8.4 restore the click cursor under `hover:` and `focus:` and add `autofillHints` to `WInput` and `WFormInput`. `magic:install --with-devtools`, the `install.yaml` post-install message and `doc/packages/magic-devtools.md` now write `magic_devtools ^0.0.10`, `fluttersdk_dusk ^0.0.20` and `fluttersdk_telescope ^0.0.12`, and the stack lines in `CLAUDE.md` and `.github/copilot-instructions.md` quote the new floors. (`pubspec.yaml`, `lib/src/cli/commands/magic_install_command.dart`, `install.yaml`, `doc/packages/magic-devtools.md`, `CLAUDE.md`, `.github/copilot-instructions.md`)
+- **The `magic-framework` skill documents magic_starter 0.0.41 to 0.0.43 and magic_payments 0.0.9 and 0.0.10, and stamps this batch's plugins.** `plugin-starter.md` covers the free trial and store intro offer (0.0.41, #220), the web plan swap (0.0.42, #221) and 0.0.43: the support desk (`features.support`, `registerMagicStarterSupportRoutes()`, the `support.index`, `support.create` and `support.thread` view keys, `MagicStarterSupportController`, live refresh on `support.conversation.updated` with a 30-second poll), `MagicStarterGuestAuthController.openGuestSession()`, autofill and credential saving on the auth forms, the before-logout hook that revokes the token with `POST /auth/logout`, `MagicStarterBillingController(formatPrice:)` with `MagicStarterPriceFormat`, the trial-featured call to action, the Contact sales handoff, and the BREAKING `currency` field on `MagicStarterWebPrice`; its floors line names this batch. `plugin-payments.md` gains `StoreProductOffer.introEligible` and the `paymentDeclined` and `paymentRequiresAction` error codes; its install pin had stayed at `^0.0.8` for two releases. `plugin-sentry.md`'s install snippet said `^0.0.2`. Stamps: notifications 0.3.9, deeplink 0.1.7, social_auth 0.0.10, payments 0.0.11, sentry 0.0.4, devtools 0.0.10, starter 0.0.43, with the floor prose moved to match; the skill moves to v0.1.62. (`skills/magic-framework/SKILL.md`, `skills/magic-framework/references/`)
+
 ## [0.0.27] - 2026-10-09
 
 ### Changed

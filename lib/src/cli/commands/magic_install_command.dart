@@ -990,9 +990,9 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// `lib/main.dart` imports them; the `kDebugMode` gate tree-shakes them from
   /// release builds.
   static const Map<String, String> _devtoolsDependencies = <String, String>{
-    'magic_devtools': '^0.0.9',
-    'fluttersdk_dusk': '^0.0.19',
-    'fluttersdk_telescope': '^0.0.10',
+    'magic_devtools': '^0.0.10',
+    'fluttersdk_dusk': '^0.0.20',
+    'fluttersdk_telescope': '^0.0.12',
   };
 
   /// Injects the debug-trio runtime wiring into a generated `lib/main.dart`
