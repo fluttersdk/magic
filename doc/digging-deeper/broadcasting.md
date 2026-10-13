@@ -26,7 +26,6 @@ Magic provides a Laravel Echo-equivalent broadcasting system for real-time WebSo
     - [Reconnection Backoff and Jitter](#reconnection-backoff-and-jitter)
     - [Activity Monitor and Heartbeat](#activity-monitor-and-heartbeat)
     - [Connection Timeout](#connection-timeout)
-    - [Deduplication](#deduplication)
 - [Auth-Scoped Subscriptions with AuthChannelSubscription](#auth-scoped-subscriptions)
 - [One Subscription Per Alias with BroadcastListeners](#broadcast-listeners)
 - [Testing Broadcasting](#testing-broadcasting)
@@ -38,7 +37,7 @@ Magic provides a Laravel Echo-equivalent broadcasting system that lets your Flut
 
 The broadcasting system is:
 - **Pusher-compatible**: Works with Laravel Reverb, Soketi, and any Pusher-protocol server out of the box.
-- **Resilient**: Automatic reconnection with exponential backoff, application-level heartbeat, and event deduplication.
+- **Resilient**: Automatic reconnection with exponential backoff and application-level heartbeat.
 - **Extensible**: Register custom drivers via `BroadcastManager.extend()`.
 - **Testable**: `Echo.fake()` swaps the real driver for an in-memory fake with assertion helpers.
 
@@ -68,7 +67,6 @@ final Map<String, dynamic> broadcastingConfig = {
         'reconnect': true,
         'max_reconnect_delay': 30000,
         'activity_timeout': 120,
-        'dedup_buffer_size': 100,
       },
       'null': {'driver': 'null'},
     },
@@ -111,7 +109,6 @@ await Magic.init(
 | `max_reconnect_delay` | `int` | `30000` | Maximum backoff delay in milliseconds |
 | `activity_timeout` | `int` | `120` | Seconds before a heartbeat ping is expected |
 | `connection_timeout` | `int` | `15` | Seconds to wait for `pusher:connection_established` before timing out |
-| `dedup_buffer_size` | `int` | `100` | Number of recent event fingerprints kept for deduplication |
 
 <a name="environment-variables"></a>
 ### Environment Variables
@@ -566,13 +563,6 @@ The `connection_timeout` config key (default: **15 seconds**) controls how long 
   },
 },
 ```
-
-<a name="deduplication"></a>
-### Deduplication
-
-The Reverb driver maintains a ring buffer of recently seen event fingerprints (channel + event name + raw data). Duplicate messages — which can arrive during reconnection — are silently dropped.
-
-Configure the buffer size with `dedup_buffer_size` (default: `100`). A larger buffer consumes more memory but reduces false duplicate detection during high-throughput scenarios.
 
 <a name="auth-scoped-subscriptions"></a>
 ## Auth-Scoped Subscriptions with AuthChannelSubscription
