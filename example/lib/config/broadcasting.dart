@@ -18,7 +18,6 @@ Map<String, dynamic> get broadcastingConfig => {
         'reconnect': true,
         'max_reconnect_delay': 30000,
         'activity_timeout': 120,
-        'dedup_buffer_size': 100,
       },
       'null': {'driver': 'null'},
     },

@@ -141,7 +141,6 @@ Map<String, dynamic> _defaultConfig({Map<String, dynamic>? overrides}) {
     'reconnect': true,
     'max_reconnect_delay': 30000,
     'activity_timeout': 30,
-    'dedup_buffer_size': 100,
   };
   if (overrides != null) {
     config.addAll(overrides);
@@ -481,8 +480,8 @@ void main() {
     );
   });
 
-  group('ReverbBroadcastDriver — deduplication', () {
-    test('drops duplicate events', () async {
+  group('ReverbBroadcastDriver: repeated events', () {
+    test('delivers an application event whose payload repeats', () async {
       final (driver, mock) = await _createConnectedDriver();
 
       final ch = driver.channel('orders');
@@ -500,63 +499,12 @@ void main() {
       mock.simulateMessage(payload);
       await Future<void>.delayed(Duration.zero);
 
-      expect(events, hasLength(1));
+      expect(events, hasLength(2));
 
       await driver.disconnect();
     });
 
-    test('evicts oldest entry when buffer is full', () async {
-      final (driver, mock) = await _createConnectedDriver(
-        configOverrides: {'dedup_buffer_size': 3},
-      );
-
-      final ch = driver.channel('orders');
-      final events = <BroadcastEvent>[];
-      ch.events.listen(events.add);
-
-      // Fill buffer with 3 unique events.
-      for (var i = 0; i < 3; i++) {
-        mock.simulateMessage({
-          'event': 'Event$i',
-          'channel': 'orders',
-          'data': jsonEncode({'i': i}),
-        });
-        await Future<void>.delayed(Duration.zero);
-      }
-      expect(events, hasLength(3));
-
-      // Add one more — evicts event 0.
-      mock.simulateMessage({
-        'event': 'Event3',
-        'channel': 'orders',
-        'data': jsonEncode({'i': 3}),
-      });
-      await Future<void>.delayed(Duration.zero);
-      expect(events, hasLength(4));
-
-      // Replay event 0 — should pass through because it was evicted.
-      // Buffer is now [E1, E2, E3].
-      mock.simulateMessage({
-        'event': 'Event0',
-        'channel': 'orders',
-        'data': jsonEncode({'i': 0}),
-      });
-      await Future<void>.delayed(Duration.zero);
-      expect(events, hasLength(5));
-
-      // Replay event 2 — still in buffer [E2, E3, E0], so dropped.
-      mock.simulateMessage({
-        'event': 'Event2',
-        'channel': 'orders',
-        'data': jsonEncode({'i': 2}),
-      });
-      await Future<void>.delayed(Duration.zero);
-      expect(events, hasLength(5));
-
-      await driver.disconnect();
-    });
-
-    test('different events with same channel are not deduplicated', () async {
+    test('delivers different events on the same channel', () async {
       final (driver, mock) = await _createConnectedDriver();
 
       final ch = driver.channel('orders');
@@ -1386,14 +1334,14 @@ void main() {
   });
 
   group('ReverbBroadcastDriver — disconnect cleanup', () {
-    test('disconnect clears channels and dedup state', () async {
+    test('disconnect clears channels', () async {
       final (driver, mock) = await _createConnectedDriver();
 
       // Subscribe to channels.
-      driver.channel('orders');
+      final orders = driver.channel('orders');
       driver.channel('notifications');
 
-      // Send events to populate dedup buffer.
+      // Deliver an event so the channel has seen traffic before teardown.
       mock.simulateMessage({
         'event': 'Test',
         'channel': 'orders',
@@ -1405,6 +1353,7 @@ void main() {
 
       expect(driver.isConnected, isFalse);
       expect(driver.socketId, isNull);
+      expect(identical(driver.channel('orders'), orders), isFalse);
     });
   });
 

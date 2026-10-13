@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **A listener can see the same frame twice when the server re-sends it.** A queued broadcast job that is retried after a timeout publishes again, and that second frame used to be swallowed by the driver's content window; it now reaches the listener. Key a handler that is not idempotent (a toast, a counter) on an id the payload carries. (`lib/src/broadcasting/drivers/reverb_broadcast_driver.dart`, `doc/digging-deeper/broadcasting.md`)
+
+### Removed
+
+- **The Reverb driver no longer drops a frame whose channel, event and payload repeat, and `dedup_buffer_size` is gone.** Pusher has no message id and never redelivers on a connection, and Reverb sends once per connection, so the window only ever suppressed a legitimate repeat: it cannot tell a retried job from a second real event. The buffer was cleared on disconnect, so the "reconnection duplicates" rationale never held either. A published config may keep the key; it is ignored. The option is removed from the default config, the install stub, the example, the broadcasting guide, the skill references and the broadcasting rules. (`lib/config/broadcasting.dart`, `assets/stubs/install/broadcasting_config.stub`, `example/lib/config/broadcasting.dart`, `doc/digging-deeper/broadcasting.md`, `skills/magic-framework/references/secondary-systems.md`, `skills/magic-framework/SKILL.md`, `.claude/rules/broadcasting.md`, `.github/instructions/broadcasting.instructions.md`)
+
+### Fixed
+
+- **A trigger-only event that repeats its payload reaches its listeners every time.** An event whose payload carries no data of its own (a "something changed, refetch" ping) used to be swallowed from the second delivery on, because it fingerprinted identically to the first. Every frame the server sends now reaches the channel's listeners. (`lib/src/broadcasting/drivers/reverb_broadcast_driver.dart`)
+
 ## [0.0.28] - 2026-10-13
 
 ### Changed

@@ -68,7 +68,6 @@ Register via `Echo.addInterceptor()` or `driver.addInterceptor()` in a ServicePr
 - Reconnect resubscription: all channels re-subscribed with `await` after reconnect. Private/presence re-authenticate. `onReconnect` emits only after all resubscriptions complete
 - Auth error handling: failures logged via `Log.error()` with channel name, routed through interceptor `onError()` chain. Per-channel try/catch — one failure doesn't block others
 - Pusher error codes: 4000–4099 = fatal (no reconnect), 4100–4199 = immediate, 4200–4299 = backoff
-- Deduplication: ring buffer of size `dedup_buffer_size` (default 100) fingerprints — suppresses duplicate events on reconnect
 - Heartbeat: responds to `pusher:ping` with `pusher:pong` automatically
 - Private/presence auth: HTTP POST to `auth_endpoint` with `{socket_id, channel_name}` — expects `{auth: '...'}` response
 
@@ -109,7 +108,6 @@ final broadcastingConfig = {
         'max_reconnect_delay': 30000,
         'activity_timeout': 120,
         'connection_timeout': 15,
-        'dedup_buffer_size': 100,
       },
       'null': {'driver': 'null'},
     },

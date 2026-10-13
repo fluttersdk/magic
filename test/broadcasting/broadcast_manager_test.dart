@@ -278,7 +278,6 @@ void main() {
             'reconnect': false,
             'max_reconnect_delay': 30000,
             'activity_timeout': 30,
-            'dedup_buffer_size': 100,
           },
         },
       );

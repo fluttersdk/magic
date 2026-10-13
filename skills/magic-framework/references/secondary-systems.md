@@ -1109,7 +1109,7 @@ Register interceptors via `Echo.addInterceptor(interceptor)` or `driver.addInter
 
 ### ReverbBroadcastDriver (Pusher Protocol)
 
-Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, event deduplication via ring buffer, automatic reconnection with exponential backoff + 30% random jitter, client-side activity monitoring, and configurable connection establishment timeout.
+Handles the full Pusher protocol over WebSocket: connection handshake, ping/pong keepalive, public/private/presence subscriptions, automatic reconnection with exponential backoff + 30% random jitter, client-side activity monitoring, and configurable connection establishment timeout.
 
 Config keys under `broadcasting.connections.reverb`:
 
@@ -1124,7 +1124,6 @@ Config keys under `broadcasting.connections.reverb`:
 | `max_reconnect_delay` | `30000` | Max backoff delay in ms |
 | `activity_timeout` | `120` | Seconds of inactivity before ping is sent |
 | `connection_timeout` | `15` | Seconds to wait for connection establishment |
-| `dedup_buffer_size` | `100` | Ring buffer size for deduplication |
 
 Constructor DI parameters for testing:
 - `channelFactory` — overrides WebSocket creation (inject mock channels)
