@@ -480,7 +480,7 @@ void main() {
     );
   });
 
-  group('ReverbBroadcastDriver — repeated events', () {
+  group('ReverbBroadcastDriver: repeated events', () {
     test('delivers an application event whose payload repeats', () async {
       final (driver, mock) = await _createConnectedDriver();
 
@@ -1338,7 +1338,7 @@ void main() {
       final (driver, mock) = await _createConnectedDriver();
 
       // Subscribe to channels.
-      driver.channel('orders');
+      final orders = driver.channel('orders');
       driver.channel('notifications');
 
       // Deliver an event so the channel has seen traffic before teardown.
@@ -1353,6 +1353,7 @@ void main() {
 
       expect(driver.isConnected, isFalse);
       expect(driver.socketId, isNull);
+      expect(identical(driver.channel('orders'), orders), isFalse);
     });
   });
 

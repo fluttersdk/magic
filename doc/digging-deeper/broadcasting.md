@@ -183,6 +183,8 @@ The `BroadcastEvent` envelope provides full context for each received message:
 | `data` | `Map<String, dynamic>` | Decoded JSON payload |
 | `receivedAt` | `DateTime` | Local timestamp of receipt |
 
+Every frame the server sends reaches your listener, including one whose payload repeats an earlier frame exactly: a "something changed, refetch" event usually does. The server can also send the same event twice, when a queued broadcast job is retried after a timeout. Write handlers so a second delivery is harmless (refetch, or upsert by an id the payload carries) rather than counting or toasting once per frame.
+
 <a name="private-channels"></a>
 ### Private Channels
 
