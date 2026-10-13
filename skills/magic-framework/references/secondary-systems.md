@@ -1071,6 +1071,10 @@ Laravel Echo-equivalent real-time channel system over WebSockets. Accessed via t
 | `channel.stopListening(event)` | `void` | Remove a listener |
 | `channel.events` | `Stream<BroadcastEvent>` | Raw stream of all events on this channel |
 | `channel.name` | `String` | Fully-qualified channel name |
+| `channel.isSubscribed` | `bool` | Server confirmed the channel on this connection (`subscription_succeeded`); `false` after a drop, a leave, or a failed auth. `connected` does NOT imply it |
+| `channel.onSubscriptionChanged` | `Stream<bool>` | Emits `isSubscribed` on each change; never replays, so read `isSubscribed` when attaching |
+
+Both members are abstract: a hand-written `implements BroadcastChannel` test double must add them. Under `Echo.fake()` every channel starts unsubscribed; flip it with `fake.driver.setSubscribed('private-team.1', true)` (fully-qualified name).
 
 ### BroadcastEvent Fields
 
@@ -1131,13 +1135,17 @@ Constructor DI parameters for testing:
 - `pongTimeout` — override the 30-second pong deadline (use short durations in tests)
 - `random` — inject a seeded `Random` for deterministic backoff jitter in tests
 
-**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → closes socket, triggers reconnect. Timer resets on ANY inbound message.
+**Connection health**: Activity monitor detects silent connection loss using the Pusher protocol `activity_timeout` (provided by server in handshake; falls back to `activity_timeout` config key, default 120s). After `activity_timeout` seconds of inactivity → sends `pusher:ping`. If no `pusher:pong` within `pongTimeout` (30s default) → drops the connection as a code-less close (state `reconnecting`, channels unsubscribed, backoff retry) without waiting on the dead socket's close. Timer resets on ANY inbound message.
+
+**Close codes decide the reconnect** (Pusher protocol): 4000-4099 fatal (no retry, state `disconnected`), 4100-4199 backoff, 4200-4299 immediate, any other code or none (a Reverb restart sends no close frame) backoff. A `pusher:error` frame on an open socket never reconnects, only reaches interceptors: Reverb sends 4200 for any server exception without closing.
+
+**Resubscription**: every `pusher:connection_established` subscribes every channel in the driver's registry with the new socket id, whichever path opened the socket (timer retry, `connect()` after a drop even with `reconnect: false`, first connect). A channel created while down is subscribed once by the next handshake. Work started for one socket (auth call, auth retry, late close or error) is dropped once the socket changed, and an auth answer for a channel `leave()`d meanwhile sends nothing.
 
 **Reconnection backoff**: Exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd when many clients reconnect simultaneously.
 
 **Connection timeout**: Configurable via `connection_timeout` (default 15s). If the server doesn't complete the Pusher handshake within this window → closes socket, schedules reconnect, throws `TimeoutException`.
 
-Auth failures in `_authenticateAndSubscribe()` are logged via `Log.error()` and routed through the interceptor `onError()` chain. On reconnect, all channels are re-subscribed with `await` — `onReconnect` emits only after completion. Per-channel error handling ensures partial failures don't block other channels.
+**Auth failures**: the default auth call throws `BroadcastAuthException` (`statusCode`, `channelName`, `isRetryable`) on a non-2xx answer, since `Http.post` never throws on 4xx/5xx. Status `0` and 5xx retry with `backoffDelay` while the socket lasts; 401, 403 and other failures are logged via `Log.error()` and not retried. Every failure is routed through the interceptor `onError()` chain; one channel's failure does not block the others. `onReconnect` emits after each reconnect handshake once every channel was sent its subscribe (private/presence after the first auth attempt), never for the first connection.
 
 ### NullBroadcastDriver
 

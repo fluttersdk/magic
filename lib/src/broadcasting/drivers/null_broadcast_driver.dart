@@ -91,6 +91,14 @@ class _NullBroadcastChannel implements BroadcastChannel {
   Stream<BroadcastEvent> get events => const Stream<BroadcastEvent>.empty();
 
   @override
+  /// Always `false`: no server ever confirms a null channel.
+  bool get isSubscribed => false;
+
+  @override
+  /// Never emits: the subscription state never changes.
+  Stream<bool> get onSubscriptionChanged => const Stream<bool>.empty();
+
+  @override
   /// Registers [callback] for [event] and returns `this` for fluent chaining.
   ///
   /// The callback will never be invoked because this driver receives no events.
