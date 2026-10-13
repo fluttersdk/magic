@@ -94,6 +94,24 @@ MagicRoute.page('/posts/:postId/comments/:commentId', (postId, commentId) {
 > [!NOTE]
 > Magic uses `:param` syntax (like Express.js) instead of Laravel's `{param}` syntax.
 
+### Reading Parameters From a Widget
+
+`MagicRouter.instance.pathParameter()` answers from the page whose builder ran last, which is not always the page on screen. When a page is pushed across layout shells, go_router builds it before the shell underneath, so the static reader hands the pushed page the parameters of the page beneath it. A widget that has a `BuildContext` should ask the page it sits in instead:
+
+```dart
+class _ThreadViewState extends State<ThreadView> {
+  String? _id;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _id = MagicRouter.instance.pathParameterOf(context, 'id');
+  }
+}
+```
+
+`queryParameterOf(context, key)` is the query counterpart. Call both from `didChangeDependencies` or `build`, never `initState`: they subscribe the context to the router, which a context still being created cannot do. Both throw a `GoError` when no route page sits above the context (a widget pumped on its own), and neither falls back to the static reader, because that fallback is the wrong page's value. Keep `pathParameter()`, `queryParameter()` and the `Request` facade for code with no `BuildContext`, such as a controller or a middleware.
+
 <a name="query-parameters"></a>
 ## Query Parameters
 
@@ -113,7 +131,7 @@ final sort = Request.query('sort'); // null
 > [!IMPORTANT]
 > Read the query where a REBUILD can see it, which means `build()` and not `initState()`. Navigating from `/search?q=a` to `/search?q=b` does not remount the screen: go_router keys a page on the matched path and the query is not part of it, so the same `State` is reused and `initState` never runs a second time. A screen that reads its query once at mount renders the first one forever while the address bar shows the second.
 >
-> The same applies to a `const` page widget. `MagicRoute.page('/search', () => const SearchPage())` hands back one identical instance every time, so the element never updates and nothing rebuilds at all. Take the path parameter (`(id) => SearchPage(id: id)`) or read the query in `build()`.
+> The same applies to a `const` page widget. `MagicRoute.page('/search', () => const SearchPage())` hands back one identical instance every time, so the element never updates and nothing rebuilds at all. Take the path parameter (`(id) => SearchPage(id: id)`) or read the query in `build()`, through `MagicRouter.instance.queryParameterOf(context, 'q')` where the page may be pushed across layout shells.
 
 Use `Request.queryParams` to retrieve all query parameters as a `Map<String, String>`:
 
@@ -459,7 +477,7 @@ MagicRoute.page('/monitors/:id', (id) => MonitorPage(id))
 
 On the web a stacked route owns the address bar: opening `/monitors/42` shows `/monitors/42`, browser back returns to `/monitors`, and a reload reopens the monitor. go_router reports a push under the address of the page beneath it by default, so the router turns on `GoRouter.optionURLReflectsImperativeAPIs` when it is built. go_router discourages that flag because a pushed page's URL is not always deep-linkable; every Magic route is a full path the router matches on its own, so the address always matches a route. It applies to every push, not only stacked routes: `MagicRoute.push()`, `replace()` over a pushed page and a go_router `context.push` report their own address as well. A reload arrives with only the path, so a page pushed with go_router's `extra` gets no `extra` back, and the page that was underneath is gone, so `back()` needs a `fallback` there. The flag is global to go_router, so an app that sets it back to `false` after `Magic.init()` gets the list's address again.
 
-One exception, and it is not one you can trigger by hand. A navigation issued before the `Router` widget has parsed a location replaces rather than pushes, whichever verb asked: `to()` on a `stacked()` route and `MagicRoute.push()` alike. go_router pushes onto `routerDelegate.currentConfiguration`, which is empty until the widget mounts, so pushing there leaves the delegate reporting an empty location that `currentLocation`, `pathParameter` and `queryParameter` all read afterwards. The realistic way in is a deeplink or a tapped push notification on a cold start, and there is nothing underneath to pop back to at that point anyway: a link arriving from outside the app is where the reader arrives, not somewhere they stepped to.
+One exception, and it is not one you can trigger by hand. A navigation issued before the `Router` widget has parsed a location replaces rather than pushes, whichever verb asked: `to()` on a `stacked()` route and `MagicRoute.push()` alike. go_router pushes onto `routerDelegate.currentConfiguration`, which is empty until the widget mounts, so pushing there leaves the delegate reporting an empty location that `currentLocation`, `pathParameter` and `queryParameter` all read afterwards (`pathParameterOf` and `queryParameterOf` read the page's own state and are not affected). The realistic way in is a deeplink or a tapped push notification on a cold start, and there is nothing underneath to pop back to at that point anyway: a link arriving from outside the app is where the reader arrives, not somewhere they stepped to.
 
 `toNamed()` answers the same way. It resolves the name to a location and hands it to `to()`, so one route behaves one way whichever verb reaches it:
 

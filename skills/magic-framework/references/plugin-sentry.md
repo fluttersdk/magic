@@ -102,6 +102,10 @@ One zone is the point, not a detail: on Flutter web `SentryFlutter.init` opens i
 - One event per distinct `METHOD endpoint status` per session: a repeat becomes an `error` breadcrumb marked `(repeat)`. The set is process-wide (`SentryNetworkInterceptor.reportedFailures`), not time-windowed.
 - `sentry_dio`'s own failed-request capture stays OFF. Turning it back on double-reports every failure, with a stack trace inside the SDK instead of at the caller.
 
+## Token scrubbing
+
+`MagicSentry.run` installs `SentryTokenScrubber` after `configure` returns, so it runs first in `beforeSend`, `beforeSendTransaction` and `beforeBreadcrumb` and hands the masked value to any hook the app set inside `configure`. It masks query values whose key names a secret (`token`, `password`, `secret`, `signature`, `credential`, `api_key`), path segments bound to a magic route param whose name contains `token`, and on HTTP breadcrumb and span URLs any remaining 32+ character opaque segment. A hook assigned after `SentryFlutter.init` replaces the scrubber, so set app hooks inside `configure`.
+
 ## User context
 
 `SentryUserContext<T extends Model>` is what the provider installs; construct it directly only outside the provider.
