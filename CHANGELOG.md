@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`MagicRouter.pathParameterOf(context, key)` and `queryParameterOf(context, key)` read the enclosing page's own route state.** The static `pathParameter` and `queryParameter` answer from the page whose builder ran last, and across layout shells go_router builds a pushed page before the shell underneath, so the pushed page read the parameters of the page under it (a support thread opened from a billing page fetched `support/conversations/`). The context-bound readers use `GoRouterState.of(context)`: call them from `didChangeDependencies` or `build`, never `initState`. They throw a `GoError` when no route page sits above the context and never fall back to the static state. The static readers and `Request` stay for code with no `BuildContext`. (`lib/src/routing/magic_router.dart`, `doc/basics/routing.md`, `skills/magic-framework/references/routing-navigation.md`, `skills/magic-framework/SKILL.md`)
+
 ### Changed
 
 - **A listener can see the same frame twice when the server re-sends it.** A queued broadcast job that is retried after a timeout publishes again, and that second frame used to be swallowed by the driver's content window; it now reaches the listener. Key a handler that is not idempotent (a toast, a counter) on an id the payload carries. (`lib/src/broadcasting/drivers/reverb_broadcast_driver.dart`, `doc/digging-deeper/broadcasting.md`)

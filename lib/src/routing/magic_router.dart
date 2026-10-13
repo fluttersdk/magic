@@ -668,7 +668,8 @@ class MagicRouter {
   ///   it survive and back leaves the screen rather than stepping through
   ///   every query the reader passed through. The screen REBUILDS rather
   ///   than remounting, which is what a query change does everywhere in
-  ///   Magic, so read the query in `build` and never in `initState`.
+  ///   Magic, so read the query in `build` (through [queryParameterOf] where
+  ///   a [BuildContext] is at hand) and never in `initState`.
   void to(String path, {Map<String, String>? queryParameters}) {
     if (_router == null) {
       throw StateError(
@@ -962,6 +963,12 @@ class MagicRouter {
 
   /// Get a path parameter from the current route.
   ///
+  /// Reads the state of the page whose builder ran last, which is not always
+  /// the page on screen: across layout shells a pushed page is built before the
+  /// shell underneath, so this answers with the page UNDER it. Code that has a
+  /// [BuildContext] should use [pathParameterOf]; this stays for code that has
+  /// none (a controller, a middleware).
+  ///
   /// ```dart
   /// // For route '/users/:id', accessing '/users/42':
   /// final id = MagicRouter.instance.pathParameter('id'); // '42'
@@ -972,12 +979,51 @@ class MagicRouter {
 
   /// Get a query parameter from the current route.
   ///
+  /// Shares [pathParameter]'s limit: it answers for the page built last. Use
+  /// [queryParameterOf] where a [BuildContext] is at hand.
+  ///
   /// ```dart
   /// // For '/search?q=flutter':
   /// final query = MagicRouter.instance.queryParameter('q'); // 'flutter'
   /// ```
   String? queryParameter(String key) {
     return _currentState?.uri.queryParameters[key];
+  }
+
+  /// Get a path parameter from the route page that [context] sits in.
+  ///
+  /// Unlike [pathParameter], this answers for the page the widget belongs to,
+  /// not the page whose builder ran last. A page pushed across layout shells is
+  /// built before the shell underneath is rebuilt, so the static reader hands
+  /// the pushed page the parameters of the page under it.
+  ///
+  /// ```dart
+  /// @override
+  /// void didChangeDependencies() {
+  ///   super.didChangeDependencies();
+  ///   _id = MagicRouter.instance.pathParameterOf(context, 'id');
+  /// }
+  /// ```
+  ///
+  /// Call it from `didChangeDependencies` or `build`, never `initState`: it
+  /// subscribes [context] to the router, which a context that is still being
+  /// created cannot do.
+  ///
+  /// Throws a [GoError] when no router page sits above [context] (a widget
+  /// pumped on its own). There is no fallback to [pathParameter]: that is the
+  /// wrong page's value, and a caller that has no [BuildContext] should use
+  /// [pathParameter] on purpose.
+  String? pathParameterOf(BuildContext context, String key) {
+    return GoRouterState.of(context).pathParameters[key];
+  }
+
+  /// Get a query parameter from the route page that [context] sits in.
+  ///
+  /// The query counterpart of [pathParameterOf], with the same contract: call
+  /// it from `didChangeDependencies` or `build`, and it throws a [GoError]
+  /// outside a router page rather than reading [queryParameter].
+  String? queryParameterOf(BuildContext context, String key) {
+    return GoRouterState.of(context).uri.queryParameters[key];
   }
 
   /// Get the current route location (path + query string).
