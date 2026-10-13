@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **`MagicRouter.pathParameterOf(context, key)` and `queryParameterOf(context, key)` read the enclosing page's own route state.** The static `pathParameter` and `queryParameter` answer from the page whose builder ran last, and across layout shells go_router builds a pushed page before the shell underneath, so the pushed page read the parameters of the page under it (a support thread opened from a billing page fetched `support/conversations/`). The context-bound readers use `GoRouterState.of(context)`: call them from `didChangeDependencies` or `build`, never `initState`. They throw a `GoError` when no route page sits above the context and never fall back to the static state. The static readers and `Request` stay for code with no `BuildContext`. (`lib/src/routing/magic_router.dart`, `doc/basics/routing.md`, `skills/magic-framework/references/routing-navigation.md`, `skills/magic-framework/SKILL.md`)
+- **`MagicRouter.allRoutes` lists every registered route, including those inside a `MagicRoute.group(layout: ...)`.** `routes` holds the top-level table only, so a consumer reading route patterns (magic_sentry's token scrubber) missed every layout route. (`lib/src/routing/magic_router.dart`)
 
 ### Changed
 

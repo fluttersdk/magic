@@ -88,6 +88,25 @@ void main() {
       expect(MagicRouter.instance.routes.first.method, 'PAGE');
     });
 
+    test('allRoutes lists routes declared inside a layout too', () {
+      MagicRoute.page('/home', () => const SizedBox());
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () {
+          MagicRoute.page('/invitations/:token/accept', () => const SizedBox());
+        },
+      );
+
+      expect(
+        MagicRouter.instance.allRoutes.map((route) => route.fullPath),
+        containsAll(<String>['/home', '/invitations/:token/accept']),
+      );
+      expect(
+        MagicRouter.instance.routes.map((route) => route.fullPath),
+        isNot(contains('/invitations/:token/accept')),
+      );
+    });
+
     test('MagicRoute.get() works as alias for page()', () {
       // ignore: deprecated_member_use_from_same_package
       MagicRoute.get('/home', () => const SizedBox());

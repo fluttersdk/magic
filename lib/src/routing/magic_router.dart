@@ -170,6 +170,12 @@ class MagicRouter {
   /// Get all registered routes.
   List<RouteDefinition> get routes => List.unmodifiable(_routes);
 
+  /// Every registered route, including those declared inside a layout group.
+  ///
+  /// [routes] holds the top-level table only; a route registered through
+  /// `MagicRoute.group(layout: ...)` lives under its layout and appears here.
+  List<RouteDefinition> get allRoutes => List.unmodifiable(_allRoutes());
+
   /// Get all registered navigator observers.
   List<NavigatorObserver> get observers => List.unmodifiable(_observers);
 
