@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:math';
 
@@ -33,9 +32,8 @@ enum PusherErrorAction {
 /// via a pure-Dart WebSocket client.
 ///
 /// Handles the full Pusher protocol: connection handshake, application-level
-/// ping/pong, channel subscriptions (public, private, presence), event
-/// deduplication, interceptor chains, and automatic reconnection with
-/// exponential backoff.
+/// ping/pong, channel subscriptions (public, private, presence), interceptor
+/// chains, and automatic reconnection with exponential backoff.
 ///
 /// ## Usage
 /// ```dart
@@ -157,13 +155,6 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // ---------------------------------------------------------------------------
 
   final List<void Function()> _subscriptionQueue = <void Function()>[];
-
-  // ---------------------------------------------------------------------------
-  // Deduplication — ring buffer
-  // ---------------------------------------------------------------------------
-
-  final Queue<String> _dedupQueue = Queue<String>();
-  final Set<String> _dedupSet = <String>{};
 
   // ---------------------------------------------------------------------------
   // Reconnection
@@ -397,9 +388,6 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       channel.dispose();
     }
     _channels.clear();
-
-    _dedupQueue.clear();
-    _dedupSet.clear();
 
     if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
       _connectionCompleter!.complete();
@@ -648,14 +636,6 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     final eventName = json['event'] as String;
     final rawData = json['data'];
 
-    // Deduplication.
-    final rawDataString = rawData is String ? rawData : jsonEncode(rawData);
-    final dedupKey = '$channelName:$eventName:$rawDataString';
-    final maxDedupSize = _config['dedup_buffer_size'] as int? ?? 100;
-
-    if (_dedupSet.contains(dedupKey)) return;
-    _addToDedupBuffer(dedupKey, maxDedupSize);
-
     // Double-JSON decode: if data is a String, decode it. If already a Map,
     // use directly.
     final Map<String, dynamic> data;
@@ -680,20 +660,6 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     }
 
     ch.addEvent(event);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Deduplication ring buffer
-  // ---------------------------------------------------------------------------
-
-  void _addToDedupBuffer(String key, int maxSize) {
-    _dedupQueue.add(key);
-    _dedupSet.add(key);
-
-    if (_dedupQueue.length > maxSize) {
-      final evicted = _dedupQueue.removeFirst();
-      _dedupSet.remove(evicted);
-    }
   }
 
   // ---------------------------------------------------------------------------
