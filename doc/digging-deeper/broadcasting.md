@@ -457,6 +457,8 @@ final channel = Echo.channel('orders') as _FakeBroadcastChannel;
 <a name="connection-lifecycle"></a>
 ### Connection Lifecycle
 
+`BroadcastServiceProvider` starts the default connection during boot and does not wait for it. A server that is down or slow never holds or fails the app's launch: the failure is logged with `Log.warning()` and the driver keeps retrying with the backoff below, including when the server refused the socket outright. Code that needs the socket awaits `Echo.connect()`, which joins the attempt already in flight.
+
 `BroadcastConnectionState` tracks the lifecycle of the WebSocket connection:
 
 | State | Description |

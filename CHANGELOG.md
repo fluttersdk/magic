@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- **The app launches with the realtime server down.** `BroadcastServiceProvider.boot()` awaited the default connection, so a Reverb that refused the socket threw out of boot, every provider after it was skipped, and a Flutter web app stayed on a blank page, even for a guest on a public route (measured in a host app's local walk). A server that never answered held the launch for the whole `connection_timeout`. Boot now starts the connection without waiting and logs a failure with `Log.warning()`. And a refused socket arms a reconnect: it fails at `channel.ready`, before the handshake timeout that was the only path scheduling one, so the driver used to stay disconnected for good even once the server came back. (`lib/src/broadcasting/broadcast_service_provider.dart`, `lib/src/broadcasting/drivers/reverb_broadcast_driver.dart`, `doc/digging-deeper/broadcasting.md`)
 - **A trigger-only event that repeats its payload reaches its listeners every time.** An event whose payload carries no data of its own (a "something changed, refetch" ping) used to be swallowed from the second delivery on, because it fingerprinted identically to the first. Every frame the server sends now reaches the channel's listeners. (`lib/src/broadcasting/drivers/reverb_broadcast_driver.dart`)
 
 ## [0.0.28] - 2026-10-13

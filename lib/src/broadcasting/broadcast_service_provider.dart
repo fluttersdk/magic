@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import '../facades/config.dart';
+import '../facades/log.dart';
 import '../support/service_provider.dart';
 import 'broadcast_manager.dart';
 
@@ -38,10 +41,18 @@ class BroadcastServiceProvider extends ServiceProvider {
     app.singleton('broadcasting', () => BroadcastManager());
   }
 
-  /// Auto-connect the default broadcast connection.
+  /// Starts connecting the default broadcast connection, without waiting.
   ///
   /// Skips the connection attempt when `broadcasting.default` is `'null'`
   /// to avoid unnecessary work during local development or testing.
+  ///
+  /// Not awaited, and a failure is logged rather than thrown. Boot used to
+  /// wait for the socket, so a server that refused it failed every provider
+  /// after this one and the app never drew a frame, and a server that never
+  /// answered held the app at launch for the whole connection timeout. A
+  /// realtime socket is an enhancement over a working app: the driver keeps
+  /// retrying on its own, and a caller that needs the connection awaits
+  /// `Echo.connect()`, which joins the attempt in flight.
   @override
   Future<void> boot() async {
     final manager = app.make<BroadcastManager>('broadcasting');
@@ -50,8 +61,15 @@ class BroadcastServiceProvider extends ServiceProvider {
       'null',
     );
 
-    if (defaultConnection != 'null') {
-      await manager.connection().connect();
-    }
+    if (defaultConnection == 'null') return;
+
+    unawaited(
+      manager.connection().connect().catchError((Object error) {
+        Log.warning(
+          'Broadcasting could not connect at boot ($error); the driver '
+          'keeps retrying.',
+        );
+      }),
+    );
   }
 }

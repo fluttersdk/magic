@@ -99,6 +99,14 @@ class _MockWebSocketChannel implements WebSocketChannel {
   }
 }
 
+/// A socket the server refused: `ready` fails, as it does when nothing
+/// listens on the port.
+class _RefusedWebSocketChannel extends _MockWebSocketChannel {
+  @override
+  Future<void> get ready =>
+      Future<void>.error(WebSocketChannelException('Connection refused'));
+}
+
 // ---------------------------------------------------------------------------
 // Test interceptor
 // ---------------------------------------------------------------------------
@@ -293,6 +301,45 @@ void main() {
 
       // Driver should have reconnected successfully.
       expect(connectionCount, greaterThanOrEqualTo(2));
+
+      await driver.disconnect();
+    });
+
+    test('schedules a reconnect when the server refuses the socket', () async {
+      // A Reverb that is down refuses the socket before any handshake, so
+      // `ready` fails. That path armed no retry: the driver never connected
+      // again, even once the server was back.
+      var connectionCount = 0;
+
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'reconnect': true}),
+        channelFactory: (_) {
+          connectionCount++;
+          if (connectionCount == 1) return _RefusedWebSocketChannel();
+          final mock = _MockWebSocketChannel();
+          Future<void>.delayed(Duration.zero, () {
+            mock.simulateMessage({
+              'event': 'pusher:connection_established',
+              'data': jsonEncode({
+                'socket_id': 'back-socket-id',
+                'activity_timeout': 30,
+              }),
+            });
+          });
+          return mock;
+        },
+        random: Random(42),
+      );
+
+      await expectLater(
+        driver.connect(),
+        throwsA(isA<WebSocketChannelException>()),
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(connectionCount, greaterThanOrEqualTo(2));
+      expect(driver.isConnected, isTrue);
 
       await driver.disconnect();
     });
