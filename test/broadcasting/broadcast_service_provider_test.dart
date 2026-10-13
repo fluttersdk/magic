@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -69,6 +71,49 @@ void main() {
     });
   });
 
+  group('BroadcastServiceProvider — boot with the server down', () {
+    // Boot used to await the connection, so a refused socket failed every
+    // provider after it and the app never drew a frame, and a server that
+    // never answered held the app on its splash. The socket is the driver's
+    // to retry; boot only starts it.
+    setUp(() {
+      Magic.singleton('log', () => LogManager());
+      Config.set('broadcasting.default', 'my_conn');
+      Config.set('broadcasting.connections', {
+        'my_conn': <String, dynamic>{'driver': 'spy'},
+      });
+    });
+
+    test('boot() completes when the connection fails', () async {
+      BroadcastManager.extend('spy', (Map<String, dynamic> config) {
+        return _SpyNullDriver(
+          onConnect: () => throw StateError('Connection refused'),
+        );
+      });
+
+      final provider = BroadcastServiceProvider(MagicApp.instance);
+      provider.register();
+
+      await expectLater(provider.boot(), completes);
+      await Future<void>.delayed(Duration.zero);
+    });
+
+    test('boot() completes while the connection never answers', () async {
+      final Completer<void> never = Completer<void>();
+      BroadcastManager.extend('spy', (Map<String, dynamic> config) {
+        return _SpyNullDriver(onConnect: () => never.future);
+      });
+
+      final provider = BroadcastServiceProvider(MagicApp.instance);
+      provider.register();
+
+      await expectLater(
+        provider.boot().timeout(const Duration(seconds: 1)),
+        completes,
+      );
+    });
+  });
+
   group('BroadcastServiceProvider — boot with null driver', () {
     test('boot() completes without error when default is "null"', () async {
       Config.set('broadcasting.default', 'null');
@@ -113,7 +158,7 @@ void main() {
 
 /// Spy driver that records whether [connect] was invoked.
 class _SpyNullDriver implements BroadcastDriver {
-  final void Function() onConnect;
+  final FutureOr<void> Function() onConnect;
 
   _SpyNullDriver({required this.onConnect});
 

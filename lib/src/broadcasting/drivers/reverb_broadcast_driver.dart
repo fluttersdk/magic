@@ -300,7 +300,24 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
     final channel = _channelFactory(uri);
     _channel = channel;
-    await channel.ready;
+    try {
+      await channel.ready;
+    } catch (_) {
+      // A refused socket (the server is down) fails here, before any
+      // handshake, which is the one failure the timeout below never sees.
+      // Without a retry the driver stayed disconnected for good, even once
+      // the server was back. Arm one, as the timeout path does, unless a
+      // disconnect() ended the loop while this was suspended.
+      //
+      // The dead socket is dropped here and its close is not awaited: a
+      // browser socket that never opened never finishes closing, so the next
+      // attempt's _releaseSocket waited on it forever and no retry ever
+      // opened a socket (measured in a host app's web walk).
+      if (identical(_channel, channel)) _channel = null;
+      channel.sink.close().ignore();
+      if (epoch == _epoch) _scheduleReconnect();
+      rethrow;
+    }
     // disconnect() already closed this socket; a later connect() may own
     // `_channel` by now, so leave every field alone.
     if (epoch != _epoch) return;
