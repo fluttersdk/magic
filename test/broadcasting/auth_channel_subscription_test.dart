@@ -206,18 +206,21 @@ void main() {
     expect(counting.spy.subscribedChannels, contains('private-teams.2'));
   });
 
-  test('a failed own connect does not strand the subscription: the next sync '
-      'connects again and subscribes', () async {
+  test('a failed own connect still registers the channel with its listeners, '
+      'the driver subscribes it on its next handshake', () async {
     final _CountingBroadcastManager counting = _CountingBroadcastManager();
     Magic.app.setInstance('broadcasting', counting);
     counting.spy.failNextConnect = true;
 
     final AuthChannelSubscription subscription = AuthChannelSubscription(
       channelName: () => 'teams.1',
-      listeners: <String, void Function(BroadcastEvent)>{},
+      listeners: <String, void Function(BroadcastEvent)>{
+        'incident.opened': (BroadcastEvent event) {},
+      },
     );
 
     await subscription.sync();
+
     expect(
       counting.spy.connectCount,
       1,
@@ -225,18 +228,41 @@ void main() {
     );
     expect(
       counting.spy.subscribedChannels,
-      isEmpty,
-      reason: 'a failed connect must not subscribe on a dead driver',
+      contains('private-teams.1'),
+      reason: 'a failed connect must not leave the channel unregistered',
+    );
+    expect(
+      counting.spy.listeners['private-teams.1'],
+      contains('incident.opened'),
+      reason: 'the listeners are attached before the driver ever connects',
     );
 
     await subscription.sync();
 
     expect(
       counting.spy.connectCount,
-      2,
-      reason: 'the next sync retries the connect',
+      1,
+      reason: 'the marker is set, so an unchanged name does not reconnect',
     );
-    expect(counting.spy.subscribedChannels, contains('private-teams.1'));
+  });
+
+  test('a failed own connect still wires the reconnect refetch', () async {
+    final _CountingBroadcastManager counting = _CountingBroadcastManager();
+    Magic.app.setInstance('broadcasting', counting);
+    counting.spy.failNextConnect = true;
+
+    int reconnectCount = 0;
+    final AuthChannelSubscription subscription = AuthChannelSubscription(
+      channelName: () => 'teams.1',
+      listeners: <String, void Function(BroadcastEvent)>{},
+      onReconnect: () => reconnectCount++,
+    );
+    await subscription.sync();
+
+    counting.spy.emitReconnect();
+    await flushMicrotasks();
+
+    expect(reconnectCount, 1);
   });
 
   test('overlapping syncs serialize and settle on the latest name', () async {

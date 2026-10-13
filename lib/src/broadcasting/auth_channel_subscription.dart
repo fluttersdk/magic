@@ -162,18 +162,17 @@ class AuthChannelSubscription {
     }
 
     // 2. Already on this channel: nothing to do, whatever the connection is
-    //    doing. The marker is only set after a subscribe succeeded, and a drop
-    //    after that is the driver's to recover (Reverb reconnects and
-    //    re-subscribes every channel it knows on its own), so a resubscribe
-    //    here would only repeat that work.
+    //    doing. The marker is set once the channel is registered with the
+    //    driver, and a drop after that is the driver's to recover (Reverb
+    //    reconnects and re-subscribes every channel it knows on its own), so a
+    //    resubscribe here would only repeat that work.
     if (_subscribedName == name) {
       return;
     }
 
     // 3. The name changed (or first subscribe): leave the old channel and
-    //    clear the marker BEFORE the first await, so a failed `Echo.connect()`
-    //    leaves a clean state the next sync retries rather than a stale marker
-    //    pointing at a channel that is not actually subscribed.
+    //    clear the marker BEFORE the first await, so the marker never points
+    //    at a channel that was left.
     _leaveCurrentChannel();
     _subscribedName = null;
     // Whether a reconnect is already pending is the driver's to know, not
@@ -182,9 +181,13 @@ class AuthChannelSubscription {
     // in flight, and supersedes an armed retry), so this call never opens a
     // second socket. The `isConnected` check only saves the round trip.
     if (!Echo.connection.isConnected) {
-      await Echo.connect();
+      await _connectOrLog(name);
     }
 
+    // 4. Register the channel even when the connect failed: the driver keeps
+    //    every registered channel and subscribes it on its next handshake, so
+    //    skipping this during a server restart would leave the channel unknown
+    //    to a driver that later recovers on its own.
     final BroadcastChannel channel = Echo.private(name);
     for (final MapEntry<String, void Function(BroadcastEvent)> entry
         in listeners.entries) {
@@ -193,8 +196,24 @@ class AuthChannelSubscription {
     _channel = channel;
     _subscribedName = name;
 
-    // 4. Wire the connect-time refetch so a reconnect closes the replay gap.
+    // 5. Wire the connect-time refetch so a reconnect closes the replay gap.
     _listenForReconnect();
+  }
+
+  /// Asks the default connection to connect, logging a failure instead of
+  /// propagating it.
+  ///
+  /// A failed connect is not a failed subscription: the driver retries on its
+  /// own and subscribes every channel it holds when it gets through.
+  Future<void> _connectOrLog(String name) async {
+    try {
+      await Echo.connect();
+    } catch (error) {
+      Log.warning(
+        '[AuthChannelSubscription] connect failed, "$name" subscribes on the '
+        "driver's next handshake: $error",
+      );
+    }
   }
 
   /// Tears down the live subscription, connection, and reconnect listeners.

@@ -315,15 +315,17 @@ class _MagicApplicationState extends State<MagicApplication> {
   @override
   Widget build(BuildContext context) {
     if (_hasError) {
-      return MaterialApp(
-        home: Scaffold(body: Center(child: Text('Failed to initialize app'))),
+      return _buildBootApp(
+        const ValueKey<String>('magic-boot-failed'),
+        Scaffold(body: Center(child: Text('Failed to initialize app'))),
       );
     }
 
     if (!_initialized) {
-      return MaterialApp(
+      return _buildBootApp(
+        const ValueKey<String>('magic-boot-loading'),
+        Scaffold(body: Center(child: CircularProgressIndicator())),
         debugShowCheckedModeBanner: false,
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
 
@@ -340,6 +342,38 @@ class _MagicApplicationState extends State<MagicApplication> {
         themeMode: widget.themeMode,
         builder: (context) => _buildLocalizedApp(controller),
       ),
+    );
+  }
+
+  /// Build the route-less [MaterialApp] shown while booting or after a failed
+  /// boot.
+  ///
+  /// `home` alone would hand the platform's default route name to the
+  /// navigator, which on web is the browser's deep path: no route matches it
+  /// and Flutter's debug assert prints "Could not navigate to initial route".
+  /// `onGenerateInitialRoutes` returns only [home], so the deep link is left to
+  /// GoRouter, which captured it before `runApp` (`MagicRouter`). Flutter
+  /// forbids `home` next to `onGenerateInitialRoutes` and still wants one route
+  /// source, hence the `onGenerateRoute` that answers every name with [home].
+  ///
+  /// The initial routes are generated once per Navigator, so each boot state
+  /// carries its own [key]: without it the failure screen would reuse the
+  /// loading screen's Navigator and keep showing the spinner.
+  MaterialApp _buildBootApp(
+    Key key,
+    Widget home, {
+    bool debugShowCheckedModeBanner = true,
+  }) {
+    Route<void> homeRoute() =>
+        MaterialPageRoute<void>(builder: (BuildContext context) => home);
+
+    return MaterialApp(
+      key: key,
+      debugShowCheckedModeBanner: debugShowCheckedModeBanner,
+      onGenerateInitialRoutes: (String initialRoute) => <Route<dynamic>>[
+        homeRoute(),
+      ],
+      onGenerateRoute: (RouteSettings settings) => homeRoute(),
     );
   }
 
