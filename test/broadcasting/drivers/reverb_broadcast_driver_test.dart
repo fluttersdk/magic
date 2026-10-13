@@ -100,11 +100,26 @@ class _MockWebSocketChannel implements WebSocketChannel {
 }
 
 /// A socket the server refused: `ready` fails, as it does when nothing
-/// listens on the port.
+/// listens on the port, and closing it never completes, as a browser socket
+/// that never opened does. The retry used to wait on that close forever.
 class _RefusedWebSocketChannel extends _MockWebSocketChannel {
+  final _NeverClosingSink _deadSink = _NeverClosingSink();
+
   @override
   Future<void> get ready =>
       Future<void>.error(WebSocketChannelException('Connection refused'));
+
+  @override
+  WebSocketSink get sink => _deadSink;
+}
+
+/// A sink whose [close] never completes.
+class _NeverClosingSink extends _MockWebSocketSink {
+  @override
+  Future close([int? closeCode, String? closeReason]) {
+    isClosed = true;
+    return Completer<void>().future;
+  }
 }
 
 // ---------------------------------------------------------------------------

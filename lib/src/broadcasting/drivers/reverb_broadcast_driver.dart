@@ -308,6 +308,13 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       // Without a retry the driver stayed disconnected for good, even once
       // the server was back. Arm one, as the timeout path does, unless a
       // disconnect() ended the loop while this was suspended.
+      //
+      // The dead socket is dropped here and its close is not awaited: a
+      // browser socket that never opened never finishes closing, so the next
+      // attempt's _releaseSocket waited on it forever and no retry ever
+      // opened a socket (measured in a host app's web walk).
+      if (identical(_channel, channel)) _channel = null;
+      channel.sink.close().ignore();
       if (epoch == _epoch) _scheduleReconnect();
       rethrow;
     }
