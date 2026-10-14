@@ -155,8 +155,8 @@ void main() {
     },
   );
 
-  test('an unchanged name does not reconnect while the socket is down, the '
-      'driver recovers it', () async {
+  test('an unchanged name asks the driver to connect while the socket is '
+      'down, without registering the channel again', () async {
     final _CountingBroadcastManager counting = _CountingBroadcastManager();
     Magic.app.setInstance('broadcasting', counting);
 
@@ -171,12 +171,40 @@ void main() {
 
     expect(
       counting.spy.connectCount,
-      1,
+      2,
       reason:
-          'an unchanged name is the driver\'s to recover; it resubscribes '
-          'on its own',
+          'a driver with reconnect disabled never retries on its own, and '
+          'connect() is idempotent on one that does',
+    );
+    expect(
+      counting.spy.subscribedChannels
+          .where((String c) => c == 'private-teams.1')
+          .length,
+      1,
     );
   });
+
+  test(
+    'a failed connect is retried by the next sync for the same name',
+    () async {
+      final _CountingBroadcastManager counting = _CountingBroadcastManager();
+      Magic.app.setInstance('broadcasting', counting);
+      counting.spy.failNextConnect = true;
+
+      final AuthChannelSubscription subscription = AuthChannelSubscription(
+        channelName: () => 'teams.1',
+        listeners: <String, void Function(BroadcastEvent)>{},
+      );
+
+      await subscription.sync();
+      expect(counting.spy.isConnected, isFalse);
+
+      await subscription.sync();
+
+      expect(counting.spy.connectCount, 2);
+      expect(counting.spy.isConnected, isTrue);
+    },
+  );
 
   test('a name change while the socket is down asks the driver to connect, '
       'whatever state it last reported, and subscribes', () async {
@@ -240,9 +268,11 @@ void main() {
     await subscription.sync();
 
     expect(
-      counting.spy.connectCount,
+      counting.spy.subscribedChannels
+          .where((String c) => c == 'private-teams.1')
+          .length,
       1,
-      reason: 'the marker is set, so an unchanged name does not reconnect',
+      reason: 'the marker is set, so an unchanged name is not registered again',
     );
   });
 

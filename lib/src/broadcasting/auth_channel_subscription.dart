@@ -81,8 +81,8 @@ class AuthChannelSubscription {
   /// signs out of. An owner of several subscriptions on the same connection
   /// passes `false` and disconnects once none is live, the way
   /// `BroadcastListeners` does: otherwise one of them resolving `null` drops
-  /// the socket under the rest, and each of those returns early on its
-  /// unchanged name and stays deaf.
+  /// the socket under the rest, and each of those stays deaf until its next
+  /// [sync] asks for a connect.
   final bool disconnectOnTeardown;
 
   /// The channel name last reconciled onto, or `null` when not subscribed.
@@ -159,12 +159,15 @@ class AuthChannelSubscription {
       return;
     }
 
-    // 2. Already on this channel: nothing to do, whatever the connection is
-    //    doing. The marker is set once the channel is registered with the
-    //    driver, and a drop after that is the driver's to recover (Reverb
-    //    reconnects and re-subscribes every channel it knows on its own), so a
-    //    resubscribe here would only repeat that work.
+    // 2. Already on this channel: the driver holds it and subscribes it on
+    //    every handshake, so it is never registered again. With the socket
+    //    down, ask for one: a driver with `reconnect: false` never retries on
+    //    its own, and the Reverb driver's `connect()` is idempotent on one
+    //    that does.
     if (_subscribedName == name) {
+      if (!Echo.connection.isConnected) {
+        await _connectOrLog(name);
+      }
       return;
     }
 
