@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../broadcasting/broadcast_connection_state.dart';
 import '../broadcasting/broadcast_event.dart';
 import '../broadcasting/broadcast_manager.dart';
@@ -238,8 +240,32 @@ class FakeBroadcastDriver implements BroadcastDriver {
   void _unregister(String channel, String event) =>
       _listeners[channel]?.remove(event);
 
+  /// Server confirmations per fully-qualified channel name, read by
+  /// [BroadcastChannel.isSubscribed]. Owned here for the same reason as
+  /// [_listeners]: the channel objects are minted per call.
+  final Map<String, bool> _confirmed = {};
+
+  final StreamController<(String, bool)> _confirmationChanges =
+      StreamController<(String, bool)>.broadcast();
+
+  /// Sets what [BroadcastChannel.isSubscribed] answers for [channel], the
+  /// fully-qualified name (`private-orders`, not `orders`), and emits on its
+  /// [BroadcastChannel.onSubscriptionChanged] when the value changes.
+  ///
+  /// Stands in for the server's `subscription_succeeded` (`true`) and a
+  /// dropped socket (`false`). Every channel starts unconfirmed.
+  void setSubscribed(String channel, bool subscribed) {
+    if ((_confirmed[channel] ?? false) == subscribed) return;
+
+    _confirmed[channel] = subscribed;
+    _confirmationChanges.add((channel, subscribed));
+  }
+
   @override
-  void leave(String name) => _subscribedChannels.remove(name);
+  void leave(String name) {
+    _subscribedChannels.remove(name);
+    setSubscribed(name, false);
+  }
 
   @override
   void addInterceptor(BroadcastInterceptor interceptor) =>
@@ -250,6 +276,12 @@ class FakeBroadcastDriver implements BroadcastDriver {
     _subscribedChannels.clear();
     _addedInterceptors.clear();
     _listeners.clear();
+    // Report each confirmed channel as dropped, so a listener attached
+    // before the reset does not keep a stale `true`.
+    for (final channel in _confirmed.keys.toList()) {
+      setSubscribed(channel, false);
+    }
+    _confirmed.clear();
   }
 }
 
@@ -268,6 +300,14 @@ class _FakeBroadcastChannel implements BroadcastChannel {
 
   @override
   Stream<BroadcastEvent> get events => const Stream.empty();
+
+  @override
+  bool get isSubscribed => _driver._confirmed[_name] ?? false;
+
+  @override
+  Stream<bool> get onSubscriptionChanged => _driver._confirmationChanges.stream
+      .where((change) => change.$1 == _name)
+      .map((change) => change.$2);
 
   @override
   BroadcastChannel listen(

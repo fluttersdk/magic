@@ -22,6 +22,21 @@ abstract class BroadcastChannel {
   /// simultaneously without replaying prior events.
   Stream<BroadcastEvent> get events;
 
+  /// Whether the server has confirmed this channel on the current connection.
+  ///
+  /// `true` from the server's `subscription_succeeded` frame until the socket
+  /// drops or the channel is left. A connected driver does not imply a
+  /// subscribed channel: a private or presence channel still waits on its
+  /// auth call after the handshake, and a failed auth leaves it `false`.
+  bool get isSubscribed;
+
+  /// Emits the new [isSubscribed] value each time it changes: `true` on
+  /// `subscription_succeeded`, `false` on a drop or a leave.
+  ///
+  /// Multi-subscription and never replays, so read [isSubscribed] for the
+  /// state at the moment a listener attaches.
+  Stream<bool> get onSubscriptionChanged;
+
   /// Registers a [callback] to be invoked whenever [event] is received.
   ///
   /// Returns `this` to allow fluent chaining:

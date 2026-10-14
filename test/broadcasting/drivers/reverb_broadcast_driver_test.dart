@@ -53,6 +53,7 @@ class _MockWebSocketChannel implements WebSocketChannel {
 
   final StreamController<dynamic> _incomingController;
   final _MockWebSocketSink _sink = _MockWebSocketSink();
+  int? _closeCode;
 
   @override
   Stream<dynamic> get stream => _incomingController.stream;
@@ -64,7 +65,7 @@ class _MockWebSocketChannel implements WebSocketChannel {
   Future<void> get ready => Future<void>.value();
 
   @override
-  int? get closeCode => null;
+  int? get closeCode => _closeCode;
 
   @override
   String? get closeReason => null;
@@ -80,8 +81,10 @@ class _MockWebSocketChannel implements WebSocketChannel {
     _incomingController.add(jsonEncode(payload));
   }
 
-  /// Simulates the server closing the connection.
-  void simulateClose() {
+  /// Simulates the server closing the connection, with the WebSocket close
+  /// [code] it sent, or none when the TCP connection simply went away.
+  void simulateClose([int? code]) {
+    _closeCode = code;
     _incomingController.close();
   }
 
@@ -120,6 +123,16 @@ class _NeverClosingSink extends _MockWebSocketSink {
     isClosed = true;
     return Completer<void>().future;
   }
+}
+
+/// An open socket whose peer went silent: it answers nothing, delivers no
+/// close, and closing it never completes, as a socket to a killed server
+/// behind a NAT does.
+class _HangingWebSocketChannel extends _MockWebSocketChannel {
+  final _NeverClosingSink _deadSink = _NeverClosingSink();
+
+  @override
+  WebSocketSink get sink => _deadSink;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +218,71 @@ Future<(ReverbBroadcastDriver, _MockWebSocketChannel)> _createConnectedDriver({
   await driver.connect();
   return (driver, mock);
 }
+
+/// Creates a driver whose channel factory records every socket it opens, so
+/// a test can count them. Each socket completes the Pusher handshake after a
+/// microtask with socket id `socket-<index>`, except that the server closes
+/// it before the handshake when [refuse] answers `true` for its 1-based
+/// index, and never answers it at all when [silent] does. [config], when
+/// given, is used as is, so a test can change it after construction.
+(ReverbBroadcastDriver, List<_MockWebSocketChannel>) _createCountingDriver({
+  bool Function(int index)? refuse,
+  bool Function(int index)? silent,
+  Map<String, dynamic>? configOverrides,
+  Map<String, dynamic>? config,
+  Future<Map<String, dynamic>> Function(
+    String endpoint,
+    Map<String, dynamic> data,
+  )?
+  authFactory,
+}) {
+  final sockets = <_MockWebSocketChannel>[];
+  final driver = ReverbBroadcastDriver(
+    config ??
+        _defaultConfig(
+          overrides: {
+            'reconnect': true,
+            'connection_timeout': 1,
+            ...?configOverrides,
+          },
+        ),
+    channelFactory: (_) {
+      final socket = _MockWebSocketChannel();
+      sockets.add(socket);
+      final index = sockets.length;
+      if (refuse?.call(index) ?? false) {
+        Future<void>.delayed(Duration.zero, socket.simulateClose);
+      } else if (!(silent?.call(index) ?? false)) {
+        _simulateConnectionEstablished(socket, socketId: 'socket-$index');
+      }
+      return socket;
+    },
+    authFactory: authFactory,
+    random: Random(42),
+  );
+  return (driver, sockets);
+}
+
+/// The `pusher:subscribe` frames [socket] carried, in order.
+List<Map<String, dynamic>> _subscribeFrames(_MockWebSocketChannel socket) =>
+    socket.sentFrames
+        .where((f) => f['event'] == 'pusher:subscribe')
+        .map((f) => f['data'] as Map<String, dynamic>)
+        .toList();
+
+/// The channel names [socket] sent a `pusher:subscribe` for.
+Set<String> _subscribedOn(_MockWebSocketChannel socket) =>
+    _subscribeFrames(socket).map((data) => data['channel'] as String).toSet();
+
+/// An auth answer signed for the socket id the driver sent, so a test can
+/// tell which socket a subscribe frame was authorised for.
+Future<Map<String, dynamic>> _signingAuth(
+  String endpoint,
+  Map<String, dynamic> data,
+) async => <String, dynamic>{'auth': 'sig-${data['socket_id']}'};
+
+/// Lets queued microtasks and zero-duration timers run.
+Future<void> _pump() => Future<void>.delayed(const Duration(milliseconds: 10));
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -784,48 +862,8 @@ void main() {
   });
 
   group('ReverbBroadcastDriver: idempotent connect', () {
-    /// Creates a driver whose channel factory records every socket it opens,
-    /// so a test can count them. Each socket completes the Pusher handshake
-    /// after a microtask, except that the server closes it before the
-    /// handshake when [refuse] answers `true` for its 1-based index, and
-    /// never answers it at all when [silent] does.
-    (ReverbBroadcastDriver, List<_MockWebSocketChannel>) createCountingDriver({
-      bool Function(int index)? refuse,
-      bool Function(int index)? silent,
-      Map<String, dynamic>? configOverrides,
-    }) {
-      final sockets = <_MockWebSocketChannel>[];
-      final driver = ReverbBroadcastDriver(
-        _defaultConfig(
-          overrides: {
-            'reconnect': true,
-            'connection_timeout': 1,
-            ...?configOverrides,
-          },
-        ),
-        channelFactory: (_) {
-          final socket = _MockWebSocketChannel();
-          sockets.add(socket);
-          final index = sockets.length;
-          if (refuse?.call(index) ?? false) {
-            Future<void>.delayed(Duration.zero, socket.simulateClose);
-          } else if (!(silent?.call(index) ?? false)) {
-            _simulateConnectionEstablished(socket, socketId: 'socket-$index');
-          }
-          return socket;
-        },
-        random: Random(42),
-      );
-      return (driver, sockets);
-    }
-
-    Set<String> subscribedOn(_MockWebSocketChannel socket) => socket.sentFrames
-        .where((f) => f['event'] == 'pusher:subscribe')
-        .map((f) => (f['data'] as Map<String, dynamic>)['channel'] as String)
-        .toSet();
-
     test('two concurrent connect() calls open one socket', () async {
-      final (driver, sockets) = createCountingDriver();
+      final (driver, sockets) = _createCountingDriver();
 
       await Future.wait(<Future<void>>[driver.connect(), driver.connect()]);
 
@@ -836,7 +874,7 @@ void main() {
     });
 
     test('connect() while connected opens nothing', () async {
-      final (driver, sockets) = createCountingDriver();
+      final (driver, sockets) = _createCountingDriver();
       await driver.connect();
 
       final states = <BroadcastConnectionState>[];
@@ -853,7 +891,7 @@ void main() {
 
     test('connect() after a drop supersedes the armed retry: one socket in '
         'total, channels resubscribed, onReconnect once', () async {
-      final (driver, sockets) = createCountingDriver();
+      final (driver, sockets) = _createCountingDriver();
       await driver.connect();
       driver.channel('orders');
       await Future<void>.delayed(Duration.zero);
@@ -870,7 +908,7 @@ void main() {
 
       expect(sockets, hasLength(2));
       expect(driver.isConnected, isTrue);
-      expect(subscribedOn(sockets[1]), contains('orders'));
+      expect(_subscribedOn(sockets[1]), contains('orders'));
 
       // Past the attempt-0 backoff (at most 650ms): the cancelled retry must
       // not open a third socket.
@@ -884,7 +922,7 @@ void main() {
 
     test('connect() during the backoff after a failed timer-driven retry '
         'opens one socket, not two', () async {
-      final (driver, sockets) = createCountingDriver(
+      final (driver, sockets) = _createCountingDriver(
         refuse: (index) => index == 2,
       );
       await driver.connect();
@@ -910,7 +948,7 @@ void main() {
 
     test('connect() during the retry armed by a connection timeout opens one '
         'socket, not two', () async {
-      final (driver, sockets) = createCountingDriver(
+      final (driver, sockets) = _createCountingDriver(
         silent: (index) => index == 1,
       );
 
@@ -934,7 +972,7 @@ void main() {
 
     test('a failed superseding connect() throws to its caller and re-arms '
         'the retry', () async {
-      final (driver, sockets) = createCountingDriver(
+      final (driver, sockets) = _createCountingDriver(
         refuse: (index) => index == 2,
       );
       await driver.connect();
@@ -965,37 +1003,37 @@ void main() {
       expect(driver.classifyErrorCode(4099), equals(PusherErrorAction.fatal));
     });
 
-    test('4100-4199 reconnect immediately', () {
+    test('4100-4199 reconnect with backoff', () {
       final driver = ReverbBroadcastDriver(_defaultConfig());
 
       expect(
         driver.classifyErrorCode(4100),
-        equals(PusherErrorAction.reconnectImmediate),
+        equals(PusherErrorAction.reconnectBackoff),
       );
       expect(
         driver.classifyErrorCode(4150),
-        equals(PusherErrorAction.reconnectImmediate),
+        equals(PusherErrorAction.reconnectBackoff),
       );
       expect(
         driver.classifyErrorCode(4199),
-        equals(PusherErrorAction.reconnectImmediate),
+        equals(PusherErrorAction.reconnectBackoff),
       );
     });
 
-    test('4200-4299 reconnect with backoff', () {
+    test('4200-4299 reconnect immediately', () {
       final driver = ReverbBroadcastDriver(_defaultConfig());
 
       expect(
         driver.classifyErrorCode(4200),
-        equals(PusherErrorAction.reconnectBackoff),
+        equals(PusherErrorAction.reconnectImmediate),
       );
       expect(
         driver.classifyErrorCode(4250),
-        equals(PusherErrorAction.reconnectBackoff),
+        equals(PusherErrorAction.reconnectImmediate),
       );
       expect(
         driver.classifyErrorCode(4299),
-        equals(PusherErrorAction.reconnectBackoff),
+        equals(PusherErrorAction.reconnectImmediate),
       );
     });
 
@@ -1106,7 +1144,7 @@ void main() {
       await driver.disconnect();
     });
 
-    test('reconnectImmediate error (4100-4199) schedules reconnect', () async {
+    test('a 4100-4199 error frame is routed through interceptors', () async {
       final (driver, mock) = await _createConnectedDriver(
         configOverrides: {'reconnect': true},
       );
@@ -1127,7 +1165,7 @@ void main() {
       await driver.disconnect();
     });
 
-    test('reconnectBackoff error (4200-4299) schedules reconnect', () async {
+    test('a 4200-4299 error frame is routed through interceptors', () async {
       final (driver, mock) = await _createConnectedDriver(
         configOverrides: {'reconnect': true},
       );
@@ -2102,6 +2140,483 @@ void main() {
         reason:
             'Activity monitor should restart after reconnect and send ping '
             'on new connection',
+      );
+
+      await driver.disconnect();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Resubscribe on every handshake (pusher-js subscribeAll parity)
+  // ---------------------------------------------------------------------------
+
+  group('ReverbBroadcastDriver: resubscribe on every handshake', () {
+    test('connect() after a drop with reconnect disabled resubscribes every '
+        'registered channel', () async {
+      final (driver, sockets) = _createCountingDriver(
+        configOverrides: {'reconnect': false},
+        authFactory: _signingAuth,
+      );
+      await driver.connect();
+      driver.channel('orders');
+      driver.private('payments');
+      await _pump();
+
+      sockets.first.simulateClose();
+      await _pump();
+      expect(driver.isConnected, isFalse);
+
+      await driver.connect();
+      await _pump();
+
+      expect(sockets, hasLength(2));
+      expect(_subscribedOn(sockets[1]), {'orders', 'private-payments'});
+
+      await driver.disconnect();
+    });
+
+    test('connect() after a drop resubscribes every registered channel when '
+        'reconnect is enabled after the drop', () async {
+      final config = _defaultConfig(overrides: {'reconnect': false});
+      final (driver, sockets) = _createCountingDriver(
+        config: config,
+        authFactory: _signingAuth,
+      );
+      await driver.connect();
+      driver.channel('orders');
+      driver.private('payments');
+      await _pump();
+
+      sockets.first.simulateClose();
+      await _pump();
+      config['reconnect'] = true;
+
+      await driver.connect();
+      await _pump();
+
+      expect(sockets, hasLength(2));
+      expect(_subscribedOn(sockets[1]), {'orders', 'private-payments'});
+
+      await driver.disconnect();
+    });
+
+    test('a channel created while disconnected is subscribed exactly once on '
+        'the next socket', () async {
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      sockets.first.simulateClose();
+      await _pump();
+      driver.channel('orders');
+
+      await driver.connect();
+      await _pump();
+
+      final orders = _subscribeFrames(
+        sockets[1],
+      ).where((data) => data['channel'] == 'orders');
+      expect(orders, hasLength(1));
+
+      await driver.disconnect();
+    });
+
+    test('an auth answered after a second handshake sends nothing on the new '
+        'socket', () async {
+      final gate = Completer<void>();
+      var calls = 0;
+      final (driver, sockets) = _createCountingDriver(
+        authFactory: (endpoint, data) async {
+          calls++;
+          if (calls == 1) await gate.future;
+          return <String, dynamic>{'auth': 'sig-${data['socket_id']}'};
+        },
+      );
+      await driver.connect();
+      driver.private('payments');
+      await _pump();
+
+      sockets.first.simulateClose();
+      await _pump();
+      await driver.connect();
+      await _pump();
+
+      gate.complete();
+      await _pump();
+
+      final auths = _subscribeFrames(sockets[1])
+          .where((data) => data['channel'] == 'private-payments')
+          .map((data) => data['auth'])
+          .toList();
+      expect(auths, ['sig-socket-2']);
+
+      await driver.disconnect();
+    });
+
+    test('leave() during a pending auth sends no subscribe', () async {
+      final gate = Completer<void>();
+      final (driver, sockets) = _createCountingDriver(
+        authFactory: (endpoint, data) async {
+          await gate.future;
+          return _signingAuth(endpoint, data);
+        },
+      );
+      await driver.connect();
+      driver.private('payments');
+      await _pump();
+
+      driver.leave('private-payments');
+      gate.complete();
+      await _pump();
+
+      expect(_subscribedOn(sockets.first), isNot(contains('private-payments')));
+
+      await driver.disconnect();
+    });
+
+    test(
+      'a late close from socket 1 after socket 2 connected leaves the driver '
+      'connected',
+      () async {
+        final (driver, sockets) = _createCountingDriver();
+        await driver.connect();
+
+        sockets.first.simulateError(Exception('connection reset'));
+        await _pump();
+        await driver.connect();
+        expect(sockets, hasLength(2));
+
+        sockets.first.simulateClose();
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+
+        expect(driver.isConnected, isTrue);
+        expect(sockets, hasLength(2));
+
+        await driver.disconnect();
+      },
+    );
+
+    test('a drop while a timer reconnect waits on its replay still '
+        'reconnects once the replay ends', () async {
+      final gate = Completer<void>();
+      var calls = 0;
+      final (driver, sockets) = _createCountingDriver(
+        authFactory: (endpoint, data) async {
+          calls++;
+          if (calls == 2) await gate.future;
+          return _signingAuth(endpoint, data);
+        },
+      );
+      await driver.connect();
+      driver.private('payments');
+      await _pump();
+
+      // Socket 2 comes from the reconnect timer, and its replay holds on the
+      // gated auth.
+      sockets.first.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      expect(sockets, hasLength(2));
+
+      // Socket 2 drops while that auth is still out; its retry fires while
+      // the timer reconnect is in flight.
+      sockets[1].simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(sockets, hasLength(3));
+      expect(driver.isConnected, isTrue);
+      expect(_subscribedOn(sockets[2]), contains('private-payments'));
+
+      await driver.disconnect();
+    });
+  });
+
+  group('ReverbBroadcastDriver: subscription state', () {
+    test(
+      'isSubscribed flips on subscription_succeeded and back on a drop',
+      () async {
+        final (driver, sockets) = _createCountingDriver();
+        await driver.connect();
+
+        final orders = driver.channel('orders');
+        final changes = <bool>[];
+        orders.onSubscriptionChanged.listen(changes.add);
+        expect(orders.isSubscribed, isFalse);
+
+        sockets.first.simulateMessage({
+          'event': 'pusher_internal:subscription_succeeded',
+          'channel': 'orders',
+          'data': '{}',
+        });
+        await _pump();
+        expect(orders.isSubscribed, isTrue);
+
+        sockets.first.simulateClose();
+        await _pump();
+        expect(orders.isSubscribed, isFalse);
+        expect(changes, [true, false]);
+
+        await driver.disconnect();
+      },
+    );
+
+    test('a presence channel takes its members from the internal '
+        'subscription_succeeded frame Reverb sends', () async {
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      final room = driver.join('room.1');
+      sockets.first.simulateMessage({
+        'event': 'pusher_internal:subscription_succeeded',
+        'channel': 'presence-room.1',
+        'data': jsonEncode({
+          'presence': {
+            'count': 1,
+            'ids': ['1'],
+            'hash': {
+              '1': {'name': 'Alice'},
+            },
+          },
+        }),
+      });
+      await _pump();
+
+      expect(room.isSubscribed, isTrue);
+      expect(room.members, hasLength(1));
+
+      await driver.disconnect();
+    });
+
+    test('leave() reports the channel unsubscribed', () async {
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      final orders = driver.channel('orders');
+      sockets.first.simulateMessage({
+        'event': 'pusher:subscription_succeeded',
+        'channel': 'orders',
+        'data': '{}',
+      });
+      await _pump();
+      final changes = <bool>[];
+      orders.onSubscriptionChanged.listen(changes.add);
+
+      driver.leave('orders');
+      await _pump();
+
+      expect(orders.isSubscribed, isFalse);
+      expect(changes, [false]);
+
+      await driver.disconnect();
+    });
+  });
+
+  group('ReverbBroadcastDriver: close codes decide the reconnect', () {
+    test('a close without a code reconnects with backoff', () async {
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      sockets.first.simulateClose();
+      await _pump();
+      expect(sockets, hasLength(1));
+
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      expect(sockets, hasLength(2));
+      expect(driver.isConnected, isTrue);
+
+      await driver.disconnect();
+    });
+
+    test('a 4200-4299 close reconnects immediately', () async {
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      sockets.first.simulateClose(4200);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(sockets, hasLength(2));
+      expect(driver.isConnected, isTrue);
+
+      await driver.disconnect();
+    });
+
+    test('a 4100-4199 close reconnects with backoff', () async {
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      sockets.first.simulateClose(4100);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(sockets, hasLength(1));
+
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      expect(sockets, hasLength(2));
+
+      await driver.disconnect();
+    });
+
+    test(
+      'a 4000-4099 close does not reconnect and reports disconnected',
+      () async {
+        final (driver, sockets) = _createCountingDriver();
+        await driver.connect();
+
+        final states = <BroadcastConnectionState>[];
+        driver.connectionState.listen(states.add);
+
+        sockets.first.simulateClose(4001);
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+
+        expect(sockets, hasLength(1));
+        expect(states, [BroadcastConnectionState.disconnected]);
+
+        await driver.disconnect();
+      },
+    );
+
+    test('a socket lost before its handshake with reconnect disabled reports '
+        'disconnected', () async {
+      final (driver, _) = _createCountingDriver(
+        refuse: (_) => true,
+        configOverrides: {'reconnect': false},
+      );
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      await expectLater(driver.connect(), throwsStateError);
+      await _pump();
+
+      expect(states.last, BroadcastConnectionState.disconnected);
+
+      await driver.disconnect();
+    });
+
+    test(
+      'a pusher:error 4200 frame on an open socket schedules nothing',
+      () async {
+        final (driver, sockets) = _createCountingDriver();
+        await driver.connect();
+
+        sockets.first.simulateMessage({
+          'event': 'pusher:error',
+          'data': jsonEncode({'code': 4200, 'message': 'Server error'}),
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+
+        expect(sockets, hasLength(1));
+        expect(driver.isConnected, isTrue);
+
+        await driver.disconnect();
+      },
+    );
+
+    test('a pong timeout drops the socket and reconnects without waiting on '
+        'the dead socket\'s close', () async {
+      final sockets = <_MockWebSocketChannel>[];
+      final driver = ReverbBroadcastDriver(
+        _defaultConfig(overrides: {'activity_timeout': 1}),
+        channelFactory: (_) {
+          final socket = sockets.isEmpty
+              ? _HangingWebSocketChannel()
+              : _MockWebSocketChannel();
+          sockets.add(socket);
+          _simulateConnectionEstablished(
+            socket,
+            socketId: 'socket-${sockets.length}',
+            activityTimeout: 1,
+          );
+          return socket;
+        },
+        pongTimeout: const Duration(milliseconds: 100),
+        random: Random(42),
+      );
+      await driver.connect();
+
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      // Ping after 1s of silence, no pong within 100ms, then the backoff.
+      await Future<void>.delayed(const Duration(milliseconds: 2200));
+
+      expect(states, contains(BroadcastConnectionState.reconnecting));
+      expect(sockets, hasLength(2));
+      expect(driver.isConnected, isTrue);
+      expect(driver.socketId, 'socket-2');
+
+      await driver.disconnect();
+    });
+  });
+
+  group('ReverbBroadcastDriver: auth answers', () {
+    test('a 502 auth answer is retried with backoff and logged as a '
+        'warning', () async {
+      final fakeLog = Log.fake();
+      var calls = 0;
+      Http.fake((request) {
+        calls++;
+        return calls == 1
+            ? Http.response({'message': 'Server Error'}, 502)
+            : Http.response({'auth': 'sig'}, 200);
+      });
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      driver.private('payments');
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(calls, 2);
+      expect(_subscribedOn(sockets.first), contains('private-payments'));
+      final entries = fakeLog.entries.where(
+        (e) => e.message.contains('private-payments'),
+      );
+      expect(entries.map((e) => e.level), ['warning']);
+
+      await driver.disconnect();
+    });
+
+    test('a non-2xx auth answer reaches the interceptors as a '
+        'BroadcastAuthException carrying the status', () async {
+      Http.fake((request) => Http.response({'message': 'Forbidden'}, 403));
+      final (driver, _) = _createCountingDriver();
+      final interceptor = _TestInterceptor();
+      driver.addInterceptor(interceptor);
+      await driver.connect();
+
+      driver.private('payments');
+      await _pump();
+
+      expect(
+        interceptor.errors,
+        contains(
+          isA<BroadcastAuthException>()
+              .having((e) => e.statusCode, 'statusCode', 403)
+              .having((e) => e.channelName, 'channelName', 'private-payments'),
+        ),
+      );
+
+      await driver.disconnect();
+    });
+
+    test('a 403 auth answer is logged as an error and not retried', () async {
+      final fakeLog = Log.fake();
+      var calls = 0;
+      Http.fake((request) {
+        calls++;
+        return Http.response({'message': 'This action is unauthorized.'}, 403);
+      });
+      final (driver, sockets) = _createCountingDriver();
+      await driver.connect();
+
+      driver.private('payments');
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(calls, 1);
+      expect(_subscribedOn(sockets.first), isNot(contains('private-payments')));
+      expect(
+        fakeLog.entries.where(
+          (e) => e.level == 'error' && e.message.contains('private-payments'),
+        ),
+        isNotEmpty,
       );
 
       await driver.disconnect();

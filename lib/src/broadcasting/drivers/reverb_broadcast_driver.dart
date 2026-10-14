@@ -13,19 +13,56 @@ import '../contracts/broadcast_driver.dart';
 import '../contracts/broadcast_interceptor.dart';
 import '../contracts/broadcast_presence_channel.dart';
 
-/// Pusher error code classification for reconnection strategy.
+/// Pusher close code classification for reconnection strategy.
 ///
-/// Pusher protocol defines three error ranges that dictate how the client
-/// should respond after receiving an error frame.
+/// The Pusher protocol groups the WebSocket close codes a server sends into
+/// three ranges that dictate how the client reconnects. The close code
+/// decides; a `pusher:error` frame on an open socket never does.
 enum PusherErrorAction {
-  /// 4000–4099: Do not reconnect — the error is permanent.
+  /// 4000-4099: Do not reconnect, the error is permanent.
   fatal,
 
-  /// 4100–4199: Reconnect immediately without backoff.
+  /// 4200-4299: Reconnect immediately without backoff.
   reconnectImmediate,
 
-  /// 4200–4299: Reconnect with exponential backoff.
+  /// 4100-4199, any other code, or a close without a code: reconnect with
+  /// exponential backoff.
   reconnectBackoff,
+}
+
+/// Thrown by the default auth call when the broadcasting auth endpoint
+/// answers outside 2xx.
+///
+/// `Http.post` hands back a response for a 4xx or 5xx instead of throwing, so
+/// without this a refused auth looked like a malformed answer and the status
+/// was lost. [isRetryable] tells a transient failure (no response, a 5xx)
+/// from a refusal (401, 403) that retrying cannot fix.
+class BroadcastAuthException implements Exception {
+  /// Creates a [BroadcastAuthException].
+  ///
+  /// [statusCode] is `0` when no response arrived at all.
+  BroadcastAuthException({
+    required this.channelName,
+    required this.statusCode,
+    this.message,
+  });
+
+  /// The fully-qualified channel the auth call was for.
+  final String channelName;
+
+  /// The HTTP status the endpoint answered with, `0` when none arrived.
+  final int statusCode;
+
+  /// The error message the response carried, if any.
+  final String? message;
+
+  /// Whether the driver retries the auth: on no response and on a 5xx.
+  bool get isRetryable => statusCode == 0 || statusCode >= 500;
+
+  @override
+  String toString() =>
+      'BroadcastAuthException: auth for $channelName failed with status '
+      '$statusCode${message == null ? '' : ': $message'}';
 }
 
 /// A [BroadcastDriver] that connects to Laravel Reverb (Pusher-compatible)
@@ -33,7 +70,9 @@ enum PusherErrorAction {
 ///
 /// Handles the full Pusher protocol: connection handshake, application-level
 /// ping/pong, channel subscriptions (public, private, presence), interceptor
-/// chains, and automatic reconnection with exponential backoff.
+/// chains, and automatic reconnection with exponential backoff. Every
+/// handshake subscribes every registered channel with the new socket id, as
+/// pusher-js does, so a channel survives any number of reconnects.
 ///
 /// ## Usage
 /// ```dart
@@ -58,9 +97,11 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   ///
   /// [config] contains connection parameters read from
   /// `broadcasting.connections.reverb`. [channelFactory] overrides WebSocket
-  /// creation for testing — defaults to [WebSocketChannel.connect].
-  /// [authFactory] overrides the HTTP auth call for testing — defaults to
-  /// calling [Http.post] and returning the response data.
+  /// creation for testing, defaulting to [WebSocketChannel.connect].
+  /// [authFactory] overrides the HTTP auth call for testing; the default
+  /// calls [Http.post] and throws a [BroadcastAuthException] on a non-2xx
+  /// answer. An override that throws a retryable [BroadcastAuthException]
+  /// is retried the same way.
   ReverbBroadcastDriver(
     this._config, {
     WebSocketChannel Function(Uri uri)? channelFactory,
@@ -98,11 +139,23 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// The duration to wait for a pong response after sending a ping.
   final Duration pongTimeout;
 
+  /// Posts the auth request and returns the decoded body.
+  ///
+  /// @throws BroadcastAuthException when the endpoint answers outside 2xx,
+  ///   or with status `0` when no response arrived.
   static Future<Map<String, dynamic>> _defaultAuthFactory(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
     final response = await Http.post(endpoint, data: data);
+    if (!response.successful) {
+      throw BroadcastAuthException(
+        channelName: data['channel_name'] as String,
+        statusCode: response.statusCode,
+        message: response.message,
+      );
+    }
+
     final responseData = response.data;
 
     if (responseData is Map<String, dynamic>) {
@@ -143,18 +196,26 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   final StreamController<void> _onReconnectController =
       StreamController<void>.broadcast();
 
+  /// Identifies the current socket. Bumped when a socket opens and when it
+  /// is dropped, so anything started for one socket (an auth call, a stream
+  /// callback, an auth retry) can tell it outlived that socket and stop.
+  int _generation = 0;
+
+  /// Whether a handshake completed since the last [disconnect], which makes
+  /// the next handshake a reconnect.
+  bool _connectedBefore = false;
+
+  /// The resubscription the latest handshake started, awaited by
+  /// [_reconnect] so a superseding [connect] resolves after it.
+  Future<void>? _replay;
+
   // ---------------------------------------------------------------------------
   // Channel management
   // ---------------------------------------------------------------------------
 
+  /// Every channel the app holds, the single source the handshake replays.
   final Map<String, ReverbBroadcastChannel> _channels =
       <String, ReverbBroadcastChannel>{};
-
-  // ---------------------------------------------------------------------------
-  // Subscription queue — buffers subscribe calls during reconnection
-  // ---------------------------------------------------------------------------
-
-  final List<void Function()> _subscriptionQueue = <void Function()>[];
 
   // ---------------------------------------------------------------------------
   // Reconnection
@@ -201,6 +262,9 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   Stream<BroadcastConnectionState> get connectionState =>
       _connectionStateController.stream;
 
+  /// Emits after each reconnect handshake, once every registered channel has
+  /// been sent its subscribe (private and presence channels after their first
+  /// auth attempt). Never emits for the first connection after [disconnect].
   @override
   Stream<void> get onReconnect => _onReconnectController.stream;
 
@@ -219,13 +283,15 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// state is.
   ///
   /// When a reconnect timer is armed, the call supersedes it: the timer is
-  /// cancelled and the same reconnect work runs now, so every known channel
-  /// is resubscribed and [onReconnect] fires as it would for a timer retry.
-  /// Superseding rather than joining is deliberate: joining would park the
-  /// caller for the rest of the backoff (up to `max_reconnect_delay`), while
-  /// an explicit connect asks for a connection now. A superseding attempt
-  /// that fails re-arms the retry before it throws, so it never ends the
-  /// reconnect loop it replaced.
+  /// cancelled and the same reconnect work runs now, and the call resolves
+  /// once every channel has been resubscribed. Superseding rather than
+  /// joining is deliberate: joining would park the caller for the rest of
+  /// the backoff (up to `max_reconnect_delay`), while an explicit connect
+  /// asks for a connection now. A failed attempt arms one retry before it
+  /// throws, so a superseding call never ends the reconnect loop it replaced.
+  ///
+  /// Every handshake, whichever path reached it, resubscribes every
+  /// registered channel.
   ///
   /// @throws TimeoutException when the handshake does not arrive within
   ///   `connection_timeout` seconds; a retry is armed before the throw.
@@ -277,16 +343,13 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   ///
   /// The only place a socket is created. Both [connect] and the reconnect
   /// timer reach it through [_singleFlight], which is what bounds the driver
-  /// to one socket. Any previous socket (left by a drop or a failed
-  /// handshake) is released first, so it is never leaked beside the new one.
-  /// Returns without opening anything when [disconnect] runs while this is
-  /// suspended.
+  /// to one socket. A previous socket was already released by [_dropSocket]
+  /// when it was lost, so nothing here waits on an old socket's close. Every
+  /// failure seen here or by the handshake arms exactly one retry. Returns
+  /// without opening anything when [disconnect] runs while this is suspended.
   Future<void> _openSocket() async {
     final epoch = _epoch;
     _connectionStateController.add(BroadcastConnectionState.connecting);
-
-    await _releaseSocket();
-    if (epoch != _epoch) return;
 
     final host = _config['host'] as String;
     final port = _config['port'] as int;
@@ -299,6 +362,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     );
 
     final channel = _channelFactory(uri);
+    final generation = ++_generation;
     _channel = channel;
     try {
       await channel.ready;
@@ -311,8 +375,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       //
       // The dead socket is dropped here and its close is not awaited: a
       // browser socket that never opened never finishes closing, so the next
-      // attempt's _releaseSocket waited on it forever and no retry ever
-      // opened a socket (measured in a host app's web walk).
+      // attempt waited on it forever and no retry ever opened a socket
+      // (measured in a host app's web walk).
       if (identical(_channel, channel)) _channel = null;
       channel.sink.close().ignore();
       if (epoch == _epoch) _scheduleReconnect();
@@ -322,50 +386,41 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     // `_channel` by now, so leave every field alone.
     if (epoch != _epoch) return;
 
-    _connectionCompleter = Completer<void>();
+    final completer = _connectionCompleter = Completer<void>();
 
-    // Wrap the single-subscription stream as a broadcast stream.
-    _broadcastStreamController = StreamController<dynamic>.broadcast();
+    // Wrap the single-subscription stream as a broadcast stream. The
+    // callbacks check the generation: a socket that was already dropped
+    // must not tear down, or reconnect over, the socket that replaced it.
+    final controller = _broadcastStreamController =
+        StreamController<dynamic>.broadcast();
     _streamSubscription = channel.stream.listen(
-      _broadcastStreamController!.add,
+      controller.add,
       onDone: () {
-        _broadcastStreamController?.close();
-        _onDone();
+        controller.close();
+        if (generation == _generation) _onDone(channel.closeCode);
       },
       onError: (Object error) {
-        _broadcastStreamController?.addError(error);
-        _onError(error);
+        controller.addError(error);
+        if (generation == _generation) _onError(error);
       },
     );
 
-    _broadcastStreamController!.stream.listen(
-      (raw) {
-        try {
-          _onMessage(raw);
-        } on StateError catch (error) {
-          // Protocol violation (e.g. missing 'event' key). Route through
-          // interceptor error chain rather than crashing the subscription.
-          dynamic processed = error;
-          for (final interceptor in _interceptors) {
-            processed = interceptor.onError(processed);
-          }
-        }
-      },
-      onError: (Object error) {
-        // Route stream-level errors through interceptors.
-        dynamic processed = error;
-        for (final interceptor in _interceptors) {
-          processed = interceptor.onError(processed);
-        }
-      },
-    );
+    controller.stream.listen((raw) {
+      try {
+        _onMessage(raw);
+      } on StateError catch (error) {
+        // Protocol violation (e.g. missing 'event' key). Route through
+        // interceptor error chain rather than crashing the subscription.
+        _routeError(error);
+      }
+    }, onError: _routeError);
 
     final timeout = _config['connection_timeout'] as int? ?? 15;
-    return _connectionCompleter!.future.timeout(
+    return completer.future.timeout(
       Duration(seconds: timeout),
       onTimeout: () {
-        channel.sink.close();
         _connectionCompleter = null;
+        _dropSocket();
         _scheduleReconnect();
         throw TimeoutException(
           'Connection establishment timed out after ${timeout}s',
@@ -383,33 +438,20 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     _inFlight = null;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    _cancelActivityTimers();
     _attempt = 0;
+    _connectedBefore = false;
 
-    _subscriptionQueue.clear();
+    final completer = _connectionCompleter;
+    _connectionCompleter = null;
+    if (completer != null && !completer.isCompleted) completer.complete();
 
-    _streamSubscription?.cancel();
-    _streamSubscription = null;
-
-    _broadcastStreamController?.close();
-    _broadcastStreamController = null;
-
-    _channel?.sink.close();
-    _channel = null;
-
-    _isConnected = false;
-    _socketId = null;
+    _dropSocket();
 
     // Dispose all channels.
     for (final channel in _channels.values) {
       channel.dispose();
     }
     _channels.clear();
-
-    if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
-      _connectionCompleter!.complete();
-    }
-    _connectionCompleter = null;
 
     _connectionStateController.add(BroadcastConnectionState.disconnected);
   }
@@ -420,42 +462,26 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
   @override
   BroadcastChannel channel(String name) {
-    if (_channels.containsKey(name)) {
-      return _channels[name]!;
-    }
-
-    final ch = ReverbBroadcastChannel(name);
-    _channels[name] = ch;
-    _subscribePublic(name);
-    return ch;
+    return _channels[name] ?? _register(ReverbBroadcastChannel(name));
   }
 
   @override
   BroadcastChannel private(String name) {
     final prefixed = name.startsWith('private-') ? name : 'private-$name';
 
-    if (_channels.containsKey(prefixed)) {
-      return _channels[prefixed]!;
-    }
-
-    final ch = ReverbBroadcastChannel(prefixed);
-    _channels[prefixed] = ch;
-    _subscribePrivate(prefixed);
-    return ch;
+    return _channels[prefixed] ?? _register(ReverbBroadcastChannel(prefixed));
   }
 
   @override
   BroadcastPresenceChannel join(String name) {
     final prefixed = name.startsWith('presence-') ? name : 'presence-$name';
 
-    if (_channels.containsKey(prefixed)) {
-      return _channels[prefixed]! as ReverbBroadcastPresenceChannel;
-    }
+    final existing = _channels[prefixed];
+    if (existing != null) return existing as ReverbBroadcastPresenceChannel;
 
-    final ch = ReverbBroadcastPresenceChannel(prefixed);
-    _channels[prefixed] = ch;
-    _subscribePresence(prefixed);
-    return ch;
+    return _register<ReverbBroadcastPresenceChannel>(
+      ReverbBroadcastPresenceChannel(prefixed),
+    );
   }
 
   @override
@@ -476,6 +502,17 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     _interceptors.add(interceptor);
   }
 
+  /// Records [channel] and subscribes it now when a socket is up.
+  ///
+  /// A channel registered while disconnected is only recorded: the next
+  /// handshake's replay of [_channels] subscribes it, exactly once.
+  T _register<T extends ReverbBroadcastChannel>(T channel) {
+    _channels[channel.name] = channel;
+    if (_isConnected) unawaited(_subscribe(channel));
+
+    return channel;
+  }
+
   // ---------------------------------------------------------------------------
   // Backoff delay — pure function, exposed for testing
   // ---------------------------------------------------------------------------
@@ -486,6 +523,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// Formula: `min(500 * 2^attempt, maxReconnectDelay) * (1 + random(0..0.3))`
   /// milliseconds. The jitter (up to 30% of base delay) prevents thundering
   /// herd when many clients reconnect simultaneously after a server restart.
+  /// Also paces the retries of a failed private or presence auth.
   Duration backoffDelay(int attempt) {
     final maxDelay = _config['max_reconnect_delay'] as int? ?? 30000;
     var base = 500;
@@ -496,17 +534,18 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     return Duration(milliseconds: base + jitter);
   }
 
-  /// Classifies a Pusher error [code] into a reconnection action.
+  /// Classifies a Pusher close [code] into a reconnection action, following
+  /// the Pusher protocol (pusher-js `getCloseAction`).
   ///
-  /// - 4000–4099: [PusherErrorAction.fatal] — do not reconnect.
-  /// - 4100–4199: [PusherErrorAction.reconnectImmediate] — reconnect without delay.
-  /// - 4200–4299: [PusherErrorAction.reconnectBackoff] — reconnect with backoff.
+  /// - 4000-4099: [PusherErrorAction.fatal], do not reconnect.
+  /// - 4100-4199: [PusherErrorAction.reconnectBackoff], reconnect with backoff.
+  /// - 4200-4299: [PusherErrorAction.reconnectImmediate], reconnect at once.
   /// - Other: defaults to [PusherErrorAction.reconnectBackoff].
   PusherErrorAction classifyErrorCode(int code) {
     if (code >= 4000 && code <= 4099) {
       return PusherErrorAction.fatal;
     }
-    if (code >= 4100 && code <= 4199) {
+    if (code >= 4200 && code <= 4299) {
       return PusherErrorAction.reconnectImmediate;
     }
     return PusherErrorAction.reconnectBackoff;
@@ -533,7 +572,8 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         _handleConnectionEstablished(json);
       case 'pusher:ping':
         _sendPong();
-      case 'pusher:subscription_succeeded':
+      case 'pusher:subscription_succeeded' ||
+          'pusher_internal:subscription_succeeded':
         _handleSubscriptionSucceeded(json);
       case 'pusher:error':
         _handlePusherError(json);
@@ -547,6 +587,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   }
 
   void _handleConnectionEstablished(Map<String, dynamic> json) {
+    // 1. Adopt the socket identity the server assigned.
     final data = jsonDecode(json['data'] as String) as Map<String, dynamic>;
     _socketId = data['socket_id'] as String;
     activityTimeout =
@@ -559,17 +600,24 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
     _connectionStateController.add(BroadcastConnectionState.connected);
 
-    // Flush subscription queue.
-    if (_subscriptionQueue.isNotEmpty) {
-      for (final action in _subscriptionQueue) {
-        action();
-      }
-      _subscriptionQueue.clear();
-    }
+    // 2. Resubscribe every registered channel with the new socket id,
+    // whichever path opened this socket. The server forgot every
+    // subscription with the old socket, so a replay tied to one path only
+    // left the others connected and deaf.
+    final generation = _generation;
+    final isReconnect = _connectedBefore;
+    _connectedBefore = true;
+    final replay = _replay = _resubscribeAll();
 
-    if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
-      _connectionCompleter!.complete();
-    }
+    final completer = _connectionCompleter;
+    if (completer != null && !completer.isCompleted) completer.complete();
+
+    // 3. Announce a reconnect only once the replay ran, so a consumer that
+    // refetches on it never races the subscriptions it depends on.
+    if (!isReconnect) return;
+    replay.then((_) {
+      if (generation == _generation) _onReconnectController.add(null);
+    });
   }
 
   void _handleSubscriptionSucceeded(Map<String, dynamic> json) {
@@ -577,48 +625,42 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     if (channelName == null) return;
 
     final ch = _channels[channelName];
-    if (ch is ReverbBroadcastPresenceChannel) {
-      final rawData = json['data'];
-      final Map<String, dynamic> data;
-      if (rawData is String) {
-        data = jsonDecode(rawData) as Map<String, dynamic>;
-      } else if (rawData is Map<String, dynamic>) {
-        data = rawData;
-      } else {
-        return;
-      }
-      ch.handlePresenceEvent('pusher:subscription_succeeded', data);
+    if (ch == null) return;
+
+    ch.setSubscribed(true);
+    if (ch is! ReverbBroadcastPresenceChannel) return;
+
+    final rawData = json['data'];
+    final Map<String, dynamic> data;
+    if (rawData is String) {
+      data = jsonDecode(rawData) as Map<String, dynamic>;
+    } else if (rawData is Map<String, dynamic>) {
+      data = rawData;
+    } else {
+      return;
     }
+    ch.handlePresenceEvent('pusher:subscription_succeeded', data);
   }
 
+  /// Routes a `pusher:error` frame through the interceptors, and nothing
+  /// more.
+  ///
+  /// The frame never schedules a reconnect: Reverb sends one (code 4200) for
+  /// any exception it hits while handling a message, without closing the
+  /// socket, so reconnecting on it tore down a healthy connection, and on an
+  /// immediate code did so in a loop. When the server does mean to end the
+  /// connection it closes the socket, and the close code decides in
+  /// [_onDone].
   void _handlePusherError(Map<String, dynamic> json) {
-    final rawData = json['data'];
+    _routeError(StateError('Pusher error: ${json['data']}'));
+  }
 
-    // Route through interceptor chain.
-    dynamic error = StateError('Pusher error: $rawData');
+  /// Passes [error] through the interceptor chain, each interceptor taking
+  /// the previous one's result.
+  void _routeError(Object error) {
+    dynamic processed = error;
     for (final interceptor in _interceptors) {
-      error = interceptor.onError(error);
-    }
-
-    if (rawData is String) {
-      try {
-        final data = jsonDecode(rawData) as Map<String, dynamic>;
-        final code = data['code'] as int?;
-        if (code != null) {
-          final action = classifyErrorCode(code);
-          switch (action) {
-            case PusherErrorAction.fatal:
-              // Do not reconnect.
-              return;
-            case PusherErrorAction.reconnectImmediate:
-              _scheduleReconnect(immediate: true);
-            case PusherErrorAction.reconnectBackoff:
-              _scheduleReconnect();
-          }
-        }
-      } catch (_) {
-        // Malformed data.
-      }
+      processed = interceptor.onError(processed);
     }
   }
 
@@ -683,10 +725,25 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   // Subscription helpers
   // ---------------------------------------------------------------------------
 
-  void _subscribePublic(String name) {
-    if (!_isConnected) {
-      _subscriptionQueue.add(() => _subscribePublic(name));
-      return;
+  /// Subscribes every registered channel on the current socket and completes
+  /// once each has been sent its subscribe, or its first auth attempt failed.
+  ///
+  /// The channel list is read before the first await, so a channel registered
+  /// after this starts subscribes itself through [_register] and is never
+  /// sent twice.
+  Future<void> _resubscribeAll() async {
+    await Future.wait<void>([
+      for (final channel in _channels.values.toList()) _subscribe(channel),
+    ]);
+  }
+
+  /// Sends the subscribe for [channel] on the current socket, authorising a
+  /// private or presence channel first. Never throws: an auth failure is
+  /// logged and routed through the interceptors.
+  Future<void> _subscribe(ReverbBroadcastChannel channel) async {
+    final name = channel.name;
+    if (name.startsWith('private-') || name.startsWith('presence-')) {
+      return _authenticateAndSubscribe(channel);
     }
 
     _send({
@@ -695,210 +752,236 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     });
   }
 
-  void _subscribePrivate(String name) {
-    if (!_isConnected) {
-      _subscriptionQueue.add(() => _subscribePrivate(name));
-      return;
-    }
+  /// Authorises [channel] for the current socket id via [_authFactory], then
+  /// sends its `pusher:subscribe` with the signature.
+  ///
+  /// The answer is dropped when the socket changed or the channel was left
+  /// while the call was out: the signature covers the old socket id (Reverb
+  /// refuses it with 4009), and a left channel must not be re-joined. A
+  /// retryable [BroadcastAuthException] (no response, a 5xx) is retried with
+  /// [backoffDelay] for as long as the socket lasts; 401, 403 and any other
+  /// failure are logged and left.
+  Future<void> _authenticateAndSubscribe(
+    ReverbBroadcastChannel channel, {
+    int attempt = 0,
+  }) async {
+    final generation = _generation;
+    final authEndpoint =
+        _config['auth_endpoint'] as String? ?? '/broadcasting/auth';
 
-    _authenticateAndSubscribe(name);
-  }
-
-  void _subscribePresence(String name) {
-    if (!_isConnected) {
-      _subscriptionQueue.add(() => _subscribePresence(name));
-      return;
-    }
-
-    _authenticateAndSubscribe(name);
-  }
-
-  /// Authenticates a private or presence channel via HTTP POST and then sends
-  /// the `pusher:subscribe` frame with the auth token.
-  Future<void> _authenticateAndSubscribe(String channelName) async {
-    if (_socketId == null) return;
-
+    final Map<String, dynamic> authData;
     try {
-      final authEndpoint =
-          _config['auth_endpoint'] as String? ?? '/broadcasting/auth';
-
-      final authData = await _authFactory(authEndpoint, <String, dynamic>{
+      authData = await _authFactory(authEndpoint, <String, dynamic>{
         'socket_id': _socketId,
-        'channel_name': channelName,
+        'channel_name': channel.name,
       });
+    } catch (error) {
+      if (!_isCurrent(channel, generation)) return;
 
-      if (authData['auth'] == null) {
+      _routeError(error);
+
+      // A retryable failure is logged as a warning: it repeats on every
+      // backoff step for as long as the backend is down.
+      if (error is BroadcastAuthException && error.isRetryable) {
         Log.warning(
-          'Broadcasting auth response malformed for channel: $channelName',
+          'Broadcasting auth failed for channel: ${channel.name}, '
+          'retrying: $error',
         );
+        _retryAuth(channel, generation, attempt);
         return;
       }
 
-      final subscribeData = <String, dynamic>{
-        'channel': channelName,
-        'auth': authData['auth'],
-      };
-
-      // Presence channels include channel_data.
-      if (authData.containsKey('channel_data')) {
-        subscribeData['channel_data'] = authData['channel_data'];
-      }
-
-      _send({'event': 'pusher:subscribe', 'data': subscribeData});
-    } catch (error) {
-      Log.error('Broadcasting auth failed for channel: $channelName', error);
-      dynamic processed = error;
-      for (final interceptor in _interceptors) {
-        processed = interceptor.onError(processed);
-      }
+      Log.error('Broadcasting auth failed for channel: ${channel.name}', error);
+      return;
     }
+
+    if (!_isCurrent(channel, generation)) return;
+
+    if (authData['auth'] == null) {
+      Log.warning(
+        'Broadcasting auth response malformed for channel: ${channel.name}',
+      );
+      return;
+    }
+
+    final subscribeData = <String, dynamic>{
+      'channel': channel.name,
+      'auth': authData['auth'],
+    };
+
+    // Presence channels include channel_data.
+    if (authData.containsKey('channel_data')) {
+      subscribeData['channel_data'] = authData['channel_data'];
+    }
+
+    _send({'event': 'pusher:subscribe', 'data': subscribeData});
   }
+
+  /// Retries [channel]'s auth after the backoff for [attempt], unless the
+  /// socket it was for is gone (the next handshake replays it) or the channel
+  /// was left.
+  void _retryAuth(ReverbBroadcastChannel channel, int generation, int attempt) {
+    Timer(backoffDelay(attempt), () {
+      if (!_isCurrent(channel, generation)) return;
+
+      unawaited(_authenticateAndSubscribe(channel, attempt: attempt + 1));
+    });
+  }
+
+  /// Whether work started for [channel] on socket [generation] still applies:
+  /// the socket is the same one and the channel is still the one registered
+  /// under its name.
+  bool _isCurrent(ReverbBroadcastChannel channel, int generation) =>
+      generation == _generation && identical(_channels[channel.name], channel);
 
   // ---------------------------------------------------------------------------
   // Reconnection
   // ---------------------------------------------------------------------------
 
-  void _onDone() {
-    _cancelActivityTimers();
-
-    if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
-      _connectionCompleter!.completeError(
-        StateError('WebSocket closed before connection established'),
-      );
-      _connectionCompleter = null;
-    }
-
-    if (!_isConnected) return;
-    _isConnected = false;
-    _socketId = null;
-    _connectionStateController.add(_dropConnectionState());
-    _scheduleReconnect();
+  void _onDone(int? closeCode) {
+    _handleDrop(
+      closeCode: closeCode,
+      handshakeError: StateError(
+        'WebSocket closed before connection established',
+      ),
+    );
   }
 
   void _onError(Object error) {
-    // Route through interceptor chain.
-    dynamic processed = error;
-    for (final interceptor in _interceptors) {
-      processed = interceptor.onError(processed);
-    }
+    _routeError(error);
 
-    if (_connectionCompleter != null && !_connectionCompleter!.isCompleted) {
-      _connectionCompleter!.completeError(error);
-      _connectionCompleter = null;
-    }
-
-    if (!_isConnected) return;
-    _isConnected = false;
-    _socketId = null;
-    _connectionStateController.add(_dropConnectionState());
-    _scheduleReconnect();
+    _handleDrop(handshakeError: error);
   }
 
-  /// The state to report after a socket drop.
+  /// Handles the loss of the current socket, before or after its handshake.
   ///
-  /// `reconnecting` when [_scheduleReconnect] will actually attempt one,
-  /// `disconnected` when the `reconnect` config key disables it, so a
-  /// consumer of [connectionState] is never told a reconnect is coming when
-  /// none is armed. Reads the same key [_scheduleReconnect] reads.
-  BroadcastConnectionState _dropConnectionState() {
-    final shouldReconnect = _config['reconnect'] as bool? ?? true;
-    return shouldReconnect
-        ? BroadcastConnectionState.reconnecting
-        : BroadcastConnectionState.disconnected;
+  /// [closeCode] is the WebSocket close code the server sent, `null` when the
+  /// connection went away without one (a Reverb restart sends no close
+  /// frame), which reconnects with backoff as pusher-js does.
+  /// [handshakeError] fails a [connect] still waiting on the handshake.
+  void _handleDrop({int? closeCode, required Object handshakeError}) {
+    // 1. Fail a pending handshake and retire the socket.
+    final wasConnected = _isConnected;
+    final completer = _connectionCompleter;
+    _connectionCompleter = null;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError(handshakeError);
+    }
+    _dropSocket();
+
+    // 2. Let the close code decide whether and how soon to come back.
+    final action = closeCode == null
+        ? PusherErrorAction.reconnectBackoff
+        : classifyErrorCode(closeCode);
+    final willRetry =
+        (_config['reconnect'] as bool? ?? true) &&
+        action != PusherErrorAction.fatal;
+
+    // 3. Report the drop as reconnecting only when a retry is really armed.
+    // A socket lost before its handshake with no retry ends the attempt, so
+    // the state leaves `connecting` too.
+    if (wasConnected || !willRetry) {
+      _connectionStateController.add(
+        willRetry
+            ? BroadcastConnectionState.reconnecting
+            : BroadcastConnectionState.disconnected,
+      );
+    }
+    if (willRetry) {
+      _scheduleReconnect(
+        immediate: action == PusherErrorAction.reconnectImmediate,
+      );
+    }
   }
 
+  /// Arms the one retry for a failure. Callers arm once per failure, so the
+  /// backoff attempt counts failures, not code paths.
   void _scheduleReconnect({bool immediate = false}) {
     final shouldReconnect = _config['reconnect'] as bool? ?? true;
-    if (!shouldReconnect) return;
+    if (!shouldReconnect) {
+      // A failed attempt with no retry to follow leaves `connecting`.
+      _connectionStateController.add(BroadcastConnectionState.disconnected);
+      return;
+    }
 
-    _cancelActivityTimers();
     _reconnectTimer?.cancel();
 
     final delay = immediate ? Duration.zero : backoffDelay(_attempt);
     _attempt++;
 
+    final epoch = _epoch;
     _reconnectTimer = Timer(delay, () {
       _reconnectTimer = null;
 
-      // An attempt already in flight (a public connect()) owns the socket;
-      // opening another beside it is exactly what the single-flight forbids.
-      if (_inFlight != null) return;
+      // An attempt already in flight owns the socket; opening another beside
+      // it is exactly what the single-flight forbids. It may still end with
+      // no socket: a timer reconnect holds the flight while its replay waits
+      // on auth, so a drop in that window lands here. Retry once it ends,
+      // unless it armed a retry of its own or got through.
+      final inFlight = _inFlight;
+      if (inFlight != null) {
+        inFlight.then<void>((_) {}, onError: (Object _) {}).then((_) {
+          if (epoch != _epoch || _isConnected) return;
+          if (_inFlight != null || _reconnectTimer != null) return;
 
-      // _reconnect already routed the failure through the interceptors,
-      // logged it and re-armed this timer; nobody awaits a timer retry.
+          _singleFlight(_reconnect).ignore();
+        });
+        return;
+      }
+
+      // _reconnect already routed the failure through the interceptors and
+      // logged it, and the failure armed the next retry; nobody awaits a
+      // timer retry.
       _singleFlight(_reconnect).ignore();
     });
   }
 
-  /// One reconnect: reopens the socket, resubscribes every known channel,
-  /// then emits [onReconnect].
+  /// One reconnect: reopens the socket, then waits for the handshake's
+  /// resubscription of every channel, which also emits [onReconnect].
   ///
   /// Run by the reconnect timer and by a [connect] that supersedes it, so a
   /// caller-driven reconnect behaves exactly like a timer-driven one. A
-  /// failure is routed through the interceptors, logged, and re-arms the
-  /// retry before it is rethrown to whoever started the attempt.
+  /// failure is routed through the interceptors and logged before it is
+  /// rethrown to whoever started the attempt; the failure itself already
+  /// armed the next retry.
   Future<void> _reconnect() async {
     final epoch = _epoch;
     try {
       await _openSocket();
       if (epoch != _epoch) return;
 
-      // Resubscribe all channels. Snapshot keys to avoid concurrent
-      // modification if a handler modifies _channels during iteration.
-      for (final name in _channels.keys.toList()) {
-        // Skip channels that were left after the snapshot was taken.
-        if (!_channels.containsKey(name)) continue;
-
-        if (name.startsWith('presence-') || name.startsWith('private-')) {
-          try {
-            await _authenticateAndSubscribe(name);
-          } catch (_) {
-            // Per-channel failure: continue to next channel.
-            // Auth errors are already logged in _authenticateAndSubscribe.
-          }
-        } else {
-          _send({
-            'event': 'pusher:subscribe',
-            'data': <String, dynamic>{'channel': name},
-          });
-        }
-      }
-
-      _onReconnectController.add(null);
+      await _replay;
     } catch (error) {
-      // Route through interceptor chain before scheduling retry.
-      dynamic processed = error;
-      for (final interceptor in _interceptors) {
-        processed = interceptor.onError(processed);
-      }
+      _routeError(error);
       Log.error('Reconnect failed', error);
-      // A disconnect() while this attempt was suspended ended the loop.
-      if (epoch == _epoch) _scheduleReconnect();
       rethrow;
     }
   }
 
-  /// Drops the current socket and its stream plumbing, if any.
+  /// Retires the current socket at once, without waiting for its close.
   ///
-  /// The stream subscription is cancelled before the sink closes, so the
-  /// released socket's own close never reaches [_onDone] and schedules a
-  /// reconnect of its own.
-  Future<void> _releaseSocket() async {
+  /// The generation moves on first, so the socket's own late close or error,
+  /// an auth call still out for it, and an auth retry armed for it all find
+  /// themselves stale. The close is not awaited: a socket to a dead peer, or
+  /// a browser socket that never opened, may never finish closing.
+  void _dropSocket() {
+    _generation++;
+    _cancelActivityTimers();
+
     _streamSubscription?.cancel();
     _streamSubscription = null;
     _broadcastStreamController?.close();
     _broadcastStreamController = null;
 
-    final channel = _channel;
+    _channel?.sink.close().ignore();
     _channel = null;
-    _isConnected = false;
-    if (channel == null) return;
 
-    try {
-      await channel.sink.close();
-    } catch (_) {
-      // The socket is being discarded either way; a sink that is already
-      // dead may throw on close, and that says nothing about the next one.
+    _isConnected = false;
+    _socketId = null;
+    _replay = null;
+
+    for (final channel in _channels.values) {
+      channel.setSubscribed(false);
     }
   }
 
@@ -912,8 +995,10 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     _pongTimer = null;
     _activityTimer = Timer(Duration(seconds: activityTimeout), () {
       _send({'event': 'pusher:ping', 'data': <String, dynamic>{}});
+      // A dead peer delivers no close either, so closing the sink alone left
+      // the driver "connected" with no retry. Drop it as a code-less close.
       _pongTimer = Timer(pongTimeout, () {
-        _channel?.sink.close();
+        _handleDrop(handshakeError: StateError('Pong not received'));
       });
     });
   }
@@ -961,11 +1046,22 @@ class ReverbBroadcastChannel implements BroadcastChannel {
   final StreamController<BroadcastEvent> _controller =
       StreamController<BroadcastEvent>.broadcast();
 
+  final StreamController<bool> _subscriptionController =
+      StreamController<bool>.broadcast();
+
   final Map<String, StreamSubscription<BroadcastEvent>> _listeners =
       <String, StreamSubscription<BroadcastEvent>>{};
 
+  bool _isSubscribed = false;
+
   @override
   Stream<BroadcastEvent> get events => _controller.stream;
+
+  @override
+  bool get isSubscribed => _isSubscribed;
+
+  @override
+  Stream<bool> get onSubscriptionChanged => _subscriptionController.stream;
 
   @override
   BroadcastChannel listen(
@@ -995,13 +1091,29 @@ class ReverbBroadcastChannel implements BroadcastChannel {
     }
   }
 
+  /// Records whether the server has confirmed this channel (internal, called
+  /// by driver), emitting on [onSubscriptionChanged] only on a change.
+  void setSubscribed(bool subscribed) {
+    if (_isSubscribed == subscribed) return;
+
+    _isSubscribed = subscribed;
+    if (!_subscriptionController.isClosed) {
+      _subscriptionController.add(subscribed);
+    }
+  }
+
   /// Disposes this channel, cancelling all listeners and closing the stream.
+  ///
+  /// Reports the channel unsubscribed first, so a listener on
+  /// [onSubscriptionChanged] learns of a leave.
   void dispose() {
+    setSubscribed(false);
     for (final sub in _listeners.values) {
       sub.cancel();
     }
     _listeners.clear();
     _controller.close();
+    _subscriptionController.close();
   }
 }
 
