@@ -31,6 +31,14 @@ class Launch {
   /// The [mode] controls how the URL is opened; defaults to
   /// [LaunchMode.externalApplication].
   ///
+  /// [webOnlyWindowName] is the browsing context on the web (`_self`,
+  /// `_blank`, a named window) and is ignored elsewhere. Leave it unset for a
+  /// new tab. Pass `_self` when the URL is opened after an `await` and is a
+  /// download: Safari blocks a new window that no longer runs inside the tap,
+  /// and the web launcher still answers `true`, so the customer sees nothing.
+  /// Navigating the current tab is not a popup, and a response served as
+  /// `Content-Disposition: attachment` leaves the page where it was.
+  ///
   /// Returns `true` if the URL was successfully launched, `false` otherwise.
   /// Returns `false` immediately for empty strings without attempting a launch.
   ///
@@ -40,11 +48,14 @@ class Launch {
   ///   'https://flutter.dev',
   ///   mode: LaunchMode.inAppWebView,
   /// );
+  /// final link = await controller.downloadLink();
+  /// await Launch.url(link, webOnlyWindowName: '_self');
   /// ```
   static Future<bool> url(
     String url, {
     LaunchMode mode = LaunchMode.externalApplication,
-  }) => _service.url(url, mode: mode);
+    String? webOnlyWindowName,
+  }) => _service.url(url, mode: mode, webOnlyWindowName: webOnlyWindowName);
 
   /// Opens the device's email client addressed to [address].
   ///

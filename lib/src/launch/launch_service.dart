@@ -22,9 +22,11 @@ class LaunchService {
   /// Any errors during URI parsing or launching are caught and logged.
   ///
   /// [mode] determines how the URL is opened. Defaults to [LaunchMode.externalApplication].
+  /// [webOnlyWindowName] is the browsing context on the web, ignored elsewhere.
   Future<bool> url(
     String url, {
     LaunchMode mode = LaunchMode.externalApplication,
+    String? webOnlyWindowName,
   }) async {
     if (url.trim().isEmpty) {
       return false;
@@ -32,7 +34,11 @@ class LaunchService {
 
     try {
       final uri = Uri.parse(url);
-      return await _adapter.launch(uri, mode: mode);
+      return await _adapter.launch(
+        uri,
+        mode: mode,
+        webOnlyWindowName: webOnlyWindowName,
+      );
     } on FormatException catch (e) {
       Log.error('Invalid URL format: $url', e);
       return false;

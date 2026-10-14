@@ -14,14 +14,17 @@ class MockLaunchAdapter implements LaunchAdapter {
   List<Uri> launchCalls = [];
   List<Uri> canLaunchCalls = [];
   LaunchMode? lastMode;
+  String? lastWebOnlyWindowName;
 
   @override
   Future<bool> launch(
     Uri url, {
     LaunchMode mode = LaunchMode.externalApplication,
+    String? webOnlyWindowName,
   }) async {
     launchCalls.add(url);
     lastMode = mode;
+    lastWebOnlyWindowName = webOnlyWindowName;
     if (shouldThrow) {
       throw PlatformException(code: 'test_error', message: 'Launch failed');
     }
@@ -135,6 +138,22 @@ void main() {
 
         expect(result, isTrue);
         expect(adapter.lastMode, LaunchMode.inAppWebView);
+      });
+
+      test('passes the web window name to adapter', () async {
+        final result = await service.url(
+          'https://flutter.dev/file.pdf',
+          webOnlyWindowName: '_self',
+        );
+
+        expect(result, isTrue);
+        expect(adapter.lastWebOnlyWindowName, '_self');
+      });
+
+      test('leaves the web window name unset by default', () async {
+        await service.url('https://flutter.dev');
+
+        expect(adapter.lastWebOnlyWindowName, isNull);
       });
 
       test('returns false for malformed URL', () async {

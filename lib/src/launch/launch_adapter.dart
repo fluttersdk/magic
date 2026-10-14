@@ -12,9 +12,13 @@ abstract class LaunchAdapter {
   ///
   /// The [mode] parameter determines how the URL is opened.
   /// Defaults to [LaunchMode.externalApplication].
+  ///
+  /// [webOnlyWindowName] is the browsing context the web opens the URL in
+  /// (`_self`, `_blank`, a named window); every other platform ignores it.
   Future<bool> launch(
     Uri url, {
     LaunchMode mode = LaunchMode.externalApplication,
+    String? webOnlyWindowName,
   });
 
   /// Check if the given [url] can be launched.
@@ -34,7 +38,8 @@ class DefaultLaunchAdapter implements LaunchAdapter {
   Future<bool> launch(
     Uri url, {
     LaunchMode mode = LaunchMode.externalApplication,
-  }) => launchUrl(url, mode: mode);
+    String? webOnlyWindowName,
+  }) => launchUrl(url, mode: mode, webOnlyWindowName: webOnlyWindowName);
 
   /// Checks whether the given [url] can be launched on this device.
   ///
