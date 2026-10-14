@@ -836,7 +836,7 @@ Context-free facade for opening URLs, emails, phone calls, and SMS. Built on `ur
 
 | Method | Parameters | Return Type | Description |
 |:-------|:-----------|:------------|:------------|
-| `Launch.url(url, {mode})` | `String url`, `LaunchMode? mode` | `Future<bool>` | Open URL in external app or in-app browser. |
+| `Launch.url(url, {mode, webOnlyWindowName})` | `String url`, `LaunchMode? mode`, `String? webOnlyWindowName` | `Future<bool>` | Open URL in external app or in-app browser; the window name is the web browsing context (`_self` for a download opened after an `await`). |
 | `Launch.email(address, {subject, body})` | `String address`, `String? subject`, `String? body` | `Future<bool>` | Open email client pre-filled. |
 | `Launch.phone(number)` | `String number` | `Future<bool>` | Open phone dialer. |
 | `Launch.sms(number, {body})` | `String number`, `String? body` | `Future<bool>` | Open SMS app pre-filled. |

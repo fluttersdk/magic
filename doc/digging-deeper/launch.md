@@ -72,6 +72,18 @@ await Launch.url(
 > [!TIP]
 > Prefer `LaunchMode.externalApplication` for links that users expect to open in their browser. Use `LaunchMode.inAppWebView` only when you want to keep the user inside your app.
 
+### The Web Window
+
+On the web, `webOnlyWindowName` names the browsing context the URL opens in (`_self`, `_blank`, or a named window); every other platform ignores it. Leave it unset for a new tab.
+
+Pass `_self` for a download whose URL you fetch first. Safari blocks a new window that is no longer opened inside the tap, and the web launcher still answers `true`, so nothing happens and nothing says so. Navigating the current tab is not a popup, and a response served with `Content-Disposition: attachment` downloads without leaving the page:
+
+```dart
+final String link = await controller.downloadLink(fileId);
+
+await Launch.url(link, webOnlyWindowName: '_self');
+```
+
 ### Return Value
 
 `Launch.url()` returns `Future<bool>`. It returns `false` immediately for empty strings and `false` on any URI parse error or launch failure (errors are logged via `Log.error`).
