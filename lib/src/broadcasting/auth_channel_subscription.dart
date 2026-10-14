@@ -2,7 +2,6 @@ import 'dart:async';
 
 import '../facades/echo.dart';
 import '../facades/log.dart';
-import 'broadcast_connection_state.dart';
 import 'broadcast_event.dart';
 import 'contracts/broadcast_channel.dart';
 
@@ -32,12 +31,12 @@ import 'contracts/broadcast_channel.dart';
 /// This class does not read `Auth` (or any other auth source) itself: the
 /// caller supplies both the current name and the trigger to re-check it.
 ///
-/// One Reverb reconnect can surface as both an `Echo.onReconnect` signal and
-/// a `connectionState` transition to `connected`, since the driver announces
-/// its own recovery and the connection stream reports the same recovery
-/// independently. A single reconnect can therefore call [onReconnect] twice;
-/// a caller doing a refetch on it should coalesce (e.g. drop a call already
-/// in flight) rather than assume one call per drop.
+/// [onReconnect] follows the channel's server confirmation
+/// (`BroadcastChannel.onSubscriptionChanged`), not the socket: after a
+/// Reverb restart the socket is back well before a channel whose auth is
+/// being retried, and events published in between are lost. One call per
+/// confirmation; several subscriptions refetching the same data should
+/// still coalesce.
 ///
 /// A `null` [channelName] tears the subscription down by calling
 /// `Echo.disconnect()` on the default connection, which drops every channel
@@ -51,9 +50,9 @@ class AuthChannelSubscription {
   /// [channelName] is re-invoked on every [sync]; returning `null` means "no
   /// channel right now" and tears down any live subscription. [listeners]
   /// maps an event name to the callback [sync] registers on every
-  /// (re)subscribe. [onReconnect], when given, fires after a connection drop
-  /// and after an explicit `Echo.onReconnect` signal, so a caller can refetch
-  /// whatever a replay-less socket missed while it was down.
+  /// (re)subscribe. [onReconnect], when given, fires when the server confirms
+  /// the channel again after a drop, so a caller can refetch whatever a
+  /// replay-less socket missed while it was down.
   /// [disconnectOnTeardown] decides whether a `null` [channelName] also
   /// disconnects the default connection; see the field.
   AuthChannelSubscription({
@@ -69,9 +68,10 @@ class AuthChannelSubscription {
   /// The event handlers registered on the channel on every (re)subscribe.
   final Map<String, void Function(BroadcastEvent)> listeners;
 
-  /// Invoked after a reconnect (either an `Echo.onReconnect` signal or a
-  /// `connectionState` transition to `connected`), so a caller can refetch
-  /// what the socket missed while it was down.
+  /// Invoked each time the server confirms the channel again after it was
+  /// lost, so a caller can refetch what the channel missed meanwhile. Also
+  /// invoked on the first confirmation when the channel was registered while
+  /// the socket was down.
   final void Function()? onReconnect;
 
   /// Whether a `null` [channelName] disconnects the default connection after
@@ -104,11 +104,9 @@ class AuthChannelSubscription {
   /// [channelName].
   bool _resyncRequested = false;
 
-  /// The `Echo.onReconnect` subscription, or `null` when not subscribed.
-  StreamSubscription<void>? _reconnectSubscription;
-
-  /// The `Echo.connectionState` subscription, or `null` when not subscribed.
-  StreamSubscription<BroadcastConnectionState>? _connectionSubscription;
+  /// The channel's `onSubscriptionChanged` subscription, or `null` when not
+  /// subscribed.
+  StreamSubscription<bool>? _confirmationSubscription;
 
   // ---------------------------------------------------------------------------
   // Sync
@@ -183,6 +181,7 @@ class AuthChannelSubscription {
     if (!Echo.connection.isConnected) {
       await _connectOrLog(name);
     }
+    final bool connectedAtRegistration = Echo.connection.isConnected;
 
     // 4. Register the channel even when the connect failed: the driver keeps
     //    every registered channel and subscribes it on its next handshake, so
@@ -196,8 +195,8 @@ class AuthChannelSubscription {
     _channel = channel;
     _subscribedName = name;
 
-    // 5. Wire the connect-time refetch so a reconnect closes the replay gap.
-    _listenForReconnect();
+    // 5. Wire the confirmation-time refetch so a reconnect closes the gap.
+    _listenForReconnect(channel, skipFirst: connectedAtRegistration);
   }
 
   /// Asks the default connection to connect, logging a failure instead of
@@ -251,31 +250,38 @@ class AuthChannelSubscription {
   // Reconnect refetch
   // ---------------------------------------------------------------------------
 
-  /// Subscribes to both reconnect signals, firing [onReconnect] on each.
+  /// Fires [onReconnect] each time the server confirms [channel] again.
   ///
-  /// Two signals rather than one: `Echo.onReconnect` covers a driver that
-  /// announces its own recovery, and the `connectionState` transition to
-  /// `connected` covers the same recovery observed independently, since
-  /// Reverb re-subscribes channels on reconnect silently and replays nothing.
-  void _listenForReconnect() {
+  /// The confirmation, not the socket's `connected` or the driver's
+  /// `onReconnect`, is the moment events flow again: a channel whose auth is
+  /// being retried misses everything published until it is confirmed, so a
+  /// refetch any earlier misses it too. Reverb replays nothing.
+  ///
+  /// [skipFirst] passes over the first confirmation when the channel was
+  /// registered on a live socket, since the screen's own load just ran; a
+  /// channel registered while the connect failed refetches on its first
+  /// confirmation, which may come long after that load.
+  void _listenForReconnect(
+    BroadcastChannel channel, {
+    required bool skipFirst,
+  }) {
     _cancelReconnectListeners();
-    _reconnectSubscription = Echo.onReconnect.listen(
-      (_) => onReconnect?.call(),
-    );
-    _connectionSubscription = Echo.connectionState
-        .where(
-          (BroadcastConnectionState state) =>
-              state == BroadcastConnectionState.connected,
-        )
-        .listen((_) => onReconnect?.call());
+    bool pendingSkip = skipFirst && !channel.isSubscribed;
+    _confirmationSubscription = channel.onSubscriptionChanged
+        .where((bool subscribed) => subscribed)
+        .listen((_) {
+          if (pendingSkip) {
+            pendingSkip = false;
+            return;
+          }
+          onReconnect?.call();
+        });
   }
 
-  /// Cancels the reconnect + connection-state subscriptions, if any.
+  /// Cancels the confirmation subscription, if any.
   void _cancelReconnectListeners() {
-    _reconnectSubscription?.cancel();
-    _reconnectSubscription = null;
-    _connectionSubscription?.cancel();
-    _connectionSubscription = null;
+    _confirmationSubscription?.cancel();
+    _confirmationSubscription = null;
   }
 
   // ---------------------------------------------------------------------------

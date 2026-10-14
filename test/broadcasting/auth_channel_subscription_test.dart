@@ -246,7 +246,8 @@ void main() {
     );
   });
 
-  test('a failed own connect still wires the reconnect refetch', () async {
+  test('a failed own connect refetches on the first confirmation, which '
+      'closes the gap since the screen loaded', () async {
     final _CountingBroadcastManager counting = _CountingBroadcastManager();
     Magic.app.setInstance('broadcasting', counting);
     counting.spy.failNextConnect = true;
@@ -259,7 +260,7 @@ void main() {
     );
     await subscription.sync();
 
-    counting.spy.emitReconnect();
+    counting.spy.setSubscribed('private-teams.1', true);
     await flushMicrotasks();
 
     expect(reconnectCount, 1);
@@ -321,8 +322,8 @@ void main() {
     echo.assertDisconnected();
   });
 
-  test('a reconnect signal and a connected transition after a drop each fire '
-      'onReconnect exactly once', () async {
+  test('a confirmation after a drop fires onReconnect once, the first '
+      'confirmation on a live socket does not', () async {
     final _CountingBroadcastManager counting = _CountingBroadcastManager();
     Magic.app.setInstance('broadcasting', counting);
 
@@ -334,17 +335,44 @@ void main() {
     );
     await subscription.sync();
 
+    counting.spy.setSubscribed('private-teams.1', true);
+    await flushMicrotasks();
+    expect(reconnectCount, 0);
+
+    counting.spy.setSubscribed('private-teams.1', false);
+    counting.spy.setSubscribed('private-teams.1', true);
+    await flushMicrotasks();
+
+    expect(reconnectCount, 1);
+  });
+
+  test('a reconnect announced before the channel is confirmed again does '
+      'not refetch until the confirmation', () async {
+    final _CountingBroadcastManager counting = _CountingBroadcastManager();
+    Magic.app.setInstance('broadcasting', counting);
+
+    int reconnectCount = 0;
+    final AuthChannelSubscription subscription = AuthChannelSubscription(
+      channelName: () => 'teams.1',
+      listeners: <String, void Function(BroadcastEvent)>{},
+      onReconnect: () => reconnectCount++,
+    );
+    await subscription.sync();
+    counting.spy.setSubscribed('private-teams.1', true);
+    await flushMicrotasks();
+
+    // The socket is back but the channel's auth is still being retried:
+    // events published now are not delivered, so a refetch would miss them.
+    counting.spy.setSubscribed('private-teams.1', false);
+    counting.spy.emitConnectionState(BroadcastConnectionState.connected);
     counting.spy.emitReconnect();
     await flushMicrotasks();
-    expect(reconnectCount, 1);
+    expect(reconnectCount, 0);
 
-    // Simulate a drop and Reverb's silent re-subscribe: the driver reports
-    // `connected` again with no `onReconnect` signal of its own.
-    counting.spy.emitConnectionState(BroadcastConnectionState.disconnected);
-    counting.spy.emitConnectionState(BroadcastConnectionState.connected);
+    counting.spy.setSubscribed('private-teams.1', true);
     await flushMicrotasks();
 
-    expect(reconnectCount, 2);
+    expect(reconnectCount, 1);
   });
 
   test('a resync requested while a pass is throwing still runs and settles on '

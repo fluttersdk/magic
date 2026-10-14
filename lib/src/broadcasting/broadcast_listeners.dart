@@ -120,9 +120,9 @@ class BroadcastListeners {
   /// Declares (or redeclares) the channel [alias] resolves to.
   ///
   /// [name] is re-read on every [sync]; a `null` result tears the alias's
-  /// channel down. [onReconnect], when given, fires after the alias's
-  /// [AuthChannelSubscription] observes a reconnect, so a caller can refetch
-  /// whatever the socket missed while it was down.
+  /// channel down. [onReconnect], when given, fires when the server confirms
+  /// the alias's channel again after a drop (see [AuthChannelSubscription]),
+  /// so a caller can refetch whatever the channel missed while it was down.
   ///
   /// Safe to call again for an already-declared [alias]: [name] and
   /// [onReconnect] are replaced in place, and the existing subscription plus
@@ -317,10 +317,9 @@ class BroadcastListeners {
   /// Exposes the [AuthChannelSubscription] backing [alias], for a test that
   /// needs to prove `onReconnect` forwarding directly.
   ///
-  /// `Echo.fake()`'s driver cannot emit a synthetic reconnect (its
-  /// `onReconnect` and `connectionState` streams are both `Stream.empty()`),
-  /// so the only way to exercise the forwarding wire is to read the
-  /// subscription's own `onReconnect` field and call it.
+  /// Reading the subscription's own `onReconnect` field and calling it
+  /// exercises the forwarding wire without staging a drop and a
+  /// re-confirmation through `fake.driver.setSubscribed`.
   @visibleForTesting
   static AuthChannelSubscription? subscriptionForTesting(String alias) =>
       _aliases[alias]?.subscription;

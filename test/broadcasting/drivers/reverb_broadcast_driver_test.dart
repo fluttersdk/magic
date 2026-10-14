@@ -2294,6 +2294,42 @@ void main() {
         await driver.disconnect();
       },
     );
+
+    test('a drop while a timer reconnect waits on its replay still '
+        'reconnects once the replay ends', () async {
+      final gate = Completer<void>();
+      var calls = 0;
+      final (driver, sockets) = _createCountingDriver(
+        authFactory: (endpoint, data) async {
+          calls++;
+          if (calls == 2) await gate.future;
+          return _signingAuth(endpoint, data);
+        },
+      );
+      await driver.connect();
+      driver.private('payments');
+      await _pump();
+
+      // Socket 2 comes from the reconnect timer, and its replay holds on the
+      // gated auth.
+      sockets.first.simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      expect(sockets, hasLength(2));
+
+      // Socket 2 drops while that auth is still out; its retry fires while
+      // the timer reconnect is in flight.
+      sockets[1].simulateClose();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      gate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+
+      expect(sockets, hasLength(3));
+      expect(driver.isConnected, isTrue);
+      expect(_subscribedOn(sockets[2]), contains('private-payments'));
+
+      await driver.disconnect();
+    });
   });
 
   group('ReverbBroadcastDriver: subscription state', () {
@@ -2438,6 +2474,23 @@ void main() {
       },
     );
 
+    test('a socket lost before its handshake with reconnect disabled reports '
+        'disconnected', () async {
+      final (driver, _) = _createCountingDriver(
+        refuse: (_) => true,
+        configOverrides: {'reconnect': false},
+      );
+      final states = <BroadcastConnectionState>[];
+      driver.connectionState.listen(states.add);
+
+      await expectLater(driver.connect(), throwsStateError);
+      await _pump();
+
+      expect(states.last, BroadcastConnectionState.disconnected);
+
+      await driver.disconnect();
+    });
+
     test(
       'a pusher:error 4200 frame on an open socket schedules nothing',
       () async {
@@ -2495,7 +2548,9 @@ void main() {
   });
 
   group('ReverbBroadcastDriver: auth answers', () {
-    test('a 502 auth answer is retried with backoff', () async {
+    test('a 502 auth answer is retried with backoff and logged as a '
+        'warning', () async {
+      final fakeLog = Log.fake();
       var calls = 0;
       Http.fake((request) {
         calls++;
@@ -2511,6 +2566,10 @@ void main() {
 
       expect(calls, 2);
       expect(_subscribedOn(sockets.first), contains('private-payments'));
+      final entries = fakeLog.entries.where(
+        (e) => e.message.contains('private-payments'),
+      );
+      expect(entries.map((e) => e.level), ['warning']);
 
       await driver.disconnect();
     });

@@ -18,7 +18,7 @@ paths: "lib/src/broadcasting/**/*.dart"
 - `Echo.connect()` / `Echo.disconnect()` — connection lifecycle
 - `Echo.socketId` — server-assigned ID; `null` when disconnected
 - `Echo.connectionState` — `Stream<BroadcastConnectionState>` (connecting/connected/disconnected/reconnecting)
-- `Echo.onReconnect` — `Stream<void>` emits once per successful reconnect
+- `Echo.onReconnect` — `Stream<void>` emits once per reconnect handshake, after every channel was sent its subscribe (never on the first connection). It does NOT mean the channels are confirmed; refetch on `channel.onSubscriptionChanged` turning `true` instead
 - `Echo.addInterceptor(interceptor)` — attach interceptor to default connection
 - `Echo.manager` — direct `BroadcastManager` access (for `extend()`)
 - `Echo.fake()` / `Echo.unfake()` — test double swap
@@ -29,6 +29,10 @@ paths: "lib/src/broadcasting/**/*.dart"
 - `channel.stopListening(event)` — remove named listener
 - `channel.events` — raw `Stream<BroadcastEvent>` for all events
 - `channel.name` — fully-qualified name as sent to server
+- `channel.isSubscribed` — the server confirmed the channel on this socket (`subscription_succeeded`); `false` after a drop, a leave, or a failed auth. `connected` does NOT imply it
+- `channel.onSubscriptionChanged` — `Stream<bool>` emitting `isSubscribed` on each change; never replays
+
+Both members are abstract: every driver's channel and every hand-written test double implements them.
 
 ## BroadcastPresenceChannel Contract
 
@@ -62,12 +66,15 @@ Register via `Echo.addInterceptor()` or `driver.addInterceptor()` in a ServicePr
 - Implements Pusher-compatible WebSocket protocol (Laravel Reverb, Soketi, etc.)
 - Constructor DI: `channelFactory` overrides WebSocket creation, `authFactory` overrides HTTP auth call — both for testing
 - Auto-reconnection: exponential backoff with 30% random jitter — `base = 500ms × 2^attempt` (capped at `max_reconnect_delay`), then `delay = base + random(0..base×0.3)`. Jitter prevents thundering herd on server restart. Set `reconnect: false` to disable
-- Activity monitor: client-side inactivity detection using Pusher protocol `activity_timeout` (from server handshake). After `activity_timeout` seconds of silence → sends `pusher:ping`. If no `pusher:pong` within 30s (`pongTimeout`) → closes socket, triggers reconnect. Timer resets on ANY inbound message
-- Connection timeout: configurable via `connection_timeout` (default 15s). If server doesn't complete Pusher handshake within timeout → closes socket, schedules reconnect, throws `TimeoutException`
+- Activity monitor: client-side inactivity detection using Pusher protocol `activity_timeout` (from server handshake). After `activity_timeout` seconds of silence → sends `pusher:ping`. If no `pusher:pong` within 30s (`pongTimeout`) → drops the connection as a code-less close (state `reconnecting`, channels unsubscribed, backoff retry) without awaiting the dead socket's close. Timer resets on ANY inbound message
+- Connection timeout: configurable via `connection_timeout` (default 15s). If server doesn't complete Pusher handshake within timeout → drops the socket, schedules reconnect, throws `TimeoutException`
 - Constructor DI: `pongTimeout` (Duration, default 30s) and `random` (Random) — both for testing determinism
-- Reconnect resubscription: all channels re-subscribed with `await` after reconnect. Private/presence re-authenticate. `onReconnect` emits only after all resubscriptions complete
-- Auth error handling: failures logged via `Log.error()` with channel name, routed through interceptor `onError()` chain. Per-channel try/catch — one failure doesn't block others
-- Pusher error codes: 4000–4099 = fatal (no reconnect), 4100–4199 = immediate, 4200–4299 = backoff
+- Socket generation: every socket gets a `_generation`; a late close, an auth answer, or an auth retry from an older socket is dropped (`_isCurrent`). Old sockets are never awaited on close
+- Resubscription: EVERY handshake (first connect, timer retry, explicit `connect()` after a drop) subscribes every registered channel with the new socket id, as pusher-js does. There is no subscription queue. Private/presence re-authenticate. `onReconnect` emits after the replay ran (each channel sent its subscribe, or its first auth attempt failed), never for the first connection
+- Single flight: one socket attempt at a time (`_inFlight`). A reconnect timer that fires while an attempt is in flight waits for it and retries if it ended with no socket and armed no retry of its own (a drop during a timer reconnect's replay)
+- Auth error handling: the default auth factory throws `BroadcastAuthException` (`statusCode`, `channelName`, `isRetryable`) on a non-2xx answer. Status `0` and 5xx retry with `backoffDelay` while the socket lasts, logged via `Log.warning()`; 401, 403 and others are logged via `Log.error()` and not retried. Every failure goes through the interceptor `onError()` chain; one channel's failure doesn't block others
+- Close codes decide the reconnect: 4000–4099 = fatal (no reconnect, state `disconnected`), 4100–4199 = backoff, 4200–4299 = immediate, any other code or none (a Reverb restart sends no close frame) = backoff. A socket lost before its handshake with no retry also reports `disconnected`
+- A `pusher:error` frame on an open socket never reconnects; it only reaches interceptors (Reverb sends 4200 for any server exception without closing)
 - Heartbeat: responds to `pusher:ping` with `pusher:pong` automatically
 - Private/presence auth: HTTP POST to `auth_endpoint` with `{socket_id, channel_name}` — expects `{auth: '...'}` response
 
@@ -82,8 +89,9 @@ Register via `Echo.addInterceptor()` or `driver.addInterceptor()` in a ServicePr
 - `Echo.unfake()` — removes fake binding (or use `MagicApp.reset()` + `Magic.flush()` in `setUp()`)
 - Assertions: `assertConnected()`, `assertDisconnected()`, `assertSubscribed(channel)`, `assertNotSubscribed(channel)`, `assertListening(channel, event)`, `assertNotListening(channel, event)`, `assertInterceptorAdded()` — all throw `AssertionError` with descriptive messages
 - `fake.dispatch(channel, event, data)` — run the registered handler with a decoded payload, as the driver would on an incoming frame. Throws if nothing is listening, because dispatching into silence is the failure it exists to reveal
-- `fake.reset()` — clear all recorded state
+- `fake.reset()` — clear all recorded state; confirmed channels emit `false` first
 - `fake.driver` — access underlying `FakeBroadcastDriver` for low-level inspection (`.subscribedChannels`, `.addedInterceptors`, `.isConnected`, `.listeners`)
+- `fake.driver.setSubscribed(name, value)` — stands in for the server's confirmation (`true`) or a drop (`false`) on the fully-qualified name; every fake channel starts unconfirmed
 
 **Subscribing and listening are separate, and only `assertListening` covers the second.** `assertSubscribed` passes for an app that holds a live channel and registers no handler at all, so a deleted `listen()` line is invisible to it. Reach for `assertListening` on the line your realtime feature depends on, and `dispatch()` when you need to prove a handler actually runs rather than merely exists.
 

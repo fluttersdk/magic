@@ -276,6 +276,11 @@ class FakeBroadcastDriver implements BroadcastDriver {
     _subscribedChannels.clear();
     _addedInterceptors.clear();
     _listeners.clear();
+    // Report each confirmed channel as dropped, so a listener attached
+    // before the reset does not keep a stale `true`.
+    for (final channel in _confirmed.keys.toList()) {
+      setSubscribed(channel, false);
+    }
     _confirmed.clear();
   }
 }

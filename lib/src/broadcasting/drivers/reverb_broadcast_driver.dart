@@ -405,27 +405,15 @@ class ReverbBroadcastDriver implements BroadcastDriver {
       },
     );
 
-    controller.stream.listen(
-      (raw) {
-        try {
-          _onMessage(raw);
-        } on StateError catch (error) {
-          // Protocol violation (e.g. missing 'event' key). Route through
-          // interceptor error chain rather than crashing the subscription.
-          dynamic processed = error;
-          for (final interceptor in _interceptors) {
-            processed = interceptor.onError(processed);
-          }
-        }
-      },
-      onError: (Object error) {
-        // Route stream-level errors through interceptors.
-        dynamic processed = error;
-        for (final interceptor in _interceptors) {
-          processed = interceptor.onError(processed);
-        }
-      },
-    );
+    controller.stream.listen((raw) {
+      try {
+        _onMessage(raw);
+      } on StateError catch (error) {
+        // Protocol violation (e.g. missing 'event' key). Route through
+        // interceptor error chain rather than crashing the subscription.
+        _routeError(error);
+      }
+    }, onError: _routeError);
 
     final timeout = _config['connection_timeout'] as int? ?? 15;
     return completer.future.timeout(
@@ -664,9 +652,15 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// connection it closes the socket, and the close code decides in
   /// [_onDone].
   void _handlePusherError(Map<String, dynamic> json) {
-    dynamic error = StateError('Pusher error: ${json['data']}');
+    _routeError(StateError('Pusher error: ${json['data']}'));
+  }
+
+  /// Passes [error] through the interceptor chain, each interceptor taking
+  /// the previous one's result.
+  void _routeError(Object error) {
+    dynamic processed = error;
     for (final interceptor in _interceptors) {
-      error = interceptor.onError(error);
+      processed = interceptor.onError(processed);
     }
   }
 
@@ -784,15 +778,20 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     } catch (error) {
       if (!_isCurrent(channel, generation)) return;
 
-      Log.error('Broadcasting auth failed for channel: ${channel.name}', error);
-      dynamic processed = error;
-      for (final interceptor in _interceptors) {
-        processed = interceptor.onError(processed);
+      _routeError(error);
+
+      // A retryable failure is logged as a warning: it repeats on every
+      // backoff step for as long as the backend is down.
+      if (error is BroadcastAuthException && error.isRetryable) {
+        Log.warning(
+          'Broadcasting auth failed for channel: ${channel.name}, '
+          'retrying: $error',
+        );
+        _retryAuth(channel, generation, attempt);
+        return;
       }
 
-      if (error is BroadcastAuthException && error.isRetryable) {
-        _retryAuth(channel, generation, attempt);
-      }
+      Log.error('Broadcasting auth failed for channel: ${channel.name}', error);
       return;
     }
 
@@ -849,11 +848,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   }
 
   void _onError(Object error) {
-    // Route through interceptor chain.
-    dynamic processed = error;
-    for (final interceptor in _interceptors) {
-      processed = interceptor.onError(processed);
-    }
+    _routeError(error);
 
     _handleDrop(handshakeError: error);
   }
@@ -883,7 +878,9 @@ class ReverbBroadcastDriver implements BroadcastDriver {
         action != PusherErrorAction.fatal;
 
     // 3. Report the drop as reconnecting only when a retry is really armed.
-    if (wasConnected) {
+    // A socket lost before its handshake with no retry ends the attempt, so
+    // the state leaves `connecting` too.
+    if (wasConnected || !willRetry) {
       _connectionStateController.add(
         willRetry
             ? BroadcastConnectionState.reconnecting
@@ -901,20 +898,36 @@ class ReverbBroadcastDriver implements BroadcastDriver {
   /// backoff attempt counts failures, not code paths.
   void _scheduleReconnect({bool immediate = false}) {
     final shouldReconnect = _config['reconnect'] as bool? ?? true;
-    if (!shouldReconnect) return;
+    if (!shouldReconnect) {
+      // A failed attempt with no retry to follow leaves `connecting`.
+      _connectionStateController.add(BroadcastConnectionState.disconnected);
+      return;
+    }
 
     _reconnectTimer?.cancel();
 
     final delay = immediate ? Duration.zero : backoffDelay(_attempt);
     _attempt++;
 
+    final epoch = _epoch;
     _reconnectTimer = Timer(delay, () {
       _reconnectTimer = null;
 
-      // An attempt already in flight (a public connect()) owns the socket,
-      // and arms its own retry if it fails; opening another beside it is
-      // exactly what the single-flight forbids.
-      if (_inFlight != null) return;
+      // An attempt already in flight owns the socket; opening another beside
+      // it is exactly what the single-flight forbids. It may still end with
+      // no socket: a timer reconnect holds the flight while its replay waits
+      // on auth, so a drop in that window lands here. Retry once it ends,
+      // unless it armed a retry of its own or got through.
+      final inFlight = _inFlight;
+      if (inFlight != null) {
+        inFlight.then<void>((_) {}, onError: (Object _) {}).then((_) {
+          if (epoch != _epoch || _isConnected) return;
+          if (_inFlight != null || _reconnectTimer != null) return;
+
+          _singleFlight(_reconnect).ignore();
+        });
+        return;
+      }
 
       // _reconnect already routed the failure through the interceptors and
       // logged it, and the failure armed the next retry; nobody awaits a
@@ -939,11 +952,7 @@ class ReverbBroadcastDriver implements BroadcastDriver {
 
       await _replay;
     } catch (error) {
-      // Route through interceptor chain.
-      dynamic processed = error;
-      for (final interceptor in _interceptors) {
-        processed = interceptor.onError(processed);
-      }
+      _routeError(error);
       Log.error('Reconnect failed', error);
       rethrow;
     }
