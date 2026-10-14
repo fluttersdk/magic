@@ -4,7 +4,7 @@ import 'package:magic/magic.dart';
 
 /// A plain controller whose [onInit] is NOT called from its constructor (the
 /// common case: data bootstrap lives in onInit and relies on the view calling
-/// it). Mirrors the magic_example showcase controllers.
+/// it).
 class _LazyController extends MagicController with MagicStateMixin<int> {
   int initCount = 0;
 
