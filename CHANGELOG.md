@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.30] - 2026-10-15
+
 ### Added
 
 - **`FormRequest.attributes()` names a field for `:attribute` in that request's error messages.** The only source was the catalogue's global `attributes.<key>`, so a screen that calls `url` "Server address" while another keeps "url" had to abandon the rules. The map is consulted before the global lookup, a field it omits keeps the global name, and `Validator.make` takes the same map as `attributes:`. The default is empty, so nothing changes for an existing request. `ValidatesRequests.validate` takes the same map as `attributes:`, and `validateRequest` and `validateRequestAsync` pass the request's own, so a controller using the mixin and `MagicFormObject.submit` honour it. `FormValidator.rules` takes the field-level twin, `attribute:`, so a field shows the same name while typing and after submit; a view's `rules(...)` helper forwards it and `messages:` to `FormValidator.rules`, which it did not before. (`lib/src/validation/form_validator.dart`, `lib/src/ui/magic_view.dart`, `lib/src/validation/form_request.dart`, `lib/src/validation/validator.dart`, `lib/src/concerns/validates_requests.dart`, `doc/digging-deeper/validation.md`, `doc/basics/forms.md`, `skills/magic-framework/references/forms-validation.md`, `skills/magic-framework/SKILL.md`)
