@@ -169,6 +169,34 @@ void main() {
 
       expect(MagicRouter.instance.routes.first.fullPath, '/api/v1/users');
     });
+
+    test('a group whose routes throw restores the outer group', () {
+      expect(
+        () => MagicRoute.group(
+          prefix: '/auth',
+          routes: () => throw StateError('route registration failed'),
+        ),
+        throwsStateError,
+      );
+
+      MagicRoute.page('/home', () => const SizedBox());
+
+      expect(MagicRouter.instance.routes.single.fullPath, '/home');
+    });
+
+    test('a layout group whose routes throw leaves no collection open', () {
+      expect(
+        () => MagicRoute.group(
+          layout: (child) => child,
+          routes: () => throw StateError('route registration failed'),
+        ),
+        throwsStateError,
+      );
+
+      MagicRoute.page('/home', () => const SizedBox());
+
+      expect(MagicRouter.instance.routes.single.fullPath, '/home');
+    });
   });
 
   group('MagicRouter', () {

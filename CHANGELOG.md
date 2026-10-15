@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A `MagicRoute.group()` whose `routes` callback throws no longer leaks into the routes registered after it.** The previous group was restored only when the callback returned, so a throw left the group current and its prefix and middleware landed on every later route (a host's test suite saw `/auth/home` after one failing registration inside magic_starter's `/auth` group); with `layout:` the open collection also swallowed every later route. The group is now restored in a `finally`, and a layout's collection is closed before the error propagates; nothing is registered for the failed group. (`lib/src/facades/route.dart`, `test/routing/router_test.dart`)
+
 ## [0.0.29] - 2026-10-14
 
 ### BREAKING
