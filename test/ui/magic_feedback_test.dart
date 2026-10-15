@@ -68,4 +68,36 @@ void main() {
       returnsNormally,
     );
   });
+
+  group('closeDialog result', () {
+    testWidgets('Magic.dialog completes with the value passed to closeDialog', (
+      tester,
+    ) async {
+      await tester.pumpWidget(harness());
+
+      final Future<String?> answer = Magic.dialog<String>(const Text('Pick'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pick'), findsOneWidget);
+
+      Magic.closeDialog('x');
+      await tester.pumpAndSettle();
+
+      expect(await answer, 'x');
+      expect(find.text('Pick'), findsNothing);
+    });
+
+    testWidgets('closeDialog without a result completes with null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(harness());
+
+      final Future<String?> answer = Magic.dialog<String>(const Text('Pick'));
+      await tester.pumpAndSettle();
+
+      Magic.closeDialog();
+      await tester.pumpAndSettle();
+
+      expect(await answer, isNull);
+    });
+  });
 }

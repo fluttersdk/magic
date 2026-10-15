@@ -117,6 +117,15 @@ Magic.dialog(
 Magic.closeDialog();
 ```
 
+Pass a value to answer the future `Magic.dialog<T>` returned; without one it completes with `null`, as a barrier tap does:
+
+```dart
+final String? name = await Magic.dialog<String>(RenameForm());
+
+// Inside RenameForm:
+Magic.closeDialog('Living room');
+```
+
 <a name="confirmation-dialogs"></a>
 ### Confirmation Dialogs
 

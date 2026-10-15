@@ -135,8 +135,8 @@ Magic.warning('Title', 'Message');
 Magic.toast('Message');
 Magic.loading(message: 'Please wait...');
 Magic.closeLoading();
-Magic.dialog(Widget());
-Magic.closeDialog();
+Magic.dialog<T>(Widget());
+Magic.closeDialog<T>([result]);
 await Magic.confirm(title: 'Delete?', message: '...');
 ```
 

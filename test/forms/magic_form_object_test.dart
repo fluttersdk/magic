@@ -1,5 +1,40 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
+
+class _MapLoader implements TranslationLoader {
+  _MapLoader(this._sentences);
+
+  final Map<String, dynamic> _sentences;
+
+  @override
+  Future<Map<String, dynamic>> load(Locale locale) async =>
+      Map<String, dynamic>.from(_sentences);
+}
+
+Future<void> _loadCatalogue() async {
+  Translator.reset();
+  Translator.instance.setLoader(
+    _MapLoader(<String, dynamic>{
+      'validation.required': 'The :attribute field is required.',
+    }),
+  );
+  await Translator.instance.load(const Locale('en'));
+}
+
+/// Requires `name` and labels it through [FormRequest.attributes].
+class _LabelledNameRequest extends FormRequest {
+  const _LabelledNameRequest();
+
+  @override
+  Map<String, List<Rule>> rules() => {
+    'name': [Required()],
+  };
+
+  @override
+  Map<String, String> attributes() => {'name': 'Source name'};
+}
 
 /// Requires `name`, mirroring the shape a real write path validates against
 /// before ever reaching [MagicFormObject.persist].
@@ -15,7 +50,9 @@ class _NameRequest extends FormRequest {
 /// Minimal [MagicFormObject]: one text field, one client rule, and a
 /// [persist] the test controls the outcome of.
 class _TestForm extends MagicFormObject {
-  _TestForm({this.onPersist});
+  _TestForm({this.onPersist, this.formRequest = const _NameRequest()});
+
+  final FormRequest formRequest;
 
   final Future<bool> Function(Map<String, dynamic> validated)? onPersist;
 
@@ -25,7 +62,7 @@ class _TestForm extends MagicFormObject {
   Map<String, dynamic> get initial => {'name': 'Seed', 'email': ''};
 
   @override
-  FormRequest get request => const _NameRequest();
+  FormRequest get request => formRequest;
 
   @override
   Future<bool> persist(Map<String, dynamic> validated) async {
@@ -60,6 +97,22 @@ void main() {
       expect(ok, isFalse);
       expect(form.persistCalled, isFalse);
       expect(form.getError('name'), isNotNull);
+
+      form.dispose();
+    });
+  });
+
+  group('submit, FormRequest.attributes', () {
+    setUp(_loadCatalogue);
+
+    test('the request\'s attribute name reaches the field error', () async {
+      final form = _TestForm(formRequest: const _LabelledNameRequest());
+      form.data.set('name', '');
+
+      final ok = await form.submit();
+
+      expect(ok, isFalse);
+      expect(form.getError('name'), 'The Source name field is required.');
 
       form.dispose();
     });

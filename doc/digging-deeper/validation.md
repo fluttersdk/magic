@@ -218,6 +218,13 @@ WFormInput(
 )
 ```
 
+Pass `attribute` to name the field in its messages, the field-level twin of `FormRequest.attributes()`. It is used as written, ahead of the global `attributes.<key>`, so the field reads the same while typing as after a `FormRequest` submit:
+
+```dart
+FormValidator.rules([Required()], field: 'url', attribute: 'Server address')
+// "The Server address field is required."
+```
+
 This is Laravel's third `Validator::make` argument. Without it, a screen wanting specific copy had to abandon the rules and hand-roll a closure, which is exactly what the rules exist to prevent.
 
 The value is a **key**, not a finished sentence. An override taking a sentence would make every consumer using it monolingual. A key with no sentence renders as itself, which is `trans`'s own contract, and the rule's parameters still reach it, so `:attribute` and `:schemes` work in an override too.
@@ -309,6 +316,27 @@ try {
 - `authorize()` runs first and throws `AuthorizationException` on `false`.
 - `prepared()` normalizes the payload before rules see it (trim, slugify, merge defaults).
 - `validate()` returns the prepared payload filtered to the keys declared in `rules()` — same contract as `Validator.validate`.
+- `attributes()` names fields for `:attribute` in this request's messages (see below). Default is an empty map.
+
+### Naming Fields Per Request
+
+By default `:attribute` resolves to the catalogue's global `attributes.<key>`, then to the humanized key. Override `attributes()` when one request calls a field something else; an entry wins over the global name, and a field it omits keeps the global lookup:
+
+```dart
+class UpdatePanelRequest extends FormRequest {
+  @override
+  Map<String, List<Rule>> rules() => {
+    'url': [Required()],
+  };
+
+  @override
+  Map<String, String> attributes() => {'url': 'Server address'};
+}
+
+// "The Server address field is required."
+```
+
+The value is used as written, not looked up as a translation key. `Validator.make(data, rules, attributes: {...})` takes the same map for ad hoc checks. `ValidatesRequests.validate` takes the same map, and `validateRequest` and `validateRequestAsync` pass the request's `attributes()` on, so a controller with the mixin and `MagicFormObject.submit` honour it.
 
 Pairs cleanly with `Model.fill(payload, strict: true)` so mass-assignment catches schema drift at the boundary.
 

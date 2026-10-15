@@ -379,13 +379,16 @@ class Magic {
     );
   }
 
-  /// Close the currently open dialog.
+  /// Close the currently open dialog, completing [dialog]'s future with
+  /// [result] (`null` when omitted).
   ///
   /// ```dart
-  /// Magic.closeDialog();
+  /// final name = Magic.dialog<String>(RenameForm());
+  /// // ...inside RenameForm:
+  /// Magic.closeDialog('Living room');
   /// ```
-  static void closeDialog() {
-    MagicFeedback.closeDialog();
+  static void closeDialog<T>([T? result]) {
+    MagicFeedback.closeDialog<T>(result);
   }
 
   /// Show a confirmation dialog.

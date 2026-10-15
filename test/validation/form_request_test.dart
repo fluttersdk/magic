@@ -1,5 +1,17 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
+
+class _MapLoader implements TranslationLoader {
+  _MapLoader(this._sentences);
+
+  final Map<String, dynamic> _sentences;
+
+  @override
+  Future<Map<String, dynamic>> load(Locale locale) async =>
+      Map<String, dynamic>.from(_sentences);
+}
 
 class StoreMonitorRequest extends FormRequest {
   StoreMonitorRequest({this.canCreate = true});
@@ -95,6 +107,91 @@ void main() {
       expect(() => request.validate({'name': 'ok'}), returnsNormally);
     });
   });
+
+  group('FormRequest.attributes', () {
+    setUp(() async {
+      MagicApp.reset();
+      Magic.flush();
+      Translator.reset();
+
+      Translator.instance.setLoader(
+        _MapLoader(<String, dynamic>{
+          'validation.required': 'The :attribute field is required.',
+          'attributes.url': 'global url',
+        }),
+      );
+
+      await Translator.instance.load(const Locale('en'));
+    });
+
+    test('default attributes() is empty', () {
+      expect(_MinimalRequest().attributes(), isEmpty);
+    });
+
+    test('an override names the field in the error message', () {
+      try {
+        _LabelledRequest().validate({'url': ''});
+        fail('expected ValidationException');
+      } on ValidationException catch (e) {
+        expect(e.errors['url'], 'The Server address field is required.');
+      }
+    });
+
+    test('the override wins over the global attributes.<key> lookup', () {
+      try {
+        _LabelledRequest().validate({'url': '', 'name': ''});
+        fail('expected ValidationException');
+      } on ValidationException catch (e) {
+        expect(e.errors['url'], isNot(contains('global url')));
+      }
+    });
+
+    test('a field without an override falls back to the global name', () {
+      try {
+        _MapRequest(const <String, String>{}).validate({'url': ''});
+        fail('expected ValidationException');
+      } on ValidationException catch (e) {
+        expect(e.errors['url'], 'The global url field is required.');
+      }
+    });
+
+    test('a field absent from the override keeps its humanized name', () {
+      try {
+        _MapRequest(const <String, String>{
+          'url': 'Server address',
+        }).validate({'url': 'ok', 'display_name': ''});
+        fail('expected ValidationException');
+      } on ValidationException catch (e) {
+        expect(e.errors['display_name'], 'The display name field is required.');
+      }
+    });
+  });
+}
+
+class _LabelledRequest extends FormRequest {
+  @override
+  Map<String, List<Rule>> rules() => {
+    'url': [Required()],
+    'name': [Required()],
+  };
+
+  @override
+  Map<String, String> attributes() => {'url': 'Server address'};
+}
+
+class _MapRequest extends FormRequest {
+  const _MapRequest(this._attributes);
+
+  final Map<String, String> _attributes;
+
+  @override
+  Map<String, List<Rule>> rules() => {
+    'url': [Required()],
+    'display_name': [Required()],
+  };
+
+  @override
+  Map<String, String> attributes() => _attributes;
 }
 
 class _MinimalRequest extends FormRequest {

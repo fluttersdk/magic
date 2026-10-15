@@ -154,14 +154,15 @@ class MagicFeedback {
     );
   }
 
-  /// Close the currently open dialog.
+  /// Close the currently open dialog, completing its future with [result].
   ///
   /// ```dart
   /// MagicFeedback.closeDialog();
+  /// MagicFeedback.closeDialog('x'); // showCustomDialog<String> yields 'x'
   /// ```
-  static void closeDialog() {
+  static void closeDialog<T>([T? result]) {
     if (_isMounted) {
-      Navigator.of(_context!, rootNavigator: true).pop();
+      Navigator.of(_context!, rootNavigator: true).pop<T>(result);
     }
   }
 

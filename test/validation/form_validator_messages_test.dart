@@ -108,4 +108,42 @@ void main() {
 
     expect(validate(''), 'The address field is required.');
   });
+
+  test(
+    'attribute names the field in the message, ahead of the global name',
+    () {
+      final String? Function(String?) validate = FormValidator.rules<String>(
+        <Rule>[const Required()],
+        field: 'password',
+        attribute: 'Panel password',
+      );
+
+      expect(validate(''), 'The Panel password field is required.');
+    },
+  );
+
+  test('without attribute the global attributes.<key> still applies', () {
+    final String? Function(String?) validate = FormValidator.rules<String>(
+      <Rule>[const Required()],
+      field: 'password',
+    );
+
+    expect(validate(''), 'The password field is required.');
+  });
+
+  test('attribute composes with a messages override', () {
+    final String? Function(String?) validate = FormValidator.rules<String>(
+      <Rule>[
+        const Url(schemes: <String>['https']),
+      ],
+      field: 'hook',
+      attribute: 'Webhook address',
+      messages: <String, String>{'url': 'validation.url'},
+    );
+
+    expect(
+      validate('http://example.com'),
+      'The Webhook address must start with https.',
+    );
+  });
 }
