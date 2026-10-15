@@ -144,11 +144,21 @@ class MagicRoute {
       as: as,
     );
 
-    // Execute callback to register routes
-    routes();
+    // Execute callback to register routes. The previous group comes back
+    // however it ends: a throw that left this group current would put its
+    // prefix and middleware on every route registered afterwards, and a
+    // layout's collection left open would swallow them.
+    try {
+      routes();
+    } catch (_) {
+      if (layout != null) {
+        MagicRouter.instance.stopCollection();
+      }
 
-    // Restore previous group context
-    _currentGroup = previousGroup;
+      rethrow;
+    } finally {
+      _currentGroup = previousGroup;
+    }
 
     // If layout was provided, register it with collected routes
     if (layout != null) {
