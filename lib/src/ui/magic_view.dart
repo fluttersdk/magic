@@ -274,16 +274,24 @@ abstract class MagicStatefulViewState<
   ///
   /// When the API returns a 422 error and you call `setErrorsFromResponse()`,
   /// the form will automatically display the error under the corresponding field.
+  ///
+  /// [attribute] and [messages] are passed to [FormValidator.rules] as they
+  /// are: the field's display name for `:attribute`, and per-rule message
+  /// overrides.
   String? Function(R?) rules<R>(
     List<Rule> validationRules, {
     required String field,
     Map<String, dynamic>? extraData,
+    String? attribute,
+    Map<String, String>? messages,
   }) {
     return FormValidator.rules<R>(
       validationRules,
       field: field,
       extraData: extraData,
       controller: _controller,
+      attribute: attribute,
+      messages: messages,
     );
   }
 

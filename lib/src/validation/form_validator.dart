@@ -106,12 +106,19 @@ class FormValidator {
   /// override taking a sentence would make every consumer using it
   /// monolingual, which is the opposite of what the rules are for. A key with
   /// no sentence renders as itself, which is `trans`'s own contract.
+  ///
+  /// [attribute] is the display name for `:attribute` in this field's
+  /// messages, used as written (not as a translation key) ahead of the global
+  /// `attributes.<field>` lookup. It is the field-level twin of
+  /// `FormRequest.attributes()`, so a field reads the same while typing as
+  /// after submit.
   static String? Function(T?) rules<T>(
     List<Rule> rules, {
     String field = 'field',
     Map<String, dynamic>? extraData,
     MagicController? controller,
     Map<String, String>? messages,
+    String? attribute,
   }) {
     return (T? value) {
       // 1. Check server-side errors if controller is provided
@@ -135,7 +142,12 @@ class FormValidator {
             : rule.passes(field, value, data);
 
         if (!passed) {
-          return _resolveMessage(rule, field, messages?[rule.name]);
+          return _resolveMessage(
+            rule,
+            field,
+            override: messages?[rule.name],
+            displayName: attribute,
+          );
         }
       }
 
@@ -144,16 +156,20 @@ class FormValidator {
   }
 
   /// Resolve error message from rule.
+  ///
+  /// [displayName] is the caller-supplied `:attribute` text; without it the
+  /// field key is looked up in the catalogue, then humanized.
   static String _resolveMessage(
     Rule rule,
-    String attribute, [
+    String attribute, {
     String? override,
-  ]) {
+    String? displayName,
+  }) {
     final messageKey = override ?? rule.message();
 
     // Build params with :attribute replacement
     final params = <String, dynamic>{
-      'attribute': _humanizeAttribute(attribute),
+      'attribute': displayName ?? _humanizeAttribute(attribute),
       ...rule.params(),
     };
 

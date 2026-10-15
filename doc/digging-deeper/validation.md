@@ -218,6 +218,13 @@ WFormInput(
 )
 ```
 
+Pass `attribute` to name the field in its messages, the field-level twin of `FormRequest.attributes()`. It is used as written, ahead of the global `attributes.<key>`, so the field reads the same while typing as after a `FormRequest` submit:
+
+```dart
+FormValidator.rules([Required()], field: 'url', attribute: 'Server address')
+// "The Server address field is required."
+```
+
 This is Laravel's third `Validator::make` argument. Without it, a screen wanting specific copy had to abandon the rules and hand-roll a closure, which is exactly what the rules exist to prevent.
 
 The value is a **key**, not a finished sentence. An override taking a sentence would make every consumer using it monolingual. A key with no sentence renders as itself, which is `trans`'s own contract, and the rule's parameters still reach it, so `:attribute` and `:schemes` work in an override too.

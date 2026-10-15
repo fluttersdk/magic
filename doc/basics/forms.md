@@ -227,6 +227,14 @@ WFormInput(
 )
 ```
 
+To name a field in its messages, call `FormValidator.rules` with `attribute`. It wins over the global `attributes.<key>` and matches what a `FormRequest.attributes()` entry shows after submit:
+
+```dart
+WFormInput(
+  validator: FormValidator.rules([Required()], field: 'url', attribute: 'Server address'),
+)
+```
+
 ### Server-Side Errors
 
 Server-side validation errors are automatically displayed when using `ValidatesRequests` mixin in your controller:

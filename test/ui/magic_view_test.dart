@@ -39,7 +39,49 @@ class _TestLoginViewState
   }
 }
 
+// A view that validates an empty `url` through its own `rules` helper.
+class _RulesView extends MagicStatefulView<TestAuthController> {
+  const _RulesView();
+
+  @override
+  State<_RulesView> createState() => _RulesViewState();
+}
+
+class _RulesViewState
+    extends MagicStatefulViewState<TestAuthController, _RulesView> {
+  @override
+  Widget build(BuildContext context) {
+    final String? error = rules<String>(
+      [Required()],
+      field: 'url',
+      attribute: 'Server address',
+      messages: {'required': 'Enter the :attribute.'},
+    )('');
+
+    return Text(error ?? 'valid');
+  }
+}
+
 void main() {
+  group('MagicStatefulViewState.rules', () {
+    setUp(() {
+      Magic.flush();
+      Magic.put<TestAuthController>(TestAuthController());
+    });
+
+    tearDown(() {
+      Magic.flush();
+    });
+
+    testWidgets('forwards the field name and the message override', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: _RulesView()));
+
+      expect(find.text('Enter the Server address.'), findsOneWidget);
+    });
+  });
+
   group('MagicStatefulViewState error clearing', () {
     late TestAuthController controller;
 

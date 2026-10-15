@@ -294,6 +294,8 @@ FormValidator.rules(
 )
 ```
 
+`attribute: 'Server address'` names the field for `:attribute` in its messages, as written and ahead of the global `attributes.<key>` (the field-level twin of `FormRequest.attributes()`).
+
 The value is a catalogue KEY, not a sentence, so the override stays localised. Rule parameters still reach it (`:attribute`, `:schemes`). The map key is `Rule.name`, derived from the message key rather than `runtimeType`, which is not dependable in a release build (dart2js minifies class names; Flutter's own `objectRuntimeType` avoids it outside asserts).
 
 **Same with valueGetter (recommended for Flutter forms):**

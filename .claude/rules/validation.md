@@ -13,7 +13,7 @@ paths: "lib/src/validation/**/*.dart"
 - `validator.validate()` — throws `ValidationException` if fails. Use for fail-fast flows
 - `ValidationException` has `.errors` map and `.message` getter
 - Message resolution: `rule.message()` → check `Lang.has(key)` → `Lang.get(key, params)` → fallback raw string
-- `:attribute` placeholder in messages replaced with humanized field name (snake_case → Title Case)
+- `:attribute` placeholder resolves in order: the per-call name (`Validator.make(attributes:)`, `FormRequest.attributes()`, `FormValidator.rules(attribute:)`, used as written), then the global `attributes.<key>` catalogue entry, then the humanized key (snake_case → lower-case words)
 - Custom rules: implement `Rule` contract. One rule class per validation concern
 - Rules receive full data map context — enables cross-field validation (e.g., `Confirmed` checks `password_confirmation`)
 - `FormValidator` wraps Validator for Flutter Form integration — used internally by `MagicForm`
