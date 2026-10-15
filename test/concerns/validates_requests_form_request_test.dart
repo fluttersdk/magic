@@ -1,5 +1,40 @@
+import 'dart:ui' show Locale;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
+
+class _MapLoader implements TranslationLoader {
+  _MapLoader(this._sentences);
+
+  final Map<String, dynamic> _sentences;
+
+  @override
+  Future<Map<String, dynamic>> load(Locale locale) async =>
+      Map<String, dynamic>.from(_sentences);
+}
+
+Future<void> _loadCatalogue() async {
+  Translator.reset();
+  Translator.instance.setLoader(
+    _MapLoader(<String, dynamic>{
+      'validation.required': 'The :attribute field is required.',
+    }),
+  );
+  await Translator.instance.load(const Locale('en'));
+}
+
+/// Names `url` for `:attribute` through [FormRequest.attributes].
+class _LabelledRequest extends FormRequest {
+  const _LabelledRequest();
+
+  @override
+  Map<String, List<Rule>> rules() => {
+    'url': [Required()],
+  };
+
+  @override
+  Map<String, String> attributes() => {'url': 'Server address'};
+}
 
 /// Bare [ValidatesRequests] host, nothing else.
 class _TestController extends MagicController with ValidatesRequests {}
@@ -74,6 +109,55 @@ void main() {
   setUp(() {
     MagicApp.reset();
     Magic.flush();
+  });
+
+  group('attributes()', () {
+    setUp(_loadCatalogue);
+
+    test('validate() names a field through its attributes argument', () {
+      final controller = _TestController();
+
+      expect(
+        () => controller.validate(
+          {'url': ''},
+          {
+            'url': [Required()],
+          },
+          attributes: {'url': 'Server address'},
+        ),
+        throwsA(isA<ValidationException>()),
+      );
+      expect(
+        controller.validationErrors['url'],
+        'The Server address field is required.',
+      );
+    });
+
+    test('validateRequest paints the request\'s attribute name', () {
+      final controller = _TestController();
+
+      expect(
+        () => controller.validateRequest(const _LabelledRequest(), {'url': ''}),
+        throwsA(isA<ValidationException>()),
+      );
+      expect(
+        controller.validationErrors['url'],
+        'The Server address field is required.',
+      );
+    });
+
+    test('validateRequestAsync paints the request\'s attribute name', () async {
+      final controller = _TestController();
+
+      await expectLater(
+        controller.validateRequestAsync(const _LabelledRequest(), {'url': ''}),
+        throwsA(isA<ValidationException>()),
+      );
+      expect(
+        controller.validationErrors['url'],
+        'The Server address field is required.',
+      );
+    });
   });
 
   group('validateRequest', () {

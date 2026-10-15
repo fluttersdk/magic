@@ -529,6 +529,7 @@ abstract class FormRequest {
 
   Map<String, List<Rule>> rules();                              // required
   bool authorize() => true;                                     // override to deny
+  Map<String, String> attributes() => const {};                 // per-request :attribute names, win over attributes.<key>
   Map<String, dynamic> prepared(Map<String, dynamic> data) => data; // override to normalize
 
   /// Runs authorize → prepared → validation.
@@ -569,6 +570,8 @@ try {
   controller.setValidationErrors(e.errors);
 }
 ```
+
+`attributes()` maps a field key to the display name used for `:attribute` in this request's messages (`{'url': 'Server address'}` gives `The Server address field is required.`); an entry beats the global `attributes.<key>` lookup, a missing field keeps it, and the value is literal text, not a translation key. `Validator.make(data, rules, attributes: {...})` takes the same map. `ValidatesRequests.validate(data, rules, attributes: {...})` takes it too, and `validateRequest`/`validateRequestAsync` pass the request's `attributes()` on, so the mixin and `MagicFormObject.submit` honour it.
 
 Pair with `Model.fill(validated, strict: true)` to catch schema drift at the boundary — any unexpected key in `validated` becomes `MassAssignmentException` instead of silently corrupting state.
 

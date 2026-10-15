@@ -46,6 +46,14 @@ abstract class FormRequest {
   /// The rules to apply to the prepared payload.
   Map<String, List<Rule>> rules();
 
+  /// Display names for `:attribute` in this request's error messages, keyed by
+  /// field. Laravel's `FormRequest::attributes()`.
+  ///
+  /// An entry wins over the catalogue's global `attributes.<key>`, so one
+  /// screen can call `url` "Server address" while another keeps the global
+  /// name. The value is used as written, not looked up as a translation key.
+  Map<String, String> attributes() => const <String, String>{};
+
   /// Authorization gate — override to return `false` to block the request.
   bool authorize() => true;
 
@@ -67,6 +75,10 @@ abstract class FormRequest {
     }
 
     final normalized = prepared(data);
-    return Validator.make(normalized, rules()).validate();
+    return Validator.make(
+      normalized,
+      rules(),
+      attributes: attributes(),
+    ).validate();
   }
 }

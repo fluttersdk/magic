@@ -302,6 +302,13 @@ class OrderController extends MagicController with MagicStateMixin<Order>, Valid
 }
 ```
 
+Override `attributes()` to name a field for `:attribute` in this request's messages, ahead of the global `attributes.<key>` translation:
+
+```dart
+@override
+Map<String, String> attributes() => {'product_id': 'Product'};
+```
+
 **Failure modes:**
 - `authorize()` returns `false`: throws `AuthorizationException`
 - A rule in `rules()` fails: throws `ValidationException` with a field-keyed error map

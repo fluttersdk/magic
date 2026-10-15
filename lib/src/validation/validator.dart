@@ -34,13 +34,18 @@ import 'exceptions/validation_exception.dart';
 /// 1. Calls `rule.message()` to get the key/raw message
 /// 2. If `Lang.has(key)`, uses `Lang.get(key, params)` for translation
 /// 3. Otherwise uses the message as a raw string
-/// 4. Replaces `:attribute` with the humanized field name
+/// 4. Replaces `:attribute` with the field's display name: the entry in
+///    `attributes` when the caller supplied one, else the catalogue's
+///    `attributes.<field>`, else the humanized field key
 class Validator {
   /// The data being validated.
   final Map<String, dynamic> _data;
 
   /// The validation rules.
   final Map<String, List<Rule>> _rules;
+
+  /// Per-call display names, consulted before the global `attributes.<key>`.
+  final Map<String, String> _attributes;
 
   /// The error messages after validation.
   final Map<String, String> _errors = {};
@@ -51,18 +56,23 @@ class Validator {
   /// Create a new Validator instance.
   ///
   /// Prefer using [Validator.make] for a more fluent API.
-  Validator._(this._data, this._rules);
+  Validator._(this._data, this._rules, this._attributes);
 
   /// Create a new Validator instance.
   ///
   /// ```dart
   /// final validator = Validator.make(data, rules);
   /// ```
+  ///
+  /// [attributes] names fields for `:attribute` in this validation only, as
+  /// Laravel's fourth `Validator::make` argument does; a field missing from it
+  /// falls back to the global `attributes.<key>` lookup.
   static Validator make(
     Map<String, dynamic> data,
-    Map<String, List<Rule>> rules,
-  ) {
-    return Validator._(data, rules);
+    Map<String, List<Rule>> rules, {
+    Map<String, String> attributes = const <String, String>{},
+  }) {
+    return Validator._(data, rules, attributes);
   }
 
   /// Run the validation and check if it failed.
@@ -219,9 +229,15 @@ class Validator {
 
   /// Convert attribute name to human-readable form.
   ///
-  /// Checks for translation key `attributes.{attribute}` first.
-  /// If not found, humanizes the string (e.g., `email_address` -> `email address`).
+  /// Checks the per-call `attributes` map first, then the translation key
+  /// `attributes.{attribute}`. If neither is found, humanizes the string
+  /// (e.g., `email_address` -> `email address`).
   String _humanizeAttribute(String attribute) {
+    final String? override = _attributes[attribute];
+    if (override != null) {
+      return override;
+    }
+
     if (Lang.has('attributes.$attribute')) {
       return Lang.get('attributes.$attribute');
     }

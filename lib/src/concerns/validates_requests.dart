@@ -99,6 +99,9 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
   ///
   /// The UI will automatically rebuild because this calls [notifyListeners].
   ///
+  /// [attributes] names fields for `:attribute` in the messages, ahead of the
+  /// global `attributes.<key>` lookup (see [Validator.make]).
+  ///
   /// ```dart
   /// try {
   ///   final data = validate({
@@ -115,13 +118,14 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
   /// ```
   Map<String, dynamic> validate(
     Map<String, dynamic> data,
-    Map<String, List<Rule>> rules,
-  ) {
+    Map<String, List<Rule>> rules, {
+    Map<String, String> attributes = const <String, String>{},
+  }) {
     // Clear previous errors and notify UI
     validationErrors = {};
     refreshUI();
 
-    final validator = Validator.make(data, rules);
+    final validator = Validator.make(data, rules, attributes: attributes);
 
     try {
       return validator.validate();
@@ -163,7 +167,7 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
     }
 
     final prepared = request.prepared(data);
-    validate(prepared, request.rules());
+    validate(prepared, request.rules(), attributes: request.attributes());
 
     return prepared;
   }
@@ -191,7 +195,11 @@ mixin ValidatesRequests on MagicController implements HasValidationErrors {
     validationErrors = {};
     refreshUI();
 
-    final validator = Validator.make(prepared, request.rules());
+    final validator = Validator.make(
+      prepared,
+      request.rules(),
+      attributes: request.attributes(),
+    );
 
     try {
       await validator.validateAsync();
