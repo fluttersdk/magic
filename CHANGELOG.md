@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 
 - **`BroadcastServiceProvider` sends `X-Socket-ID` on every `Http` request while the socket is connected, so Laravel's `broadcast(...)->toOthers()` excludes the sender.** Laravel extracts the socket id from that header (Laravel Echo adds it to axios) and magic sent none, so the device that pushed a change received its own broadcast back. The new `SocketIdInterceptor` reads `Echo.socketId` at request time and leaves the request untouched when it is `null`. It is registered in `boot()` unless `broadcasting.default` is `'null'` or no network driver is bound. (`lib/src/broadcasting/socket_id_interceptor.dart`, `lib/src/broadcasting/broadcast_service_provider.dart`, `lib/magic.dart`, `doc/digging-deeper/broadcasting.md`, `skills/magic-framework/references/secondary-systems.md`, `skills/magic-framework/SKILL.md`)
 
+### Fixed
+
+- **The Reverb driver delivers an event whose payload is empty.** Laravel encodes an empty `broadcastWith()` as `"[]"`, a JSON list, and the driver cast every decoded payload to a map, so the cast threw inside the socket listener and the event reached no listener. A decoded payload that is not a map now becomes an empty map, as a raw non-map payload already did. (`lib/src/broadcasting/drivers/reverb_broadcast_driver.dart`)
+
 ## [0.0.30] - 2026-10-15
 
 ### Added
