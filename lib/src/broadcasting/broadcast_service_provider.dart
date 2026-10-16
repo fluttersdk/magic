@@ -2,8 +2,10 @@ import 'dart:async';
 
 import '../facades/config.dart';
 import '../facades/log.dart';
+import '../network/contracts/network_driver.dart';
 import '../support/service_provider.dart';
 import 'broadcast_manager.dart';
+import 'socket_id_interceptor.dart';
 
 /// Broadcast Service Provider.
 ///
@@ -46,6 +48,11 @@ class BroadcastServiceProvider extends ServiceProvider {
   /// Skips the connection attempt when `broadcasting.default` is `'null'`
   /// to avoid unnecessary work during local development or testing.
   ///
+  /// Also adds a [SocketIdInterceptor] to the network driver, so Laravel's
+  /// `toOthers()` can tell which socket made a request. It is skipped for the
+  /// `'null'` connection, which never has a socket id, and when no network
+  /// driver is bound (add `NetworkServiceProvider` to receive the header).
+  ///
   /// Not awaited, and a failure is logged rather than thrown. Boot used to
   /// wait for the socket, so a server that refused it failed every provider
   /// after this one and the app never drew a frame, and a server that never
@@ -62,6 +69,10 @@ class BroadcastServiceProvider extends ServiceProvider {
     );
 
     if (defaultConnection == 'null') return;
+
+    if (app.bound('network')) {
+      app.make<NetworkDriver>('network').addInterceptor(SocketIdInterceptor());
+    }
 
     unawaited(
       manager.connection().connect().catchError((Object error) {
