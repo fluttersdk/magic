@@ -695,16 +695,14 @@ class ReverbBroadcastDriver implements BroadcastDriver {
     final eventName = json['event'] as String;
     final rawData = json['data'];
 
-    // Double-JSON decode: if data is a String, decode it. If already a Map,
-    // use directly.
-    final Map<String, dynamic> data;
-    if (rawData is String) {
-      data = jsonDecode(rawData) as Map<String, dynamic>;
-    } else if (rawData is Map<String, dynamic>) {
-      data = rawData;
-    } else {
-      data = <String, dynamic>{};
-    }
+    // Double-JSON decode: if data is a String, decode it. Anything that is
+    // not a map becomes an empty one: Laravel encodes an empty
+    // broadcastWith() as "[]", and a cast here threw before the event
+    // reached a single listener.
+    final Object? decoded = rawData is String ? jsonDecode(rawData) : rawData;
+    final Map<String, dynamic> data = decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{};
 
     var event = BroadcastEvent(
       event: eventName,

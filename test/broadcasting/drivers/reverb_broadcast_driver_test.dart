@@ -1506,6 +1506,28 @@ void main() {
 
       await driver.disconnect();
     });
+
+    test('event whose data decodes to a list uses empty map', () async {
+      // Laravel encodes an empty broadcastWith() as "[]", a JSON list.
+      final (driver, mock) = await _createConnectedDriver();
+
+      final ch = driver.channel('orders');
+      final events = <BroadcastEvent>[];
+      ch.events.listen(events.add);
+
+      mock.simulateMessage({
+        'event': 'OrderShipped',
+        'channel': 'orders',
+        'data': jsonEncode(<Object>[]),
+      });
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, hasLength(1));
+      expect(events.first.data, isEmpty);
+
+      await driver.disconnect();
+    });
   });
 
   group('ReverbBroadcastChannel', () {
