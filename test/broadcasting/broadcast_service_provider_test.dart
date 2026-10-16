@@ -114,6 +114,49 @@ void main() {
     });
   });
 
+  group('BroadcastServiceProvider — socket id interceptor', () {
+    late _RecordingNetworkDriver network;
+
+    setUp(() {
+      network = _RecordingNetworkDriver();
+      Magic.app.setInstance('network', network);
+      Config.set('broadcasting.connections', {
+        'my_conn': <String, dynamic>{'driver': 'spy'},
+        'null': <String, dynamic>{'driver': 'null'},
+      });
+      BroadcastManager.extend(
+        'spy',
+        (Map<String, dynamic> config) => _SpyNullDriver(onConnect: () {}),
+      );
+    });
+
+    test(
+      'boot() registers SocketIdInterceptor on the network driver',
+      () async {
+        Config.set('broadcasting.default', 'my_conn');
+
+        final provider = BroadcastServiceProvider(MagicApp.instance);
+        provider.register();
+        await provider.boot();
+
+        expect(
+          network.interceptors.whereType<SocketIdInterceptor>(),
+          hasLength(1),
+        );
+      },
+    );
+
+    test('boot() registers nothing when default is "null"', () async {
+      Config.set('broadcasting.default', 'null');
+
+      final provider = BroadcastServiceProvider(MagicApp.instance);
+      provider.register();
+      await provider.boot();
+
+      expect(network.interceptors, isEmpty);
+    });
+  });
+
   group('BroadcastServiceProvider — boot with null driver', () {
     test('boot() completes without error when default is "null"', () async {
       Config.set('broadcasting.default', 'null');
@@ -194,4 +237,13 @@ class _SpyNullDriver implements BroadcastDriver {
 
   @override
   void addInterceptor(BroadcastInterceptor interceptor) {}
+}
+
+/// Network driver that records the interceptors added to it.
+class _RecordingNetworkDriver extends FakeNetworkDriver {
+  final List<MagicNetworkInterceptor> interceptors = [];
+
+  @override
+  void addInterceptor(MagicNetworkInterceptor interceptor) =>
+      interceptors.add(interceptor);
 }

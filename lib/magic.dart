@@ -297,6 +297,7 @@ export 'src/broadcasting/broadcast_connection_state.dart';
 export 'src/broadcasting/broadcast_event.dart';
 export 'src/broadcasting/broadcast_manager.dart';
 export 'src/broadcasting/broadcast_service_provider.dart';
+export 'src/broadcasting/socket_id_interceptor.dart';
 export 'src/broadcasting/contracts/broadcast_channel.dart';
 export 'src/broadcasting/contracts/broadcast_driver.dart';
 export 'src/broadcasting/contracts/broadcast_interceptor.dart';

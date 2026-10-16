@@ -8,6 +8,7 @@ Magic provides a Laravel Echo-equivalent broadcasting system for real-time WebSo
     - [Environment Variables](#environment-variables)
 - [Echo Facade](#echo-facade)
     - [API Reference](#api-reference)
+    - [Excluding the Sender](#excluding-the-sender)
 - [Channels](#channels)
     - [Public Channels](#public-channels)
     - [Private Channels](#private-channels)
@@ -148,6 +149,13 @@ The `Echo` facade provides static access to the broadcasting system, proxying al
 | `Echo.manager` | `BroadcastManager` | The underlying manager (for `extend()` and advanced use) |
 | `Echo.fake()` | `FakeBroadcastManager` | Swap to in-memory fake for testing |
 | `Echo.unfake()` | `void` | Restore the real manager binding |
+
+<a name="excluding-the-sender"></a>
+### Excluding the Sender
+
+Laravel's `broadcast($event)->toOthers()` skips the socket that made the request, but only when the request carries the `X-Socket-ID` header, which Laravel Echo adds to its axios calls. `BroadcastServiceProvider` registers a `SocketIdInterceptor` on the network driver that sets the header from `Echo.socketId` on every request, so `toOthers()` works with no extra code. While the socket is down the id is `null` and the request is sent unchanged; the header is never empty.
+
+The interceptor is skipped when `broadcasting.default` is `'null'` and when no network driver is bound (add `NetworkServiceProvider` to the `providers` list to receive it).
 
 <a name="channels"></a>
 ## Channels
