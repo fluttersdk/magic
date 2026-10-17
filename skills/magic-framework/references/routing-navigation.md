@@ -193,7 +193,7 @@ MagicRoute.group(
 
 The layout builder receives the child widget and returns the wrapped layout.
 
-Every group with a `layout:` compiles to its own go_router `ShellRoute`. Groups sharing a `layoutId` share one persistent shell; a group without one, or with a different one, is a separate shell even when it builds the same layout widget. Moving between shells rebuilds and re-animates the whole layout, so give every route that shows the same layout one `layoutId`. In debug builds MagicRouter prints once per layout widget type when two groups build it as separate shells.
+Every group with a `layout:` compiles to its own go_router `ShellRoute`. Groups sharing a `layoutId` share one persistent shell; a group without one, or with a different one, is a separate shell even when it builds the same layout widget. Moving between shells rebuilds and re-animates the whole layout, so give every route that shows the same layout one `layoutId`. In debug builds MagicRouter prints once per layout widget type when a group without a `layoutId` builds the same layout widget as another group; two different explicit ids are taken as deliberate.
 
 ### Via Direct Layout Registration
 

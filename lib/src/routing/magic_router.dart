@@ -77,8 +77,9 @@ class MagicRouter {
 
   /// Debug only: the shell that first built each layout widget type.
   ///
-  /// Keyed by the shell's slot in [_mergeLayouts]; see [_checkDuplicateShell].
-  final Map<Type, int> _shellSlotByWidgetType = {};
+  /// The shell's slot in [_mergeLayouts] and its layout id; see
+  /// [_checkDuplicateShell].
+  final Map<Type, ({int slot, String? id})> _shellSlotByWidgetType = {};
 
   /// Debug only: the widget types already reported as built by two shells.
   final Set<Type> _reportedDuplicateShells = {};
@@ -390,7 +391,7 @@ class MagicRouter {
         ShellRoute(
           builder: (context, state, shellChild) {
             final shell = layout.builder(shellChild);
-            if (kDebugMode) _checkDuplicateShell(slot, shell);
+            if (kDebugMode) _checkDuplicateShell(slot, layout.id, shell);
             return shell;
           },
           routes: layout.children.map((child) => _buildGoRoute(child)).toList(),
@@ -405,14 +406,22 @@ class MagicRouter {
   ///
   /// A host that gives two groups different (or no) `layoutId` while their
   /// layouts build the same widget gets two ShellRoutes, and every crossing
-  /// between them tears the shell down and rebuilds it. Recorded lazily at
-  /// build, because a layout builder must not run at router build time, and
-  /// reported once per type. `debugPrint`, not the Log facade, for the reason
-  /// given in [_resolveAuthRefreshListenable].
-  void _checkDuplicateShell(int slot, Widget shell) {
+  /// between them tears the shell down and rebuilds it. Two different explicit
+  /// ids are the documented way to keep two shells apart on purpose (an
+  /// immersive route beside the app shell), so only a pair where one side has
+  /// no id is reported. Recorded lazily at build, because a layout builder
+  /// must not run at router build time, and reported once per type.
+  /// `debugPrint`, not the Log facade, for the reason given in
+  /// [_resolveAuthRefreshListenable].
+  void _checkDuplicateShell(int slot, String? id, Widget shell) {
     final type = shell.runtimeType;
-    final firstSlot = _shellSlotByWidgetType.putIfAbsent(type, () => slot);
-    if (firstSlot == slot || !_reportedDuplicateShells.add(type)) return;
+    final first = _shellSlotByWidgetType.putIfAbsent(
+      type,
+      () => (slot: slot, id: id),
+    );
+    if (first.slot == slot) return;
+    if (first.id != null && id != null) return;
+    if (!_reportedDuplicateShells.add(type)) return;
 
     debugPrint(
       'MagicRouter: two groups build $type as separate shells; give them the '

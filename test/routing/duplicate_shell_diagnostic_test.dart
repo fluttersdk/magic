@@ -74,6 +74,47 @@ void main() {
       expect(printed.single, contains('same layoutId'));
     });
 
+    testWidgets('an id-less group beside a named one prints once', (
+      tester,
+    ) async {
+      // The shape that split a starter app's shell: the host's own group
+      // carried no id while the starter's said 'app'.
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => _ShellA(child: child),
+        routes: () => MagicRoute.page('/a', () => const Text('a')),
+      );
+      MagicRoute.group(
+        layout: (child) => _ShellA(child: child),
+        routes: () => MagicRoute.page('/b', () => const Text('b')),
+      );
+
+      await visit(tester, ['/a', '/b']);
+
+      expect(printed, hasLength(1));
+    });
+
+    testWidgets('two distinct ids building one type print nothing', (
+      tester,
+    ) async {
+      // Two explicit, different ids are the documented way to keep two shells
+      // apart on purpose (an immersive route beside the app shell).
+      MagicRoute.group(
+        layoutId: 'app',
+        layout: (child) => _ShellA(child: child),
+        routes: () => MagicRoute.page('/a', () => const Text('a')),
+      );
+      MagicRoute.group(
+        layoutId: 'app.immersive',
+        layout: (child) => _ShellA(child: child),
+        routes: () => MagicRoute.page('/b', () => const Text('b')),
+      );
+
+      await visit(tester, ['/a', '/b']);
+
+      expect(printed, isEmpty);
+    });
+
     testWidgets('different widget types print nothing', (tester) async {
       MagicRoute.group(
         layout: (child) => _ShellA(child: child),

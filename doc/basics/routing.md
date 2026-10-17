@@ -372,7 +372,7 @@ MagicRoute.group(
 
 Moving between two shells rebuilds the layout and plays its entrance animation again, so the sidebar flashes and loses its state. Put every route that shows the same layout in groups with one `layoutId`.
 
-Shells are emitted in registration order of their first group, and go_router tries them in that order. In debug builds, `MagicRouter` prints a note once per layout widget type when two groups build it as separate shells, and suggests the same `layoutId` to share one shell or a unique id to keep them apart on purpose.
+Shells are emitted in registration order of their first group, and go_router tries them in that order. In debug builds, `MagicRouter` prints a note once per layout widget type when a group without a `layoutId` builds the same layout widget as another group (two different explicit ids are taken as deliberate), and suggests the same `layoutId` to share one shell or a unique id to keep them apart on purpose.
 
 > [!TIP]
 > Use layouts for any UI that should persist across page navigation, such as sidebars, bottom navigation bars, or headers.

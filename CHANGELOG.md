@@ -6,11 +6,11 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- **In debug builds, `MagicRouter` prints once per layout widget type when two groups build it as separate shells.** Each `MagicRoute.group(layout: ...)` is its own go_router `ShellRoute`, so two id-less groups building the same layout widget rebuild and re-animate it on every move between them. The note suggests the same `layoutId` to share one shell, or a unique id to keep them apart on purpose. Release builds print nothing. (`lib/src/routing/magic_router.dart`)
+- **In debug builds, `MagicRouter` prints once per layout widget type when two groups build it as separate shells.** Each `MagicRoute.group(layout: ...)` is its own go_router `ShellRoute`, so a group without a `layoutId` that builds the same layout widget as another group rebuilds and re-animates it on every move between them. The note suggests the same `layoutId` to share one shell, or a unique id to keep them apart on purpose; two groups with different explicit ids are taken as deliberate and print nothing. Release builds print nothing. (`lib/src/routing/magic_router.dart`)
 
 ### Fixed
 
-- **`MagicRouter` emits layout shells in first-registration order, anonymous ones included.** `_mergeLayouts` put every named shell before every anonymous one, so a named shell ending in a catch-all route could shadow an earlier anonymous guest shell. Named and anonymous shells are now interleaved by the order their first group was registered. (`lib/src/routing/magic_router.dart`)
+- **`MagicRouter` emits layout shells in first-registration order, anonymous ones included.** `_mergeLayouts` put every named shell before every anonymous one, so a named shell ending in a catch-all route could shadow an earlier anonymous guest shell. Named and anonymous shells are now interleaved by the order their first group was registered. An app whose route matching relied on named shells coming first may resolve an overlapping path differently: register the group that should win first. (`lib/src/routing/magic_router.dart`)
 
 ### Changed
 
