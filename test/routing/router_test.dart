@@ -440,10 +440,7 @@ void main() {
 
       final merged = MagicRouter.instance.mergedLayouts;
       expect(merged.map((layout) => layout.id), [null, 'x', null]);
-      expect(
-        merged[1].children.map((child) => child.fullPath),
-        ['/x1', '/x2'],
-      );
+      expect(merged[1].children.map((child) => child.fullPath), ['/x1', '/x2']);
       expect(merged[2].children.single.fullPath, '/b');
     });
 
