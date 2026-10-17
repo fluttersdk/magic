@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **In debug builds, `MagicRouter` prints once per layout widget type when two groups build it as separate shells.** Each `MagicRoute.group(layout: ...)` is its own go_router `ShellRoute`, so a group without a `layoutId` that builds the same layout widget as another group rebuilds and re-animates it on every move between them. The note suggests the same `layoutId` to share one shell, or a unique id to keep them apart on purpose; two groups with different explicit ids are taken as deliberate and print nothing. Release builds print nothing. (`lib/src/routing/magic_router.dart`)
+
+### Fixed
+
+- **`MagicRouter` emits layout shells in first-registration order, anonymous ones included.** `_mergeLayouts` put every named shell before every anonymous one, so a named shell ending in a catch-all route could shadow an earlier anonymous guest shell. Named and anonymous shells are now interleaved by the order their first group was registered. An app whose route matching relied on named shells coming first may resolve an overlapping path differently: register the group that should win first. (`lib/src/routing/magic_router.dart`)
+
+### Changed
+
+- **The routing docs and the skill now say that every `MagicRoute.group(layout: ...)` is its own `ShellRoute`.** Groups sharing a `layoutId` share one persistent shell; a group without one, or with a different one, is a separate shell, and moving between shells rebuilds and re-animates the whole layout. The auth-group examples carry a `layoutId`, shells are documented as emitted in registration order, and the claim that shell children push onto the root navigator is corrected: they push onto the shell's own nested navigator, which still notifies the router's observers. `plugin-starter.md` follows the magic_starter API: a starter app's own group uses `MagicStarterLayoutIds.app`, `MagicStarterHideBottomNav` wraps a route's page and collapses the nav in step with its transition (a layout opts in with `MagicStarterBottomNavScope` and `MagicStarterBottomNavSlot`), the support thread lives in the app shell, and a `MagicStarterHideChrome` group is a separate shell. (`doc/basics/routing.md`, `doc/architecture/request-lifecycle.md`, `doc/getting-started/directory-structure.md`, `skills/magic-framework/references/routing-navigation.md`, `skills/magic-framework/references/plugin-starter.md`)
+
 ## [0.0.31] - 2026-10-16
 
 ### Added

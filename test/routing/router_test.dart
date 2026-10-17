@@ -393,6 +393,55 @@ void main() {
 
       final merged = MagicRouter.instance.mergedLayouts;
       expect(merged, hasLength(2));
+      expect(merged.map((layout) => layout.id), ['app', null]);
+    });
+
+    test('shells keep registration order, anonymous ones interleaved', () {
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/a', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layoutId: 'x',
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/x1', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/b', () => const SizedBox()),
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged.map((layout) => layout.id), [null, 'x', null]);
+      expect(merged[0].children.single.fullPath, '/a');
+      expect(merged[1].children.single.fullPath, '/x1');
+      expect(merged[2].children.single.fullPath, '/b');
+    });
+
+    test('a later group with a known layoutId joins the first slot', () {
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/a', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layoutId: 'x',
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/x1', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/b', () => const SizedBox()),
+      );
+      MagicRoute.group(
+        layoutId: 'x',
+        layout: (child) => child,
+        routes: () => MagicRoute.page('/x2', () => const SizedBox()),
+      );
+
+      final merged = MagicRouter.instance.mergedLayouts;
+      expect(merged.map((layout) => layout.id), [null, 'x', null]);
+      expect(merged[1].children.map((child) => child.fullPath), ['/x1', '/x2']);
+      expect(merged[2].children.single.fullPath, '/b');
     });
 
     test('first builder wins when merging', () {

@@ -312,6 +312,7 @@ Assign a persistent layout to all routes within a group. The layout persists whi
 
 ```dart
 MagicRoute.group(
+  layoutId: 'app',
   layout: (child) => AppLayout(child: child),
   middleware: ['auth'],
   routes: () {
@@ -344,6 +345,35 @@ class AppLayout extends StatelessWidget {
 }
 ```
 
+#### One Group, One Shell
+
+Every group with a `layout:` compiles to its own go_router `ShellRoute`. Groups that share a `layoutId` share one persistent shell: their routes are concatenated in registration order under the first builder. A group without a `layoutId`, or with a different one, is a separate shell, even when it builds the same layout widget:
+
+```dart
+MagicRoute.group(
+  layoutId: 'app',
+  layout: (child) => AppLayout(child: child),
+  middleware: ['auth'],
+  routes: () {
+    MagicRoute.page('/', () => DashboardView());
+  },
+);
+
+MagicRoute.group(
+  layoutId: 'app', // Same id, same shell as the group above.
+  layout: (child) => AppLayout(child: child),
+  prefix: '/billing',
+  middleware: ['auth'],
+  routes: () {
+    MagicRoute.page('/', () => BillingView());
+  },
+);
+```
+
+Moving between two shells rebuilds the layout and plays its entrance animation again, so the sidebar flashes and loses its state. Put every route that shows the same layout in groups with one `layoutId`.
+
+Shells are emitted in registration order of their first group, and go_router tries them in that order. In debug builds, `MagicRouter` prints a note once per layout widget type when a group without a `layoutId` builds the same layout widget as another group (two different explicit ids are taken as deliberate), and suggests the same `layoutId` to share one shell or a unique id to keep them apart on purpose.
+
 > [!TIP]
 > Use layouts for any UI that should persist across page navigation, such as sidebars, bottom navigation bars, or headers.
 
@@ -365,7 +395,7 @@ MagicRoute.layout(
 );
 ```
 
-Pass an optional `id` to identify the layout when multiple layouts exist at the same level:
+Pass an optional `id` to identify the layout. Layouts that share an `id` merge into one shell, exactly like groups sharing a `layoutId`; a layout without one is its own shell:
 
 ```dart
 MagicRoute.layout(
@@ -671,9 +701,9 @@ MagicRoute.page('/settings', () => SettingsPage());             // -> '/settings
 > which starts a session only when it sees this value change.
 
 Pages inside a layout are named the same way and reach the same observers.
-Layouts compile to `ShellRoute`, and because the shell does not take its own
-`navigatorKey`, its children push onto the root navigator that your observers
-are already watching.
+Layouts compile to `ShellRoute`, whose children push onto the shell's own
+nested navigator, not the root one. go_router still forwards that navigator's
+events to the observers you passed to the router, so they see every page.
 
 Observers are passed directly to GoRouter and receive all navigation events (`didPush`, `didPop`, `didReplace`, `didRemove`).
 

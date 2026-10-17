@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -73,6 +74,15 @@ class MagicRouter {
 
   /// Registered navigator observers.
   final List<NavigatorObserver> _observers = [];
+
+  /// Debug only: the shell that first built each layout widget type.
+  ///
+  /// The shell's slot in [_mergeLayouts] and its layout id; see
+  /// [_checkDuplicateShell].
+  final Map<Type, ({int slot, String? id})> _shellSlotByWidgetType = {};
+
+  /// Debug only: the widget types already reported as built by two shells.
+  final Set<Type> _reportedDuplicateShells = {};
 
   /// The built GoRouter instance (lazily created).
   GoRouter? _router;
@@ -375,10 +385,15 @@ class MagicRouter {
 
     // Add layouts (ShellRoutes) - each layout wraps its children
     final mergedLayouts = _mergeLayouts();
-    for (final layout in mergedLayouts) {
+    for (var slot = 0; slot < mergedLayouts.length; slot++) {
+      final layout = mergedLayouts[slot];
       goRoutes.add(
         ShellRoute(
-          builder: (context, state, shellChild) => layout.builder(shellChild),
+          builder: (context, state, shellChild) {
+            final shell = layout.builder(shellChild);
+            if (kDebugMode) _checkDuplicateShell(slot, layout.id, shell);
+            return shell;
+          },
           routes: layout.children.map((child) => _buildGoRoute(child)).toList(),
         ),
       );
@@ -387,33 +402,69 @@ class MagicRouter {
     return goRoutes;
   }
 
+  /// Debug only: say so when two distinct shells build the same widget type.
+  ///
+  /// A host that gives two groups different (or no) `layoutId` while their
+  /// layouts build the same widget gets two ShellRoutes, and every crossing
+  /// between them tears the shell down and rebuilds it. Two different explicit
+  /// ids are the documented way to keep two shells apart on purpose (an
+  /// immersive route beside the app shell), so only a pair where one side has
+  /// no id is reported. Recorded lazily at build, because a layout builder
+  /// must not run at router build time, and reported once per type.
+  /// `debugPrint`, not the Log facade, for the reason given in
+  /// [_resolveAuthRefreshListenable].
+  void _checkDuplicateShell(int slot, String? id, Widget shell) {
+    final type = shell.runtimeType;
+    final first = _shellSlotByWidgetType.putIfAbsent(
+      type,
+      () => (slot: slot, id: id),
+    );
+    if (first.slot == slot) return;
+    if (first.id != null && id != null) return;
+    if (!_reportedDuplicateShells.add(type)) return;
+
+    debugPrint(
+      'MagicRouter: two groups build $type as separate shells; give them the '
+      'same layoutId to share one shell, or a unique id to keep them separate '
+      'on purpose.',
+    );
+  }
+
   /// Merge layouts sharing the same [LayoutDefinition.id].
   ///
-  /// Layouts without an ID remain separate ShellRoutes.
-  /// When multiple layouts share an ID, children are concatenated
-  /// in registration order and the first builder wins.
+  /// Shells come out in first-registration order, anonymous ones where they
+  /// were registered: go_router matches ShellRoutes top to bottom, so a named
+  /// shell holding a catch-all must not jump ahead of a guest shell that was
+  /// registered before it. A named group joins the slot of its id's first
+  /// registration. Layouts without an ID remain separate ShellRoutes. When
+  /// multiple layouts share an ID, children are concatenated in registration
+  /// order and the first builder wins.
   List<LayoutDefinition> _mergeLayouts() {
-    final merged = <String, LayoutDefinition>{};
-    final anonymous = <LayoutDefinition>[];
+    final slots = <LayoutDefinition>[];
+    final slotById = <String, int>{};
 
     for (final layout in _layouts) {
-      if (layout.id == null) {
-        anonymous.add(layout);
+      final id = layout.id;
+      if (id == null) {
+        slots.add(layout);
         continue;
       }
 
-      if (merged.containsKey(layout.id)) {
-        merged[layout.id!] = LayoutDefinition(
-          id: layout.id,
-          builder: merged[layout.id!]!.builder,
-          children: [...merged[layout.id!]!.children, ...layout.children],
-        );
-      } else {
-        merged[layout.id!] = layout;
+      final slot = slotById[id];
+      if (slot == null) {
+        slotById[id] = slots.length;
+        slots.add(layout);
+        continue;
       }
+
+      slots[slot] = LayoutDefinition(
+        id: id,
+        builder: slots[slot].builder,
+        children: [...slots[slot].children, ...layout.children],
+      );
     }
 
-    return [...merged.values, ...anonymous];
+    return slots;
   }
 
   /// Merged layout definitions. Exposed for testing layout merging behavior.
@@ -1170,6 +1221,8 @@ class MagicRouter {
     _instance?._router?.dispose();
     _instance?._routes.clear();
     _instance?._layouts.clear();
+    _instance?._shellSlotByWidgetType.clear();
+    _instance?._reportedDuplicateShells.clear();
     _instance?._observers.clear();
     _instance?._router = null;
     _instance?._currentRoute = null;
