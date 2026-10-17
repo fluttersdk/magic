@@ -171,6 +171,7 @@ Routes are defined in `lib/routes/`:
 void registerRoutes() {
   // Guest routes
   MagicRoute.group(
+    layoutId: 'guest',
     layout: (child) => GuestLayout(child: child),
     routes: () {
       MagicRoute.page('/login', () => AuthController.instance.login());
@@ -180,6 +181,7 @@ void registerRoutes() {
 
   // Authenticated routes
   MagicRoute.group(
+    layoutId: 'app',
     middleware: ['auth'],
     layout: (child) => AppLayout(child: child),
     routes: () {
@@ -189,6 +191,8 @@ void registerRoutes() {
   );
 }
 ```
+
+Each group with a `layout:` is its own go_router `ShellRoute`, so the guest and authenticated groups are separate shells. Groups that share a `layoutId` share one persistent shell, and shells are emitted in registration order. See [Layouts](../basics/routing.md#layouts-shell-routes).
 
 ### Route Resolution
 

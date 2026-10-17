@@ -190,6 +190,7 @@ void registerRoutes() {
   MagicRoute.group(
     prefix: '/',
     middleware: ['auth'],
+    layoutId: 'app',
     layout: (child) => AppLayout(child: child),
     routes: () {
       MagicRoute.page('/', () => DashboardView());
