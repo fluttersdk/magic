@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.48 | Updated: 2026-10-17 -->
+<!-- magic_starter v0.0.49 | Updated: 2026-10-18 -->
 
 # magic_starter Plugin
 
@@ -482,6 +482,8 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 | App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar`, `MSUpdateBanner` |
 
 The five added in 0.0.37 are `MSFormActions` (a cancel/submit footer row), `MSSwitchRow` (a labelled `MSSwitch`), `MSHeaderAction` (a page-header action that collapses to an icon below `lg`), `MSKeyValueEditor` (a controlled editor for a list of key/value pairs) and `MSStringValueList` (a controlled chip editor for distinct strings). Each takes every visible string as a required constructor parameter and reads no translation key of its own.
+
+Since 0.0.49 `MSSwitch` takes an optional `label`: tapping it toggles the switch, it is the switch's accessible name unless `semanticLabel` is set, and it wraps in the width beside the track. `MSSwitchRow` is a full-width `MSSwitch(label:)`, so a test finds its switch by `label`, not `semanticLabel`. Below `lg` the switch and an `sm` `MSButton` sit in a 44 px hit area, and `MSSelect`, `MSSwitch` and `MSSegmentedControl` draw a primary focus ring on Tab (the select's needs `fluttersdk_wind` 1.9.1).
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
