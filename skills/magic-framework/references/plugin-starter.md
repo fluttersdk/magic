@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.51 | Updated: 2026-10-18 -->
+<!-- magic_starter v0.0.52 | Updated: 2026-10-18 -->
 
 # magic_starter Plugin
 
@@ -487,7 +487,9 @@ Since 0.0.49 `MSSwitch` takes an optional `label`: tapping it toggles the switch
 
 Since 0.0.50 every `MSButton` size, not only `sm`, sits in a 44 px hit area below `lg`, and each `MSSegmentedControl` segment has a 44 px hit cell around its painted pill. `MSSelect` and `MSCombobox` default their placeholders to `trans('common.select_option')` and `trans('common.search_options')`, so a host merges those two keys into every locale it ships. The billing controller re-reads plans and usage when the locale changes.
 
-Since 0.0.51 `MSInput` and the `MSSelect` and `MSCombobox` triggers paint 44 px tall below `lg` and 40 px from `lg` up (`MSTextarea` is unchanged). `MSCombobox`'s search field defaults its placeholder to `trans('common.search_placeholder')`, a third key a host merges into every locale. The package's own profile, settings, security and team action buttons are `MSButton`s; an outlined danger action is `ButtonIntent.secondary` plus `className: kButtonDangerOutlineClassName`, a raw red text and border pair, because the alias contract has no destructive text role and `text-destructive` renders in the neutral text colour. The billing locale listener stays silent for a guest.
+Since 0.0.51 `MSInput` and the `MSSelect` and `MSCombobox` triggers paint 44 px tall below `lg` and 40 px from `lg` up (`MSTextarea` is unchanged). `MSCombobox`'s search field defaults its placeholder to `trans('common.search_placeholder')`, a third key a host merges into every locale. The package's own profile, settings, security and team action buttons are `MSButton`s. The billing locale listener stays silent for a guest.
+
+Since 0.0.52 destructive text follows the host's theme: `MagicStarterTokens.role(WindTheme.maybeDataOf(context), 'text-destructive')` returns the token when the host's `WindThemeData` defines it (an alias key or a `destructive` colour) and `text-red-600 dark:text-red-400` otherwise, since the shipped alias map has no destructive text role and a bare `text-destructive` renders neutral where the host omits it. An outlined danger action is `ButtonIntent.secondary` plus `className: buttonDangerOutlineClassName(context)` (that role plus a raw red border); it replaces 0.0.51's `kButtonDangerOutlineClassName`, which is gone. `MSSettingsRow`'s destructive title, the billing dunning notice and the connected accounts error resolve the same role, so a host that maps `text-destructive` to its brand red sees it there.
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
