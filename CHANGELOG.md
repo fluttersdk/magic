@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **An image pick carries its size.** `Pick.image`, `Pick.images`, `Pick.camera`, `Pick.media`, `Pick.video` and `Pick.recordVideo` built their `MagicFile` without one, on every platform, so a caller guarding an upload limit read `size == null` and let every oversize image through (on the web a 3 MB logo reached PHP's own ceiling and came back as an unexplained "failed to upload"). The size now comes from `XFile.length()`, the blob's size on the web, so nothing is read into memory for it. (`lib/src/facades/pick.dart`)
+
 ## [0.0.32] - 2026-10-17
 
 ### Added

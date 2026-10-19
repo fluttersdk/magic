@@ -2,10 +2,12 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:magic/src/facades/pick.dart';
 import 'package:magic/src/foundation/application.dart';
 import 'package:magic/src/foundation/magic.dart';
+import 'package:magic/src/storage/magic_file.dart';
 
 /// A [PlatformFile] whose members are supplied by the test.
 ///
@@ -352,4 +354,56 @@ void main() {
       expect(platform.lastSaveMimeType, 'application/pdf');
     });
   });
+
+  group('Pick.image', () {
+    late ImagePickerPlatform original;
+
+    setUp(() => original = ImagePickerPlatform.instance);
+    tearDown(() => ImagePickerPlatform.instance = original);
+
+    test('carries the picked file size', () async {
+      // An image pick never set MagicFile.size, so a caller's upload limit
+      // had nothing to read and let every oversize image through.
+      ImagePickerPlatform.instance = _FakeImagePicker(
+        XFile.fromData(
+          Uint8List(600 * 1024),
+          name: 'logo.png',
+          mimeType: 'image/png',
+        ),
+      );
+
+      final MagicFile? file = await Pick.image();
+
+      expect(file?.size, 600 * 1024);
+    });
+
+    test('carries the size of every image in a multi pick', () async {
+      ImagePickerPlatform.instance = _FakeImagePicker(
+        XFile.fromData(Uint8List(3), name: 'a.png'),
+      );
+
+      final List<MagicFile> files = await Pick.images();
+
+      expect(files.map((MagicFile f) => f.size), [3]);
+    });
+  });
+}
+
+/// Answers every image pick with [file].
+class _FakeImagePicker extends ImagePickerPlatform
+    with MockPlatformInterfaceMixin {
+  _FakeImagePicker(this.file);
+
+  final XFile file;
+
+  @override
+  Future<XFile?> getImageFromSource({
+    required ImageSource source,
+    ImagePickerOptions options = const ImagePickerOptions(),
+  }) async => file;
+
+  @override
+  Future<List<XFile>> getMultiImageWithOptions({
+    MultiImagePickerOptions options = const MultiImagePickerOptions(),
+  }) async => [file];
 }
