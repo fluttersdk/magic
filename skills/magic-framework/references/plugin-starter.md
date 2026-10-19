@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.53 | Updated: 2026-10-19 -->
+<!-- magic_starter v0.0.54 | Updated: 2026-10-19 -->
 
 # magic_starter Plugin
 
@@ -863,6 +863,10 @@ Five flags on top of `features.support`, all default `false`. The four `support_
 | `store_review` | `MagicStarterStoreReview.maybeRequest()` for a host milestone, never a button: quiet on the web, for a guest, in the first `min_account_days` (7), within `interval_days` (120) of the last prompt, and while the feedback card is due. The menu's "Rate us" calls `openStoreListing()`; iOS and macOS need `magic_starter.store_review.app_store_id`. |
 
 `MagicStarterConfig.supportThreadPath(id)` is the path to one conversation, beside the `supportThreadRoute()` pattern. The copy adds `magic_starter.support.attach_*`, `attachment_*`, `attachments_*`, `feedback_*`, `rating_*`, `screenshot_*`, `support_feedback`, and `magic_starter.nav.feedback` / `nav.rate_us`; a published `en.json` merges them by hand. 0.0.45 adds the `in_app_review` and `package_info_plus` dependencies.
+
+### Knowledge base articles (0.0.54+)
+
+No flag of its own: with `magic-starter-laravel` 0.0.42 and its `support.articles.enabled`, the create form calls `MagicStarterSupportController.suggestArticles()` once the message has 12 characters and typing has paused 600 ms (`GET support/articles?search=&locale=`, the message cut to 200 characters) and shows up to three `MagicStarterSupportArticleCard`s from `articleSuggestions`; a stale, failed or 404 answer shows nothing. An AI message parses `articles` (`slug`, `question`, `url`, as `MagicStarterSupportArticle`) and its bubble renders one card each. A tap runs `Launch.url(url)`; a refused url shows `magic_starter.support.article_open_error`. The copy adds `magic_starter.support.articles_label` and `article_open_error`.
 
 ### Releases and app update (0.0.48+)
 
