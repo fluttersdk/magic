@@ -75,7 +75,7 @@ class Pick {
       imageQuality: imageQuality,
     );
 
-    return xFile != null ? _xFileToMagicFile(xFile) : null;
+    return xFile != null ? await _xFileToMagicFile(xFile) : null;
   }
 
   /// Pick multiple images from the gallery.
@@ -99,7 +99,7 @@ class Pick {
       imageQuality: imageQuality,
     );
 
-    return xFiles.map(_xFileToMagicFile).toList();
+    return Future.wait(xFiles.map(_xFileToMagicFile));
   }
 
   /// Capture a photo using the camera.
@@ -160,7 +160,7 @@ class Pick {
         );
       }
 
-      return xFile != null ? _xFileToMagicFile(xFile) : null;
+      return xFile != null ? await _xFileToMagicFile(xFile) : null;
     } catch (e) {
       // Call error callback if provided
       onError?.call(e);
@@ -202,7 +202,7 @@ class Pick {
       imageQuality: imageQuality,
     );
 
-    return xFile != null ? _xFileToMagicFile(xFile) : null;
+    return xFile != null ? await _xFileToMagicFile(xFile) : null;
   }
 
   // ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ class Pick {
       maxDuration: maxDuration,
     );
 
-    return xFile != null ? _xFileToMagicFile(xFile) : null;
+    return xFile != null ? await _xFileToMagicFile(xFile) : null;
   }
 
   /// Record a video using the camera.
@@ -265,7 +265,7 @@ class Pick {
         return await video(maxDuration: maxDuration);
       }
 
-      return xFile != null ? _xFileToMagicFile(xFile) : null;
+      return xFile != null ? await _xFileToMagicFile(xFile) : null;
     } catch (e) {
       onError?.call(e);
 
@@ -382,10 +382,17 @@ class Pick {
   // ---------------------------------------------------------------------------
 
   /// Convert XFile (from image_picker) to MagicFile.
-  static MagicFile _xFileToMagicFile(XFile xFile) {
+  ///
+  /// Size comes from [XFile.length], as [PlatformFile]'s does from its own
+  /// `length()`: image_picker reports none up front, so an image pick used to
+  /// carry a null [MagicFile.size] on every platform and a caller guarding an
+  /// upload limit had nothing to read. On the web it is the blob's size, so
+  /// nothing is read into memory to answer it.
+  static Future<MagicFile> _xFileToMagicFile(XFile xFile) async {
     return MagicFile(
       path: xFile.path,
       name: xFile.name,
+      size: await xFile.length(),
       mimeType: xFile.mimeType,
       bytesReader: () => xFile.readAsBytes(),
     );
