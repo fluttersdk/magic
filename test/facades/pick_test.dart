@@ -386,6 +386,22 @@ void main() {
 
       expect(files.map((MagicFile f) => f.size), [3]);
     });
+
+    test(
+      'a camera, media, video and recorded video pick carry the size',
+      () async {
+        // Every image_picker path shares the one conversion, and each read a
+        // null size before it carried one.
+        ImagePickerPlatform.instance = _FakeImagePicker(
+          XFile.fromData(Uint8List(42), name: 'clip.mp4'),
+        );
+
+        expect((await Pick.camera())?.size, 42);
+        expect((await Pick.media())?.size, 42);
+        expect((await Pick.video())?.size, 42);
+        expect((await Pick.recordVideo())?.size, 42);
+      },
+    );
   });
 }
 
@@ -406,4 +422,14 @@ class _FakeImagePicker extends ImagePickerPlatform
   Future<List<XFile>> getMultiImageWithOptions({
     MultiImagePickerOptions options = const MultiImagePickerOptions(),
   }) async => [file];
+
+  @override
+  Future<List<XFile>> getMedia({required MediaOptions options}) async => [file];
+
+  @override
+  Future<XFile?> getVideo({
+    required ImageSource source,
+    CameraDevice preferredCameraDevice = CameraDevice.rear,
+    Duration? maxDuration,
+  }) async => file;
 }
