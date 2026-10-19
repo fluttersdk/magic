@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.52 | Updated: 2026-10-18 -->
+<!-- magic_starter v0.0.53 | Updated: 2026-10-19 -->
 
 # magic_starter Plugin
 
@@ -376,6 +376,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `auth.reset_password` | always | `MagicStarterResetPasswordView` |
 | `auth.two_factor_challenge` | `features.two_factor` | `MagicStarterTwoFactorChallengeView` |
 | `auth.otp_verify` | `features.phone_otp` | `MagicStarterOtpVerifyView` |
+| `auth.verify_email` | `features.email_verification` | `MagicStarterVerifyEmailView` (0.0.53+). Served at `/auth/verify-email` outside the `guest` group; it replays the mailed `id`, `hash`, `expires` and `signature` against `GET /email/verify/{id}/{hash}` once. Pair with magic-starter-laravel 0.0.41, whose mail opens it. |
 | `settings.hub` | always | `MagicStarterSettingsHubView` |
 | `profile.profile` | always | `MagicStarterProfileSubPageView` |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
@@ -491,6 +492,8 @@ Since 0.0.51 `MSInput` and the `MSSelect` and `MSCombobox` triggers paint 44 px 
 
 Since 0.0.52 destructive text follows the host's theme: `MagicStarterTokens.role(WindTheme.maybeDataOf(context), 'text-destructive')` returns the token when the host's `WindThemeData` defines it (an alias key or a `destructive` colour) and `text-red-600 dark:text-red-400` otherwise, since the shipped alias map has no destructive text role and a bare `text-destructive` renders neutral where the host omits it. An outlined danger action is `ButtonIntent.secondary` plus `className: buttonDangerOutlineClassName(context)` (that role plus a raw red border); it replaces 0.0.51's `kButtonDangerOutlineClassName`, which is gone. `MSSettingsRow`'s destructive title, the billing dunning notice and the connected accounts error resolve the same role, so a host that maps `text-destructive` to its brand red sees it there.
 
+Since 0.0.53: `MSPageHeader.subtitleSuffix` puts a widget on the subtitle line (it wraps under the subtitle when the line is full); `MSEmptyState` takes the full width, so it centres on a start-aligned page instead of hugging the left edge; `MSBottomSheet(scrollable: false)` hands a body that owns its scrolling the sheet's bounded height (a fixed summary over a paged list) instead of nesting it in the sheet's own scroll view; an `MSSettingsSection` footer sits 12 px under its card; the support composer's Send circle sits flush in its 44 px target, spins while a reply is out and reads as disabled while any support write runs; `MSTabs` and `MSSegmentedControl` reach 44 px below `lg`. Hosts merge the new `magic_starter.titles.verify_email` and `magic_starter.email_verification.*` keys into every locale.
+
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
 `MSAvatar` (0.0.28+) is the one answer to "show this person's photo, and something sensible when there is not one". It owns exactly two things, clipping the photo to the box and choosing between the photo and the fallback, and it owns no size, no shape and no colour: those differ per surface and arrive as `className`. The fallback is a WIDGET rather than a string, because the initials rule is not shared (this package takes one letter, a host app commonly takes two). A photo that fails to load falls back too, so an expired signed link shows the initial rather than a grey box.
@@ -536,6 +539,7 @@ MSPageHeader(
   subtitle: trans('projects.manage_subtitle'),
   leading: BackButton(),
   titleSuffix: StatusBadge(status: 'active'), // inline widget after title
+  subtitleSuffix: CertificatePill(), // 0.0.53+: on the subtitle line, wraps under it when full
   inlineActions: true, // force single-row layout at every width
   actions: [
     MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
