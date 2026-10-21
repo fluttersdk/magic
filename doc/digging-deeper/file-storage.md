@@ -47,9 +47,17 @@ final Map<String, dynamic> filesystems = {
       'driver': 'local',
       'root': 'storage/temp',
     },
+
+    'downloads': {
+      'driver': 'local',
+      'root': 'downloads',
+      'exclude_from_backup': true,
+    },
   },
 };
 ```
+
+A local disk writes under the app's documents directory, which iOS backs up to iCloud and macOS to Time Machine. Set `exclude_from_backup` to `true` on a disk holding large files the app can fetch again, such as downloaded media. On iOS and macOS the disk's root directory is then marked with `kCFURLIsExcludedFromBackupKey` the first time the disk resolves a path, and everything stored under it is left out of the backup. If the platform refuses the mark, that first call throws a `FileSystemException` and the next one tries again. The key defaults to `false` and has no effect on Android, Windows, Linux or the web.
 
 <a name="storing-files"></a>
 ## Storing Files

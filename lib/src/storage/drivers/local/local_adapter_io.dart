@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'backup_exclusion_io.dart';
 import 'local_adapter_contract.dart';
 
 /// The Local Adapter for Mobile/Desktop (IO) platforms.
@@ -26,10 +27,28 @@ class LocalAdapter implements LocalAdapterContract {
   /// Cached base directory path.
   String? _basePath;
 
+  /// Whether the root directory is kept out of iCloud and Time Machine
+  /// backup. Only iOS and macOS honour it.
+  final bool excludeFromBackup;
+
+  /// Applies the backup exclusion to the root directory.
+  final BackupExclusionMarker _marker;
+
   /// Create a new Local Adapter for IO platforms.
-  LocalAdapter({required this.root});
+  ///
+  /// [marker] applies the exclusion; it defaults to the CoreFoundation mark
+  /// and exists so a test can observe or fail it.
+  LocalAdapter({
+    required this.root,
+    this.excludeFromBackup = false,
+    BackupExclusionMarker marker = markExcludedFromBackup,
+  }) : _marker = marker;
 
   /// Get the base directory path, creating it if needed.
+  ///
+  /// With [excludeFromBackup] the first resolve marks the directory, whether
+  /// it was just created or already there; a failed mark throws and leaves
+  /// the path unresolved, so the next call tries again.
   Future<String> _getBasePath() async {
     if (_basePath != null) return _basePath!;
 
@@ -38,6 +57,10 @@ class LocalAdapter implements LocalAdapterContract {
 
     if (!await baseDir.exists()) {
       await baseDir.create(recursive: true);
+    }
+
+    if (excludeFromBackup) {
+      _marker(baseDir.path);
     }
 
     _basePath = baseDir.path;

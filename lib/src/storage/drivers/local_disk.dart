@@ -32,7 +32,10 @@ class LocalDisk implements StorageDisk {
   /// Create a new Local Disk.
   ///
   /// [root] The root subfolder within the storage directory.
-  LocalDisk({required String root}) : _adapter = LocalAdapter(root: root);
+  /// [excludeFromBackup] Keeps the root out of iCloud and Time Machine
+  /// backup on iOS and macOS; no effect elsewhere.
+  LocalDisk({required String root, bool excludeFromBackup = false})
+    : _adapter = LocalAdapter(root: root, excludeFromBackup: excludeFromBackup);
 
   /// Create a Local Disk with a custom adapter (for testing).
   LocalDisk.withAdapter(this._adapter);
