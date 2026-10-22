@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.56 | Updated: 2026-10-22 -->
+<!-- magic_starter v0.0.57 | Updated: 2026-10-22 -->
 
 # magic_starter Plugin
 
@@ -477,7 +477,7 @@ Published files go to `lib/resources/views/starter/` (views) or `lib/resources/l
 | Selection / navigation | `MSSegmentedControl`, `MSTabs`, `MSAccordion`, `MSNavbar`, `MSDropdownMenu` |
 | Overlay | `MSDialog`, `MSBottomSheet`, `MSConfirmDialog` |
 | Composition | `MSFormField`, `MSFormActions`, `MSCard`, `MSPageHeader`, `MSHeaderAction`, `MSSocialDivider` |
-| Page geometry | `MSPageContainer`, `MSPageScaffold` |
+| Page geometry | `MSPageContainer`, `MSPageScaffold`, `MSMasterDetail` |
 | Settings surface | `MSSettingsSection`, `MSSettingsRow`, `MSSettingsNavRow` |
 | Billing surface | `MSUsageMeter`, `MSUpgradeDialog`, `MSUpgradeNudge` |
 | App chrome | `MSUserProfileDropdown`, `MSTeamSelector`, `MSAvatar`, `MSUpdateBanner` |
@@ -493,6 +493,14 @@ Since 0.0.51 `MSInput` and the `MSSelect` and `MSCombobox` triggers paint 44 px 
 Since 0.0.52 destructive text follows the host's theme: `MagicStarterTokens.role(WindTheme.maybeDataOf(context), 'text-destructive')` returns the token when the host's `WindThemeData` defines it (an alias key or a `destructive` colour) and `text-red-600 dark:text-red-400` otherwise, since the shipped alias map has no destructive text role and a bare `text-destructive` renders neutral where the host omits it. An outlined danger action is `ButtonIntent.secondary` plus `className: buttonDangerOutlineClassName(context)` (that role plus a raw red border); it replaces 0.0.51's `kButtonDangerOutlineClassName`, which is gone. `MSSettingsRow`'s destructive title, the billing dunning notice and the connected accounts error resolve the same role, so a host that maps `text-destructive` to its brand red sees it there.
 
 Since 0.0.53: `MSPageHeader.subtitleSuffix` puts a widget on the subtitle line (it wraps under the subtitle when the line is full); `MSEmptyState` takes the full width, so it centres on a start-aligned page instead of hugging the left edge; `MSBottomSheet(scrollable: false)` hands a body that owns its scrolling the sheet's bounded height (a fixed summary over a paged list) instead of nesting it in the sheet's own scroll view; an `MSSettingsSection` footer sits 12 px under its card; the support composer's Send circle sits flush in its 44 px target, spins while a reply is out and reads as disabled while any support write runs; `MSTabs` and `MSSegmentedControl` reach 44 px below `lg`. Hosts merge the new `magic_starter.titles.verify_email` and `magic_starter.email_verification.*` keys into every locale.
+
+Since 0.0.57, three opt-in layout options (nothing changes until a host sets one):
+
+- `MSPageHeader(size: MSPageHeaderSize.regular | large | compact)`. `large` uses `MagicStarterPageHeaderTheme.largeTitleClassName` (`text-4xl lg:text-3xl`); `compact` is a 44 pt `NavigationToolbar` under the top safe area (leading, centred one-line title, actions; no subtitle or suffixes) on `compactBarClassName` with a `compactBarBlurSigma` backdrop blur, opaque (`compactBarOpaqueClassName`, no blur) under `MediaQuery.highContrast`. `MSPageScaffold(largeTitle: true)` renders the large header and fades the compact bar in over the page once the header has scrolled under it; `MagicStarterPageHeaderTheme(largeTitle: true)` turns both on everywhere, the starter's own pages included. While the bar shows, the title and actions are in the tree twice, so an action with a `GlobalKey` cannot go in a large-title scaffold.
+- `MSMasterDetail(master:, detail:, placeholder:, breakpoint: 'lg')`: list and selected item side by side from the breakpoint (`w-96` list column), `detail ?? master` below it. Keep the selection in the route (`/stock`, `/stock/42`) and a row tap is push navigation on a phone. Layout only, so it goes inside `MSPageScaffold`; `MSMasterDetail.isSplit(context)` answers the same question for the page's header.
+- `MSBottomSheet.show(..., dialogBreakpoint: 'lg')` presents `MSDialog` from that breakpoint with the same arguments; `MSDialog` takes `scrollable` for it.
+
+An unknown breakpoint name throws a `StateError` naming the setting, in all three and in the shell.
 
 `MSButton`, `MSInput` and `MSTextarea` take `bool fullWidth = false`, which wraps the rendered widget in a `SizedBox(width: double.infinity)` rather than adding a className token (Material widgets ignore cross-axis stretch).
 
@@ -541,6 +549,7 @@ MSPageHeader(
   titleSuffix: StatusBadge(status: 'active'), // inline widget after title
   subtitleSuffix: CertificatePill(), // 0.0.53+: on the subtitle line, wraps under it when full
   inlineActions: true, // force single-row layout at every width
+  size: MSPageHeaderSize.large, // 0.0.57+: regular (default), large or compact
   actions: [
     MSButton(onPressed: _onCreate, child: WText(trans('projects.new'))),
   ],
