@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart' show XFile;
 
+import '../../storage/magic_file.dart';
 import '../contracts/network_driver.dart';
 import '../contracts/magic_network_interceptor.dart';
 import '../magic_response.dart';
@@ -330,25 +332,28 @@ class DioNetworkDriver implements NetworkDriver {
       return MultipartFile.fromBytes(value, filename: fieldName);
     }
 
-    if (_isMagicFile(value)) {
+    // Type tests, never `runtimeType.toString()`: a release web build minifies
+    // class names, so a name comparison refused every picked file in
+    // production while every debug run and test accepted it.
+    if (value is MagicFile) {
       final bytes = await value.readAsBytes();
       if (bytes == null) {
         throw ArgumentError('MagicFile has no bytes to upload');
       }
       return MultipartFile.fromBytes(
         bytes,
-        filename: value.name ?? fieldName,
+        filename: value.name,
         contentType: value.mimeType != null
             ? DioMediaType.parse(value.mimeType!)
             : null,
       );
     }
 
-    if (_isXFile(value)) {
+    if (value is XFile) {
       final bytes = await value.readAsBytes();
       return MultipartFile.fromBytes(
         bytes,
-        filename: value.name ?? fieldName,
+        filename: value.name,
         contentType: value.mimeType != null
             ? DioMediaType.parse(value.mimeType!)
             : null,
@@ -359,28 +364,6 @@ class DioNetworkDriver implements NetworkDriver {
       'Unsupported file type: ${value.runtimeType}. '
       'Expected String (path), MagicFile, XFile, Uint8List, or List<int>.',
     );
-  }
-
-  bool _isMagicFile(dynamic value) {
-    try {
-      value.name;
-      value.readAsBytes;
-      value.mimeType;
-      return value.runtimeType.toString() == 'MagicFile';
-    } catch (_) {
-      return false;
-    }
-  }
-
-  bool _isXFile(dynamic value) {
-    try {
-      value.name;
-      value.readAsBytes;
-      value.path;
-      return value.runtimeType.toString() == 'XFile';
-    } catch (_) {
-      return false;
-    }
   }
 
   // ---------------------------------------------------------------------------
