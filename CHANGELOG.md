@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.34] - 2026-10-27
+
 ### Fixed
 
 - **A picked file uploads from a release web build.** `Http.upload` recognised a `MagicFile` or an `XFile` by comparing `runtimeType.toString()` with the class name, and dart2js minifies class names in a release build, so on the web every file from `Pick` was refused with `Unsupported file type: minified:..` before a request left the browser. Debug runs and tests were unaffected, which is why it shipped. The driver now uses type tests. (`lib/src/network/drivers/dio_network_driver.dart`)

@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.57 | Updated: 2026-10-22 -->
+<!-- magic_starter v0.0.58 | Updated: 2026-10-27 -->
 
 # magic_starter Plugin
 
@@ -378,7 +378,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `auth.otp_verify` | `features.phone_otp` | `MagicStarterOtpVerifyView` |
 | `auth.verify_email` | `features.email_verification` | `MagicStarterVerifyEmailView` (0.0.53+). Served at `/auth/verify-email` outside the `guest` group; it replays the mailed `id`, `hash`, `expires` and `signature` against `GET /email/verify/{id}/{hash}` once. Pair with magic-starter-laravel 0.0.41, whose mail opens it. |
 | `settings.hub` | always | `MagicStarterSettingsHubView` |
-| `profile.profile` | always | `MagicStarterProfileSubPageView` |
+| `profile.profile` | always | `MagicStarterProfileSubPageView`. A failed photo upload or removal shows its reason under the buttons: the server's `photo` message, else `profile.photo_update_failed` / `profile.photo_delete_failed` (0.0.58+). A write already in flight (`MagicStarterProfileController.isSubmitting`) is not reported as a failure. Tests pass `pickImage` to stand in for the system picker. |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
 | `settings.security.password` | always | `MagicStarterPasswordView`. For an account with `has_password` false it renders the Set password form instead of the change form (0.0.39+). |
 | `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
