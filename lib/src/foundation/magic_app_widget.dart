@@ -8,6 +8,7 @@ import '../facades/log.dart';
 import '../facades/vault.dart';
 import '../localization/translator.dart';
 import '../routing/magic_router.dart';
+import '../routing/tab_title_sync.dart';
 import '../routing/title_manager.dart';
 
 import 'magic.dart';
@@ -238,6 +239,10 @@ class _MagicApplicationState extends State<MagicApplication> {
   /// touches [Lang] when the translator was unbound at init time.
   bool _titleListenerAttached = false;
 
+  /// Detaches the browser tab title sync that [_initialize] attached, or
+  /// `null` before that.
+  void Function()? _detachTabTitleSync;
+
   /// Saved brightness preference loaded from Vault.
   ///
   /// - `null` means no preference saved (follow system).
@@ -255,6 +260,7 @@ class _MagicApplicationState extends State<MagicApplication> {
     if (_titleListenerAttached) {
       Lang.removeListener(_reapplyTitle);
     }
+    _detachTabTitleSync?.call();
     super.dispose();
   }
 
@@ -273,6 +279,7 @@ class _MagicApplicationState extends State<MagicApplication> {
     try {
       // 1. Load saved theme preference from Vault.
       _savedBrightness = await _loadThemePreference();
+      if (!mounted) return;
 
       // 2. Configure initial route if different from default.
       if (widget.initialRoute != '/') {
@@ -294,7 +301,13 @@ class _MagicApplicationState extends State<MagicApplication> {
             Config.get<String>('app.title_separator', ' - ')!,
       );
 
-      // 5. Re-apply the title on locale change so translation keys re-resolve.
+      // 5. On the web, keep the browser tab title attached to the history
+      //    entry the engine swaps in: the title written during a build reaches
+      //    the tab only until the next `replaceState`, after which Chrome shows
+      //    the previous entry's title or the bare host.
+      _detachTabTitleSync = attachTabTitleSync();
+
+      // 6. Re-apply the title on locale change so translation keys re-resolve.
       //    Magic.reload() already refreshes the MaterialApp title when a locale
       //    switch runs with reload:true; this listener covers the reload:false
       //    path, the OS-level locale change, and the app-switcher label, none
