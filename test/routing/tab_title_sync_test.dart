@@ -37,4 +37,16 @@ void main() {
       expect(written, isEmpty);
     });
   });
+
+  group('attachTabTitleSync', () {
+    test('off the web it attaches nothing and detaches harmlessly', () {
+      // `flutter test` runs on the VM, where the platform file is the stub: the
+      // contract is that attaching never throws and the detach it returns can
+      // be called any number of times.
+      final void Function() detach = attachTabTitleSync();
+
+      expect(detach, returnsNormally);
+      expect(detach, returnsNormally);
+    });
+  });
 }

@@ -21,7 +21,8 @@ extension type _Navigation._(JSObject _) implements JSObject {
 /// Deferred to its own task: the event fires inside the history call, before
 /// the engine has finished its own bookkeeping around it.
 ///
-/// Returns the function that stops listening.
+/// Returns the function that stops listening. A callback already queued when it
+/// is called still runs once, and only touches the global `document`.
 void Function() watchHistoryEntries(void Function() onEntryChanged) {
   final _Navigation? navigation = _navigation;
   if (navigation == null) return () {};
