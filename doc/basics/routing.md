@@ -717,6 +717,8 @@ Magic provides automatic page title management via `SystemChrome.setApplicationS
 
 On Android the switcher card also carries a color, and on web the same value becomes the `theme-color` meta. `MagicApplication` hands its theme's `primaryColor` to `TitleManager.instance.setPrimaryColor()`, the color `MaterialApp` uses, so once the app has built a title change keeps that color.
 
+Chrome keeps a tab title per history entry, and the Flutter engine swaps entries with `history.pushState` or `replaceState` after a page builds, which used to leave the tab showing the previous entry's title or the bare host (`app.example.com`) while `document.title` was correct. `MagicApplication` re-sends the title after every history entry change on the web (through the Navigation API), so nothing is needed in your app. Other platforms, and browsers without the Navigation API, are unaffected.
+
 ### Title Suffix
 
 Set a global suffix via `MagicApplication`:
