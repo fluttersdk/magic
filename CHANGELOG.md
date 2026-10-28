@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.35] - 2026-10-28
+
 ### Fixed
 
 - **A web tab keeps its page title after the router moves on.** Chrome keeps a tab title per history entry. After a page builds, the Flutter engine calls `history.pushState` or `replaceState` to report the route, and the title written during that build did not follow the new entry: the tab fell back to the previous entry's title, or to the bare host, while `document.title` still read correctly. Blink only reports a title to the browser when it changes, so writing the same one again did nothing, and the tab stayed wrong until the next navigation. `MagicApplication` now re-sends the title after every change of the browser's current history entry (a title written with a zero-width suffix, then the real one) through the Navigation API; where the browser has none, and on every other platform, nothing changes. (`lib/src/routing/tab_title_sync.dart`, `lib/src/foundation/magic_app_widget.dart`)
