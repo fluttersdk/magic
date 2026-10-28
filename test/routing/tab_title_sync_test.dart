@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/routing/tab_title_sync.dart';
+import 'package:magic/src/routing/tab_title_sync_stub.dart' as stub;
 
 void main() {
   group('resendTitle', () {
@@ -47,6 +48,29 @@ void main() {
 
       expect(detach, returnsNormally);
       expect(detach, returnsNormally);
+    });
+  });
+
+  group('off the web', () {
+    test('the document is empty and writing to it changes nothing', () {
+      // `flutter test` runs on the VM, so the platform file is the stub: there
+      // is no document, nothing is ever watched, and nothing calls back.
+      expect(stub.readDocumentTitle(), isEmpty);
+      expect(() => stub.writeDocumentTitle('Home'), returnsNormally);
+      expect(stub.readDocumentTitle(), isEmpty);
+    });
+
+    test('no history entry is ever watched', () {
+      var calls = 0;
+
+      final void Function() detach = stub.watchHistoryEntries(() => calls++);
+      detach();
+
+      expect(calls, 0);
+    });
+
+    test('re-sending the document title is a no-op without a title', () {
+      expect(resendDocumentTitle, returnsNormally);
     });
   });
 }

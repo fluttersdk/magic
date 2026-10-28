@@ -31,18 +31,20 @@ void resendTitle({
   write(title);
 }
 
+/// Re-sends the title the document currently holds: [resendTitle] against the
+/// platform's own document.
+void resendDocumentTitle() => resendTitle(
+  read: platform.readDocumentTitle,
+  write: platform.writeDocumentTitle,
+);
+
 /// Keeps the browser tab title in step with the page title across navigation.
 ///
-/// On the web, calls [resendTitle] after every change of the browser's current
-/// history entry, through the Navigation API, and once on attach. Where the
-/// browser has no Navigation API, and on every other platform, it does nothing.
+/// On the web, calls [resendDocumentTitle] after every change of the browser's
+/// current history entry, through the Navigation API, and once on attach. Where
+/// the browser has no Navigation API, and on every other platform, it does
+/// nothing.
 ///
 /// Returns the function that detaches it; calling it twice is harmless.
-void Function() attachTabTitleSync() {
-  return platform.watchHistoryEntries(
-    () => resendTitle(
-      read: platform.readDocumentTitle,
-      write: platform.writeDocumentTitle,
-    ),
-  );
-}
+void Function() attachTabTitleSync() =>
+    platform.watchHistoryEntries(resendDocumentTitle);
