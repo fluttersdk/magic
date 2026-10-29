@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.36] - 2026-10-29
+
 ### Added
 
 - **`MagicDecryptException` is exported from `package:magic/magic.dart`.** `Crypt.decrypt` and `Crypt.decryptWithDeviceKey` document `on MagicDecryptException`, but the type was not in the barrel, so a caller could only catch a bare `Exception`. (`lib/magic.dart`)
