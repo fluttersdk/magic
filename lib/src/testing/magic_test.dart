@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -73,6 +74,48 @@ class MagicTest {
   }) async {
     Translator.instance.setLoader(_DirectoryTranslationLoader(directory));
     await Translator.instance.load(Locale(locale));
+  }
+
+  /// Register [providers] and boot them in the order `Magic.init` does.
+  ///
+  /// Every `register()` runs first, in list order, then every `boot()`, in the
+  /// same order, so a provider booting late can resolve what an earlier one
+  /// bound. Unlike [boot] it loads no env file and no config, which is what a
+  /// widget test wants when it needs a handful of real providers and nothing
+  /// else. Pair it with [disposeBooted] in `tearDown`.
+  static Future<void> bootProviders(List<ServiceProvider> providers) async {
+    for (final provider in providers) {
+      await Magic.register(provider);
+    }
+
+    await Magic.boot();
+  }
+
+  /// Undo what [bootProviders] and the providers' own `boot()` left behind
+  /// that `Magic.flush()` does not reach.
+  ///
+  /// 1. Controllers are disposed, newest first so dependents go before what
+  ///    they depend on. `Magic.flush()` only drops them from the registry, and
+  ///    a controller holding a timer or a stream subscription outlives the
+  ///    test and fires into the next file.
+  /// 2. [SessionScope] stops listening to auth state; its subscription is a
+  ///    process static.
+  /// 3. [MagicRouter] drops its routes and observers, also a process static.
+  /// 4. The container is flushed last, so a controller's `dispose()` can still
+  ///    resolve what it needs.
+  ///
+  /// A controller a test already disposed itself is safe when it is a
+  /// `MagicController`; a plain `ChangeNotifier` throws on a second dispose.
+  static void disposeBooted() {
+    for (final controller in Magic.controllers.toList().reversed) {
+      if (controller is ChangeNotifier) {
+        controller.dispose();
+      }
+    }
+
+    SessionScope.detach();
+    MagicRouter.reset();
+    Magic.flush();
   }
 
   /// Bootstrap Magic with test configuration.

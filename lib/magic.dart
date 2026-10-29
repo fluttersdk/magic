@@ -114,6 +114,7 @@ export 'src/security/magic_vault_service.dart';
 export 'src/security/vault_service_provider.dart';
 export 'src/facades/vault.dart';
 export 'src/encryption/encryption_service_provider.dart';
+export 'src/encryption/exceptions.dart';
 
 // UI
 export 'src/ui/magic_builder.dart';
