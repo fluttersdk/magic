@@ -69,7 +69,7 @@ final data = Crypt.decrypt(encrypted);
 ```dart
 try {
   final decrypted = Crypt.decrypt(invalidString);
-} catch (e) {
+} on MagicDecryptException catch (e) {
   // Handle decryption failure
   print('Failed to decrypt: $e');
 }

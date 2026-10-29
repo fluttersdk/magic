@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`MagicDecryptException` is exported from `package:magic/magic.dart`.** `Crypt.decrypt` and `Crypt.decryptWithDeviceKey` document `on MagicDecryptException`, but the type was not in the barrel, so a caller could only catch a bare `Exception`. (`lib/magic.dart`)
+- **`MagicTest.bootProviders` and `MagicTest.disposeBooted`.** `bootProviders(providers)` registers every provider and then boots every provider, in list order, the way `Magic.init` does, without loading an env file or config. `disposeBooted()` disposes the registered controllers newest first, detaches `SessionScope`, resets `MagicRouter` and flushes the container, covering what `Magic.flush()` leaves behind. (`lib/src/testing/magic_test.dart`)
+- **`references/plugin-device.md`, the skill's page for `magic_device` 0.0.1.** The ecosystem plugin table, the reference index and the skill's trigger line now name the package, and the page covers `DevicePower` (the mains-power gate with its `television` predicate, and how `idle` is measured per platform), `WindowFullscreen` (the shared instance, `active` against `target` and `transitioning`, the will and did notifications on `magic_device/window`, what `toggle()` refuses), the `BatteryState` re-export, and testing through injected readers. (`skills/magic-framework/`)
+
 ## [0.0.35] - 2026-10-28
 
 ### Fixed

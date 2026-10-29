@@ -87,6 +87,23 @@ Map<String, dynamic> get testDatabaseConfig => {
 };
 ```
 
+### Booting a Handful of Providers
+
+A widget test that needs real providers but no env file or config boots them with `MagicTest.bootProviders(providers)`. It reproduces `Magic.init`'s order: every `register()` first, then every `boot()`, both in list order. Pair it with `MagicTest.disposeBooted()` in `tearDown`:
+
+```dart
+setUp(() async {
+  await MagicTest.bootProviders([
+    AppServiceProvider(Magic.app),
+    AuthServiceProvider(Magic.app),
+  ]);
+});
+
+tearDown(MagicTest.disposeBooted);
+```
+
+`disposeBooted()` undoes what `Magic.flush()` does not reach: it disposes the registered controllers (newest first), detaches `SessionScope` from auth state, resets `MagicRouter`, then flushes the container. Anything an app keeps in its own statics, such as a timer a provider arms in `boot()`, stays the app's to reset.
+
 ### Loading a Translation Catalogue
 
 A widget test that renders `trans()` output needs a real catalogue loaded first; without one, `trans()` renders the raw dotted key. `MagicTest.loadTranslations(locale, {directory})` reads `<directory>/<locale>.json` off disk (default `assets/lang`, the app's own catalogue location), flattens it the same way the app's own loader does, and installs it before awaiting the translator's load:
