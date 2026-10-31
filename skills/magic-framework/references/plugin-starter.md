@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.60 | Updated: 2026-10-29 -->
+<!-- magic_starter v0.0.61 | Updated: 2026-10-31 -->
 
 # magic_starter Plugin
 
@@ -7,6 +7,8 @@ Full-stack Flutter starter kit for Magic Framework: pre-built auth flows, team m
 0.0.39 is BREAKING in three places, all from the redesigned social login and account deletion, and it needs a `magic-starter-laravel` with its `social-login` feature on. `MagicStarter.useSocialAuth(bridge)` replaces the old social login builder hook, with no alias. Every gated `MagicStarterProfileController` method takes a `proof` map where it took a `password`. `doDeleteAccount` schedules the deletion (a grace period a sign-in cancels), or runs it immediately when asked, rather than removing the account in the request. See [Social login and connected accounts](#social-login-and-connected-accounts) and [Identity confirmation and account deletion](#identity-confirmation-and-account-deletion).
 
 0.0.60 is BREAKING in two places, both from the new button and field themes. The `inputRecipe` and `buttonRecipe` consts are gone from the barrel, replaced by `buildInputRecipe(MagicStarterFieldTheme)` and `buildButtonRecipe(MagicStarterButtonTheme)`. And the auth and form buttons now follow the button theme, so an app that ran `starter:publish` for the auth or invitation views must make three edits there or its buttons change look on upgrade. See [The auth and form buttons follow the button theme](#the-auth-and-form-buttons-follow-the-button-theme-0060-breaking).
+
+0.0.61 is additive. A host whose own bar draws the page title and back control claims them with `MagicStarter.useHostPageChrome`, and the settings hub's three sections are public widgets for a host that composes its own settings page. The notification inbox and preferences headers are drawn as `MSPageHeader` through `magic_notifications`' `headerBuilder`, so 0.0.61 needs `magic_notifications ^0.3.12`. See [Host-owned page chrome](#host-owned-page-chrome-0061) and [Composing a settings page](#composing-a-settings-page-0061).
 
 Versions left the alpha rail at 0.0.27: `0.0.1-alpha.26` is followed by `0.0.27`, carrying the counter rather than resetting it. An existing `^0.0.1-alpha.N` pin already covers it, since a caret on a zero major ends at `0.1.0`, and `flutter pub add magic_starter` now takes the current release without a prerelease pin.
 
@@ -652,6 +654,37 @@ MSPageScaffold(
   children: [ /* ... */ ],
 )
 ```
+
+### Host-owned page chrome (0.0.61+)
+
+A host that draws the page title and back control in its own bar (a phone top bar) registers a predicate once, in a provider's `boot()`:
+
+```dart
+MagicStarter.useHostPageChrome((context) => MediaQuery.sizeOf(context).width < 768);
+```
+
+Wherever it answers true, `MSPageHeader` draws only its `actions` (right aligned, nothing at all without them, no heading role) and reports a `MagicStarterPageChromeEntry` (`title`, `subtitle`, `backLabel`, `backFallback`, value equality) to `MagicStarter.pageChrome`; `MSPageScaffold` builds neither the large title nor the compact bar there. The predicate gets a context inside the page and is asked again when the `MediaQuery` it reads or the header's widget changes. A header reports only while its `ModalRoute` is the current one: it withdraws when a route is pushed over it and the moment its own route is popped, so `current` names the page on top, and is null when that page has no `MSPageHeader`. With no predicate registered every page is unchanged.
+
+`MagicStarter.pageChrome` is a `ChangeNotifier` that lives as long as the manager (`reset()` clears it). It notifies after the frame in which `current` changed, never during a build. The bar draws a back control only when the entry carries BOTH `backLabel` and `backFallback`, the rule the header itself draws by, so a page that reports only a fallback shows a title and no back.
+
+```dart
+ListenableBuilder(
+  listenable: MagicStarter.pageChrome,
+  builder: (context, _) {
+    final MagicStarterPageChromeEntry? entry = MagicStarter.pageChrome.current;
+    return TopBar(
+      title: entry?.title,
+      onBack: () => MagicRoute.back(fallback: entry?.backFallback),
+    );
+  },
+);
+```
+
+Every starter page follows it, the two `magic_notifications` screens included: the starter mounts the inbox and the preferences with a `headerBuilder` that draws their header as an `MSPageHeader`, so the inbox reports its title and keeps its mark-all-as-read action, and the preferences report the settings hub as the back fallback. A host page of its own opts in by building its header with `MSPageHeader` or `MSPageScaffold`.
+
+### Composing a settings page (0.0.61+)
+
+`MagicStarterSettingsAccountGroup`, `MagicStarterSettingsSecurityGroup` and `MagicStarterSettingsPreferencesGroup` are the settings hub's three sections as public widgets, each with its header, rows and feature and ability gating exactly as the hub had them and no arguments. A host that wants one settings page of its own puts them among the children of its `MSPageScaffold` instead of replacing `settings.hub` and copying every check. The Security group renders a zero-size box when no row is reachable, and a zero-size child still takes a gap in the scaffold's sections column, so guard it with `MagicStarterSettingsSecurityGroup.hasRows`, as the hub does. The Account and Preferences groups always have a row.
 
 ### The auth and form buttons follow the button theme (0.0.60+, BREAKING)
 
