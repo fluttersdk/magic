@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.61 | Updated: 2026-10-31 -->
+<!-- magic_starter v0.0.62 | Updated: 2026-11-01 -->
 
 # magic_starter Plugin
 
@@ -942,6 +942,8 @@ How a card is priced: the first row, when it sells no product, is the free floor
 | `cancelWait()` | `void` | Stops a running wait (screen closed, team switched); the gate stays shut on the terms above. |
 
 `canPurchaseViaStore` refuses a subscription the OTHER store sold, read from `storeRail.store` against the entitlement's `manageVia` and never from the platform, and refuses while `awaitingProductKey` is set. A store failure toasts `magic_starter.billing.errors.<snake_case code>` (`not_configured`, `unmapped_active_product`, ...), one sentence per `BillingErrorCode` (`unknown` keeps `toast_failed_text`); `pending` is shown as information, not as a failure. The free tier's Downgrade never renders once the subscription has stopped renewing; otherwise it opens the billing portal on a web build where `portalAvailable`, or the store's own subscription page for a store-billed team with a `manageUrl` and an owner (or an unresolved membership), and renders no button anywhere else.
+
+From 0.0.62 an entitlement read that names a different plan than the one before it also re-reads `usage`, so the meters follow a store purchase, a restore, a web swap or a lapse to no plan without leaving the screen. The first read of a session and the first read after `resetForSession` are not a move (`load()` pairs them with its own usage read), and a read that keeps the plan reads nothing extra. A host that keeps its own copy of the plan limits (uptizm's `EntitlementController`) listens to the controller and reloads when `entitlementSnapshot.plan` changes; `manageVia` is null until a read has answered, which tells that first read apart even when the plan is none, where `entitlementLoaded` stays false.
 
 An app that installed an earlier `en` stub adds, under `magic_starter.billing`, `errors.*`, `plan_price_free`, `plan_price_app`, `plan_price_checkout`, `plan_store_unsold`, the `store_disclosure_*` keys, `wait_processing` and `wait_takes_effect_on`, drops `plan_price_monthly`, removes the `/mo` from its `renewal_text` and `renewal_ends` values (or an annual card reads `290.00 USD/mo`), and adds the `social.deletion_blocking_teams*` and `social.subscription_*` keys below. A fresh `starter:install` already ships them.
 
