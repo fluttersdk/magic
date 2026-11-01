@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import '../../facades/log.dart';
+import '../../foundation/magic.dart';
 import 'image_exception.dart';
 import 'image_store_io.dart';
 import 'image_wire_io.dart';
@@ -10,8 +11,8 @@ import 'image_wire_io.dart';
 /// Reads the bytes behind an image address.
 typedef MagicImageFetch = Future<Uint8List> Function(Uri url);
 
-/// The host gave an image and the disk would not keep it (it is full, or the
-/// folder is gone).
+/// The host gave an image and the disk would not keep it (it is full, the
+/// folder is gone, or the disk cannot be opened).
 ///
 /// Carries the [bytes], so the picture can still be drawn from memory. It is
 /// not a failure of the host and is not remembered as one.
@@ -76,8 +77,11 @@ final class MagicImageCache {
 
   /// The disk store, opened on the first use and kept: it resolves its folder
   /// through the platform, which a widget test has no answer for until a test
-  /// asks for an image.
-  Future<MagicImageStore>? _opening;
+  /// asks for an image. Null when the disk cannot be opened.
+  Future<MagicImageStore?>? _opening;
+
+  /// Whether the unavailable disk has been reported: once is enough.
+  bool _reported = false;
 
   /// Bytes written since the folder was last trimmed.
   int _written = 0;
@@ -89,12 +93,16 @@ final class MagicImageCache {
   /// Insertion ordered, so the oldest note is the first.
   final Map<Object, DateTime> _standIns = <Object, DateTime>{};
 
-  Future<MagicImageStore> get _disk => _opening ??= _open();
+  Future<MagicImageStore?> get _disk => _opening ??= _open();
 
   /// Opens the store and trims it once, behind the call that asked: the first
-  /// image of a launch does not wait for the folder to be walked. A store that
-  /// cannot be opened is tried again on the next call.
-  Future<MagicImageStore> _open() async {
+  /// image of a launch does not wait for the folder to be walked.
+  ///
+  /// A disk that cannot be opened (not declared, not a local disk, no folder
+  /// from the platform) leaves the cache without a copy: images are fetched and
+  /// drawn as `NetworkImage` would, once reported, and the open is tried again
+  /// on the next call.
+  Future<MagicImageStore?> _open() async {
     final MagicImageStore? given = _store;
 
     if (given != null) return given;
@@ -103,10 +111,18 @@ final class MagicImageCache {
 
     try {
       store = await MagicImageStore.onDisk(disk: disk, maxBytes: _maxBytes);
-    } on Object {
+    } on Exception catch (error) {
       _opening = null;
 
-      rethrow;
+      if (!_reported) {
+        _reported = true;
+        _warn(
+          'images are drawn without a copy on the device: the "$disk" '
+          'disk cannot be opened (${error.runtimeType})',
+        );
+      }
+
+      return null;
     }
 
     unawaited(_trim(store));
@@ -120,13 +136,19 @@ final class MagicImageCache {
     } on FileSystemException catch (error) {
       // A folder that cannot be walked keeps its images, which costs space and
       // nothing else.
-      Log.warning('images not trimmed: ${error.runtimeType}');
+      _warn('images not trimmed: ${error.runtimeType}');
     }
   }
 
+  /// Logs when a log is bound: an app has one, a unit test often does not, and
+  /// drawing a picture must not depend on it.
+  void _warn(String message) {
+    if (Magic.bound('log')) Log.warning(message);
+  }
+
   /// The file holding [url]'s image when it is on the disk, null when it is
-  /// not. Never touches the network.
-  Future<File?> stored(String url) async => (await _disk).find(url);
+  /// not, or when there is no disk. Never touches the network.
+  Future<File?> stored(String url) async => (await _disk)?.find(url);
 
   /// The file holding [url]'s image, fetched and stored first when the disk
   /// has none.
@@ -177,7 +199,7 @@ final class MagicImageCache {
   }
 
   /// Removes [url]'s stored bytes, for a file the engine could not decode.
-  Future<void> forget(String url) async => (await _disk).evict(url);
+  Future<void> forget(String url) async => (await _disk)?.evict(url);
 
   /// Removes [url]'s stored bytes and refuses it for [retryAfter]: the host
   /// answered with something that is not a picture, and asking again at once
@@ -189,7 +211,7 @@ final class MagicImageCache {
   }
 
   /// Trims the disk to its cap and answers the bytes freed.
-  Future<int> sweep() async => (await _disk).sweep();
+  Future<int> sweep() async => await (await _disk)?.sweep() ?? 0;
 
   /// Removes every stored image and forgets which URLs failed, for a sign-out
   /// or a "clear cache" action.
@@ -197,13 +219,13 @@ final class MagicImageCache {
     _failed.clear();
     _standIns.clear();
 
-    await (await _disk).clear();
+    await (await _disk)?.clear();
   }
 
   Future<File> _fill(String url) async {
     // 1. What is on the disk is final: a URL's bytes never change under it.
-    final MagicImageStore store = await _disk;
-    final File? held = await store.find(url);
+    final MagicImageStore? store = await _disk;
+    final File? held = await store?.find(url);
 
     if (held != null) return held;
 
@@ -233,8 +255,11 @@ final class MagicImageCache {
 
     _failed.remove(url);
 
-    // 4. Keep it. A disk that refuses is not the host's fault: the bytes go to
-    //    the caller to draw, and nothing is remembered against the URL.
+    // 4. Keep it. A disk that refuses, or is not there, is not the host's
+    //    fault: the bytes go to the caller to draw, and nothing is remembered
+    //    against the URL.
+    if (store == null) throw MagicImageNotStored(bytes);
+
     try {
       final File file = await store.write(url, bytes);
 

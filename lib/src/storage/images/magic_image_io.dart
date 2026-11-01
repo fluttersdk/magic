@@ -289,10 +289,14 @@ final class _MagicImageCompleter extends ImageStreamCompleter {
 
     try {
       await for (final ui.Image picture in pictures) {
+        // Gone: the picture is released, and the stream is read on, so the
+        // fetch under way still lands on the device for the next draw. A
+        // cancelled stream would drop the picture it was about to yield
+        // without releasing it.
         if (_gone) {
           picture.dispose();
 
-          break;
+          continue;
         }
 
         setImage(ImageInfo(image: picture));

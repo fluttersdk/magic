@@ -270,7 +270,7 @@ void main() {
 
       await expectLater(
         MagicImageStore.onDisk(disk: 'cloud'),
-        throwsA(isA<StateError>()),
+        throwsA(isA<MagicImageException>()),
       );
     });
   });

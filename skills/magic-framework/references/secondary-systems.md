@@ -595,7 +595,7 @@ A local disk lives under the app's documents directory, which iOS and macOS back
 
 ### Cached Network Images
 
-`MagicImage.of(url, {fallback, cacheWidth})` answers an `ImageProvider?` (null for no address) that reads the image from a copy on the device and fetches it once when none is held. The copies live on the local disk `images` (declare it, with `'exclude_from_backup': true`); `MagicImageCache(disk: 'x')` assigned to `MagicImageCache.instance` before the first draw uses another disk.
+`MagicImage.of(url, {fallback, cacheWidth})` answers an `ImageProvider?` (null for no address) that reads the image from a copy on the device and fetches it once when none is held. The copies live on the local disk `images` (declare it in the app's `filesystems` config with `'exclude_from_backup': true`; `defaultFilesystemsConfig` carries the entry but `Magic.init` does not merge it by itself); `MagicImageCache(disk: 'x')` assigned to `MagicImageCache.instance` before the first draw uses another disk. A disk that cannot be opened is not an error: images draw with no copy kept, and one warning is logged.
 
 ```dart
 final ImageProvider? poster = MagicImage.of(item.catalogueUrl, fallback: item.listedUrl, cacheWidth: 300);

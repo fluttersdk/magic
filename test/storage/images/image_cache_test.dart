@@ -20,12 +20,13 @@ void main() {
   late List<Uri> asked;
   late Future<Uint8List> Function(Uri url) answer;
   late MagicImageCache cache;
+  late FakeLogManager log;
 
   setUp(() {
     MagicApp.reset();
     Magic.flush();
     // A trim that fails only logs, and no log is bound in a unit test.
-    Log.fake();
+    log = Log.fake();
     folder = Directory.systemTemp.createTempSync('magic_image_cache');
     store = MagicImageStore(folder, maxBytes: 100000);
     now = DateTime(2026, 11, 1, 12);
@@ -420,20 +421,39 @@ void main() {
     });
 
     test(
-      'a store that failed to open is opened again on the next use',
+      'a disk that cannot be opened is reported once and tried again',
       () async {
-        final MagicImageCache onDisk = MagicImageCache();
-
-        failOpening = true;
-        await expectLater(
-          onDisk.stored('https://img.example/x.jpg'),
-          throwsA(isA<PlatformException>()),
+        final MagicImageCache onDisk = MagicImageCache(
+          fetch: (Uri url) async => Uint8List.fromList(<int>[1, 2, 3]),
         );
 
-        failOpening = false;
+        failOpening = true;
 
+        // No copy to read, and no throw: the picture is not the disk's.
         expect(await onDisk.stored('https://img.example/x.jpg'), isNull);
-        expect(opened, greaterThan(1));
+        expect(await onDisk.stored('https://img.example/x.jpg'), isNull);
+        expect(await onDisk.sweep(), 0);
+        await onDisk.clear();
+        await onDisk.forget('https://img.example/x.jpg');
+        expect(log.entries, hasLength(1));
+        expect(log.entries.single.level, 'warning');
+        expect(log.entries.single.message, contains('"images" disk'));
+
+        // The bytes come back to be drawn, nothing is held against the host.
+        for (int i = 0; i < 2; i++) {
+          await expectLater(
+            onDisk.file('https://img.example/x.jpg'),
+            throwsA(isA<MagicImageNotStored>()),
+          );
+        }
+
+        // The platform answers now: the disk opens and keeps images.
+        failOpening = false;
+        final File kept = await onDisk.file('https://img.example/x.jpg');
+
+        expect(kept.existsSync(), isTrue);
+        expect(await onDisk.stored('https://img.example/x.jpg'), isNotNull);
+        expect(opened, greaterThan(1), reason: 'the open was tried again');
       },
     );
   });

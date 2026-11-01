@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 import '../../facades/storage.dart';
+import 'image_exception.dart';
 
 /// The folder network images are kept in on the device, one file per URL.
 ///
@@ -45,7 +46,8 @@ final class MagicImageStore {
 
   /// The store on the local storage disk named [disk].
   ///
-  /// Throws a [StateError] when that disk does not resolve to a local folder.
+  /// Throws a [MagicImageException] when that disk does not resolve to a local
+  /// folder, and whatever `Storage` throws for a disk that is not declared.
   /// Give the disk `'exclude_from_backup': true`: a copy that can be fetched
   /// again does not belong in an iCloud backup.
   static Future<MagicImageStore> onDisk({
@@ -55,7 +57,9 @@ final class MagicImageStore {
     final String url = await Storage.disk(disk).url('');
 
     if (!url.startsWith(_fileScheme)) {
-      throw StateError('The "$disk" storage disk is not a local disk.');
+      throw MagicImageException(
+        'The "$disk" storage disk is not a local disk.',
+      );
     }
 
     return MagicImageStore(

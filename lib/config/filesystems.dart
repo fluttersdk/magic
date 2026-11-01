@@ -27,6 +27,10 @@ Map<String, dynamic> defaultFilesystemsConfig = {
 
       /// Copies of network images, read by `MagicImage`. Everything in it can
       /// be fetched again, so it stays out of the device backup.
+      ///
+      /// `Magic.init` does not merge this map by itself: an app that passes
+      /// its own `filesystems` config declares this disk there, or builds its
+      /// config from this map.
       'images': {
         'driver': 'local',
         'root': 'images',

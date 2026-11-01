@@ -3,14 +3,9 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
-
-const MethodChannel _pathProviderChannel = MethodChannel(
-  'plugins.flutter.io/path_provider',
-);
 
 const String _catalogue = 'https://ours.example/media/w342/a.jpg?s=abc';
 const String _panel = 'https://panel.example/poster/a.jpg';
@@ -453,40 +448,13 @@ void main() {
       ], reason: '${drawn[2].errors}');
     });
 
-    testWidgets('a key that failed before the cache could note it loads again '
-        'at once', (WidgetTester tester) async {
+    testWidgets('an app that never declared the images disk still draws, with '
+        'no copy kept', (WidgetTester tester) async {
       await sizes(tester);
 
-      // The disk cannot be opened the first time: no host was asked, so
-      // nothing is remembered against the url and only the memory cache can
-      // hold the failure.
-      final Directory documents = Directory.systemTemp.createTempSync(
-        'magic_image_documents',
-      );
-      bool unavailable = true;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(_pathProviderChannel, (
-            MethodCall call,
-          ) async {
-            if (unavailable) throw PlatformException(code: 'unavailable');
-
-            return documents.path;
-          });
-      Storage.flush();
-      Config.set('filesystems', <String, dynamic>{
-        'default': 'local',
-        'disks': <String, dynamic>{
-          'local': <String, dynamic>{'driver': 'local', 'root': 'storage'},
-          'images': <String, dynamic>{'driver': 'local', 'root': 'images'},
-        },
-      });
-      addTearDown(() {
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(_pathProviderChannel, null);
-        Storage.setManager(StorageManager());
-        Config.flush();
-        documents.deleteSync(recursive: true);
-      });
+      // No `images` disk in the config: `Storage` throws when asked for it.
+      Config.flush();
+      Storage.setManager(StorageManager());
       hosts[_catalogue] = () async => big;
       MagicImageCache.instance = MagicImageCache(
         now: () => now,
@@ -497,19 +465,13 @@ void main() {
         },
       );
 
-      final ImageProvider provider = MagicImage.of(_catalogue)!;
-      final List<_Drawn> drawn = (await tester.runAsync(() async {
-        final _Drawn first = await _draw(provider, frames: 0, errors: 1);
+      final _Drawn drawn = (await tester.runAsync(
+        () => _draw(MagicImage.of(_catalogue)!),
+      ))!;
 
-        unavailable = false;
-
-        return <_Drawn>[first, await _draw(provider)];
-      }))!;
-
-      expect(drawn[0].errors, hasLength(1));
-      expect(drawn[1].frames, <(int, int)>[
-        (3, 2),
-      ], reason: '${drawn[1].errors}');
+      expect(drawn.frames, <(int, int)>[(3, 2)], reason: '${drawn.errors}');
+      expect(asked, <String>[_catalogue]);
+      expect(folder.listSync(), isEmpty);
     });
 
     testWidgets('a disk that is full still draws the picture, from memory', (
@@ -621,6 +583,38 @@ void main() {
   });
 
   group('a completer nobody listens to', () {
+    testWidgets('still leaves the picture on the device for the next draw', (
+      WidgetTester tester,
+    ) async {
+      await sizes(tester);
+      hosts[_catalogue] = () async => big;
+
+      await tester.runAsync(() async {
+        await store.write(_panel, small);
+
+        final MagicImage provider =
+            MagicImage.of(_catalogue, fallback: _panel)! as MagicImage;
+        final ImageStreamCompleter completer = provider.loadImage(
+          provider,
+          PaintingBinding.instance.instantiateImageCodecWithSize,
+        );
+        final ImageStreamListener listener = ImageStreamListener(
+          (ImageInfo _, bool _) {},
+        );
+
+        // Gone before the stand-in has decoded: the real picture is still
+        // fetched, so it is there the next time.
+        completer.addListener(listener);
+        completer.removeListener(listener);
+
+        for (int i = 0; i < 80 && await store.find(_catalogue) == null; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 25));
+        }
+
+        expect(await store.find(_catalogue), isNotNull);
+      });
+    });
+
     testWidgets('lets a late picture go without an error', (
       WidgetTester tester,
     ) async {

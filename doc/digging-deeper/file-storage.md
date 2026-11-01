@@ -159,7 +159,7 @@ await Storage.delete('avatars/1.jpg');
 
 `MagicImage` draws a network image from a copy kept on the device. The first draw of an address fetches it and stores the bytes; every draw after that, in this launch or a later one, reads the file and makes no request. Flutter's own `NetworkImage` keeps images in memory only, so a poster grid asks the host again on every launch.
 
-The copies live on a local disk named `images`. Declare it, and keep it out of backup, since every file in it can be fetched again:
+The copies live on a local disk named `images`. Declare it in your `filesystems` config (`defaultFilesystemsConfig` carries the entry, but `Magic.init` does not merge that map by itself, so spread it or copy it), and keep it out of backup, since every file in it can be fetched again:
 
 ```dart
 'images': {
@@ -193,6 +193,7 @@ The fallback draws at once when it is already on the device and the address is n
 - **Failures.** A URL that failed is not asked again for `retryAfter`, so a grid scrolled past a dead picture does not hit the host on every frame. A body that is not a JPEG, PNG, GIF or WebP, or is larger than 8 MiB, is refused. An error message never carries the address.
 - **Decoding.** `cacheWidth` decodes no wider than that many pixels and never scales up. Only the first frame of an animated GIF is drawn.
 - **A full disk.** An image the disk will not keep is still drawn, from memory, and the host is not blamed: `MagicImageCache.file` throws a `MagicImageNotStored` that carries the bytes.
+- **A disk that is not there.** When the disk is not declared, is not a local disk, or the platform gives no folder for it, images are drawn as `NetworkImage` would draw them, with no copy kept. One warning is logged, and the disk is opened again on the next call.
 - **Cleaning up.** `await MagicImageCache.instance.clear()` removes every stored image and keeps the folder, for a sign-out or a "clear cache" action. It exists on the web too, as a no-op.
 - **Another disk.** `MagicImageCache(disk: 'pictures')` keeps the files on another local disk. Assign it to `MagicImageCache.instance` before the first draw.
 - **Web.** There is no file store in a browser, so `MagicImage.of` answers a plain `NetworkImage` and the stand-in is not drawn.
