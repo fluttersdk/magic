@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **A local disk can keep its root out of iCloud and Time Machine backup.** Setting `'exclude_from_backup': true` on a `local` disk marks its root directory with `kCFURLIsExcludedFromBackupKey` on iOS and macOS, through `dart:ffi` into CoreFoundation, on the first path the disk resolves, whether it created the directory or found it there. Files under the root inherit the exclusion, which suits large downloads the app can fetch again. A refused mark throws a `FileSystemException` instead of resolving the path. The key defaults to `false`, and it does nothing on Android, Windows, Linux or the web; a disk without it behaves as before. (`lib/src/storage/storage_manager.dart`, `lib/src/storage/drivers/local/backup_exclusion_io.dart`, `lib/src/storage/drivers/local/local_adapter_io.dart`)
+
 ## [0.0.36] - 2026-10-29
 
 ### Added

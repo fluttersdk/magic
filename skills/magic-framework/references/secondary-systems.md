@@ -581,6 +581,18 @@ await Storage.disk('public').put('uploads/file.pdf', bytes);
 | `url()` | Returns `file://` path | Returns `blob:` URL |
 | `download()` | Opens share sheet | Triggers browser download |
 
+### Excluding a Disk from Backup
+
+A local disk lives under the app's documents directory, which iOS and macOS back up. `'exclude_from_backup': true` in the disk config marks the root with `kCFURLIsExcludedFromBackupKey` on the first path the disk resolves (iOS and macOS only; default `false`, a no-op elsewhere). A refused mark throws a `FileSystemException`.
+
+```dart
+'downloads': {
+  'driver': 'local',
+  'root': 'downloads',
+  'exclude_from_backup': true,
+},
+```
+
 ## Encryption (Crypt Facade)
 
 AES-256-CBC encryption for sensitive data. Two modes: config-based (using app key) and device-based (using Vault-stored key).

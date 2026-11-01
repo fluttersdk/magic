@@ -54,10 +54,12 @@ class StorageManager {
 
     final driver = diskConfig['driver'] as String?;
     final root = diskConfig['root'] as String? ?? name;
+    final excludeFromBackup =
+        diskConfig['exclude_from_backup'] as bool? ?? false;
 
     switch (driver) {
       case 'local':
-        return LocalDisk(root: root);
+        return LocalDisk(root: root, excludeFromBackup: excludeFromBackup);
 
       // Future drivers can be added here
       // case 's3':

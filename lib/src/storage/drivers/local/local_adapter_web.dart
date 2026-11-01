@@ -38,7 +38,11 @@ class LocalAdapter implements LocalAdapterContract {
   final Map<String, String> _mimeTypes = {};
 
   /// Create a new Local Adapter for Web platforms.
-  LocalAdapter({required this.root});
+  ///
+  /// [excludeFromBackup] has no effect here: browser storage has no device
+  /// backup to opt out of. It exists to keep the constructor in step with
+  /// the IO adapter.
+  LocalAdapter({required this.root, bool excludeFromBackup = false});
 
   /// Get the storage key for a path.
   String _getKey(String path) => 'storage:$root:$path';
