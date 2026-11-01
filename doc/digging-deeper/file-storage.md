@@ -8,6 +8,7 @@ The `Storage` facade provides a unified API for reading, writing, and deleting f
 - [Retrieving Files](#retrieving-files)
 - [File URLs & Downloads](#file-urls-and-downloads)
 - [Deleting Files](#deleting-files)
+- [Cached Network Images](#cached-network-images)
 - [Multiple Disks](#multiple-disks)
 - [MagicFile Reference](#magicfile-reference)
 - [Testing](#testing)
@@ -152,6 +153,51 @@ await Storage.download('reports/2024.pdf', name: 'Annual Report.pdf');
 ```dart
 await Storage.delete('avatars/1.jpg');
 ```
+
+<a name="cached-network-images"></a>
+## Cached Network Images
+
+`MagicImage` draws a network image from a copy kept on the device. The first draw of an address fetches it and stores the bytes; every draw after that, in this launch or a later one, reads the file and makes no request. Flutter's own `NetworkImage` keeps images in memory only, so a poster grid asks the host again on every launch.
+
+The copies live on a local disk named `images`. Declare it, and keep it out of backup, since every file in it can be fetched again:
+
+```dart
+'images': {
+  'driver': 'local',
+  'root': 'images',
+  'exclude_from_backup': true,
+},
+```
+
+Draw through `MagicImage.of`, which answers an `ImageProvider` or `null` when there is no address:
+
+```dart
+final ImageProvider? poster = MagicImage.of(item.posterUrl, cacheWidth: 300);
+
+if (poster != null) Image(image: poster);
+```
+
+### A Stand-In Address
+
+An item often has two pictures: one a third party sent with a listing, and a better one from your own server once it knows the item. Pass the better one as the address and the other as `fallback`:
+
+```dart
+MagicImage.of(item.catalogueUrl, fallback: item.listedUrl);
+```
+
+The fallback draws at once when it is already on the device and the address is not; the address replaces it when it lands. When the address cannot be fetched, the fallback is fetched instead and stays, and the next resolve after `retryAfter` (five minutes) asks the address again.
+
+### Size, Failures and Cleaning Up
+
+- **Size.** The folder is capped at 300 MiB. It is trimmed, least recently used first, on the first use of each launch and again after a quarter of the cap has been written. Pass `maxBytes` to a `MagicImageCache` of your own to change the cap.
+- **Failures.** A URL that failed is not asked again for `retryAfter`, so a grid scrolled past a dead picture does not hit the host on every frame. A body that is not a JPEG, PNG, GIF or WebP, or is larger than 8 MiB, is refused. An error message never carries the address.
+- **Decoding.** `cacheWidth` decodes no wider than that many pixels and never scales up. Only the first frame of an animated GIF is drawn.
+- **A full disk.** An image the disk will not keep is still drawn, from memory, and the host is not blamed: `MagicImageCache.file` throws a `MagicImageNotStored` that carries the bytes.
+- **Cleaning up.** `await MagicImageCache.instance.clear()` removes every stored image and keeps the folder, for a sign-out or a "clear cache" action. It exists on the web too, as a no-op.
+- **Another disk.** `MagicImageCache(disk: 'pictures')` keeps the files on another local disk. Assign it to `MagicImageCache.instance` before the first draw.
+- **Web.** There is no file store in a browser, so `MagicImage.of` answers a plain `NetworkImage` and the stand-in is not drawn.
+
+In a test, assign `MagicImageCache.instance` a cache built with a `store` over a temporary folder and a `fetch` that answers bytes, and restore the previous one in `tearDown`.
 
 <a name="multiple-disks"></a>
 ## Multiple Disks
