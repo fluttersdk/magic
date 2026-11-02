@@ -15,17 +15,35 @@ The `Vault` facade provides a simple interface for reading and writing sensitive
 The `Vault` facade provides a simple interface for securely storing sensitive data on the device. It uses the platform's native secure storage mechanisms:
 - **iOS**: Keychain
 - **Android**: EncryptedSharedPreferences
-- **macOS**: Keychain, the data protection one by default. See below; it is the one platform where you may have to choose.
+- **macOS**: Keychain, the data protection one wherever the build may use it and the legacy login keychain where it may not. The vault chooses on first use; see below.
 - **Windows**: Windows Credential Locker
 
 <a name="macos-which-keychain"></a>
 ## macOS: Which Keychain
 
-macOS has two keychains and the vault can write to either. The default is the data protection keychain, which is `flutter_secure_storage`'s own default and what every existing build already uses.
+macOS has two keychains and the vault writes to one of them. The data protection keychain is `flutter_secure_storage`'s own default and what every signed build already uses. The legacy login keychain needs no entitlement.
 
-The data protection keychain requires the `keychain-access-groups` entitlement. That entitlement is restricted, so the build has to be signed with an App ID rather than ad hoc, and on a build with no signing identity **every write fails** with `PlatformException(-34018, errSecMissingEntitlement)`. That is the whole reason the choice exists: a contributor with no certificate installed cannot store anything at all.
+The data protection keychain requires the `keychain-access-groups` entitlement. That entitlement is restricted, so the build has to be signed with an App ID and carry a provisioning profile. On an ad-hoc build, or one signed without a profile (a debug build from a machine with no certificate, or a release build you made to try locally), **every write to it fails** with `errSecMissingEntitlement` (-34018).
 
-Point the vault at the legacy login keychain, which needs no entitlement, with one config key:
+So the vault probes, and you configure nothing. On its first operation it writes and deletes a throwaway item in the data protection keychain:
+
+- If that works, the vault uses the data protection keychain.
+- If the keychain answers -34018, the vault uses the legacy keychain instead and logs one warning.
+- Any other failure of the probe (a locked keychain, say) says nothing about the entitlement. It is raised as a `MagicVaultException` and the next operation probes again.
+
+The probe writes because a read cannot tell the two cases apart: on a build with no entitlement a read of the data protection keychain does not fail, it finds nothing, which is exactly what an item never stored looks like.
+
+Once the first operation has run, the choice is readable:
+
+```dart
+final vault = Magic.make<MagicVaultService>('vault');
+
+vault.usesDataProtectionKeychain; // true, false, or null before the first operation
+```
+
+A failed write names its cause. `MagicVaultException.statusCode` carries the `OSStatus` the keychain returned, and `isMissingEntitlement` is true for -34018, so a screen can say "this build cannot store a sign-in" instead of a generic failure.
+
+To skip the probe and force one keychain, use one config key:
 
 ```dart
 // lib/config/security.dart
@@ -37,7 +55,7 @@ final securityConfig = <String, dynamic>{
   // which reads `security.vault.macos_data_protection_keychain`, never sees it.
   'security': <String, dynamic>{
     'vault': <String, dynamic>{
-      // Only consulted on macOS. Leave it out on a signed build. A bare
+      // Only consulted on macOS. Leave it out to let the vault probe. A bare
       // `false` literal, not the string `'false'`: `Config.get<bool>` returns
       // its default on a type mismatch as well as on a missing key, so a
       // quoted value reads exactly like no value at all.
@@ -47,7 +65,7 @@ final securityConfig = <String, dynamic>{
 };
 ```
 
-The file is not loaded by being there. Hand it to `Magic.init` like every other config domain, or the key is absent and the default applies with nothing to say it did:
+The file is not loaded by being there. Hand it to `Magic.init` like every other config domain, or the key is absent and the vault probes with nothing to say the setting was ignored:
 
 ```dart
 await Magic.init(
@@ -69,9 +87,14 @@ app.singleton('vault', () => MagicVaultService(macOsUsesDataProtectionKeychain: 
 - `Crypt.encryptWithDeviceKey` generates a **new** device key on a null read, so anything encrypted under the old one becomes permanently unreadable while the old key sits unreachable in the other keychain.
 - `BaseGuard` loses the stored token the same way, which logs the user out.
 
-So flip this once, before the app stores anything, and not as a way out of a `-34018` on a build that has already been storing secrets. To move existing items, read them under the old setting, flip, and write them back.
+The probe can open the same split without anyone changing a setting. An app that fell back to the legacy keychain and is later signed with a provisioning profile picks the data protection keychain, and the items it stored before are not there. Pin `false` for an app that already holds items in the legacy keychain and must keep reading them, and move them across deliberately: read them under the old setting, switch, and write them back.
 
-The vault also passes `first_unlock_this_device` accessibility on macOS: readable after the first unlock, so a refresh on launch works before anyone has touched the machine, and never restored onto a different Mac from a backup. That attribute belongs to the data protection keychain, so it has no effect once the key above is `false`.
+Two more consequences of the fallback:
+
+- A release build with no provisioning profile now stores in the legacy keychain, with one warning in the log, where it used to fail every write. If that is not what you ship, give the build its profile, or set `macos_data_protection_keychain` to `true` so that a missing entitlement fails loudly.
+- The legacy keychain ties an item's access rule to the code signature that wrote it. An ad-hoc signature differs on every build, so after a rebuild each stored item can raise a system keychain prompt on the next launch, and the app waits behind it until someone answers. Sign local builds with a stable identity (an Apple Development certificate) and rebuilds read their items without a prompt.
+
+The vault also passes `first_unlock_this_device` accessibility on macOS: readable after the first unlock, so a refresh on launch works before anyone has touched the machine, and never restored onto a different Mac from a backup. That attribute belongs to the data protection keychain, so it has no effect on the legacy one.
 
 <a name="storing-items"></a>
 ## Storing Items
