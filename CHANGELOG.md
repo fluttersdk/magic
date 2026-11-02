@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **The macOS Vault chooses its keychain on first use instead of assuming the data protection one.** With no `security.vault.macos_data_protection_keychain` config, `MagicVaultService` writes and deletes a throwaway item in the data protection keychain once. It keeps that keychain when the write works and falls back to the legacy login keychain, with one `Log.warning`, when the keychain answers `errSecMissingEntitlement` (-34018), which is what an ad-hoc build or one without a provisioning profile gets. Before this, every `Vault.put` on such a build failed and a sign-in showed only a generic error. The probe writes because a read of the data protection keychain on such a build finds nothing instead of failing. Any other probe failure surfaces as a `MagicVaultException` and the next operation probes again. A signed build that was already on the data protection keychain keeps it. An app that fell back to the legacy keychain and is later signed with a profile moves to the data protection keychain and does not see its old items (there is no migration between the two); pin `macos_data_protection_keychain: false` for such an app. `MagicVaultService.macOsUsesDataProtectionKeychain` is now `bool?` (`null` means probe), and the config key stays as the explicit override.
+
+### Added
+
+- **`MagicVaultService.usesDataProtectionKeychain` reports the keychain in use.** `null` until the first operation has resolved it.
+- **`MagicVaultException.statusCode` and `isMissingEntitlement` name the cause of a failed operation.** `statusCode` is the `OSStatus` the keychain returned (taken from the wrapped `PlatformException.details`, since the exception `code` is the same string for every status), and `isMissingEntitlement` is true for -34018. A write that fails for want of the entitlement now says so in its message.
+
 ## [0.0.37] - 2026-11-02
 
 ### Added

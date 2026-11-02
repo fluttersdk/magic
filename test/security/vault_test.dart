@@ -72,13 +72,13 @@ void main() {
       Config.set('security', <String, dynamic>{});
     });
 
-    test('defaults to the data protection keychain', () {
-      // The default has to match `flutter_secure_storage`'s own
-      // (`macos_options.dart:24`), because there is no migration between
-      // the two keychains: a default that flipped would leave every item an
-      // existing macOS consumer had already stored unreachable, and a
-      // missing item is indistinguishable from one never written.
-      expect(MagicVaultService().macOsUsesDataProtectionKeychain, isTrue);
+    test('leaves the choice to the first-use probe by default', () {
+      // `null` is "probe": the data protection keychain wherever this build
+      // may use it, which is what `flutter_secure_storage` itself defaults to
+      // (`macos_options.dart:24`) and what an existing signed consumer
+      // already has its items in, and the legacy one where it may not
+      // (`vault_keychain_probe_test.dart`).
+      expect(MagicVaultService().macOsUsesDataProtectionKeychain, isNull);
     });
 
     test('takes the constructor argument when one is given', () {
@@ -105,16 +105,19 @@ void main() {
       );
     });
 
-    test('the provider defaults to true when the config key is absent', () {
-      VaultServiceProvider(Magic.app).register();
+    test(
+      'the provider leaves the choice to the probe when the key is absent',
+      () {
+        VaultServiceProvider(Magic.app).register();
 
-      expect(
-        Magic.app
-            .make<MagicVaultService>('vault')
-            .macOsUsesDataProtectionKeychain,
-        isTrue,
-      );
-    });
+        expect(
+          Magic.app
+              .make<MagicVaultService>('vault')
+              .macOsUsesDataProtectionKeychain,
+          isNull,
+        );
+      },
+    );
 
     test(
       'the config map doc/security/vault.md documents reaches the provider',
