@@ -26,6 +26,9 @@ final class _Keychains {
   /// Fails the next write once with this status, whichever keychain it hits.
   int? failNextWriteWith;
 
+  /// Fails the next delete once with this status, whichever keychain it hits.
+  int? failNextDeleteWith;
+
   List<({String method, String key, bool dataProtection})> get probeWrites =>
       calls.where((c) => c.method == 'write' && c.key != 'api_token').toList();
 
@@ -59,6 +62,11 @@ final class _Keychains {
       case 'read':
         return store[key];
       case 'delete':
+        final int? status = failNextDeleteWith;
+        if (status != null) {
+          failNextDeleteWith = null;
+          throw _statusError(status);
+        }
         if (refused) throw _statusError(-34018);
         store.remove(key);
         return null;
@@ -227,6 +235,44 @@ void main() {
       },
     );
 
+    test(
+      'a probe item that cannot be removed surfaces and re-probes',
+      () async {
+        final keychains = install(entitled: true)..failNextDeleteWith = -25308;
+        final vault = MagicVaultService();
+
+        await expectLater(
+          vault.put('api_token', 'secret'),
+          throwsA(
+            isA<MagicVaultException>()
+                .having((e) => e.statusCode, 'statusCode', -25308)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Failed to remove the keychain probe',
+                ),
+          ),
+        );
+        expect(vault.usesDataProtectionKeychain, isNull);
+
+        await vault.put('api_token', 'secret');
+
+        expect(vault.usesDataProtectionKeychain, isTrue);
+        expect(keychains.dataProtection.keys, <String>['api_token']);
+      },
+    );
+
+    test('the fallback still works when no log is bound', () async {
+      final keychains = install(entitled: false);
+      MagicApp.reset();
+      final vault = MagicVaultService();
+
+      await vault.put('api_token', 'secret');
+
+      expect(vault.usesDataProtectionKeychain, isFalse);
+      expect(keychains.legacy['api_token'], 'secret');
+    });
+
     test('flush and remove run on the resolved keychain', () async {
       final keychains = install(entitled: false);
       final vault = MagicVaultService();
@@ -290,8 +336,26 @@ void main() {
           isA<MagicVaultException>().having(
             (e) => e.message,
             'message',
-            contains('keychain-access-groups'),
+            allOf(
+              contains('keychain-access-groups'),
+              contains('security.vault.macos_data_protection_keychain'),
+            ),
           ),
+        ),
+      );
+    });
+
+    test('the macOS hint is not given for the same status elsewhere', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      install(entitled: true).failNextWriteWith = -34018;
+      final vault = MagicVaultService();
+
+      await expectLater(
+        vault.put('api_token', 'secret'),
+        throwsA(
+          isA<MagicVaultException>()
+              .having((e) => e.isMissingEntitlement, 'status', isTrue)
+              .having((e) => e.message, 'message', 'Failed to write to vault'),
         ),
       );
     });

@@ -89,6 +89,11 @@ app.singleton('vault', () => MagicVaultService(macOsUsesDataProtectionKeychain: 
 
 The probe can open the same split without anyone changing a setting. An app that fell back to the legacy keychain and is later signed with a provisioning profile picks the data protection keychain, and the items it stored before are not there. Pin `false` for an app that already holds items in the legacy keychain and must keep reading them, and move them across deliberately: read them under the old setting, switch, and write them back.
 
+Two more consequences of the fallback:
+
+- A release build with no provisioning profile now stores in the legacy keychain, with one warning in the log, where it used to fail every write. If that is not what you ship, give the build its profile, or set `macos_data_protection_keychain` to `true` so that a missing entitlement fails loudly.
+- The legacy keychain ties an item's access rule to the code signature that wrote it. An ad-hoc signature differs on every build, so after a rebuild each stored item can raise a system keychain prompt on the next launch, and the app waits behind it until someone answers. Sign local builds with a stable identity (an Apple Development certificate) and rebuilds read their items without a prompt.
+
 The vault also passes `first_unlock_this_device` accessibility on macOS: readable after the first unlock, so a refresh on launch works before anyone has touched the machine, and never restored onto a different Mac from a backup. That attribute belongs to the data protection keychain, so it has no effect on the legacy one.
 
 <a name="storing-items"></a>

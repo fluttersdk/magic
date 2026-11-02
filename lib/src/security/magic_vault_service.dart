@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../facades/log.dart';
+import '../foundation/magic.dart';
 
 /// Exception thrown when a Vault operation fails.
 class MagicVaultException implements Exception {
@@ -142,14 +143,18 @@ class MagicVaultService {
   /// Names the cause when the keychain refused for want of an entitlement,
   /// which is otherwise a generic failure the caller cannot act on.
   String _explain(String failure, PlatformException error) {
-    if (error.details != MagicVaultException.missingEntitlementStatus) {
+    final bool onMacOs =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+    if (!onMacOs ||
+        error.details != MagicVaultException.missingEntitlementStatus) {
       return failure;
     }
 
     return '$failure: the macOS data protection keychain needs the '
-        'keychain-access-groups entitlement and a provisioning profile. Leave '
-        'macOsUsesDataProtectionKeychain unset to fall back to the legacy '
-        'keychain on an unsigned build.';
+        'keychain-access-groups entitlement and a provisioning profile. Remove '
+        'security.vault.macos_data_protection_keychain (or the '
+        'macOsUsesDataProtectionKeychain argument) so the vault falls back to '
+        'the legacy keychain on an unsigned build.';
   }
 
   /// The storage every operation goes through, resolved once.
@@ -192,13 +197,19 @@ class MagicVaultService {
       return dataProtection;
     }
 
-    // 4. Otherwise the legacy keychain, which needs no entitlement.
-    Log.warning(
-      'Vault: the macOS data protection keychain refused a write '
-      '(errSecMissingEntitlement): this build has no keychain-access-groups '
-      'entitlement. Using the legacy keychain instead; items stored in the '
-      'other keychain are not visible from it.',
-    );
+    // 4. Otherwise the legacy keychain, which needs no entitlement. The
+    // warning is guarded because `Log` throws for an unbound `log`
+    // (`application.dart:269-274`), which a service used before
+    // `Magic.init` has booted would otherwise let escape in place of the
+    // decision it is reporting.
+    if (Magic.bound('log')) {
+      Log.warning(
+        'Vault: the macOS data protection keychain refused a write '
+        '(errSecMissingEntitlement): this build has no keychain-access-groups '
+        'entitlement. Using the legacy keychain instead; items stored in the '
+        'other keychain are not visible from it.',
+      );
+    }
     _usesDataProtection = false;
 
     return _build(dataProtection: false);
