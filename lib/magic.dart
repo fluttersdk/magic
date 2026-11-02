@@ -259,6 +259,7 @@ export 'src/storage/drivers/local_disk.dart';
 export 'src/storage/storage_manager.dart';
 export 'src/storage/magic_file.dart';
 export 'src/storage/magic_file_extensions.dart';
+export 'src/storage/images/images.dart';
 export 'src/facades/storage.dart';
 export 'src/facades/pick.dart';
 
