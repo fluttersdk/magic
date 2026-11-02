@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.63 | Updated: 2026-11-02 -->
+<!-- magic_starter v0.0.64 | Updated: 2026-11-03 -->
 
 # magic_starter Plugin
 
@@ -946,6 +946,8 @@ How a card is priced: the first row, when it sells no product, is the free floor
 From 0.0.62 an entitlement read that names a different plan than the one before it also re-reads `usage`, so the meters follow a store purchase, a restore, a web swap or a lapse to no plan without leaving the screen. The first read of a session and the first read after `resetForSession` are not a move (`load()` pairs them with its own usage read), and a read that keeps the plan reads nothing extra. A host that keeps its own copy of the plan limits (uptizm's `EntitlementController`) listens to the controller and reloads when `entitlementSnapshot.plan` changes; `manageVia` is null until a read has answered, which tells that first read apart even when the plan is none and a granting status leaves `entitlementLoaded` false.
 
 From 0.0.63 a read that answers `plan: null` with a status that grants nothing (a store expiry, a refund, a deleted subscription) is an answer, not an unanswered read: `entitlementLoaded` is true, the previous tier is dropped, and `currentPlanId` reads as the catalogue's floor (its first row) when that row sells nothing, so the current-plan card names the floor instead of staying a skeleton. A null plan with a granting status, such as a Stripe price the catalogue cannot name, stays unresolved, and a catalogue that starts at a paid tier has no floor to sit on.
+
+From 0.0.64 the plan grid keeps its purchase buttons while a store purchase waits for the backend. `offersStorePurchase` is the store gate without the wait (`canPurchaseViaStore` is `offersStorePurchase && awaitingProductKey == null`, unchanged in value); the billing view draws its buttons from it, shows the card of the product being bought busy from the tap (the transfer re-ask included), and leaves the other purchase buttons inert until the purchase ends. A host grid that draws from `canPurchaseViaStore` loses its buttons for the length of the wait; draw from `offersStorePurchase` and disable the buttons while `awaitingProductKey` is set.
 
 An app that installed an earlier `en` stub adds, under `magic_starter.billing`, `errors.*`, `plan_price_free`, `plan_price_app`, `plan_price_checkout`, `plan_store_unsold`, the `store_disclosure_*` keys, `wait_processing` and `wait_takes_effect_on`, drops `plan_price_monthly`, removes the `/mo` from its `renewal_text` and `renewal_ends` values (or an annual card reads `290.00 USD/mo`), and adds the `social.deletion_blocking_teams*` and `social.subscription_*` keys below. A fresh `starter:install` already ships them.
 
