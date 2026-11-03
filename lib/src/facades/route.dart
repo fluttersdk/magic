@@ -355,7 +355,9 @@ class MagicRoute {
   /// Go back to the previous route.
   ///
   /// Tries native pop first, then the internal history stack.
-  /// When both are empty, navigates to [fallback] if provided.
+  /// When both are empty, navigates to [fallback] if provided. On the web a
+  /// page this router pushed closes through the browser's Back instead; see
+  /// [MagicRouter.back].
   ///
   /// ```dart
   /// Route.back();
