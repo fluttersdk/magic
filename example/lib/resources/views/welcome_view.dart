@@ -94,6 +94,23 @@ class WelcomeView extends StatelessWidget {
                   ],
                 ),
 
+                const WSpacer(className: 'h-6'),
+
+                // --------------------------------------------------
+                // Bottom sheet route
+                // --------------------------------------------------
+                WButton(
+                  onTap: () => MagicRoute.to('/welcome/tips'),
+                  className: '''
+                    px-4 py-2 rounded-lg bg-primary text-white
+                    hover:bg-primary-700
+                  ''',
+                  child: WText(
+                    'Open the tips sheet',
+                    className: 'text-sm font-medium text-white',
+                  ),
+                ),
+
                 const WSpacer(className: 'h-8'),
 
                 // --------------------------------------------------

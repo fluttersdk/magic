@@ -1,5 +1,6 @@
 import 'package:magic/magic.dart';
 
+import '../resources/views/welcome_sheet_view.dart';
 import '../resources/views/welcome_view.dart';
 
 /// Application Route Definitions.
@@ -25,4 +26,13 @@ void registerAppRoutes() {
     '/welcome/details',
     () => const WelcomeView(),
   ).title('Welcome').stacked().transition(RouteTransition.platform);
+
+  // An overlay route: opens as a bottom sheet over the welcome page and keeps
+  // its own URL, so a deep link or a reload builds `/` first and the sheet on
+  // top. Open it with `MagicRoute.to('/welcome/tips')`, close it with
+  // `MagicRoute.back()`.
+  MagicRoute.page(
+    '/welcome/tips',
+    () => const WelcomeSheetView(),
+  ).title('Tips').overlay(base: '/');
 }
