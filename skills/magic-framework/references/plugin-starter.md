@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.66 | Updated: 2026-11-03 -->
+<!-- magic_starter v0.0.67 | Updated: 2026-11-04 -->
 
 # magic_starter Plugin
 
@@ -575,6 +575,7 @@ Since 0.0.57, three opt-in layout options (nothing changes until a host sets one
 - `MSPageHeader(size: MSPageHeaderSize.regular | large | compact)`. `large` uses `MagicStarterPageHeaderTheme.largeTitleClassName` (`text-4xl lg:text-3xl`); `compact` is a 44 pt `NavigationToolbar` under the top safe area (leading, centred one-line title, actions; no subtitle or suffixes) on `compactBarClassName` with a `compactBarBlurSigma` backdrop blur, opaque (`compactBarOpaqueClassName`, no blur) under `MediaQuery.highContrast`. `MSPageScaffold(largeTitle: true)` renders the large header and fades the compact bar in over the page once the header has scrolled under it; `MagicStarterPageHeaderTheme(largeTitle: true)` turns both on everywhere, the starter's own pages included. While the bar shows, the title and actions are in the tree twice, so an action with a `GlobalKey` cannot go in a large-title scaffold.
 - `MSMasterDetail(master:, detail:, placeholder:, breakpoint: 'lg')`: list and selected item side by side from the breakpoint (`w-96` list column), `detail ?? master` below it. Keep the selection in the route (`/stock`, `/stock/42`) and a row tap is push navigation on a phone. Layout only, so it goes inside `MSPageScaffold`; `MSMasterDetail.isSplit(context)` answers the same question for the page's header.
 - `MSBottomSheet.show(..., dialogBreakpoint: 'lg')` presents `MSDialog` from that breakpoint with the same arguments; `MSDialog` takes `scrollable` for it. With `MagicStarterModalTheme.presentation` set to `sheet` (0.0.66+) the argument is ignored and the sheet stays a sheet at every width.
+- `MSBottomSheet.show(..., canDismiss:, onDismissBlocked:)` (0.0.67+) holds a sheet with unsaved input open. `canDismiss` is a `ValueListenable<bool>` read when the gesture lands, so a field that turns dirty after the sheet opened holds the next one. While it is false a drag down is off (the handle stays drawn), and a scrim tap, Back and Escape leave the sheet open and call `onDismissBlocked(sheetContext)`, where the app asks whether to discard (the package draws no question). The dialog `dialogBreakpoint` swaps in is held the same way, barrier tap included. After a confirmed discard close it with `Navigator.of(sheetContext).pop()`: a `pop` skips the guard, a `maybePop` stays refused, and the opener's context would pop the wrong navigator because the sheet sits on the root one. A null `canDismiss` (the default) lets every gesture close it.
 
 An unknown breakpoint name throws a `StateError` naming the setting, in all three and in the shell.
 
