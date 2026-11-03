@@ -100,6 +100,12 @@ class RouteDefinition {
   /// installs a gesture in the first place.
   bool? _swipeBack;
 
+  /// The full path of the page an overlay opens over; null for a page.
+  String? _overlayBase;
+
+  /// The overlay's dismiss guard; null lets every dismissal through.
+  bool Function()? _canDismiss;
+
   /// Create a new route definition.
   RouteDefinition({
     required this.path,
@@ -194,6 +200,58 @@ class RouteDefinition {
     return this;
   }
 
+  /// Open this route as a bottom sheet over [base] instead of as a page.
+  ///
+  /// The route keeps its own URL. `to()` always pushes it over the page on
+  /// screen, whoever calls it (a deep link handler, a redirect after login),
+  /// so closing it, `MagicRoute.back()` and browser Back return to that page
+  /// with its state. A location that replaces the whole stack (the initial
+  /// location, a URL the platform reports such as a reload or a typed
+  /// address, a go_router `go()`) builds [base] first and opens the sheet on
+  /// top, so closing it leaves a real page underneath. `MagicRoute.replace()`
+  /// to an overlay is not such an entry: it can replace the only page.
+  ///
+  /// [base] is the full path of another registered page route, `prefix`
+  /// included for a route inside a group. It may declare parameters, filled
+  /// from the overlay's location, so the overlay path must declare each of
+  /// them (`/items/:id/edit` over `/items/:id`). The router refuses to build
+  /// when [base] names no route, names another overlay, or needs a parameter
+  /// the overlay lacks.
+  ///
+  /// An overlay inside a layout group is matched before that layout's pages,
+  /// so its path must not also match a page path (`/items/:id` as an overlay
+  /// captures a `/items/new` page).
+  ///
+  /// [canDismiss] is asked whenever the sheet would close by the user's hand
+  /// or by the router: a scrim tap, a drag down, the system back button,
+  /// browser Back, `MagicRoute.back()`, or a `to()` that replaces the stack.
+  /// A `to()` to a `stacked()` route pushes over the sheet and asks nothing.
+  /// Answer false to keep it open, say while a form has unsaved changes.
+  /// Browser Back refused this way keeps the sheet and its URL. A guarded
+  /// route takes a go_router `onExit`, so go_router finishes every pop of it
+  /// in a microtask: a `Navigator.popUntil` over the open sheet never gets
+  /// past it, and every `to()`, `push()` or `replace()` issued while the
+  /// sheet is on top runs one event later, pop or no pop.
+  ///
+  /// The sheet is a frame only: a transparent, scroll-controlled
+  /// `ModalBottomSheetRoute` on the root navigator, with no drag handle and
+  /// no safe-area padding, so a layout never confines it. Whatever the route
+  /// builds is the panel. It inherits the app-level themes, not a layout's
+  /// own `Theme` or `DefaultTextStyle`. `transition()`, `stacked()` and
+  /// `swipeBack()` do not apply to an overlay.
+  ///
+  /// ```dart
+  /// MagicRoute.page('/stock', () => StockPage());
+  /// MagicRoute.page('/stock/add', () => AddItemSheet())
+  ///     .title('Add item')
+  ///     .overlay(base: '/stock', canDismiss: () => !form.isDirty);
+  /// ```
+  RouteDefinition overlay({required String base, bool Function()? canDismiss}) {
+    _overlayBase = base;
+    _canDismiss = canDismiss;
+    return this;
+  }
+
   /// Set the page title for this route.
   ///
   /// ```dart
@@ -232,6 +290,15 @@ class RouteDefinition {
 
   /// Whether [swipeBack] was set here, or null to take the transition's.
   bool? get isSwipeBackAllowed => _swipeBack;
+
+  /// Whether [overlay] made this route a bottom sheet.
+  bool get isOverlay => _overlayBase != null;
+
+  /// The path [overlay] opens over, or null for a page.
+  String? get overlayBase => _overlayBase;
+
+  /// The dismiss guard given to [overlay], or null when there is none.
+  bool Function()? get overlayCanDismiss => _canDismiss;
 
   /// Get the page title, if defined.
   String? get routeTitle => _title;
