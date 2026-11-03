@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.67 | Updated: 2026-11-04 -->
+<!-- magic_starter v0.0.68 | Updated: 2026-11-04 -->
 
 # magic_starter Plugin
 
@@ -348,6 +348,7 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'social_login': true,      // buttons, Connected accounts page and provider confirmation; needs a bridge (0.0.39+)
     'notifications': true,
     'timezones': false,
+    'handoff': false,          // /auth/handoff?code=&next= signs in with a one-time code from another surface (0.0.68+)
     'billing': false,          // gates `teams.billing` (alpha.23+ ships it in the generated stub)
     'support': false,          // the support desk screens and the dropdown's Support item (0.0.43+)
     'support_csat': false,         // thumbs rating under a resolved thread (0.0.45+)
@@ -455,6 +456,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `profile.profile` | always | `MagicStarterProfileSubPageView`. A failed photo upload or removal shows its reason under the buttons: the server's `photo` message, else `profile.photo_update_failed` / `profile.photo_delete_failed` (0.0.58+). A write already in flight (`MagicStarterProfileController.isSubmitting`) is not reported as a failure. Tests pass `pickImage` to stand in for the system picker. |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
 | `settings.security.password` | always | `MagicStarterPasswordView`. For an account with `has_password` false it renders the Set password form instead of the change form (0.0.39+). |
+| `auth.handoff` | `features.handoff` | `MagicStarterHandoffView` (0.0.68+), `/auth/handoff?code=&next=`, outside the `guest` and `auth` groups. Trades the code at `POST auth/handoff/exchange`, asks "Sign in as ...?" (also with no session; `handoff.confirm_without_session`), then signs in and opens the code's own `next`. Pair with magic-starter-laravel 0.0.59, which mints and exchanges the code. Login and register also honour `?next=<path>`. |
 | `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
 | `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
 | `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
