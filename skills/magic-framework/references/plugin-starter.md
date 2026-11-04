@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.69 | Updated: 2026-11-04 -->
+<!-- magic_starter v0.0.70 | Updated: 2026-11-05 -->
 
 # magic_starter Plugin
 
@@ -456,7 +456,7 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `profile.profile` | always | `MagicStarterProfileSubPageView`. A failed photo upload or removal shows its reason under the buttons: the server's `photo` message, else `profile.photo_update_failed` / `profile.photo_delete_failed` (0.0.58+). A write already in flight (`MagicStarterProfileController.isSubmitting`) is not reported as a failure. Tests pass `pickImage` to stand in for the system picker. |
 | `settings.appearance` | always | `MagicStarterAppearanceView` |
 | `settings.security.password` | always | `MagicStarterPasswordView`. For an account with `has_password` false it renders the Set password form instead of the change form (0.0.39+). |
-| `auth.handoff` | `features.handoff` | `MagicStarterHandoffView` (0.0.68+), `/auth/handoff?code=&next=`, outside the `guest` and `auth` groups. Trades the code at `POST auth/handoff/exchange`, asks "Sign in as ...?" (also with no session; `handoff.confirm_without_session`), then signs in and opens the code's own `next`. Pair with magic-starter-laravel 0.0.59, which mints and exchanges the code. Login and register also honour `?next=<path>`. |
+| `auth.handoff` | `features.handoff` | `MagicStarterHandoffView` (0.0.68+), `/auth/handoff?code=&next=`, outside the `guest` and `auth` groups. Trades the code at `POST auth/handoff/exchange`, asks "Sign in as ...?" (also with no session; `handoff.confirm_without_session`), then signs in and opens the code's own `next`. The code is single use, so the app never remounts while a handoff is mid-air (0.0.70+: `MagicStarterHandoffController.holdsHandoff` stops `_ReloadOnAuthRestored`, and a session reset that keeps the same user, a team switch, does not drop it). Pair with magic-starter-laravel 0.0.59, which mints and exchanges the code. Login and register also honour `?next=<path>`. |
 | `settings.language` | `features.extended_profile` | `MagicStarterLanguageView` |
 | `settings.timezone` | `features.timezones` | `MagicStarterTimezoneView` |
 | `settings.newsletter` | `features.newsletter` | `MagicStarterNewsletterView` |
