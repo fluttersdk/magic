@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.39] - 2026-11-04
+
 ### Fixed
 
 - **An overlay sheet a refused drag slid shut under the guard's own question comes back when that question closes.** A `canDismiss` that refuses usually asks why in a route pushed over the sheet, so the sheet was no longer current when its fling ended and stayed shut, invisible, with the scrim swallowing every tap. The route now slides back up in `didPopNext` when it is still active, shut and the guard still refuses. (`lib/src/routing/magic_overlay_page.dart`)
