@@ -145,6 +145,11 @@ class _MagicOverlayRoute<T> extends ModalBottomSheetRoute<T> {
   void _slideBackUp() {
     if (!isActive || !controller!.isDismissed) return;
 
+    _slideUp();
+  }
+
+  /// Run the sheet's open animation again and rebuild it.
+  void _slideUp() {
     controller!.forward();
     changedInternalState();
   }
@@ -167,8 +172,7 @@ class _MagicOverlayRoute<T> extends ModalBottomSheetRoute<T> {
       return;
     }
 
-    controller!.forward();
-    changedInternalState();
+    _slideUp();
   }
 
   /// Slide the sheet back up when the route above it closes on a sheet a
@@ -185,7 +189,6 @@ class _MagicOverlayRoute<T> extends ModalBottomSheetRoute<T> {
 
     if (!isActive || !controller!.isDismissed || _dismissible) return;
 
-    controller!.forward();
-    changedInternalState();
+    _slideUp();
   }
 }
