@@ -343,6 +343,47 @@ void main() {
       expectStillOpen(tester);
     });
 
+    testWidgets('a drag the guard refused under a question reopens once '
+        'the question closes', (tester) async {
+      allowed = true;
+      registerStock(canDismiss: () => allowed);
+      MagicRouter.instance.setInitialLocation('/stock');
+      await pumpRouter(tester);
+      MagicRoute.to('/items/new');
+      await tester.pumpAndSettle();
+      final NavigatorState navigator =
+          MagicRouter.instance.navigatorKey.currentState!;
+
+      // Let go two thirds down with no fling, so `BottomSheet` slides the
+      // rest of the way shut after the guard has refused and opened its
+      // question over the sheet, as a discard question does.
+      final double height = tester.getSize(find.byType(BottomSheet)).height;
+      final TestGesture drag = await tester.startGesture(
+        tester.getCenter(find.text('sheet')),
+      );
+      for (int step = 0; step < 4; step++) {
+        await drag.moveBy(Offset(0, height / 6));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.pump(const Duration(milliseconds: 300));
+      allowed = false;
+      await drag.up();
+      showDialog<void>(
+        context: navigator.context,
+        builder: (_) => const Text('question'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('question'), findsOneWidget);
+
+      navigator.pop();
+      await tester.pumpAndSettle();
+
+      expect(find.text('question'), findsNothing);
+      expectStillOpen(tester);
+      expect(find.text('sheet').hitTestable(), findsOneWidget);
+      await expectClosesOnceAllowed(tester);
+    });
+
     testWidgets('MagicRoute.back() leaves it open', (tester) async {
       await openGuarded(tester);
 

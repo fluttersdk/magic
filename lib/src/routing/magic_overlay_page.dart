@@ -145,6 +145,11 @@ class _MagicOverlayRoute<T> extends ModalBottomSheetRoute<T> {
   void _slideBackUp() {
     if (!isActive || !controller!.isDismissed) return;
 
+    _slideUp();
+  }
+
+  /// Run the sheet's open animation again and rebuild it.
+  void _slideUp() {
     controller!.forward();
     changedInternalState();
   }
@@ -167,7 +172,23 @@ class _MagicOverlayRoute<T> extends ModalBottomSheetRoute<T> {
       return;
     }
 
-    controller!.forward();
-    changedInternalState();
+    _slideUp();
+  }
+
+  /// Slide the sheet back up when the route above it closes on a sheet a
+  /// refused drag left shut.
+  ///
+  /// A guard that refuses usually asks why in a route pushed over the sheet
+  /// (a discard question), so the sheet is no longer current by the time
+  /// its fling reaches `dismissed` and [_reopenAfterRefusedClose] lets it
+  /// be. Once that route is gone the sheet is current again and is reopened
+  /// here, unless the guard now lets it close.
+  @override
+  void didPopNext(Route<dynamic> nextRoute) {
+    super.didPopNext(nextRoute);
+
+    if (!isActive || !controller!.isDismissed || _dismissible) return;
+
+    _slideUp();
   }
 }
