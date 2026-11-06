@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Improvements
+
+- **The example's tips overlay opens as a centred dialog from 1024 px.** `RouteServiceProvider` installs a `MagicRoute.useOverlayPresentation` resolver, and `WelcomeSheetView` draws its own surface in both frames: a bottom sheet below, a centred card with four rounded corners above. A panel can tell the frame by `ModalRoute.of(context) is RawDialogRoute`, so magic exposes nothing new for it. (`example/`)
+
 ## [0.0.40] - 2026-11-06
 
 ### Added

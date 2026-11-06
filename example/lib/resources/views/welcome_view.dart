@@ -97,7 +97,7 @@ class WelcomeView extends StatelessWidget {
                 const WSpacer(className: 'h-6'),
 
                 // --------------------------------------------------
-                // Bottom sheet route
+                // Overlay route: a bottom sheet, or a dialog from 1024 px
                 // --------------------------------------------------
                 WButton(
                   onTap: () => MagicRoute.to('/welcome/tips'),
@@ -106,7 +106,7 @@ class WelcomeView extends StatelessWidget {
                     hover:bg-primary-700
                   ''',
                   child: WText(
-                    'Open the tips sheet',
+                    'Open the tips',
                     className: 'text-sm font-medium text-white',
                   ),
                 ),
