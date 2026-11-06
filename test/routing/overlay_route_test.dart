@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -719,6 +720,177 @@ void main() {
       await tester.pumpAndSettle();
 
       await expectOneSheetOverStock(tester);
+    });
+  });
+
+  group('dialog presentation', () {
+    late bool allowed;
+    late List<BuildContext> asked;
+
+    /// Registers a centred panel, so the scrim around it takes a tap.
+    void registerDialog({bool Function()? canDismiss}) {
+      MagicRoute.page('/', () => const Text('home'));
+      MagicRoute.page('/stock', () => const _StockPage()).title('Stock');
+      MagicRoute.page(
+        '/items/new',
+        () => const Center(
+          child: SizedBox(width: 300, height: 200, child: Text('dialog')),
+        ),
+      ).title('New item').overlay(base: '/stock', canDismiss: canDismiss);
+      MagicRouter.instance.setInitialLocation('/stock');
+    }
+
+    void presentAsDialog() {
+      asked = <BuildContext>[];
+      MagicRoute.useOverlayPresentation((context) {
+        asked.add(context);
+
+        return MagicOverlayPresentation.dialog;
+      });
+    }
+
+    ModalRoute<dynamic> dialogRoute(WidgetTester tester) {
+      return ModalRoute.of(tester.element(find.text('dialog')))!;
+    }
+
+    Future<void> openDialog(WidgetTester tester) async {
+      await pumpRouter(tester);
+      MagicRoute.to('/items/new');
+      await tester.pumpAndSettle();
+      expect(find.text('dialog'), findsOneWidget);
+    }
+
+    void expectDialogOpen(WidgetTester tester) {
+      expect(find.text('dialog'), findsOneWidget);
+      expect(dialogRoute(tester).isCurrent, isTrue);
+      expect(dialogRoute(tester).animation!.value, 1.0);
+    }
+
+    void expectClosed() {
+      expect(find.text('dialog'), findsNothing);
+      expect(find.text('count 0'), findsOneWidget);
+    }
+
+    testWidgets('no resolver keeps the bottom sheet', (tester) async {
+      registerDialog();
+      await openDialog(tester);
+
+      expect(dialogRoute(tester), isA<ModalBottomSheetRoute<dynamic>>());
+    });
+
+    testWidgets('a resolver answering dialog opens a dialog route', (
+      tester,
+    ) async {
+      registerDialog();
+      presentAsDialog();
+      await openDialog(tester);
+
+      final ModalRoute<dynamic> route = dialogRoute(tester);
+      expect(route, isA<RawDialogRoute<dynamic>>());
+      expect(route, isNot(isA<ModalBottomSheetRoute<dynamic>>()));
+      expect(route.settings.name, '/items/new');
+      expect(route.navigator, MagicRouter.instance.navigatorKey.currentState);
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(TitleManager.instance.currentTitle, 'New item');
+    });
+
+    testWidgets('the resolver is asked once per open with a MediaQuery', (
+      tester,
+    ) async {
+      registerDialog();
+      presentAsDialog();
+      await openDialog(tester);
+      expect(asked, hasLength(1));
+
+      MagicRoute.back();
+      await tester.pumpAndSettle();
+      MagicRoute.to('/items/new');
+      await tester.pumpAndSettle();
+
+      expect(asked, hasLength(2));
+      for (final BuildContext context in asked) {
+        expect(MediaQuery.maybeOf(context), isNotNull);
+      }
+    });
+
+    testWidgets('MagicRoute.back() closes it', (tester) async {
+      registerDialog();
+      presentAsDialog();
+      await openDialog(tester);
+
+      MagicRoute.back();
+      await tester.pumpAndSettle();
+
+      expectClosed();
+      expect(TitleManager.instance.currentTitle, 'Stock');
+    });
+
+    testWidgets('a scrim tap closes it when the guard allows', (tester) async {
+      allowed = true;
+      registerDialog(canDismiss: () => allowed);
+      presentAsDialog();
+      await openDialog(tester);
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expectClosed();
+    });
+
+    testWidgets('a guard that says no holds a scrim tap and Escape', (
+      tester,
+    ) async {
+      allowed = false;
+      registerDialog(canDismiss: () => allowed);
+      presentAsDialog();
+      await openDialog(tester);
+      expect(dialogRoute(tester).barrierDismissible, isFalse);
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expectDialogOpen(tester);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expectDialogOpen(tester);
+
+      allowed = true;
+      MagicRoute.back();
+      await tester.pumpAndSettle();
+      expectClosed();
+    });
+
+    testWidgets('a guard that turns to no after it opened holds a scrim tap', (
+      tester,
+    ) async {
+      allowed = true;
+      registerDialog(canDismiss: () => allowed);
+      presentAsDialog();
+      await openDialog(tester);
+      expect(dialogRoute(tester).barrierDismissible, isTrue);
+
+      allowed = false;
+      expect(dialogRoute(tester).barrierDismissible, isFalse);
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+
+      expectDialogOpen(tester);
+    });
+
+    testWidgets('MagicRouter.reset() returns overlays to the sheet', (
+      tester,
+    ) async {
+      registerDialog();
+      presentAsDialog();
+      expect(MagicRouter.instance.overlayPresentation, isNotNull);
+
+      MagicRouter.reset();
+      registerDialog();
+      await openDialog(tester);
+
+      expect(MagicRouter.instance.overlayPresentation, isNull);
+      expect(dialogRoute(tester), isA<ModalBottomSheetRoute<dynamic>>());
+      expect(asked, isEmpty);
     });
   });
 }

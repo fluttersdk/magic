@@ -79,6 +79,7 @@ export 'src/sync/sync_ledger.dart';
 export 'src/sync/create_sync_cursors_table.dart';
 
 // Routing
+export 'src/routing/magic_overlay_page.dart' show MagicOverlayPresentation;
 export 'src/routing/magic_platform_page.dart';
 export 'src/routing/magic_router.dart';
 export 'src/routing/magic_router_outlet.dart';

@@ -240,6 +240,13 @@ class RouteDefinition {
   /// own `Theme` or `DefaultTextStyle`. `transition()`, `stacked()` and
   /// `swipeBack()` do not apply to an overlay.
   ///
+  /// A resolver installed with `MagicRoute.useOverlayPresentation` can open
+  /// it as a centred dialog instead, decided each time it opens: a bare
+  /// `DialogRoute` on the root navigator with the sheet's scrim and no
+  /// safe-area padding, so the panel draws its own dialog surface. The URL,
+  /// [canDismiss] (scrim, Escape, back, browser Back) and the browser
+  /// history behave as for the sheet; a dialog has no drag.
+  ///
   /// ```dart
   /// MagicRoute.page('/stock', () => StockPage());
   /// MagicRoute.page('/stock/add', () => AddItemSheet())

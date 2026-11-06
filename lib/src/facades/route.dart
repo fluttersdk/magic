@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
+import '../routing/magic_overlay_page.dart';
 import '../routing/magic_router.dart';
 import '../routing/resource_controller.dart';
 import '../routing/route_definition.dart';
@@ -374,6 +375,25 @@ class MagicRoute {
   /// ```
   static void replace(String path) {
     MagicRouter.instance.replace(path);
+  }
+
+  /// Choose the frame overlay routes open in, asked each time one opens.
+  ///
+  /// Without a resolver every `.overlay()` route is a bottom sheet. The
+  /// resolver gets the root navigator's context, so it can answer by the
+  /// window width the app goes by:
+  ///
+  /// ```dart
+  /// MagicRoute.useOverlayPresentation(
+  ///   (context) => MediaQuery.sizeOf(context).width >= 1024
+  ///       ? MagicOverlayPresentation.dialog
+  ///       : MagicOverlayPresentation.sheet,
+  /// );
+  /// ```
+  static void useOverlayPresentation(
+    MagicOverlayPresentation Function(BuildContext context) resolver,
+  ) {
+    MagicRouter.instance.overlayPresentation = resolver;
   }
 
   // ---------------------------------------------------------------------------
