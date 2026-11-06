@@ -135,6 +135,15 @@ class MagicRouter {
   /// drill-down without opting in the tabs around it.
   bool defaultStacked = false;
 
+  /// Picks the frame each overlay route opens in; null keeps every overlay a
+  /// bottom sheet.
+  ///
+  /// Asked once each time an overlay opens, with the root navigator's
+  /// context, so the answer can follow the window width the app goes by.
+  /// Set once in a service provider, through
+  /// `MagicRoute.useOverlayPresentation`.
+  MagicOverlayPresentation Function(BuildContext context)? overlayPresentation;
+
   /// An overlay location reached cold, pushed over its base once that builds.
   ///
   /// Set by [_handleRedirect], consumed by [_pushPendingOverlay].
@@ -696,12 +705,13 @@ class MagicRouter {
     // broken as before. The path is always present and already unique.
     final pageName = route.routeName ?? route.fullPath;
 
-    // A sheet is a frame over the page below, so it takes neither the opaque
-    // background nor a page transition.
+    // An overlay is a frame over the page below, so it takes neither the
+    // opaque background nor a page transition.
     if (route.isOverlay) {
       return MagicOverlayPage<dynamic>(
         key: state.pageKey,
         name: pageName,
+        presentation: overlayPresentation,
         canDismiss: route.overlayCanDismiss,
         closesThroughBrowser: browserBack == null
             ? null

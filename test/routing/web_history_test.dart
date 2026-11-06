@@ -159,6 +159,37 @@ void main() {
       await expectSteppedBack(tester, stockEntry);
     });
 
+    testWidgets('a scrim tap on a dialog steps the browser back once', (
+      tester,
+    ) async {
+      MagicRoute.page('/', () => const Text('home'));
+      MagicRoute.page('/stock', () => const Text('stock'));
+      MagicRoute.page(
+        '/stock/sheet',
+        () => const Center(
+          child: SizedBox(width: 300, height: 200, child: Text('sheet')),
+        ),
+      ).overlay(base: '/stock');
+      MagicRoute.useOverlayPresentation(
+        (context) => MagicOverlayPresentation.dialog,
+      );
+      final RouteInformation stockEntry = await openSheet(tester);
+      expect(
+        ModalRoute.of(tester.element(find.text('sheet'))),
+        isA<RawDialogRoute<dynamic>>(),
+      );
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('sheet'),
+        findsOneWidget,
+        reason: 'the browser closes it, not an in-app pop',
+      );
+
+      await expectSteppedBack(tester, stockEntry);
+    });
+
     testWidgets('a drag down steps the browser back once', (tester) async {
       register();
       final RouteInformation stockEntry = await openSheet(tester);

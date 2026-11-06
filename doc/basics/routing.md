@@ -643,6 +643,18 @@ MagicRoute.page('/stock/add', () => AddItemSheet())
 
 The sheet is a frame only: a `ModalBottomSheetRoute` on the root navigator with a transparent background, `isScrollControlled`, no drag handle, no safe-area padding and no `constraints`, so Material 3's 640dp width cap applies. That is the frame `showModalBottomSheet(backgroundColor: Colors.transparent, isScrollControlled: true, useRootNavigator: true)` builds, so a panel widget that draws its own surface, handle and safe-area padding gets the same frame opened by URL or by hand. Whatever the route builds is the panel. A route page has no caller context to capture themes from, so the sheet inherits the app-level themes, not a `Theme` or `DefaultTextStyle` that a layout sets for its own pages.
 
+An app can open its overlays as centred dialogs instead, typically on a wide window, by installing a resolver once in a service provider:
+
+```dart
+MagicRoute.useOverlayPresentation(
+  (context) => MediaQuery.sizeOf(context).width >= 1024
+      ? MagicOverlayPresentation.dialog
+      : MagicOverlayPresentation.sheet,
+);
+```
+
+The resolver is asked once each time an overlay opens, with the root navigator's context; the answer holds until that overlay closes, so resizing the window does not swap an open frame. Without a resolver every overlay is a sheet. Magic itself knows no breakpoint: the decision is the app's. The dialog is a frame only as well: a `DialogRoute` on the root navigator with the sheet's scrim colour, no safe-area padding and no captured themes, so the panel draws its own dialog surface and size. Everything above except the drag applies to it unchanged: the URL, the cold entry, `canDismiss` (a guard that says no turns the scrim and Escape off) and the browser history steps. `MagicRouter.reset()` drops the resolver with the rest of the router.
+
 An overlay declared inside a layout group keeps the group's prefix and middleware but never renders inside the layout: it opens above the shell, scrim and all. It is also matched BEFORE the layout's pages, which is what lets it win over a catch-all such as `/:path(.*)` declared last in the group, and it means an overlay path must not also match a page path: an overlay at `/items/:id` would capture a `/items/new` page. Route middleware and titles behave as on any page: `redirectTarget` runs first (a guard that redirects wins over building the base), `handle()` runs when the sheet mounts, and the title follows the sheet while it is open. `transition()`, `stacked()` and `swipeBack()` do not apply to an overlay.
 
 <a name="route-middleware"></a>
