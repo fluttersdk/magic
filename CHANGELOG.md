@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.40] - 2026-11-06
+
 ### Added
 
 - **An overlay route can open as a centred dialog instead of a bottom sheet.** `MagicRoute.useOverlayPresentation((context) => ...)` installs a resolver, asked once each time an overlay opens with the root navigator's context, that answers `MagicOverlayPresentation.sheet` or `.dialog`; magic itself holds no breakpoint, so the app decides (by window width, typically). The dialog is a bare `DialogRoute` on the root navigator with the sheet's scrim and no safe-area padding, so the panel draws its own surface. It shares the sheet's dismissal: `canDismiss` read live (scrim and Escape off while it says no) and a user's close sent through the browser's Back on the web. Without a resolver every overlay stays the sheet it was, and `MagicRouter.reset()` drops the resolver. (`lib/src/routing/magic_overlay_page.dart`, `lib/src/routing/magic_router.dart`, `lib/src/facades/route.dart`)
