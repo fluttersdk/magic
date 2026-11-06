@@ -27,10 +27,10 @@ void registerAppRoutes() {
     () => const WelcomeView(),
   ).title('Welcome').stacked().transition(RouteTransition.platform);
 
-  // An overlay route: opens as a bottom sheet over the welcome page and keeps
-  // its own URL, so a deep link or a reload builds `/` first and the sheet on
-  // top. Open it with `MagicRoute.to('/welcome/tips')`, close it with
-  // `MagicRoute.back()`.
+  // An overlay route: opens as a bottom sheet (a centred dialog from 1024 px,
+  // see `RouteServiceProvider`) over the welcome page and keeps its own URL,
+  // so a deep link or a reload builds `/` first and the panel on top. Open it
+  // with `MagicRoute.to('/welcome/tips')`, close it with `MagicRoute.back()`.
   MagicRoute.page(
     '/welcome/tips',
     () => const WelcomeSheetView(),
