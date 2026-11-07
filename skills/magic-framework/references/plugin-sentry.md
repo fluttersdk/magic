@@ -1,4 +1,4 @@
-<!-- magic_sentry v0.0.5 | Updated: 2026-10-14 -->
+<!-- magic_sentry v0.0.6 | Updated: 2026-11-07 -->
 
 # magic_sentry Plugin
 
@@ -21,10 +21,10 @@ The package is generic on purpose: it has no user model, team or tag of its own.
 
 ```yaml
 dependencies:
-  magic_sentry: ^0.0.5
+  magic_sentry: ^0.0.6
 ```
 
-0.0.5 pins `magic ^0.0.29`, the newest at that release, and that is a real requirement: the token scrubber reads `MagicRouter.allRoutes`, which magic 0.0.29 adds. Underneath it sits `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^9.27.0`.
+0.0.6 pins `magic ^0.0.29`, the newest at that release, and that is a real requirement: the token scrubber reads `MagicRouter.allRoutes`, which magic 0.0.29 adds. Underneath it sits `magic` 0.0.22, the first release with `Event.listenAny` and `ReportsBreadcrumb`. It also pins `sentry_flutter` / `sentry_dio` `^9.27.0`.
 
 ```bash
 dart run <app>:artisan plugin:install magic_sentry
@@ -52,7 +52,7 @@ Future<void> _boot() async {
 
 | Member | Signature | What it does |
 |:-------|:----------|:-------------|
-| `MagicSentry.run` | `static void run({required FutureOr<void> Function(SentryFlutterOptions) configure, required FutureOr<void> Function() appRunner})` | Opens ONE `runZonedGuarded` zone, calls `WidgetsFlutterBinding.ensureInitialized()`, `Env.load()`, then `SentryFlutter.init(configure, appRunner: appRunner)`. A zone-level error goes to `Sentry.captureException` and is still dumped to the console. |
+| `MagicSentry.run` | `static void run({required FutureOr<void> Function(SentryFlutterOptions) configure, required FutureOr<void> Function() appRunner})` | Opens ONE `runZonedGuarded` zone, calls `SentryWidgetsFlutterBinding.ensureInitialized()` (from 0.0.6; `SentryFlutter.init` keeps a binding that already exists, so a plain `WidgetsFlutterBinding` here would switch frame tracking off), `Env.load()`, then `SentryFlutter.init(configure, appRunner: appRunner)`. A zone-level error goes to `Sentry.captureException` and is still dumped to the console. |
 | `MagicSentry.installErrorWidgetBreadcrumb` | `static void installErrorWidgetBreadcrumb()` | Wraps `ErrorWidget.builder` to add a `fatal` breadcrumb (`category: 'ui.error_widget'`) when a build error replaces the interface, then returns the default widget unchanged. Call once, early in `appRunner`. |
 
 One zone is the point, not a detail: on Flutter web `SentryFlutter.init` opens its own zone only from the root zone (flutter/flutter#100277), so entering one first keeps the app and its binding in the same zone.
@@ -104,7 +104,7 @@ One zone is the point, not a detail: on Flutter web `SentryFlutter.init` opens i
 
 ## Token scrubbing
 
-`MagicSentry.run` installs `SentryTokenScrubber` after `configure` returns, so it runs first in `beforeSend`, `beforeSendTransaction` and `beforeBreadcrumb` and hands the masked value to any hook the app set inside `configure`. It masks query values whose key names a secret (`token`, `password`, `secret`, `signature`, `credential`, `api_key`), path segments bound to a magic route param whose name contains `token`, and on HTTP breadcrumb and span URLs any remaining 32+ character opaque segment (a UUID excepted). The routes come from `MagicRouter.instance.allRoutes` (magic 0.0.29+), so routes inside `MagicRoute.group(layout: ...)` count; hash-routed URLs and a fragment that opens with a secret pair (`#access_token=...`) are masked too. It covers `request.url`, `queryString` and `fragment`, the transaction name, `contexts.trace`, exception values, the event message, breadcrumb `message` and `data`, and span descriptions and data. It only masks, never drops, and fails closed: if it throws, the fields it covers become `[Filtered]`. A hook assigned after `SentryFlutter.init` replaces the scrubber, so set app hooks inside `configure`. A transaction's deprecated `extra` map is not scrubbed; keep tokens out of transaction data.
+`MagicSentry.run` installs `SentryTokenScrubber` after `configure` returns, so it runs first in `beforeSend`, `beforeSendTransaction`, `beforeBreadcrumb` and (from 0.0.6) `beforeSendLog`, and hands the masked value to any hook the app set inside `configure`. A structured log (`Sentry.logger`, `enableLogs`) has its body and every string attribute masked; the SDK sends the original log when a hook throws, so a failure masks the body and the string attributes to `[Filtered]`. It masks query values whose key names a secret (`token`, `password`, `secret`, `signature`, `credential`, `api_key`), path segments bound to a magic route param whose name contains `token`, and on HTTP breadcrumb and span URLs any remaining 32+ character opaque segment (a UUID excepted). The routes come from `MagicRouter.instance.allRoutes` (magic 0.0.29+), so routes inside `MagicRoute.group(layout: ...)` count; hash-routed URLs and a fragment that opens with a secret pair (`#access_token=...`) are masked too. It covers `request.url`, `queryString` and `fragment`, the transaction name, `contexts.trace`, exception values, the event message, breadcrumb `message` and `data`, and span descriptions and data. It only masks, never drops, and fails closed: if it throws, the fields it covers become `[Filtered]`. A hook assigned after `SentryFlutter.init` replaces the scrubber, so set app hooks inside `configure`. A transaction's deprecated `extra` map is not scrubbed; keep tokens out of transaction data.
 
 ## User context
 
