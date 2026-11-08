@@ -1,4 +1,4 @@
-<!-- magic_starter v0.0.72 | Updated: 2026-11-06 -->
+<!-- magic_starter v0.0.73 | Updated: 2026-11-08 -->
 
 # magic_starter Plugin
 
@@ -354,7 +354,8 @@ Copy from `lib/config/magic_starter.dart` into your app config:
     'support_csat': false,         // thumbs rating under a resolved thread (0.0.45+)
     'support_feedback': false,     // MagicStarterFeedbackCard and /support/feedback (0.0.45+)
     'support_attachments': false,  // image and PDF attachments on a message (0.0.45+)
-    'support_diagnostics': false,  // client info and a previewed screenshot (0.0.45+)
+    'support_client_context': false,  // client info sent with a new conversation
+    'support_chat': false,         // host-mounted chat launcher and floating panel; needs support
     'store_review': false,         // native review prompt and the menu's Rate us (0.0.45+)
     'releases': false,             // "What's new" page at /settings/changelog, hub row, version caption (0.0.48+)
     'app_update': false,           // MagicStarterAppUpdateBanner: new web deploy or newer store build (0.0.48+)
@@ -471,6 +472,8 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `support.create` | `features.support` | `MagicStarterSupportCreateView` (0.0.43+) |
 | `support.thread` | `features.support` | `MagicStarterSupportThreadView` (0.0.43+) |
 | `support.feedback` | `features.support_feedback` | `MagicStarterFeedbackView` (0.0.45+), `/support/feedback`: `MagicStarterFeedbackCard(onDemand: true)` |
+| `support.chat` | `features.support_chat` | `MagicStarterSupportChatLauncher`, the host-mounted button with the unread badge; mount it once. See [Support desk](#support-desk). |
+| `support.chat_panel` | `features.support_chat` | `MagicStarterSupportChatPanel`, the floating panel the launcher opens. A host that replaces it takes over the shared refresh retain and release, the thread watch and the seen receipt. |
 | `settings.changelog` | `features.releases` | `MagicStarterChangelogView` (0.0.48+), `/settings/changelog` (`MagicStarterConfig.settingsChangelogRoute()`, follows `profile_prefix`), stacked. Releases newest first from `GET releases`. |
 
 `notifications.list` and `notifications.preferences` are NOT on this registry (alpha.25). They live on `Notify.view`, whose API is the same; move the override there.
@@ -1018,19 +1021,24 @@ The index and thread refresh on `support.conversation.updated` from the private 
 
 Copy lives under `magic_starter.support.*` (titles, labels, placeholders, `status.open`, `status.resolved`, `sender.customer`, `sender.staff`, the error and not-found sentences, `contact_sales_subject`, `contact_sales_body`, `contact_sales_failed_title`; from 0.0.44 also `status.ai_answering`, `status.team_answering`, `sender.ai`, `typing`, `taking_longer`, `topic.*`, `topic_label`, `composer_hint`, `empty_open_title`, `empty_resolved_title`, `expect_ai`, `expect_team`, `how_*`, `load_more`, `loading_more`, `opened` and `privacy_note`), plus `magic_starter.nav.support` and `magic_starter.titles.support`, `support_create` and `support_thread`. A fresh `starter:install` writes them into `en.stub`; an app with a published `en.json` merges them from `assets/stubs/install/en.stub`, or each renders as its own key.
 
-### Ratings, attachments, diagnostics, feedback and store review (0.0.45+)
+### Ratings, attachments, client context, feedback and store review (0.0.45+)
 
-Five flags on top of `features.support`, all default `false`. The four `support_*` ones need `magic-starter-laravel` 0.0.32 with the matching feature on (`Features::supportCsat()`, `supportFeedback()`, `supportAttachments()`, `supportDiagnostics()`); `store_review` is client only. Full contract: `doc/basics/support.md`.
+Six flags on top of `features.support`, all default `false`. Four need `magic-starter-laravel` with the matching feature on (`Features::supportCsat()`, `supportFeedback()`, `supportAttachments()`, `supportClientContext()`); `support_chat` and `store_review` are client only. Full contract: `doc/basics/support.md`.
 
 | Flag | What it adds |
 |:-----|:-------------|
 | `support_csat` | A thumbs up or down with an optional comment under a resolved thread the backend reports as `can_rate` (or that already has a `rating`); changeable while it stays resolved. `MagicStarterSupportController.rate(id, rating, {comment})`; the conversation model gains `rating` and `canRate`. |
 | `support_attachments` | Images and PDFs on the create form and the composer (`Pick.files`), sent as `attachments[N]` multipart parts; the request stays JSON with none. Refused client side over `magic_starter.support.attachments.max_files` / `max_bytes` / `extensions` (3, 5 MB, jpg jpeg png webp pdf), which must match the backend. An image thumbnail is read with `attachmentHeaders()` (the bearer token); a PDF asks `attachmentLink()` for a 60 second signed url, and on the web opens it with `webOnlyWindowName: '_self'`, since a window opened after the request is a popup Safari blocks. |
-| `support_diagnostics` | `MagicStarterSupportClientContext.collect()` sends `client_context[route\|app_version\|build_number\|platform\|os_version\|locale\|timezone]`, and a screenshot of the screen the customer left, previewed with "Remove screenshot". The host wraps the app once, `MagicApplication(builder: (context, child) => MagicStarterScreenCapture.wrap(child!))`. Never captured on the profile, security, two-factor, billing or teams routes, `magic_starter.diagnostics.deny_capture_routes`, or under an open dialog; held in memory only. Turn `support_attachments` on with it, or the backend stores a screenshot nothing serves. |
+| `support_client_context` | `MagicStarterSupportClientContext.collect()` sends `client_context[app_version\|build_number\|platform\|os_version\|locale\|timezone]` with a new conversation. |
 | `support_feedback` | `MagicStarterFeedbackCard`, a 0 to 10 card that renders nothing until `GET support/feedback` says the account is due (nothing for a guest; "Not now" records a dismissal), plus the profile menu's "Send feedback" for a verified non-guest. `MagicStarterFeedbackController` is `SessionScoped`. |
+| `support_chat` | `MagicStarterSupportChatLauncher`, a button with an unread badge that opens a floating, non-modal chat panel at the bottom right of the screen. Needs `support`. |
 | `store_review` | `MagicStarterStoreReview.maybeRequest()` for a host milestone, never a button: quiet on the web, for a guest, in the first `min_account_days` (7), within `interval_days` (120) of the last prompt, and while the feedback card is due. The menu's "Rate us" calls `openStoreListing()`; iOS and macOS need `magic_starter.store_review.app_store_id`. |
 
-`MagicStarterConfig.supportThreadPath(id)` is the path to one conversation, beside the `supportThreadRoute()` pattern. The copy adds `magic_starter.support.attach_*`, `attachment_*`, `attachments_*`, `feedback_*`, `rating_*`, `screenshot_*`, `support_feedback`, and `magic_starter.nav.feedback` / `nav.rate_us`; a published `en.json` merges them by hand. 0.0.45 adds the `in_app_review` and `package_info_plus` dependencies.
+The chat popup: `MagicStarterSupportChatLauncher` (registry key `support.chat`) is mounted by the host, once per app, in its shell (a second launcher would open a second panel); it renders nothing for a guest, a signed-out user or with the flag off. It floats `MagicStarterSupportChatPanel` (key `support.chat_panel`, non-modal, clamped to the safe area and keyboard) at the bottom right of the screen, `margin` (16) from its edges, wherever the launcher sits. The popup and the `/support` pages share one `MagicStarterSupportSync` (one poll, one broadcast listener), keyed thread reads and per-surface write locks on the controller; a host that replaces `support.chat_panel` takes over the sync retain and release, the thread watch and the seen receipt. The copy adds `magic_starter.support.chat.*`.
+
+Page context: `MagicStarter.usePageContext(() => [MagicStarterSupportPageRef(kind: 'monitor', id: id)])` registers what the current screen is about; no flag, a registered provider is the opt-in. `MagicStarterSupportController.createConversation` and `sendMessage` ask it at send time and add up to three typed `{kind, id}` references as `page_context` (nested in JSON, `page_context[0][kind]` in multipart), omitted when empty. Never free text: the host picks the kinds and the backend allows only the ones it is configured with. A provider that throws is logged and the message goes without references, and the full `/support` pages send nothing because the host's provider returns nothing for those routes.
+
+`MagicStarterConfig.supportThreadPath(id)` is the path to one conversation, beside the `supportThreadRoute()` pattern. The copy adds `magic_starter.support.attach_*`, `attachment_*`, `attachments_*`, `feedback_*`, `rating_*`, `support_feedback`, and `magic_starter.nav.feedback` / `nav.rate_us`; a published `en.json` merges them by hand. 0.0.45 adds the `in_app_review` and `package_info_plus` dependencies.
 
 ### Knowledge base articles (0.0.54+)
 
