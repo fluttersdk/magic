@@ -472,6 +472,8 @@ A stacked route names NO transition, which is the half a host controls. These ro
 | `support.create` | `features.support` | `MagicStarterSupportCreateView` (0.0.43+) |
 | `support.thread` | `features.support` | `MagicStarterSupportThreadView` (0.0.43+) |
 | `support.feedback` | `features.support_feedback` | `MagicStarterFeedbackView` (0.0.45+), `/support/feedback`: `MagicStarterFeedbackCard(onDemand: true)` |
+| `support.chat` | `features.support_chat` | `MagicStarterSupportChatLauncher`, the host-mounted button with the unread badge; mount it once. See [Support desk](#support-desk). |
+| `support.chat_panel` | `features.support_chat` | `MagicStarterSupportChatPanel`, the floating panel the launcher opens. A host that replaces it takes over the shared refresh retain and release, the thread watch and the seen receipt. |
 | `settings.changelog` | `features.releases` | `MagicStarterChangelogView` (0.0.48+), `/settings/changelog` (`MagicStarterConfig.settingsChangelogRoute()`, follows `profile_prefix`), stacked. Releases newest first from `GET releases`. |
 
 `notifications.list` and `notifications.preferences` are NOT on this registry (alpha.25). They live on `Notify.view`, whose API is the same; move the override there.
