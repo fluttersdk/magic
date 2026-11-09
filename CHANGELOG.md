@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A layout's shell is a `MaterialPage` on every go_router the constraint admits.** The `ShellRoute` had only a `builder`, so go_router chose its page: a `MaterialPage` when it recognised a `MaterialApp`, a `NoTransitionPage` otherwise. go_router 18 recognises material_ui's `MaterialApp` alone, so under Flutter's own `MaterialApp.router` (what `MagicApplication` builds) the shell lost its page transition and its route stopped using `Theme.of(context).pageTransitionsTheme`. The router now builds the page itself with the key, name, arguments and restoration id go_router 17 gave it, so 17 and 18 behave alike. (`lib/src/routing/magic_router.dart`)
+
 ### Improvements
 
 - **The example's tips overlay opens as a centred dialog from 1024 px.** `RouteServiceProvider` installs a `MagicRoute.useOverlayPresentation` resolver, and `WelcomeSheetView` draws its own surface in both frames: a bottom sheet below, a centred card with four rounded corners above. A panel can tell the frame by `ModalRoute.of(context) is RawDialogRoute`, so magic exposes nothing new for it. (`example/`)
