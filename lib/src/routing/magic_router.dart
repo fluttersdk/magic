@@ -529,10 +529,23 @@ class MagicRouter {
 
       goRoutes.add(
         ShellRoute(
-          builder: (context, state, shellChild) {
+          // The page is named here: with only a `builder` go_router picks a
+          // `MaterialPage` or a `NoTransitionPage` by looking for a
+          // `MaterialApp`, and go_router 18 recognises material_ui's alone.
+          pageBuilder: (context, state, shellChild) {
             final shell = layout.builder(shellChild);
             if (kDebugMode) _checkDuplicateShell(slot, layout.id, shell);
-            return shell;
+
+            return MaterialPage<void>(
+              key: state.pageKey,
+              name: state.name ?? state.path,
+              arguments: <String, String>{
+                ...state.pathParameters,
+                ...state.uri.queryParameters,
+              },
+              restorationId: state.pageKey.value,
+              child: shell,
+            );
           },
           routes: pages.map((child) => _buildGoRoute(child)).toList(),
         ),
