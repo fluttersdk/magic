@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.0.41] - 2026-11-10
+
+### Changed
+
+- **Every sibling floor names this batch's release.** `fluttersdk_wind` moves `^1.11.0` to `^1.11.1`. The old range already admitted the new version, so a fresh `pub get` resolves nothing differently; what changes is that the floor names the release magic is verified against. wind 1.11.1 only fixes a horizontally scrolling `WDiv` painting its border across the viewport, so nothing magic calls changes. (`pubspec.yaml`)
+
 ### Fixed
 
 - **A layout's shell is a `MaterialPage` on every go_router the constraint admits.** The `ShellRoute` had only a `builder`, so go_router chose its page: a `MaterialPage` when it recognised a `MaterialApp`, a `NoTransitionPage` otherwise. go_router 18 recognises material_ui's `MaterialApp` alone, so under Flutter's own `MaterialApp.router` (what `MagicApplication` builds) the shell lost its page transition and its route stopped using `Theme.of(context).pageTransitionsTheme`. The router now builds the page itself with the key, name, arguments and restoration id go_router 17 gave it, so 17 and 18 behave alike. (`lib/src/routing/magic_router.dart`)
