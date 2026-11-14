@@ -98,14 +98,15 @@ publish_to: none
 version: 0.0.1
 
 environment:
-  sdk: ">=3.11.0 <4.0.0"
-  flutter: ">=3.41.0"
+  sdk: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"
 
 dependencies:
   flutter:
     sdk: flutter
   magic:
     path: $magicRoot
+  material_ui: ^1.11.0
 
 dev_dependencies:
   flutter_test:
