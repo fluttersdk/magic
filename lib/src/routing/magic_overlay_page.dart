@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The frame an overlay route opens in.
 enum MagicOverlayPresentation {
@@ -59,9 +59,9 @@ class MagicOverlayPage<T> extends Page<T> {
     final MaterialLocalizations localizations = MaterialLocalizations.of(
       context,
     );
-    final Color? modalBarrierColor = Theme.of(
-      context,
-    ).bottomSheetTheme.modalBarrierColor;
+    final Color? modalBarrierColor = Theme.of(context)
+        .bottomSheetTheme
+        .modalBarrierColor;
 
     if (presentation?.call(context) == MagicOverlayPresentation.dialog) {
       return _MagicOverlayDialogRoute<T>(

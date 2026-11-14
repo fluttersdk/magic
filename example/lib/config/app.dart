@@ -1,4 +1,5 @@
 import 'package:magic/magic.dart';
+
 import '../app/providers/app_service_provider.dart';
 import '../app/providers/route_service_provider.dart';
 
@@ -12,12 +13,10 @@ Map<String, dynamic> get appConfig => {
     'providers': [
       (app) => RouteServiceProvider(app),
       (app) => CacheServiceProvider(app),
-      (app) => DatabaseServiceProvider(app),
       (app) => LaunchServiceProvider(app),
       (app) => LocalizationServiceProvider(app),
       (app) => NetworkServiceProvider(app),
       (app) => VaultServiceProvider(app),
-      (app) => BroadcastServiceProvider(app),
       (app) => AppServiceProvider(app),
       (app) => AuthServiceProvider(app),
     ],

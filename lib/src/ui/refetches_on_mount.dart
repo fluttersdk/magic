@@ -16,7 +16,7 @@ import 'package:magic/magic.dart';
 /// staleness: a list view can hold a count and a set of rows from the first
 /// load while the backend has since served a different count and a row
 /// created moments earlier, and only a hard reload clears it. A realtime path
-/// that happens to broadcast an update can mask the gap, but that can be
+/// that happens to push an update can mask the gap, but that can be
 /// hours apart in a quiet app, so it does not close the gap.
 ///
 /// ## Usage

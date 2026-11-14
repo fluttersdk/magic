@@ -157,9 +157,8 @@ void main() {
 
     test('a field absent from the override keeps its humanized name', () {
       try {
-        _MapRequest(const <String, String>{
-          'url': 'Server address',
-        }).validate({'url': 'ok', 'display_name': ''});
+        _MapRequest(const <String, String>{'url': 'Server address'})
+            .validate({'url': 'ok', 'display_name': ''});
         fail('expected ValidationException');
       } on ValidationException catch (e) {
         expect(e.errors['display_name'], 'The display name field is required.');

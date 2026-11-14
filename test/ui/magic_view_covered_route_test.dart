@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 // The barrel re-exports `package:intl`, whose `TextDirection` class shadows the
 // `dart:ui` enum the bare-view hosts below need.

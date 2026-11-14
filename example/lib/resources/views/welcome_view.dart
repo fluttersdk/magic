@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:magic/magic.dart';
 
 /// Welcome view — the default landing page for a new Magic application.

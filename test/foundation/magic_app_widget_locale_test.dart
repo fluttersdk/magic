@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -148,6 +148,34 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('material_ui localisations resolve for a non-English locale', (
+      tester,
+    ) async {
+      // Wind input widgets read material_ui's MaterialLocalizations, a type
+      // distinct from the one flutter_localizations registers: only the
+      // material_ui delegates make a translated instance reachable.
+      late BuildContext pageContext;
+      await tester.pumpWidget(
+        MagicApplication(
+          title: 'App',
+          locale: const Locale('tr'),
+          onInit: () => MagicRoute.page(
+            '/',
+            () => Builder(
+              builder: (context) {
+                pageContext = context;
+
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(MaterialLocalizations.of(pageContext).okButtonLabel, 'Tamam');
     });
 
     testWidgets('the title still re-applies on a locale change', (

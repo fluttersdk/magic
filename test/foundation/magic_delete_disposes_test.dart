@@ -20,11 +20,14 @@ class _PlainService {}
 class _PlainNotifier extends ChangeNotifier {}
 
 /// True once [ChangeNotifier.dispose] has run: a disposed notifier refuses
-/// new listeners in debug mode.
+/// new listeners in debug mode. The framework throws a [FlutterError] up to
+/// Flutter 3.49 and a [StateError] from `package:listen` on 3.50.
 bool _notifierDisposed(ChangeNotifier notifier) {
   try {
     notifier.addListener(() {});
   } on FlutterError {
+    return true;
+  } on StateError {
     return true;
   }
 
@@ -65,7 +68,10 @@ void main() {
 
       expect(Magic.isRegistered<_PlainNotifier>(), isFalse);
       expect(_notifierDisposed(notifier), isTrue);
-      expect(() => notifier.dispose(), throwsFlutterError);
+      expect(
+        () => notifier.dispose(),
+        throwsA(anyOf(isA<FlutterError>(), isA<StateError>())),
+      );
     });
 
     test('removes a value that is not a MagicController', () {

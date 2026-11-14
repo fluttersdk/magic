@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:fluttersdk_wind/fluttersdk_wind.dart';
+import 'package:wind_kit/wind_kit.dart';
 
 import '../http/magic_controller.dart';
 import 'magic_view.dart';

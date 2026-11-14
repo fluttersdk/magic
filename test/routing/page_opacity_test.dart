@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -7,8 +7,8 @@ import 'package:magic/magic.dart';
 ///
 /// It did not, for as long as `_buildPage` has existed. The wrapper was
 /// `Material(type: MaterialType.canvas)`, which paints `Theme.canvasColor`
-/// (`material.dart:460`), and `fluttersdk_wind` sets that to
-/// `Colors.transparent` on purpose (`wind_theme_data.dart:514`) so a Material
+/// (material_ui `material.dart:455`), and `wind_kit` sets that to
+/// `Colors.transparent` on purpose (`wind_theme_data.dart:604`) so a Material
 /// surface never paints over a Wind `bg-*` className. Since every magic app
 /// themes through wind, every page was transparent and the comment on that line
 /// claimed the opposite.

@@ -10,7 +10,7 @@ class _Driver {
 ///
 /// `setInstance` is how every facade installs a driver or a fake
 /// (`Log.setDriver`, `Auth.setDriver`, `Cache.setDriver`, `Http.setDriver`,
-/// `Vault.setDriver`, `Echo.setManager`). Since `bind` now evicts whatever the
+/// `Vault.setDriver`). Since `bind` now evicts whatever the
 /// key already resolved to, a fake placed BEFORE the binding that owns that key
 /// is discarded, and one placed after wins. That is the correct trade, but it
 /// is a rule a caller has to know, so it is asserted here rather than left in

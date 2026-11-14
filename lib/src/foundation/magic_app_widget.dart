@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:fluttersdk_wind/fluttersdk_wind.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:wind_kit/wind_kit.dart';
 
 import '../facades/config.dart';
 import '../facades/lang.dart';
@@ -145,9 +144,10 @@ class MagicApplication extends StatefulWidget {
   /// ```
   ///
   /// A platform left out of `builders` keeps its own default rather than
-  /// falling through to a shared one: Flutter answers an unnamed platform with
-  /// `CupertinoPageTransitionsBuilder` on iOS and `ZoomPageTransitionsBuilder`
-  /// everywhere else (`material/page_transitions_theme.dart:881-889`). So a
+  /// falling through to a shared one: material_ui answers an unnamed platform
+  /// with `CupertinoPageTransitionsBuilder` on iOS and
+  /// `ZoomPageTransitionsBuilder` everywhere else
+  /// (`material_ui/lib/src/page_transitions_theme.dart:1067-1076`). So a
   /// partial map is a partial override, and omitting `TargetPlatform.iOS`
   /// leaves the Cupertino slide AND its back gesture in place.
   ///
@@ -465,10 +465,10 @@ class _MagicApplicationState extends State<MagicApplication> {
   ///
   /// Only includes [Lang.delegate] if [TranslationServiceProvider] is registered.
   List<LocalizationsDelegate<dynamic>> _getLocalizationsDelegates() {
+    // material_ui's set carries its Material, Cupertino and Widgets delegates;
+    // flutter_localizations' delegates register types material_ui never reads.
     final delegates = <LocalizationsDelegate<dynamic>>[
-      GlobalMaterialLocalizations.delegate,
-      GlobalWidgetsLocalizations.delegate,
-      GlobalCupertinoLocalizations.delegate,
+      ...GlobalMaterialLocalizations.delegates,
     ];
 
     // Only add Lang.delegate if localization service is enabled

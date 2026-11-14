@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
@@ -96,8 +96,7 @@ void main() {
       expect(
         observer.names.contains(null),
         isFalse,
-        reason:
-            'A null name is what silently disables every screen-aware observer.',
+        reason: 'A null name is what silently disables every screen-aware observer.',
       );
     });
 

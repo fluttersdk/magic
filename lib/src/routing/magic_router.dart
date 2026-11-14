@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../http/kernel.dart';
 import '../http/middleware/magic_middleware.dart';
@@ -738,8 +738,8 @@ class MagicRouter {
     // the page on top of it.
     //
     // This used to be `Material(type: MaterialType.canvas)`, which paints
-    // `Theme.canvasColor` (`material.dart:460`), and `fluttersdk_wind` sets
-    // that to `Colors.transparent` on purpose (`wind_theme_data.dart:514`) so
+    // `Theme.canvasColor` (material_ui `material.dart:455`), and `wind_kit` sets
+    // that to `Colors.transparent` on purpose (`wind_theme_data.dart:604`) so
     // a Material surface never paints over a Wind `bg-*` className. Every page
     // in every wind app was therefore transparent, and the comment on this line
     // claimed the opposite for as long as it has existed.

@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:fluttersdk_wind/fluttersdk_wind.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:wind_kit/wind_kit.dart';
 
 import '../foundation/magic.dart';
 import '../routing/magic_router.dart';
