@@ -47,7 +47,7 @@ MagicPerfHooks.sink = null;
 | `EventDispatched` | `type`, `listenerCount`, `startUs`, `endUs` | The event dispatcher delivered an event to its typed and wildcard listeners. |
 | `AttributeCast` | `castType` | `Model.getAttribute` computed a cast. A memoised `datetime`/`bool`/`int`/`double` read is not reported; `json` is cast, and reported, on every read. A `CastsAttributes` instance reports its runtime type name. |
 | `TimerTicked` | `ownerType` | A `Countdown` tick, a `Debouncer` fire or a `Poll` read. |
-| `BroadcastReceived` | `event` | `BroadcastListeners` fanned out one realtime message. |
+| `BroadcastReceived` | `event` | `BroadcastListeners` (from `magic_socket`) fanned out one realtime message. |
 
 <a name="notification-causes"></a>
 ## Notification Causes

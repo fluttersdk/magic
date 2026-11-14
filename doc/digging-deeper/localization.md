@@ -375,15 +375,13 @@ Listeners fire after every successful `setLocale` or `detectAndSetLocale` call, 
 <a name="flutter-integration-delegate"></a>
 ## Flutter Integration (Delegate)
 
-When you use a plain `MaterialApp` (rather than `MagicApp`), you must pass `Lang.delegate` to `localizationsDelegates` so Flutter's localization lifecycle triggers translation reloads when the device locale changes:
+When you use a plain `MaterialApp` from `package:material_ui/material_ui.dart` (rather than `MagicApp`), you must pass `Lang.delegate` to `localizationsDelegates` so Flutter's localization lifecycle triggers translation reloads when the device locale changes. `GlobalMaterialLocalizations.delegates` already carries the Material, Cupertino and Widgets delegates:
 
 ```dart
 MaterialApp(
   localizationsDelegates: [
     Lang.delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
+    ...GlobalMaterialLocalizations.delegates,
   ],
   supportedLocales: Lang.supportedLocales,
   home: const HomePage(),
@@ -446,9 +444,9 @@ a zone (many zones share an offset and differ in DST rules).
 ### Create Translation File
 
 ```bash
-dart run magic:artisan make:lang fr
-dart run magic:artisan make:lang de
-dart run magic:artisan make:lang tr
+dart run magic:dowel make:lang fr
+dart run magic:dowel make:lang de
+dart run magic:dowel make:lang tr
 ```
 
 This command:

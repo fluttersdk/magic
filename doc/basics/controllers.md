@@ -29,13 +29,13 @@ Instead of defining all of your request handling logic as closures in your route
 To generate a new controller, use the `make:controller` Magic CLI command:
 
 ```bash
-dart run magic:artisan make:controller User
+dart run magic:dowel make:controller User
 ```
 
 A basic controller extends `MagicController` and contains action methods that return widgets:
 
 ```dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:magic/magic.dart';
 import '../../resources/views/users/user_list_view.dart';
 import '../../resources/views/users/user_show_view.dart';
@@ -283,22 +283,16 @@ class AuthController extends MagicController
 <a name="running-writes-timers-and-broadcasts"></a>
 ## Running Writes, Timers, and Broadcasts
 
-Three mixins close the gaps a controller doing more than read-and-render runs into: `RunsActions` for a write, `OwnsTimers` for anything on a `Timer`, and `ListensToBroadcasts` for a shared realtime channel. Each is documented in full at its own page; this is the controller-side shape.
+Two mixins close the gaps a controller doing more than read-and-render runs into: `RunsActions` for a write and `OwnsTimers` for anything on a `Timer`. A third, `ListensToBroadcasts` for a shared realtime channel, ships in the `magic_socket` plugin (`flutter pub add magic_socket`, then `dart run magic:dowel plugin:install magic_socket`). Each is documented in full at its own page; this is the controller-side shape.
 
 ```dart
-class MonitorController extends MagicController
-    with RunsActions, OwnsTimers, ListensToBroadcasts {
+class MonitorController extends MagicController with RunsActions, OwnsTimers {
   Future<void> pause(String id) async {
     final outcome = await runAction(MagicAction.resolve(PauseMonitor.new), id, key: id);   // doc/basics/actions.md
     if (!outcome.succeeded) return;
   }
 
   void startCooldown(String id) => own(Countdown()).start(id, 30);     // cancelled on close automatically
-
-  @override
-  Map<String, void Function(BroadcastEvent)> get listeners => {
-    'team:check.recorded': (event) => refreshUI(),                    // doc/digging-deeper/broadcasting.md
-  };
 }
 ```
 
@@ -334,16 +328,16 @@ The Magic CLI can generate controllers with various options:
 
 ```bash
 # Basic controller
-dart run magic:artisan make:controller User
+dart run magic:dowel make:controller User
 
 # Resource controller with CRUD actions and views
-dart run magic:artisan make:controller Product --resource
+dart run magic:dowel make:controller Product --resource
 
 # Nested in subfolder
-dart run magic:artisan make:controller Admin/Dashboard
+dart run magic:dowel make:controller Admin/Dashboard
 
 # Resource controller with model binding
-dart run magic:artisan make:controller Post --resource --model=Post
+dart run magic:dowel make:controller Post --resource --model=Post
 ```
 
 ### Command Options
@@ -374,7 +368,7 @@ When using `--resource`, the command generates a full resource controller with:
 Example:
 
 ```bash
-dart run magic:artisan make:controller Task --resource
+dart run magic:dowel make:controller Task --resource
 ```
 
 This generates a TaskController with all CRUD actions and four corresponding views.

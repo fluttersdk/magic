@@ -543,7 +543,7 @@ void registerAppRoutes() {
 Access the `GoRouter` instance for `MaterialApp.router`:
 
 ```dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:magic/magic.dart';
 
 void main() async {

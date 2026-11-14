@@ -1,12 +1,11 @@
 # Magic CLI
 
-The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic package, providing `magic:install`, `key:generate`, and 20 `make:*` scaffold commands through magic's bundled `artisan` executable (`dart run magic:artisan`).
+The Magic CLI is a `dowel` plugin that ships as part of the magic package, providing `magic:install` and 17 `make:*` scaffold commands through magic's bundled `dowel` executable (`dart run magic:dowel`).
 
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Project Setup](#project-setup)
     - [install](#install)
-    - [key:generate](#keygenerate)
 - [Make Commands](#make-commands)
     - [make:resource](#makeresource)
     - [make:model](#makemodel)
@@ -16,9 +15,6 @@ The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic 
     - [make:action](#makeaction)
     - [make:form](#makeform)
     - [make:test](#maketest)
-    - [make:migration](#makemigration)
-    - [make:seeder](#makeseeder)
-    - [make:factory](#makefactory)
     - [make:policy](#makepolicy)
     - [make:provider](#makeprovider)
     - [make:middleware](#makemiddleware)
@@ -36,18 +32,18 @@ The Magic CLI is an `fluttersdk_artisan` plugin that ships as part of the magic 
 <a name="introduction"></a>
 ## Introduction
 
-Magic CLI is the Artisan-like command-line tool for Magic. If you've used Laravel's Artisan, you'll feel right at home. Scaffold controllers, models, views, migrations, and more with a single command.
+Magic CLI is the command-line tool for Magic, modelled on Laravel's `php artisan`: if you've used it, you'll feel right at home. It runs on [dowel](https://pub.dev/packages/dowel). Scaffold controllers, models, views, actions, and more with a single command.
 
 <a name="installation"></a>
 ## Installation
 
-The Magic CLI ships as an `fluttersdk_artisan` plugin bundled with the `magic` package, which exposes its own `artisan` executable. There is no separate install step: run commands via that executable. (If your app sets up its own aggregated artisan dispatcher, the same commands are available there too.)
+The Magic CLI ships as a `dowel` plugin bundled with the `magic` package, which exposes its own `dowel` executable. There is no separate install step: run commands via that executable. Once `magic:install` has scaffolded the app's `bin/dispatcher.dart`, `dart run magic:dowel` hands each call to it, so the commands of every plugin registered with `plugin:install` resolve through the same executable (and through `dart run dowel <command>` or the fast wrapper `bin/dowel`).
 
 ```bash
-dart run magic:artisan <command> [arguments] [options]
+dart run magic:dowel <command> [arguments] [options]
 ```
 
-Magic ships the `artisan` executable in its `pubspec.yaml`, so `dart run magic:artisan` works from any project that depends on magic, with no global activation or package-name substitution.
+Magic ships the `dowel` executable in its `pubspec.yaml`, so `dart run magic:dowel` works from any project that depends on magic, with no global activation or package-name substitution.
 
 <a name="project-setup"></a>
 ## Project Setup
@@ -58,7 +54,7 @@ Magic ships the `artisan` executable in its `pubspec.yaml`, so `dart run magic:a
 Initializes Magic in an existing Flutter project with the recommended directory structure and configuration.
 
 ```bash
-dart run magic:artisan magic:install
+dart run magic:dowel magic:install
 ```
 
 This command:
@@ -68,33 +64,34 @@ This command:
 4. Writes `lib/main.dart` with Magic bootstrap
 5. Creates `.env` and `.env.example` files
 6. Registers `.env` as a Flutter asset in `pubspec.yaml`
-7. Downloads `sqlite3.wasm` for web platform support (when database is enabled)
 
 #### Excluding Features
 
 You can exclude features you don't need with `--without-*` flags:
 
 ```bash
-dart run magic:artisan magic:install --without-database
-dart run magic:artisan magic:install --without-auth --without-cache
+dart run magic:dowel magic:install --without-auth --without-cache
 ```
 
 | Flag | What it skips |
 |------|---------------|
 | `--without-auth` | Auth config, `VaultServiceProvider`, `AuthServiceProvider` |
-| `--without-database` | Database directories, `config/database.dart`, `DatabaseServiceProvider`, web SQLite setup |
 | `--without-network` | `config/network.dart`, `NetworkServiceProvider` |
 | `--without-cache` | `config/cache.dart`, `CacheServiceProvider` |
 | `--without-localization` | `assets/lang/` directory, `LocalizationServiceProvider` |
 | `--without-logging` | `config/logging.dart` |
-| `--without-broadcasting` | `config/broadcasting.dart`, `BroadcastServiceProvider` |
+
+The SQLite layer, encryption, the file picker and real-time broadcasting are separate plugin packages (`magic_local_storage`, `magic_encryption`, `magic_picker`, `magic_socket`), so the installer no longer carries flags for them. Add a plugin with `flutter pub add <package>` then `dart run magic:dowel plugin:install <package>`.
 
 #### Installing the debug tooling in one step
+
+> [!WARNING]
+> `--with-devtools` is unavailable on magic 0.1.x: `magic_devtools` has no release for it yet (it waits on dowel based releases of Dusk and Telescope), so the command stops with an error before it writes anything. Install the debug tooling by hand until then.
 
 The optional debug trio (`magic_devtools` + `fluttersdk_dusk` + `fluttersdk_telescope`) gives you the LLM-agent E2E driver (Dusk) and the runtime inspector (Telescope). Pass `--with-devtools` to wire all three in a single command instead of the manual multi-step bootstrap:
 
 ```bash
-dart run magic:artisan magic:install --with-devtools
+dart run magic:dowel magic:install --with-devtools
 ```
 
 When set, after the core install completes the command:
@@ -102,35 +99,14 @@ When set, after the core install completes the command:
 1. Adds `magic_devtools`, `fluttersdk_dusk`, and `fluttersdk_telescope` to `dependencies` (not `dev_dependencies`: `lib/main.dart` imports them, and the `kDebugMode` gate tree-shakes the subsystem out of release builds).
 2. Wires the runtime setup into `lib/main.dart` under `kDebugMode`: `DuskPlugin.install()` and `TelescopePlugin.install()` (plus its `ExceptionWatcher` + `DumpWatcher`) before `Magic.init()`, then `MagicDuskIntegration.install()` and `MagicTelescopeIntegration.install()` after it.
 
-The wiring is idempotent: re-running `magic:install --with-devtools` never duplicates the blocks or the dependency entries. Run `flutter pub get` afterwards, then `dart run magic:artisan mcp:install` to surface the Dusk/Telescope MCP tools.
-
-<a name="keygenerate"></a>
-### key:generate
-
-Generates a random 32-byte encryption key for your application:
-
-```bash
-dart run magic:artisan key:generate
-```
-
-Updates your `.env` file with:
-
-```
-APP_KEY=base64:randomGeneratedKey...
-```
-
-#### Options
-
-| Option | Description |
-|--------|-------------|
-| `--show` | Display the key in the terminal instead of writing to `.env` |
+The wiring is idempotent: re-running `magic:install --with-devtools` never duplicates the blocks or the dependency entries. Run `flutter pub get` afterwards, then `dart run magic:dowel mcp:install` to surface the Dusk/Telescope MCP tools.
 
 <a name="make-commands"></a>
 ## Make Commands
 
 All `make:*` commands support the `--force` flag to overwrite existing files. Nested paths are supported via slash syntax (e.g., `Admin/Dashboard`), which creates subdirectories automatically.
 
-Commands that auto-append a suffix (Controller, View, Factory, Seeder, Policy, ServiceProvider, Request, Repository, FormObject) handle duplicates gracefully: `make:controller UserController` will not produce `UserControllerController`.
+Commands that auto-append a suffix (Controller, View, Policy, ServiceProvider, Request, Repository, FormObject) handle duplicates gracefully: `make:controller UserController` will not produce `UserControllerController`.
 
 `make:controller`, `make:view`, `make:repository`, `make:action`, `make:form` and `make:request` accept `--test`, which chains [make:test](#maketest) so the matching test lands in the same run. `--force` on the command forwards to the chained test, and a refused test write fails the command with exit 1.
 
@@ -140,15 +116,15 @@ Commands that auto-append a suffix (Controller, View, Factory, Seeder, Policy, S
 Scaffolds a full CRUD vertical for one model, magic's analogue of Laravel's `make:model --all`:
 
 ```bash
-dart run magic:artisan make:resource Monitor
-dart run magic:artisan make:resource Monitor --no-views
-dart run magic:artisan make:resource Monitor --no-model
-dart run magic:artisan make:resource Monitor --force
+dart run magic:dowel make:resource Monitor
+dart run magic:dowel make:resource Monitor --no-views
+dart run magic:dowel make:resource Monitor --no-model
+dart run magic:dowel make:resource Monitor --force
 ```
 
 For `Monitor` it writes, each through its own generator:
 
-- the model and its factory (kept when they already exist)
+- the model, and its factory when `magic_local_storage` is installed (both kept when they already exist)
 - `MonitorRepository`
 - the `CreateMonitor`, `UpdateMonitor` and `DeleteMonitor` actions under `lib/app/actions/monitors/`
 - `StoreMonitorRequest` and `UpdateMonitorRequest`
@@ -172,25 +148,27 @@ The run is all-or-nothing: every target path is checked first, and any clash oth
 Creates an Eloquent-style model with optional related files:
 
 ```bash
-dart run magic:artisan make:model User
-dart run magic:artisan make:model Post --migration --controller --factory
-dart run magic:artisan make:model Comment -mcf
-dart run magic:artisan make:model Product -mcfsp
-dart run magic:artisan make:model Order --all
+dart run magic:dowel make:model User
+dart run magic:dowel make:model Post --migration --controller --factory
+dart run magic:dowel make:model Comment -mcf
+dart run magic:dowel make:model Product -mcfsp
+dart run magic:dowel make:model Order --all
 ```
 
 #### Options
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--migration` | `-m` | Create a database migration |
+| `--migration` | `-m` | Create a database migration (needs `magic_local_storage`) |
 | `--controller` | `-c` | Create a controller |
-| `--factory` | `-f` | Create a model factory |
-| `--seeder` | `-s` | Create a database seeder |
+| `--factory` | `-f` | Create a model factory (needs `magic_local_storage`) |
+| `--seeder` | `-s` | Create a database seeder (needs `magic_local_storage`) |
 | `--policy` | `-p` | Create an authorization policy |
 | `--all` | `-a` | Create migration, seeder, factory, policy, repository, and resource controller |
 
 > [!NOTE]
+> The migration, factory and seeder generators ship with the `magic_local_storage` plugin. Without it, each of those flags prints a hint naming the package and the rest of the run carries on.
+>
 > The `-mcfsp` shorthand combines all five flags: migration, controller, factory, seeder, and policy. The `--all` flag also writes the model's repository and makes the controller a `--resource --model=<Model>` controller reading through it. For the write layer and views as well, use [make:resource](#makeresource).
 
 The model carries a static `fromMap(Map<String, dynamic>)` that hydrates it from raw API data. The command exits 1 when the model already exists and `--force` was not passed, without generating any companion.
@@ -203,12 +181,12 @@ The model carries a static `fromMap(Map<String, dynamic>)` that hydrates it from
 Creates a `MagicController` with a `Magic.findOrPut` singleton accessor that implements `SessionScoped`:
 
 ```bash
-dart run magic:artisan make:controller User
-dart run magic:artisan make:controller UserController
-dart run magic:artisan make:controller Admin/Dashboard
-dart run magic:artisan make:controller Post --resource
-dart run magic:artisan make:controller Post --resource --model=Post --actions
-dart run magic:artisan make:controller Uptime --broadcasts --timers --test
+dart run magic:dowel make:controller User
+dart run magic:dowel make:controller UserController
+dart run magic:dowel make:controller Admin/Dashboard
+dart run magic:dowel make:controller Post --resource
+dart run magic:dowel make:controller Post --resource --model=Post --actions
+dart run magic:dowel make:controller Uptime --timers --test
 ```
 
 A `--resource` controller owns the read state as one `RepositoryQuery` over `<Model>Repository`: it exposes `items`, `ensureFresh()` (for a view's `RefetchesOnMount`) and `reload()`, and its `resetForSession()` clears the repository and refetches. Writes belong on a `MagicAction`, not on the controller.
@@ -220,7 +198,6 @@ A `--resource` controller owns the read state as one `RepositoryQuery` over `<Mo
 | `--resource` | `-r` | Own a `RepositoryQuery` over the model's repository |
 | `--model` | `-m` | The model a `--resource` controller reads (defaults to the controller's own name) |
 | `--actions` | | Mix in `RunsActions` |
-| `--broadcasts` | | Mix in `ListensToBroadcasts`, with an empty `listeners` map |
 | `--timers` | | Mix in `OwnsTimers` |
 | `--validates` | | Mix in `ValidatesRequests` and `CollapsesIndexedErrorKeys` |
 | `--test` | | Also write the matching controller test |
@@ -235,12 +212,12 @@ The mixins are always written in one fixed order, whatever order the flags were 
 Creates a view class: a `StatelessWidget` by default, or a `MagicStatefulView<T>` bound to a controller:
 
 ```bash
-dart run magic:artisan make:view Login
-dart run magic:artisan make:view LoginView
-dart run magic:artisan make:view Auth/Register
-dart run magic:artisan make:view Dashboard --stateful
-dart run magic:artisan make:view Monitor --controller=Monitor
-dart run magic:artisan make:view Monitors/List --controller=Monitor --list --form=MonitorFormObject
+dart run magic:dowel make:view Login
+dart run magic:dowel make:view LoginView
+dart run magic:dowel make:view Auth/Register
+dart run magic:dowel make:view Dashboard --stateful
+dart run magic:dowel make:view Monitor --controller=Monitor
+dart run magic:dowel make:view Monitors/List --controller=Monitor --list --form=MonitorFormObject
 ```
 
 #### Options
@@ -261,8 +238,8 @@ dart run magic:artisan make:view Monitors/List --controller=Monitor --list --for
 Creates a `Repository<T>` subclass with a static `instance`, the row cache every screen reading the model shares:
 
 ```bash
-dart run magic:artisan make:repository Monitor
-dart run magic:artisan make:repository MonitorRepository --test
+dart run magic:dowel make:repository Monitor
+dart run magic:dowel make:repository MonitorRepository --test
 ```
 
 **Output:** `lib/app/repositories/<name>_repository.dart`
@@ -273,11 +250,11 @@ dart run magic:artisan make:repository MonitorRepository --test
 Creates a `MagicAction`, the one place a write lives:
 
 ```bash
-dart run magic:artisan make:action PauseMonitor
-dart run magic:artisan make:action Monitors/PauseMonitor --test
-dart run magic:artisan make:action Monitors/CreateMonitor --kind=create --model=Monitor
-dart run magic:artisan make:action Monitors/UpdateMonitor --kind=update --model=Monitor
-dart run magic:artisan make:action Monitors/DeleteMonitor --kind=delete --model=Monitor
+dart run magic:dowel make:action PauseMonitor
+dart run magic:dowel make:action Monitors/PauseMonitor --test
+dart run magic:dowel make:action Monitors/CreateMonitor --kind=create --model=Monitor
+dart run magic:dowel make:action Monitors/UpdateMonitor --kind=update --model=Monitor
+dart run magic:dowel make:action Monitors/DeleteMonitor --kind=delete --model=Monitor
 ```
 
 Without `--kind` the action is an empty `handle()` skeleton. The write kinds:
@@ -304,9 +281,9 @@ A refused save throws `ActionRequestFailed` (a `ValidationException` when the mo
 Creates a `MagicFormObject` (the `FormObject` suffix is appended; form widgets keep the `Form` name):
 
 ```bash
-dart run magic:artisan make:form Monitor
-dart run magic:artisan make:form Monitor --request=StoreMonitorRequest
-dart run magic:artisan make:form Monitor --resource=Monitor
+dart run magic:dowel make:form Monitor
+dart run magic:dowel make:form Monitor --request=StoreMonitorRequest
+dart run magic:dowel make:form Monitor --resource=Monitor
 ```
 
 `--resource=<Model>` writes the full create/edit contract: an `editing` field, `initial` seeded from `editing?.toArray()`, a `request` choosing the Store or Update request, and a `persist` running `Create<Model>` or `Update<Model>`. After a create it reloads the `--resource` `<Model>Controller`, so it expects the controller [make:resource](#makeresource) writes beside it.
@@ -327,9 +304,9 @@ dart run magic:artisan make:form Monitor --resource=Monitor
 Creates a test skeleton mirroring where another generator writes its class, from `lib/` to `test/`:
 
 ```bash
-dart run magic:artisan make:test Monitor --kind=controller
-dart run magic:artisan make:test Monitors/PauseMonitor --kind=action
-dart run magic:artisan make:test Monitor --kind=repository --force
+dart run magic:dowel make:test Monitor --kind=controller
+dart run magic:dowel make:test Monitors/PauseMonitor --kind=action
+dart run magic:dowel make:test Monitor --kind=repository --force
 ```
 
 The test imports the class as `package:<name>/...`, with `<name>` read from the project's `pubspec.yaml`.
@@ -342,60 +319,16 @@ The test imports the class as `package:<name>/...`, with `<name>` read from the 
 
 **Output:** for example `test/app/controllers/<name>_controller_test.dart`
 
-<a name="makemigration"></a>
-### make:migration
-
-Creates a timestamped database migration file:
-
-```bash
-dart run magic:artisan make:migration create_users_table
-dart run magic:artisan make:migration create_users_table --create=users
-dart run magic:artisan make:migration add_email_to_users --table=users
-```
-
-#### Options
-
-| Option | Shortcut | Description |
-|--------|----------|-------------|
-| `--create` | `-c` | The table to be created (selects the create stub) |
-| `--table` | `-t` | The table to migrate |
-
-**Output:** `lib/database/migrations/m_YYYYMMDDHHMMSS_<name>.dart`
-
-<a name="makeseeder"></a>
-### make:seeder
-
-Creates a database seeder:
-
-```bash
-dart run magic:artisan make:seeder User
-dart run magic:artisan make:seeder UserSeeder
-```
-
-**Output:** `lib/database/seeders/<name>_seeder.dart`
-
-<a name="makefactory"></a>
-### make:factory
-
-Creates a model factory for generating fake data:
-
-```bash
-dart run magic:artisan make:factory User
-dart run magic:artisan make:factory UserFactory
-```
-
-**Output:** `lib/database/factories/<name>_factory.dart`
-
 <a name="makepolicy"></a>
 ### make:policy
 
 Creates an authorization policy:
 
 ```bash
-dart run magic:artisan make:policy Post
-dart run magic:artisan make:policy PostPolicy
-dart run magic:artisan make:policy Post --model=Post
-dart run magic:artisan make:policy Admin/Dashboard
+dart run magic:dowel make:policy Post
+dart run magic:dowel make:policy PostPolicy
+dart run magic:dowel make:policy Post --model=Post
+dart run magic:dowel make:policy Admin/Dashboard
 ```
 
 #### Options
@@ -412,8 +345,8 @@ dart run magic:artisan make:policy Admin/Dashboard
 Creates a service provider class with `register()` and `boot()` stubs:
 
 ```bash
-dart run magic:artisan make:provider Payment
-dart run magic:artisan make:provider PaymentServiceProvider
+dart run magic:dowel make:provider Payment
+dart run magic:dowel make:provider PaymentServiceProvider
 ```
 
 The `ServiceProvider` suffix is appended automatically when omitted.
@@ -426,8 +359,8 @@ The `ServiceProvider` suffix is appended automatically when omitted.
 Creates a middleware class:
 
 ```bash
-dart run magic:artisan make:middleware EnsureAuthenticated
-dart run magic:artisan make:middleware Admin/RoleCheck
+dart run magic:dowel make:middleware EnsureAuthenticated
+dart run magic:dowel make:middleware Admin/RoleCheck
 ```
 
 **Output:** `lib/app/middleware/<name>.dart`
@@ -438,9 +371,9 @@ dart run magic:artisan make:middleware Admin/RoleCheck
 Creates a string-backed enum with `fromValue()` factory and `selectOptions` getter:
 
 ```bash
-dart run magic:artisan make:enum MonitorType
-dart run magic:artisan make:enum Status/OrderStatus
-dart run magic:artisan make:enum IncidentSeverity --wire
+dart run magic:dowel make:enum MonitorType
+dart run magic:dowel make:enum Status/OrderStatus
+dart run magic:dowel make:enum IncidentSeverity --wire
 ```
 
 `--wire` writes an enum mirroring a backend string value instead: an `unknown` fallback case, a `fromWire()` factory that never throws on an unrecognised value, and a `trans()`-backed `label` getter.
@@ -453,8 +386,8 @@ dart run magic:artisan make:enum IncidentSeverity --wire
 Creates a dispatchable event class that extends `MagicEvent`:
 
 ```bash
-dart run magic:artisan make:event UserLoggedIn
-dart run magic:artisan make:event Auth/TokenRefreshed
+dart run magic:dowel make:event UserLoggedIn
+dart run magic:dowel make:event Auth/TokenRefreshed
 ```
 
 **Output:** `lib/app/events/<name>.dart`
@@ -465,9 +398,9 @@ dart run magic:artisan make:event Auth/TokenRefreshed
 Creates an event listener class that extends `MagicListener<TEvent>`:
 
 ```bash
-dart run magic:artisan make:listener AuthRestore
-dart run magic:artisan make:listener AuthRestore --event=UserLoggedInEvent
-dart run magic:artisan make:listener Auth/RestoreSession
+dart run magic:dowel make:listener AuthRestore
+dart run magic:dowel make:listener AuthRestore --event=UserLoggedInEvent
+dart run magic:dowel make:listener Auth/RestoreSession
 ```
 
 #### Options
@@ -484,8 +417,8 @@ dart run magic:artisan make:listener Auth/RestoreSession
 Creates a `FormRequest` subclass with a `const` constructor and a `rules()` override, which `MagicFormObject.request` and `ValidatesRequests.validateRequest` both accept:
 
 ```bash
-dart run magic:artisan make:request StoreMonitor
-dart run magic:artisan make:request StoreMonitorRequest --test
+dart run magic:dowel make:request StoreMonitor
+dart run magic:dowel make:request StoreMonitorRequest --test
 ```
 
 The `Request` suffix is appended automatically when omitted.
@@ -498,9 +431,9 @@ The `Request` suffix is appended automatically when omitted.
 Creates a language JSON file:
 
 ```bash
-dart run magic:artisan make:lang tr
-dart run magic:artisan make:lang es
-dart run magic:artisan make:lang de --from=tr
+dart run magic:dowel make:lang tr
+dart run magic:dowel make:lang es
+dart run magic:dowel make:lang de --from=tr
 ```
 
 `--from=<locale>` (default `en`) copies that file's key tree with each value verbatim, a complete catalogue for a translator; when it does not exist the new file is `{}`.
@@ -513,10 +446,10 @@ dart run magic:artisan make:lang de --from=tr
 Scaffolds an atomic component folder under `lib/ui/components/<name>/`, plus its widget test:
 
 ```bash
-dart run magic:artisan make:component Avatar
-dart run magic:artisan make:component Avatar --variants=intent,size
-dart run magic:artisan make:component Panel --slots
-dart run magic:artisan make:component Badge --no-preview
+dart run magic:dowel make:component Avatar
+dart run magic:dowel make:component Avatar --variants=intent,size
+dart run magic:dowel make:component Panel --slots
+dart run magic:dowel make:component Badge --no-preview
 ```
 
 **Output** (for `Avatar`):
@@ -542,8 +475,8 @@ The preview file, and the chained `previews:refresh` that lands it in `_previews
 Regenerates the dev-only preview catalog index from `*.preview.dart` files:
 
 ```bash
-dart run magic:artisan previews:refresh
-dart run magic:artisan previews:refresh --path=lib/ui/components
+dart run magic:dowel previews:refresh
+dart run magic:dowel previews:refresh --path=lib/ui/components
 ```
 
 **Output:** `<scan-dir>/_previews.g.dart` (default scan dir `lib`).
@@ -560,8 +493,8 @@ Each `*.preview.dart` file must declare exactly ONE public `*Preview` class. The
 Generates the wind theme (semantic aliases + brand seed) from a `DESIGN.md`:
 
 ```bash
-dart run magic:artisan design:sync
-dart run magic:artisan design:sync --input=DESIGN.md --output=lib/config/wind_theme.g.dart
+dart run magic:dowel design:sync
+dart run magic:dowel design:sync --input=DESIGN.md --output=lib/config/wind_theme.g.dart
 ```
 
 **Output:** a Dart source file exposing a `Map<String, String> designAliases` and a `Map<String, MaterialColor> designColors`. The aliases map carries the 17 property-prefixed semantic keys (`bg-surface`, `text-fg`, `border-color-border`, ...) with arbitrary-hex light + `dark:` pairs (`'bg-surface': 'bg-[#f9f9ff] dark:bg-[#0f1419]'`), drop-in for `WindThemeData(aliases: designAliases)`. The brand `primary` `MaterialColor` carries a generated 50-900 ramp (seeded from the DESIGN.md `primary` light hex) for `WindThemeData.toThemeData()` Material interop.
@@ -579,8 +512,8 @@ The command is idempotent (byte-identical output on re-run for an unchanged DESI
 Validates a `DESIGN.md` against the design rules:
 
 ```bash
-dart run magic:artisan design:lint
-dart run magic:artisan design:lint --input=DESIGN.md
+dart run magic:dowel design:lint
+dart run magic:dowel design:lint --input=DESIGN.md
 ```
 
 The command exits nonzero only on an error-severity finding (a broken reference). Warnings and info notes are reported but do not fail the lint. Rules:

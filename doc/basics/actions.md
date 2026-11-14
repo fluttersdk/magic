@@ -142,7 +142,7 @@ tearDown(() {
 ## Generating an Action
 
 ```bash
-dart run magic:artisan make:action PauseMonitor            # -> lib/app/actions/pause_monitor.dart
-dart run magic:artisan make:action Monitors/PauseMonitor   # Nested path support
-dart run magic:artisan make:action PauseMonitor --force    # Overwrite existing file
+dart run magic:dowel make:action PauseMonitor            # -> lib/app/actions/pause_monitor.dart
+dart run magic:dowel make:action Monitors/PauseMonitor   # Nested path support
+dart run magic:dowel make:action PauseMonitor --force    # Overwrite existing file
 ```

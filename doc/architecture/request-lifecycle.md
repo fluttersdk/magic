@@ -76,12 +76,7 @@ void main() async {
   // 2. Restore authentication (optional)
   await Auth.restore();
   
-  // 3. Run migrations (development)
-  if (kDebugMode) {
-    await Migrator().run([...migrations]);
-  }
-  
-  // 4. Start the application
+  // 3. Start the application
   runApp(MagicApplication(
     title: 'My App',
     initialRoute: Auth.check() ? '/dashboard' : '/login',
@@ -107,7 +102,6 @@ Providers are registered in `config/app.dart`:
 'providers': [
   (app) => NetworkServiceProvider(app),
   (app) => AuthServiceProvider(app),
-  (app) => DatabaseServiceProvider(app),
   (app) => CacheServiceProvider(app),
   (app) => LocalizationServiceProvider(app),
   (app) => EventServiceProvider(app),

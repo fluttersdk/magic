@@ -25,7 +25,6 @@ my_app/
 ├── lib/
 │   ├── app/                 # Application logic
 │   ├── config/              # Configuration files
-│   ├── database/            # Migrations, seeders, factories
 │   ├── resources/           # Views and assets
 │   ├── routes/              # Route definitions
 │   └── main.dart            # Application entry point
@@ -87,7 +86,7 @@ class AuthMiddleware extends Middleware {
 
 ### The Models Directory
 
-The `models` directory contains all of your Eloquent model classes. Each database table has a corresponding "Model" which is used to interact with that table.
+The `models` directory contains all of your Eloquent model classes. Each model maps to a REST resource and is used to interact with it.
 
 ```dart
 // lib/app/models/user.dart
@@ -127,7 +126,6 @@ The `config` directory contains all of your application's configuration files. E
 lib/config/
 ├── app.dart                 # App name, env, providers
 ├── auth.dart                # Guards, session config
-├── database.dart            # Database connections
 ├── network.dart             # API endpoints, timeouts
 ├── cache.dart               # Cache drivers
 ├── logging.dart             # Log channels
@@ -204,72 +202,4 @@ void registerRoutes() {
 <a name="the-database-directory"></a>
 ## The Database Directory
 
-The `database` directory contains your database migrations, model factories, and seeders.
-
-```
-lib/database/
-├── migrations/              # Schema migrations
-│   └── 2024_01_01_000000_create_users_table.dart
-├── seeders/                 # Data seeders
-│   └── user_seeder.dart
-└── factories/               # Model factories
-    └── user_factory.dart
-```
-
-### Migrations
-
-Migrations are like version control for your database, allowing you to modify your database schema:
-
-```dart
-class CreateUsersTable extends Migration {
-  @override
-  Future<void> up(Schema schema) async {
-    await schema.create('users', (table) {
-      table.id();
-      table.string('name');
-      table.string('email').unique();
-      table.timestamps();
-    });
-  }
-  
-  @override
-  Future<void> down(Schema schema) async {
-    await schema.drop('users');
-  }
-}
-```
-
-### Seeders
-
-Seeders populate your database with test data:
-
-```dart
-class UserSeeder extends Seeder {
-  @override
-  Future<void> run() async {
-    await UserFactory().count(10).create();
-  }
-}
-```
-
-### Factories
-
-Factories define how to generate fake model instances. Implement
-`definition()`, `newInstance()` and `newFactory()`; `state()` and `count()`
-return a copy rather than mutating the factory:
-
-```dart
-class UserFactory extends Factory<User> {
-  @override
-  Factory<User> newFactory() => UserFactory();
-
-  @override
-  User newInstance() => User();
-
-  @override
-  Map<String, dynamic> definition() => {
-    'name': faker.person.name(),
-    'email': faker.internet.email(),
-  };
-}
-```
+A fresh project has no `database` directory. Migrations, seeders and model factories belong to the `magic_local_storage` plugin, which creates `lib/database/` when you install it: `flutter pub add magic_local_storage`, then `dart run magic:dowel plugin:install magic_local_storage`. See [Eloquent: Local Storage](../eloquent/getting-started.md#local-storage).

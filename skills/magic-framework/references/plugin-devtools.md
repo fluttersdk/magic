@@ -8,10 +8,12 @@ Lives outside `magic` core on purpose: the framework keeps no dev-tooling depend
 
 ## Installation
 
+Unavailable on magic 0.1.x until `magic_devtools` is released for it (the published one requires `magic ^0.0.29`): `magic:install --with-devtools` stops with an error and writes nothing.
+
 The one-step path, from a project that already has magic installed:
 
 ```bash
-dart run magic:artisan magic:install --with-devtools
+dart run magic:dowel magic:install --with-devtools
 ```
 
 That adds the three packages to `dependencies` and injects the guarded blocks into `lib/main.dart`. It is idempotent, so a re-run never duplicates the wiring. The installer still writes `kDebugMode`; from 0.0.8 the package documents `!kReleaseMode`, so a profile build (the only honest build to measure) carries the tooling. Change the two guards by hand when you measure performance.
@@ -25,18 +27,18 @@ dependencies:
   fluttersdk_telescope: ^0.0.12  # add if you use telescope
 ```
 
-`magic_devtools` 0.0.11 declares `fluttersdk_dusk ^0.0.20` and `fluttersdk_telescope ^0.0.12`, beside `magic ^0.0.29` and `fluttersdk_wind ^1.9.0`: the newest of each sibling at that release, so the lines above match its own floors. The real requirements underneath are older than the batch that set them: `MagicPerfHooks.sink` and the request ids arrive in magic 0.0.24, `PerfMode` and the interaction readers in dusk 0.0.17, and `TelescopeRedaction` plus the record link fields in telescope 0.0.9. The older minimums are `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5) and `WindPerfCounters` (wind 1.5.0). magic 0.0.24 removed `MagicController.onRefreshUI`, which 0.0.7 assigned, so 0.0.7 does not compile against it: move both together. A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
+`magic_devtools` declares `fluttersdk_dusk ^0.0.20` and `fluttersdk_telescope ^0.0.12`, beside `magic ^0.1.0` and `wind_kit ^1.12.0`, so the lines above match its own floors. The real requirements underneath are older than the batch that set them: `MagicPerfHooks.sink` and the request ids arrive in magic 0.0.24, `PerfMode` and the interaction readers in dusk 0.0.17, and `TelescopeRedaction` plus the record link fields in telescope 0.0.9. The older minimums are `perf_readers.dart` (dusk 0.0.12), `FramePerfWatcher` / `TelescopeStore.recentFramePerf` (telescope 0.0.5) and `WindPerfCounters` (wind 1.5.0). magic 0.0.24 removed `MagicController.onRefreshUI`, which 0.0.7 assigned, so 0.0.7 does not compile against it: move both together. A caret range resolves to the newest, so a fresh graph always worked; an app whose own constraints hold one sibling back gets a satisfiable graph that then fails on undefined symbols.
 
 These are regular `dependencies`, not `dev_dependencies`: `lib/main.dart` imports them, so a `dev_dependencies` entry trips the `depend_on_referenced_packages` lint. The `!kReleaseMode` guard is what keeps them out of a release build, not the dependency section.
 
 Then wire the CLI side of each tool:
 
 ```bash
-dart run magic:artisan plugin:install fluttersdk_dusk
-dart run magic:artisan plugin:install fluttersdk_telescope
-dart run magic:artisan dusk:install
-dart run magic:artisan telescope:install
-dart run magic:artisan mcp:install          # surfaces the dusk_* / telescope_* MCP tools
+dart run magic:dowel plugin:install fluttersdk_dusk
+dart run magic:dowel plugin:install fluttersdk_telescope
+dart run magic:dowel dusk:install
+dart run magic:dowel telescope:install
+dart run magic:dowel mcp:install          # surfaces the dusk_* / telescope_* MCP tools
 ```
 
 ## Wiring: two phases that straddle `Magic.init()`
@@ -108,7 +110,7 @@ Session scoping is the part that surprises people: `perfSessionBeginHook` resets
 
 A dev-only catalog served from two routes, `/preview` (first entry) and `/preview/:component` (entry by slug). The sidebar lists every registered entry, only the selected one is mounted, and the header carries a light/dark toggle bound to wind's `WindThemeController`.
 
-The entries come from codegen: `dart run magic:artisan make:component` scaffolds a `*.preview.dart` file per component and `dart run magic:artisan previews:refresh` collects them into `lib/_previews.g.dart`, which exposes `previewEntries()` returning a `List<PreviewEntry>`.
+The entries come from codegen: `dart run magic:dowel make:component` scaffolds a `*.preview.dart` file per component and `dart run magic:dowel previews:refresh` collects them into `lib/_previews.g.dart`, which exposes `previewEntries()` returning a `List<PreviewEntry>`.
 
 ```dart
 // lib/app/providers/route_service_provider.dart

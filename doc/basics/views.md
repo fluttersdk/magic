@@ -32,7 +32,7 @@ Magic Views provide a structured way to separate your UI from your business logi
 To generate a new view, use the Magic CLI:
 
 ```bash
-dart run magic:artisan make:view Dashboard
+dart run magic:dowel make:view Dashboard
 ```
 
 <a name="stateless-views"></a>
@@ -41,7 +41,7 @@ dart run magic:artisan make:view Dashboard
 Most of your pages will be stateless, relying on the controller for state management:
 
 ```dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:magic/magic.dart';
 
 class DashboardView extends MagicView {
@@ -300,13 +300,13 @@ The Magic CLI can generate different types of views:
 
 ```bash
 # Basic stateless view
-dart run magic:artisan make:view Dashboard
+dart run magic:dowel make:view Dashboard
 
 # Stateful view with form support
-dart run magic:artisan make:view Auth/Login --stateful
+dart run magic:dowel make:view Auth/Login --stateful
 
 # Nested in subfolder
-dart run magic:artisan make:view Admin/Users/Index
+dart run magic:dowel make:view Admin/Users/Index
 ```
 
 ### Command Options

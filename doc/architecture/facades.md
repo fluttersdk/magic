@@ -53,7 +53,6 @@ Magic provides the following facades:
 | Facade | Description |
 |--------|-------------|
 | `Auth` | Authentication state and user |
-| `Crypt` | AES-256-CBC encryption and decryption |
 | `Gate` | Authorization abilities and policies |
 | `Vault` | Secure storage (Keychain/Keystore) |
 
@@ -62,12 +61,6 @@ Magic provides the following facades:
 | Facade | Description |
 |--------|-------------|
 | `Http` | HTTP client for API requests |
-
-### Broadcasting & Communication
-
-| Facade | Description |
-|--------|-------------|
-| `Echo` | WebSocket channels, real-time event subscriptions |
 
 ### Routing
 
@@ -86,8 +79,6 @@ Magic provides the following facades:
 | Facade | Description |
 |--------|-------------|
 | `Cache` | Caching system |
-| `DB` | Raw and query-builder database access |
-| `Schema` | Database schema operations (create, modify, drop tables) |
 | `Storage` | File storage |
 
 ### Utilities
@@ -99,7 +90,17 @@ Magic provides the following facades:
 | `Lang` | Localization and translations |
 | `Launch` | Open URLs, email, phone, and SMS via url_launcher |
 | `Log` | Logging |
-| `Pick` | File, image, and video picker |
+
+### Plugin Facades
+
+These facades moved out of core into optional plugin packages. Each plugin is installed with `flutter pub add <package>` then `dart run magic:dowel plugin:install <package>`.
+
+| Facade | Package |
+|--------|---------|
+| `Crypt` | `magic_encryption` |
+| `Echo` | `magic_socket` |
+| `DB`, `Schema` | `magic_local_storage` |
+| `Pick` | `magic_picker` |
 
 <a name="how-facades-work"></a>
 ## How Facades Work
@@ -261,22 +262,6 @@ await Vault.get('api_key');
 await Vault.delete('api_key');
 await Vault.has('api_key');
 ```
-
-### Pick
-
-Provides `image()`, `images()`, `camera()`, `video()`, `recordVideo()`, `file()`, `files()`, `directory()`, and `saveFile()`. The picking methods return `MagicFile?` (or `List<MagicFile>`) for seamless integration with the Storage system; `directory()` returns the path as a `String?` and `saveFile()` returns the written location as a `Uri?`. See `lib/src/facades/pick.dart` for full parameter details.
-
-### Crypt
-
-Provides `encrypt()` / `decrypt()` using the config-based `app.key`, and `encryptWithDeviceKey()` / `decryptWithDeviceKey()` using a device-unique key stored in Vault. Requires `EncryptionServiceProvider` to be registered. See `lib/src/facades/crypt.dart`.
-
-### DB
-
-Provides `table()` for fluent query-builder access, `select()` / `insert()` / `update()` / `delete()` for raw SQL, `statement()` for DDL, and `transaction()` for wrapped transactions. See `lib/src/facades/db.dart`.
-
-### Schema
-
-Provides `create()` / `table()` for defining and modifying table structures via `Blueprint`, `drop()` / `dropIfExists()` for removal, `rename()` for renaming, and `hasTable()` / `hasColumn()` / `getColumns()` for introspection. See `lib/src/facades/schema.dart`.
 
 > [!TIP]
 > When in doubt, check the facade source file in `/lib/src/facades/` for all available methods.
