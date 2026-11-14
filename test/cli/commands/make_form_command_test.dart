@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_form_command.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:form');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -204,12 +204,10 @@ void main() {
 
     test('--test chains make:test --kind=form', () async {
       final cmd = MakeFormCommand(testRoot: projectRoot.path);
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).createSync(recursive: true);
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: fixture_app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .createSync(recursive: true);
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: fixture_app\n');
 
       final code = await cmd.handle(
         buildCommandContext(cmd, <String>['Monitor', '--test']),

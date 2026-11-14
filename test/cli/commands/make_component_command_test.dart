@@ -1,16 +1,16 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_component_command.dart';
 import 'package:path/path.dart' as p;
 
-/// A bare [ArtisanContext] driving the command with [args].
-ArtisanContext _ctx(MakeComponentCommand cmd, List<String> args) {
+/// A bare [DowelContext] driving the command with [args].
+DowelContext _ctx(MakeComponentCommand cmd, List<String> args) {
   final parser = ArgParser();
   cmd.configure(parser);
   final input = ArgvInput.parse(parser, args);
-  return ArtisanContext.bare(input, BufferedOutput());
+  return DowelContext.bare(input, BufferedOutput());
 }
 
 void main() {
@@ -21,8 +21,8 @@ void main() {
       expect(cmd.name, 'make:component');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -52,9 +52,8 @@ void main() {
       stubsDir = p.join(Directory.current.path, 'assets', 'stubs');
       // The generator always attempts to write the matching widget test,
       // which reads the target project's package name from pubspec.yaml.
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: app\n');
     });
 
     tearDown(() {
@@ -253,14 +252,13 @@ class SeedPreview extends StatelessWidget {
           'Avatar',
           '--stubs-dir=$stubsDir',
         ]);
-        final code = await cmd.handle(ArtisanContext.bare(input, output));
+        final code = await cmd.handle(DowelContext.bare(input, output));
 
         expect(code, 0);
         expect(File(avatarPreviewPath()).existsSync(), isFalse);
         expect(
-          File(
-            p.join(projectRoot.path, 'lib', '_previews.g.dart'),
-          ).existsSync(),
+          File(p.join(projectRoot.path, 'lib', '_previews.g.dart'))
+              .existsSync(),
           isFalse,
         );
         expect(output.content, contains('Preview: skipped'));
@@ -278,7 +276,7 @@ class SeedPreview extends StatelessWidget {
             'Avatar',
             '--stubs-dir=$stubsDir',
           ]);
-          final code = await cmd.handle(ArtisanContext.bare(input, output));
+          final code = await cmd.handle(DowelContext.bare(input, output));
 
           expect(code, 0);
           expect(File(avatarPreviewPath()).existsSync(), isTrue);
@@ -323,7 +321,7 @@ class OtherPreview extends StatelessWidget {
           '--no-preview',
           '--stubs-dir=$stubsDir',
         ]);
-        final code = await cmd.handle(ArtisanContext.bare(input, output));
+        final code = await cmd.handle(DowelContext.bare(input, output));
 
         expect(code, 0);
         expect(File(avatarPreviewPath()).existsSync(), isFalse);
@@ -341,7 +339,7 @@ class OtherPreview extends StatelessWidget {
           '--preview',
           '--stubs-dir=$stubsDir',
         ]);
-        final code = await cmd.handle(ArtisanContext.bare(input, output));
+        final code = await cmd.handle(DowelContext.bare(input, output));
 
         expect(code, 0);
         expect(File(avatarPreviewPath()).existsSync(), isTrue);
@@ -448,7 +446,7 @@ class OtherPreview extends StatelessWidget {
             'Avatar',
             '--stubs-dir=$stubsDir',
           ]);
-          final code = await cmd.handle(ArtisanContext.bare(input, output));
+          final code = await cmd.handle(DowelContext.bare(input, output));
 
           expect(code, 0);
           expect(File(testFilePath()).existsSync(), isFalse);

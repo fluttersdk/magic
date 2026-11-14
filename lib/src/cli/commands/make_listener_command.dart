@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
 
@@ -9,18 +9,18 @@ import '../helpers/magic_stub_loader.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:listener AuthRestore --event=UserLoggedInEvent
-/// artisan make:listener AuthRestore           # Defaults to MagicEvent
-/// artisan make:listener Auth/RestoreSession   # Nested path
+/// dowel make:listener AuthRestore --event=UserLoggedInEvent
+/// dowel make:listener AuthRestore           # Defaults to MagicEvent
+/// dowel make:listener Auth/RestoreSession   # Nested path
 /// ```
 ///
 /// ## Output
 ///
 /// Creates a file in `lib/app/listeners/` with a handler class that
 /// extends `MagicListener<TEvent>`.
-class MakeListenerCommand extends ArtisanGeneratorCommand {
+class MakeListenerCommand extends DowelGeneratorCommand {
   /// Captures the parsed `--event` value during [handle] so [getReplacements]
-  /// can consume it without re-reading the [ArtisanContext.input].
+  /// can consume it without re-reading the [DowelContext.input].
   String? _eventOption;
 
   /// Optional project root override, injected in tests to avoid touching the
@@ -29,8 +29,8 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
 
   /// Creates a [MakeListenerCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeListenerCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeListenerCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -62,7 +62,7 @@ class MakeListenerCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Capture --event so [getReplacements] (called from [buildClass]) can use it.
     _eventOption = ctx.input.option('event') as String?;
     return super.handle(ctx);

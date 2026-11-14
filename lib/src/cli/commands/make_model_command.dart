@@ -1,14 +1,11 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
 import '../helpers/run_child.dart';
 
 import 'make_controller_command.dart';
-import 'make_factory_command.dart';
-import 'make_migration_command.dart';
 import 'make_policy_command.dart';
 import 'make_repository_command.dart';
-import 'make_seeder_command.dart';
 
 /// The `make:model` generator command.
 ///
@@ -16,21 +13,25 @@ import 'make_seeder_command.dart';
 /// Can optionally generate related classes (migration, controller, factory,
 /// seeder, policy) using the corresponding flags.
 ///
+/// The migration, factory and seeder generators ship with magic_local_storage,
+/// so they are looked up in the dowel registry by name; without the plugin
+/// each flag prints a hint and the rest of the run carries on.
+///
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:model Monitor
-/// artisan make:model Monitor -mcfsp
-/// artisan make:model Monitor --all
+/// dowel make:model Monitor
+/// dowel make:model Monitor -mcfsp
+/// dowel make:model Monitor --all
 /// ```
-class MakeModelCommand extends ArtisanGeneratorCommand {
+class MakeModelCommand extends DowelGeneratorCommand {
   /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Creates a [MakeModelCommand].
   ///
-  /// [testRoot] overrides the project root resolution, used in tests only.
-  MakeModelCommand({String? testRoot}) : _testRoot = testRoot;
+  /// [_testRoot] overrides the project root resolution, used in tests only.
+  MakeModelCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -83,8 +84,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
     parser.addFlag(
       'all',
       abbr: 'a',
-      help:
-          'Generate a migration, seeder, factory, policy, and resource controller for the model',
+      help: 'Generate a migration, seeder, factory, policy, and resource controller for the model',
       negatable: false,
     );
   }
@@ -109,7 +109,7 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final name = ctx.input.argument(0);
     if (name == null || name.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');
@@ -138,24 +138,20 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
       final tableName = StringHelper.toPlural(
         StringHelper.toSnakeCase(className),
       );
-      await RunChild.run(MakeMigrationCommand(testRoot: _testRoot), [
+      await _runDatabaseGenerator(ctx, 'make:migration', [
         'create_${tableName}_table',
         '--create=$tableName',
-      ], ctx);
+      ]);
     }
 
     // 4. Generate Factory.
     if (doAll || ctx.input.hasOption('factory')) {
-      await RunChild.run(MakeFactoryCommand(testRoot: _testRoot), [
-        className,
-      ], ctx);
+      await _runDatabaseGenerator(ctx, 'make:factory', [className]);
     }
 
     // 5. Generate Seeder.
     if (doAll || ctx.input.hasOption('seeder')) {
-      await RunChild.run(MakeSeederCommand(testRoot: _testRoot), [
-        className,
-      ], ctx);
+      await _runDatabaseGenerator(ctx, 'make:seeder', [className]);
     }
 
     // 6. Generate Policy.
@@ -190,5 +186,36 @@ class MakeModelCommand extends ArtisanGeneratorCommand {
     }
 
     return 0;
+  }
+
+  /// The generator magic_local_storage registers under [commandName], looked
+  /// up in the dispatching application's registry.
+  ///
+  /// Returns `null` after printing a hint naming the plugin when it is not
+  /// installed (or [ctx] carries no registry), so the caller skips that one
+  /// file and carries on. Core must never fall back to a generator of its own:
+  /// the plugin registering the same name would make dowel exit.
+  static DowelCommand? databaseGenerator(DowelContext ctx, String commandName) {
+    final command = ctx.registry?.find(commandName);
+    if (command != null) return command;
+
+    ctx.output.warning(
+      'Skipped $commandName: it ships with magic_local_storage. Add the '
+      'package, then run `dart run magic:dowel plugin:install '
+      'magic_local_storage`.',
+    );
+    return null;
+  }
+
+  /// Runs the registered [commandName] with [args], or prints the hint.
+  Future<void> _runDatabaseGenerator(
+    DowelContext ctx,
+    String commandName,
+    List<String> args,
+  ) async {
+    final command = databaseGenerator(ctx, commandName);
+    if (command == null) return;
+
+    await RunChild.run(command, args, ctx);
   }
 }

@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/creates_matching_test.dart';
 import '../helpers/magic_stub_loader.dart';
@@ -18,22 +18,22 @@ typedef _SuffixedName = ({String className, String directory});
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:view Login                          # → StatelessWidget
-/// artisan make:view Auth/Register                   # Nested path
-/// artisan make:view Monitor --controller=Monitor    # MagicStatefulView<MonitorController>
-/// artisan make:view Login --stateful                # Controller derived: LoginController
-/// artisan make:view Monitors/List --controller=Monitor --list --form=MonitorFormObject
+/// dowel make:view Login                          # → StatelessWidget
+/// dowel make:view Auth/Register                   # Nested path
+/// dowel make:view Monitor --controller=Monitor    # MagicStatefulView<MonitorController>
+/// dowel make:view Login --stateful                # Controller derived: LoginController
+/// dowel make:view Monitors/List --controller=Monitor --list --form=MonitorFormObject
 /// ```
 ///
 /// The `View` suffix is appended automatically when omitted. `--list` expects
 /// a controller made with `make:controller --resource`, which exposes the
 /// `ensureFresh()` method [RefetchesOnMount] calls.
-class MakeViewCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
+class MakeViewCommand extends DowelGeneratorCommand with CreatesMatchingTest {
   /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Captures the parsed `--stateful` flag at [handle] time so [getStub] can
-  /// honour it without re-reading the [ArtisanContext.input].
+  /// honour it without re-reading the [DowelContext.input].
   bool _statefulFlag = false;
 
   /// Captures the parsed `--list` flag at [handle] time.
@@ -49,8 +49,8 @@ class MakeViewCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
 
   /// Creates a [MakeViewCommand].
   ///
-  /// [testRoot] overrides the project root resolution, used in tests only.
-  MakeViewCommand({String? testRoot}) : _testRoot = testRoot;
+  /// [_testRoot] overrides the project root resolution, used in tests only.
+  MakeViewCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -164,7 +164,7 @@ class MakeViewCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final rawName = ctx.input.argument(0);
     if (rawName == null || rawName.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');

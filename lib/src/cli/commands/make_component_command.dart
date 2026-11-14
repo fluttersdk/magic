@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/magic_stub_loader.dart';
@@ -31,11 +31,11 @@ import 'previews_refresh_command.dart';
 /// Chaining follows the `make:model --all` pattern: a child command is parsed
 /// against its own [ArgParser] and handled with a bare context that reuses the
 /// parent output, so the operator sees one uninterrupted feedback stream.
-class MakeComponentCommand extends ArtisanGeneratorCommand {
+class MakeComponentCommand extends DowelGeneratorCommand {
   /// Creates a [MakeComponentCommand].
   ///
-  /// [testRoot] overrides the project root resolution, used in tests only.
-  MakeComponentCommand({String? testRoot}) : _testRoot = testRoot;
+  /// [_testRoot] overrides the project root resolution, used in tests only.
+  MakeComponentCommand({this._testRoot});
 
   final String? _testRoot;
 
@@ -87,7 +87,7 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final rawName = ctx.input.argument(0);
     if (rawName == null || rawName.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');
@@ -216,7 +216,7 @@ class MakeComponentCommand extends ArtisanGeneratorCommand {
   /// rather than failing the whole command (the component itself already
   /// landed).
   void _writeMatchingTest(
-    ArtisanContext ctx,
+    DowelContext ctx,
     String className,
     String snakeName,
     String? stubsDir,

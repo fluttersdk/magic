@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
 
@@ -9,22 +9,22 @@ import '../helpers/magic_stub_loader.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:middleware EnsureAuthenticated
-/// artisan make:middleware Admin/RoleCheck
+/// dowel make:middleware EnsureAuthenticated
+/// dowel make:middleware Admin/RoleCheck
 /// ```
 ///
 /// ## Output
 ///
 /// Creates a file in `lib/app/middleware/` with full nested path support.
-class MakeMiddlewareCommand extends ArtisanGeneratorCommand {
+class MakeMiddlewareCommand extends DowelGeneratorCommand {
   /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Creates a [MakeMiddlewareCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeMiddlewareCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeMiddlewareCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;

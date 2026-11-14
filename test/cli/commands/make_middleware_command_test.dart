@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:magic/src/cli/commands/make_middleware_command.dart';
 import 'package:path/path.dart' as p;
 
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:middleware');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {

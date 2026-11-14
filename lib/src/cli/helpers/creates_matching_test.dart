@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../commands/make_test_command.dart';
 import 'run_child.dart';
@@ -7,10 +7,10 @@ import 'run_child.dart';
 /// `make:test` to scaffold the matching test right after the class itself.
 ///
 /// A host command applies the mixin (`class MakeXCommand extends
-/// ArtisanGeneratorCommand with CreatesMatchingTest`), which registers
+/// DowelGeneratorCommand with CreatesMatchingTest`), which registers
 /// `--test` automatically via [configure]; the host's `handle` calls
 /// [createMatchingTest] when `ctx.input.hasOption('test')` is true.
-mixin CreatesMatchingTest on ArtisanGeneratorCommand {
+mixin CreatesMatchingTest on DowelGeneratorCommand {
   @override
   void configure(ArgParser parser) {
     super.configure(parser);
@@ -29,11 +29,7 @@ mixin CreatesMatchingTest on ArtisanGeneratorCommand {
   /// the generated class's location. The child's project root is pinned to
   /// this command's own [getProjectRoot], so the chained write lands in the
   /// same (possibly test-isolated) tree the host wrote to.
-  Future<int> createMatchingTest(
-    ArtisanContext ctx,
-    TestKind kind,
-    String name,
-  ) {
+  Future<int> createMatchingTest(DowelContext ctx, TestKind kind, String name) {
     return RunChild.run(MakeTestCommand(testRoot: getProjectRoot()), <String>[
       name,
       '--kind=${kind.value}',

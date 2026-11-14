@@ -28,31 +28,28 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MagicMainDartEditor.injectBeforeMagicInit', () {
-    test(
-      'delegates to MainDartEditor.injectBeforeAnchor with Magic.init anchor',
-      () {
-        // The snippet should be inserted before the line containing 'Magic.init'.
-        const snippet = '  DuskPlugin.install();\n';
-        final result = MagicMainDartEditor.injectBeforeMagicInit(
-          source: _singleLineSource,
-          snippet: snippet,
-        );
+    test('delegates to MainDartEditor.injectBeforeAnchor with Magic.init anchor', () {
+      // The snippet should be inserted before the line containing 'Magic.init'.
+      const snippet = '  DuskPlugin.install();\n';
+      final result = MagicMainDartEditor.injectBeforeMagicInit(
+        source: _singleLineSource,
+        snippet: snippet,
+      );
 
-        // The snippet must appear before the Magic.init line.
-        final snippetIndex = result.indexOf(snippet.trim());
-        final initIndex = result.indexOf('Magic.init');
-        expect(
-          snippetIndex,
-          isNot(-1),
-          reason: 'snippet must be present in result',
-        );
-        expect(
-          snippetIndex,
-          lessThan(initIndex),
-          reason: 'snippet must precede Magic.init',
-        );
-      },
-    );
+      // The snippet must appear before the Magic.init line.
+      final snippetIndex = result.indexOf(snippet.trim());
+      final initIndex = result.indexOf('Magic.init');
+      expect(
+        snippetIndex,
+        isNot(-1),
+        reason: 'snippet must be present in result',
+      );
+      expect(
+        snippetIndex,
+        lessThan(initIndex),
+        reason: 'snippet must precede Magic.init',
+      );
+    });
 
     test(
       'is idempotent — calling twice with same snippet leaves source unchanged',
@@ -113,36 +110,33 @@ void main() async {
   // ---------------------------------------------------------------------------
 
   group('MagicMainDartEditor.injectAfterMagicInit', () {
-    test(
-      'inserts snippet after the closing paren of Magic.init on a single-line call',
-      () {
-        const snippet = '  MagicDuskIntegration.install();\n';
-        final result = MagicMainDartEditor.injectAfterMagicInit(
-          source: _singleLineSource,
-          snippet: snippet,
-        );
+    test('inserts snippet after the closing paren of Magic.init on a single-line call', () {
+      const snippet = '  MagicDuskIntegration.install();\n';
+      final result = MagicMainDartEditor.injectAfterMagicInit(
+        source: _singleLineSource,
+        snippet: snippet,
+      );
 
-        // Snippet must appear after the Magic.init line and before runApp.
-        final snippetIndex = result.indexOf(snippet.trim());
-        final initIndex = result.indexOf('Magic.init');
-        final runAppIndex = result.indexOf('runApp');
-        expect(
-          snippetIndex,
-          isNot(-1),
-          reason: 'snippet must be present in result',
-        );
-        expect(
-          snippetIndex,
-          greaterThan(initIndex),
-          reason: 'snippet must follow Magic.init',
-        );
-        expect(
-          snippetIndex,
-          lessThan(runAppIndex),
-          reason: 'snippet must precede runApp',
-        );
-      },
-    );
+      // Snippet must appear after the Magic.init line and before runApp.
+      final snippetIndex = result.indexOf(snippet.trim());
+      final initIndex = result.indexOf('Magic.init');
+      final runAppIndex = result.indexOf('runApp');
+      expect(
+        snippetIndex,
+        isNot(-1),
+        reason: 'snippet must be present in result',
+      );
+      expect(
+        snippetIndex,
+        greaterThan(initIndex),
+        reason: 'snippet must follow Magic.init',
+      );
+      expect(
+        snippetIndex,
+        lessThan(runAppIndex),
+        reason: 'snippet must precede runApp',
+      );
+    });
 
     test('inserts snippet after closing paren of multi-line Magic.init', () {
       const snippet = '  MagicDuskIntegration.install();\n';

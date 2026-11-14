@@ -5,7 +5,7 @@
 /// parameters to generate dynamic content based on active feature flags.
 library;
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 /// Install command stub templates.
 ///
@@ -26,7 +26,7 @@ class InstallStubs {
   /// Stub loading is routed through the per-install [StubDriver] supplied by
   /// the caller (the active [InstallContext]'s `stubs` field) and an explicit
   /// [searchPaths] list pointing at magic's bundled `assets/stubs/`. The
-  /// static [StubLoader] defaults resolve to fluttersdk_artisan's own
+  /// static [StubLoader] defaults resolve to dowel's own
   /// `assets/stubs/`, where magic-only stubs do not exist; routing through
   /// the driver preserves multi-publisher correctness and lets in-memory test
   /// drivers serve fixture content without touching the host filesystem.
@@ -67,7 +67,7 @@ class InstallStubs {
   /// Stub loading is routed through the per-install [StubDriver] supplied by
   /// the caller (the active [InstallContext]'s `stubs` field) and an explicit
   /// [searchPaths] list pointing at magic's bundled `assets/stubs/`. The
-  /// static [StubLoader] defaults resolve to fluttersdk_artisan's own
+  /// static [StubLoader] defaults resolve to dowel's own
   /// `assets/stubs/`, where magic-only stubs do not exist; routing through
   /// the driver preserves multi-publisher correctness and lets in-memory test
   /// drivers serve fixture content without touching the host filesystem.
@@ -101,7 +101,7 @@ class InstallStubs {
 
     // Boot order matters:
     // 1. RouteServiceProvider — routes
-    // 2. Infrastructure providers — cache, database, network, vault, etc.
+    // 2. Infrastructure providers — cache, network, vault, etc.
     // 3. AppServiceProvider — registers userFactory via setUserFactory()
     // 4. AuthServiceProvider — calls Auth.restore() (needs userFactory)
     final allProviders = [
@@ -121,12 +121,6 @@ class InstallStubs {
   @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String authConfigContent() {
     return StubLoader.load('install/auth_config');
-  }
-
-  /// Generates `lib/config/database.dart` with SQLite as the default driver.
-  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
-  static String databaseConfigContent() {
-    return StubLoader.load('install/database_config');
   }
 
   /// Generates `lib/config/network.dart` with a single API driver.
@@ -151,12 +145,6 @@ class InstallStubs {
   @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
   static String loggingConfigContent() {
     return StubLoader.load('install/logging_config');
-  }
-
-  /// Generates `lib/config/broadcasting.dart` with Reverb and null connections.
-  @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
-  static String broadcastingConfigContent() {
-    return StubLoader.load('install/broadcasting_config');
   }
 
   /// Generates `lib/config/routing.dart` with URL strategy config.
@@ -227,44 +215,17 @@ class InstallStubs {
   /// Generates a `.env` template file with sensible defaults.
   ///
   /// [appName] is written as the default value for `APP_NAME`.
-  /// [withoutBroadcasting] when `true`, omits the `BROADCAST_CONNECTION`
-  ///   and `REVERB_*` environment variables.
   @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
-  static String envContent({
-    required String appName,
-    bool withoutBroadcasting = false,
-  }) {
-    var content = StubLoader.replace(StubLoader.load('install/env'), {
+  static String envContent({required String appName}) {
+    return StubLoader.replace(StubLoader.load('install/env'), {
       'appName': appName,
     });
-
-    if (!withoutBroadcasting) {
-      content +=
-          '\nBROADCAST_CONNECTION=null\n'
-          'REVERB_HOST=localhost\n'
-          'REVERB_PORT=8080\n'
-          'REVERB_SCHEME=ws\n'
-          'REVERB_APP_KEY=\n';
-    }
-
-    return content;
   }
 
   /// Generates a `.env.example` template file with empty values.
   @Deprecated('Migrated to install.yaml publish:; will be removed in V2')
-  static String envExampleContent({bool withoutBroadcasting = false}) {
-    var content = StubLoader.load('install/env_example');
-
-    if (!withoutBroadcasting) {
-      content +=
-          '\nBROADCAST_CONNECTION=\n'
-          'REVERB_HOST=\n'
-          'REVERB_PORT=\n'
-          'REVERB_SCHEME=\n'
-          'REVERB_APP_KEY=\n';
-    }
-
-    return content;
+  static String envExampleContent() {
+    return StubLoader.load('install/env_example');
   }
 
   /// Generates a Magic-compatible smoke test for `test/widget_test.dart`.

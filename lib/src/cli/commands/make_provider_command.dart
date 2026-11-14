@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
 
@@ -11,22 +11,22 @@ import '../helpers/magic_stub_loader.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:provider App                # → AppServiceProvider
-/// artisan make:provider AppServiceProvider # → AppServiceProvider (no double suffix)
+/// dowel make:provider App                # → AppServiceProvider
+/// dowel make:provider AppServiceProvider # → AppServiceProvider (no double suffix)
 /// ```
 ///
 /// ## Output
 ///
 /// Creates a file in `lib/app/providers/` with `register()` and `boot()` stubs.
-class MakeProviderCommand extends ArtisanGeneratorCommand {
+class MakeProviderCommand extends DowelGeneratorCommand {
   /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Creates a [MakeProviderCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeProviderCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeProviderCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;

@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/magic_stub_loader.dart';
@@ -66,22 +66,22 @@ class _KindSpec {
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:test Monitor --kind=controller
-/// artisan make:test Monitors/PauseMonitor --kind=action   # Nested path
-/// artisan make:test Monitor --kind=repository --force     # Overwrite
+/// dowel make:test Monitor --kind=controller
+/// dowel make:test Monitors/PauseMonitor --kind=action   # Nested path
+/// dowel make:test Monitor --kind=repository --force     # Overwrite
 /// ```
 ///
 /// The generated test imports the target class as `package:<name>/...`,
 /// where `<name>` is read from the target project's own `pubspec.yaml`
 /// (relative `../lib/` imports would trip `avoid_relative_lib_imports`).
-class MakeTestCommand extends ArtisanGeneratorCommand {
+class MakeTestCommand extends DowelGeneratorCommand {
   /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Creates a [MakeTestCommand].
   ///
-  /// [testRoot] overrides the project root resolution, used in tests only.
-  MakeTestCommand({String? testRoot}) : _testRoot = testRoot;
+  /// [_testRoot] overrides the project root resolution, used in tests only.
+  MakeTestCommand({this._testRoot});
 
   static const Map<TestKind, _KindSpec> _specs = <TestKind, _KindSpec>{
     TestKind.controller: _KindSpec(
@@ -161,7 +161,7 @@ class MakeTestCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Validate the required positional name.
     final rawName = ctx.input.argument(0);
     if (rawName == null || rawName.isEmpty) {

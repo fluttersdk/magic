@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:magic/src/cli/magic_artisan_provider.dart';
+import 'package:magic/src/cli/magic_dowel_provider.dart';
 import 'package:path/path.dart' as p;
 
 /// Matches a stated generator count next to the phrase it is documented in,
@@ -42,7 +42,7 @@ void main() {
     late int actualCount;
 
     setUpAll(() {
-      final commands = MagicArtisanProvider().commands();
+      final commands = MagicDowelProvider().commands();
       actualCount = commands.where((c) => c.name.startsWith('make:')).length;
     });
 
@@ -66,11 +66,11 @@ void main() {
       },
     );
 
-    test('the MagicArtisanProvider docblock states the current make:* '
+    test('the MagicDowelProvider docblock states the current make:* '
         'generator count', () {
       final stated = _statedCount(
-        _read('lib/src/cli/magic_artisan_provider.dart'),
-        'lib/src/cli/magic_artisan_provider.dart',
+        _read('lib/src/cli/magic_dowel_provider.dart'),
+        'lib/src/cli/magic_dowel_provider.dart',
       );
       expect(stated, actualCount);
     });

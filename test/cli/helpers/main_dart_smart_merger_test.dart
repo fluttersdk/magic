@@ -5,9 +5,10 @@ import 'package:magic/src/cli/helpers/main_dart_smart_merger.dart';
 // Fixtures
 // ---------------------------------------------------------------------------
 
-/// Fresh flutter create counter-app with an async main — no Magic yet.
+/// Fresh flutter create counter-app (Flutter 3.50 template, which imports
+/// material_ui) with an async main; no Magic yet.
 const String _freshAsyncSource = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +30,7 @@ class MyApp extends StatelessWidget {
 
 /// Sync main — should be rejected.
 const String _syncMainSource = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,9 +39,9 @@ void main() {
 
 /// Source that already has Magic fully merged (used for idempotence tests).
 const String _alreadyMergedSource = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:magic/magic.dart';
-import 'package:fluttersdk_wind/fluttersdk_wind.dart';
+import 'package:wind_kit/wind_kit.dart';
 import 'config/app.dart';
 
 void main() async {
@@ -54,7 +55,7 @@ void main() async {
 
 /// Source that already has the magic import but no Magic.init call yet.
 const String _alreadyHasMagicImportSource = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:magic/magic.dart';
 
 void main() async {
@@ -79,10 +80,7 @@ void main() {
       expect(result, contains("import 'package:magic/magic.dart';"));
 
       // Wind import added.
-      expect(
-        result,
-        contains("import 'package:fluttersdk_wind/fluttersdk_wind.dart';"),
-      );
+      expect(result, contains("import 'package:wind_kit/wind_kit.dart';"));
 
       // Config import added.
       expect(result, contains("import 'config/app.dart';"));
@@ -96,7 +94,7 @@ void main() {
       expect(result, contains("appName: 'Uptizm'"));
     });
 
-    test('imports are placed before the flutter/material.dart line', () {
+    test('imports are placed before the material_ui import line', () {
       final result = MainDartSmartMerger.mergeMagicInto(
         _freshAsyncSource,
         appName: 'Uptizm',
@@ -105,11 +103,39 @@ void main() {
       );
 
       final materialIndex = result.indexOf(
+        "import 'package:material_ui/material_ui.dart';",
+      );
+      final magicIndex = result.indexOf("import 'package:magic/magic.dart';");
+      expect(magicIndex, isNot(-1));
+      expect(magicIndex, lessThan(materialIndex));
+    });
+
+    test('falls back to the flutter/material anchor of a pre-3.50 app', () {
+      // Flutter 3.47 to 3.49 `flutter create` still imports the SDK material
+      // library; the merger must keep anchoring there so --preserve works on
+      // apps created before the material_ui split.
+      const legacySource = '''
+import 'package:flutter/material.dart';
+
+void main() async {
+  runApp(const MyApp());
+}
+''';
+      final result = MainDartSmartMerger.mergeMagicInto(
+        legacySource,
+        appName: 'Uptizm',
+        configImports: ["import 'config/app.dart';"],
+        configFactories: ['() => appConfig'],
+      );
+
+      final materialIndex = result.indexOf(
         "import 'package:flutter/material.dart';",
       );
       final magicIndex = result.indexOf("import 'package:magic/magic.dart';");
       expect(magicIndex, isNot(-1));
       expect(magicIndex, lessThan(materialIndex));
+      expect(result, contains("import 'package:wind_kit/wind_kit.dart';"));
+      expect(result, contains("import 'config/app.dart';"));
     });
 
     test(
@@ -207,7 +233,7 @@ void main() {
   group('MainDartSmartMerger.mergeMagicInto — missing runApp', () {
     test('throws StateError when source has no runApp call', () {
       const noRunApp = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() async {
   print('hello');
@@ -231,7 +257,7 @@ void main() async {
   group('MainDartSmartMerger.mergeMagicInto — multi-import preservation', () {
     test('existing user imports are preserved after merge', () {
       const withExtraImport = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 void main() async {
@@ -249,7 +275,10 @@ void main() async {
         result,
         contains("import 'package:sentry_flutter/sentry_flutter.dart';"),
       );
-      expect(result, contains("import 'package:flutter/material.dart';"));
+      expect(
+        result,
+        contains("import 'package:material_ui/material_ui.dart';"),
+      );
     });
   });
 
@@ -278,10 +307,7 @@ void main() async {
 
       // Magic + wind imports still present; no phantom config imports.
       expect(result, contains("import 'package:magic/magic.dart';"));
-      expect(
-        result,
-        contains("import 'package:fluttersdk_wind/fluttersdk_wind.dart';"),
-      );
+      expect(result, contains("import 'package:wind_kit/wind_kit.dart';"));
     });
   });
 

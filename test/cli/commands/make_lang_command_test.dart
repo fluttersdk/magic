@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:magic/src/cli/commands/make_lang_command.dart';
 import 'package:path/path.dart' as p;
 
@@ -74,13 +74,10 @@ void main() {
       final file = File(p.join(projectRoot.path, 'assets', 'lang', 'tr.json'));
       expect(file.existsSync(), isTrue);
 
-      final source =
-          jsonDecode(
-                File(
-                  p.join(projectRoot.path, 'assets', 'lang', 'en.json'),
-                ).readAsStringSync(),
-              )
-              as Map<String, dynamic>;
+      final source = jsonDecode(
+        File(p.join(projectRoot.path, 'assets', 'lang', 'en.json'))
+            .readAsStringSync(),
+      ) as Map<String, dynamic>;
       final generated =
           jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
 
@@ -163,15 +160,14 @@ void main() {
       cmd.configure(parser);
       final output = BufferedOutput();
       final code = await cmd.handle(
-        ArtisanContext.bare(ArgvInput.parse(parser, <String>['tr']), output),
+        DowelContext.bare(ArgvInput.parse(parser, <String>['tr']), output),
       );
 
       expect(code, 1);
       expect(output.content, contains('en.json'));
       expect(
-        File(
-          p.join(projectRoot.path, 'assets', 'lang', 'tr.json'),
-        ).existsSync(),
+        File(p.join(projectRoot.path, 'assets', 'lang', 'tr.json'))
+            .existsSync(),
         isFalse,
       );
     });

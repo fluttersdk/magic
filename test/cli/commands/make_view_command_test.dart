@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_view_command.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:view');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -29,9 +29,8 @@ void main() {
 
     setUp(() {
       projectRoot = Directory.systemTemp.createTempSync('make_view_');
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: fixture_app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: fixture_app\n');
     });
 
     tearDown(() {
@@ -169,33 +168,28 @@ void main() {
       expect(content, contains('void onClose() {\n    form.dispose();\n  }'));
     });
 
-    test(
-      'a nested view name computes the relative controller import from its depth',
-      () async {
-        final cmd = MakeViewCommand(testRoot: projectRoot.path);
-        final code = await cmd.handle(
-          buildCommandContext(cmd, <String>[
-            'Monitors/MonitorsList',
-            '--controller=Monitor',
-          ]),
-        );
+    test('a nested view name computes the relative controller import from its depth', () async {
+      final cmd = MakeViewCommand(testRoot: projectRoot.path);
+      final code = await cmd.handle(
+        buildCommandContext(cmd, <String>[
+          'Monitors/MonitorsList',
+          '--controller=Monitor',
+        ]),
+      );
 
-        expect(code, 0);
-        final content = readFile([
-          'lib',
-          'resources',
-          'views',
-          'monitors',
-          'monitors_list_view.dart',
-        ]);
-        expect(
-          content,
-          contains(
-            "import '../../../app/controllers/monitor_controller.dart';",
-          ),
-        );
-      },
-    );
+      expect(code, 0);
+      final content = readFile([
+        'lib',
+        'resources',
+        'views',
+        'monitors',
+        'monitors_list_view.dart',
+      ]);
+      expect(
+        content,
+        contains("import '../../../app/controllers/monitor_controller.dart';"),
+      );
+    });
 
     test('--test chains make:test --kind=view', () async {
       final cmd = MakeViewCommand(testRoot: projectRoot.path);

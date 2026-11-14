@@ -50,7 +50,7 @@ final RegExp _identifierPattern = RegExp(r'^[A-Z][a-zA-Z0-9_]*$');
 /// single public `*Preview` class from each, and returns the discovered set
 /// sorted deterministically by slug.
 ///
-/// Invariants enforced (fail-fast, mirroring the artisan codegen primitives):
+/// Invariants enforced (fail-fast, mirroring the dowel codegen primitives):
 /// - exactly ONE public preview class per file;
 /// - every class name is a valid PascalCase Dart identifier;
 /// - no two files claim the same slug.
@@ -127,7 +127,7 @@ List<DiscoveredPreview> discoverPreviews(Directory previewsDir) {
 String renderPreviewsIndex(List<DiscoveredPreview> previews) {
   final buf = StringBuffer()
     ..writeln('// GENERATED: do not edit by hand.')
-    ..writeln('// Regenerate via: dart run magic:artisan previews:refresh')
+    ..writeln('// Regenerate via: dart run magic:dowel previews:refresh')
     ..writeln('//')
     ..writeln('// Source: *.preview.dart files discovered under the scan dir.')
     ..writeln()

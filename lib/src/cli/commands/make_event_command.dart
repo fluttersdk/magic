@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
 
@@ -9,23 +9,23 @@ import '../helpers/magic_stub_loader.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:event UserLoggedIn
-/// artisan make:event Auth/TokenRefreshed
+/// dowel make:event UserLoggedIn
+/// dowel make:event Auth/TokenRefreshed
 /// ```
 ///
 /// ## Output
 ///
 /// Creates a file in `lib/app/events/` with a dispatchable event class
 /// that extends `MagicEvent`.
-class MakeEventCommand extends ArtisanGeneratorCommand {
+class MakeEventCommand extends DowelGeneratorCommand {
   /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Creates a [MakeEventCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeEventCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeEventCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;

@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 
 import '../helpers/design_md_parser.dart';
@@ -46,7 +46,7 @@ class _Finding {
 /// The Tailwind/DTCG export-conformance and rem-based spacing/rounded rules
 /// from the reference linter are intentionally dropped; wind uses 4px logical
 /// spacing and arbitrary-hex aliases, so those checks do not apply.
-class DesignLintCommand extends ArtisanCommand {
+class DesignLintCommand extends DowelCommand {
   /// Creates a [DesignLintCommand].
   ///
   /// @param projectRoot  Override for project-root resolution; defaults to
@@ -106,7 +106,7 @@ class DesignLintCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Resolve the input path and read it.
     final root = _projectRootOverride ?? FileHelper.findProjectRoot();
     final inputPath = p.join(
@@ -353,7 +353,7 @@ class DesignLintCommand extends ArtisanCommand {
 
   /// Prints findings grouped by severity and returns the exit code (nonzero
   /// when any error-severity finding is present).
-  int _report(ArtisanContext ctx, List<_Finding> findings) {
+  int _report(DowelContext ctx, List<_Finding> findings) {
     if (findings.isEmpty) {
       ctx.output.success('DESIGN.md passed all design rules.');
       return 0;

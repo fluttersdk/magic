@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_request_command.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:request');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -29,9 +29,8 @@ void main() {
 
     setUp(() {
       projectRoot = Directory.systemTemp.createTempSync('make_request_');
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: fixture_app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: fixture_app\n');
     });
 
     tearDown(() {

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:magic/src/cli/commands/make_model_command.dart';
 import 'package:path/path.dart' as p;
 
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:model');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -94,12 +94,12 @@ void main() {
     });
 
     test(
-      '-a fans out to model, migration, factory, seeder, policy, repository and controller',
+      '-a fans out to model, policy, repository and controller, and hints at '
+      'the database companions when no plugin registers them',
       () async {
         final cmd = MakeModelCommand(testRoot: projectRoot.path);
-        final code = await cmd.handle(
-          buildCommandContext(cmd, <String>['Monitor', '-a']),
-        );
+        final ctx = buildCommandContext(cmd, <String>['Monitor', '-a']);
+        final code = await cmd.handle(ctx);
 
         expect(code, 0);
 
@@ -108,35 +108,18 @@ void main() {
         );
         expect(modelFile.existsSync(), isTrue);
 
-        final migrationsDir = Directory(
-          p.join(projectRoot.path, 'lib', 'database', 'migrations'),
+        expect(
+          Directory(p.join(projectRoot.path, 'lib', 'database')).existsSync(),
+          isFalse,
         );
-        final migrationFiles = migrationsDir.existsSync()
-            ? migrationsDir.listSync().whereType<File>().toList()
-            : <File>[];
-        expect(migrationFiles, hasLength(1));
-
-        final factoryFile = File(
-          p.join(
-            projectRoot.path,
-            'lib',
-            'database',
-            'factories',
-            'monitor_factory.dart',
-          ),
-        );
-        expect(factoryFile.existsSync(), isTrue);
-
-        final seederFile = File(
-          p.join(
-            projectRoot.path,
-            'lib',
-            'database',
-            'seeders',
-            'monitor_seeder.dart',
-          ),
-        );
-        expect(seederFile.existsSync(), isTrue);
+        final output = (ctx.output as BufferedOutput).content;
+        for (final command in <String>[
+          'make:migration',
+          'make:factory',
+          'make:seeder',
+        ]) {
+          expect(output, contains('Skipped $command'));
+        }
 
         final policyFile = File(
           p.join(
@@ -172,5 +155,88 @@ void main() {
         expect(controllerFile.existsSync(), isTrue);
       },
     );
+  });
+
+  group('MakeModelCommand database companions', () {
+    late Directory projectRoot;
+
+    setUp(() {
+      projectRoot = Directory.systemTemp.createTempSync('make_model_db_');
+    });
+
+    tearDown(() {
+      if (projectRoot.existsSync()) projectRoot.deleteSync(recursive: true);
+    });
+
+    test('-m -f -s print a hint naming magic_local_storage when the registry '
+        'lacks the generators', () async {
+      final cmd = MakeModelCommand(testRoot: projectRoot.path);
+      final ctx = buildCommandContext(cmd, <String>[
+        'Monitor',
+        '-m',
+        '-f',
+        '-s',
+      ], registry: DowelRegistry());
+
+      expect(await cmd.handle(ctx), 0);
+
+      final output = (ctx.output as BufferedOutput).content;
+      for (final command in <String>[
+        'make:migration',
+        'make:factory',
+        'make:seeder',
+      ]) {
+        expect(
+          output,
+          contains('Skipped $command: it ships with magic_local_storage'),
+        );
+      }
+      expect(
+        File(p.join(projectRoot.path, 'lib', 'app', 'models', 'monitor.dart'))
+            .existsSync(),
+        isTrue,
+      );
+      expect(
+        Directory(p.join(projectRoot.path, 'lib', 'database')).existsSync(),
+        isFalse,
+      );
+    });
+
+    test('-m -f -s delegate to the registered generators', () async {
+      final migration = RecordingGenerator(
+        'make:migration',
+        root: projectRoot.path,
+      );
+      final factory = RecordingGenerator(
+        'make:factory',
+        root: projectRoot.path,
+      );
+      final seeder = RecordingGenerator('make:seeder', root: projectRoot.path);
+      final registry = DowelRegistry()
+        ..registerAll(<DowelCommand>[migration, factory, seeder]);
+      final cmd = MakeModelCommand(testRoot: projectRoot.path);
+      final ctx = buildCommandContext(cmd, <String>[
+        'Monitor',
+        '-m',
+        '-f',
+        '-s',
+      ], registry: registry);
+
+      expect(await cmd.handle(ctx), 0);
+
+      expect(migration.runs, <({String? argument, String? create})>[
+        (argument: 'create_monitors_table', create: 'monitors'),
+      ]);
+      expect(factory.runs, <({String? argument, String? create})>[
+        (argument: 'Monitor', create: null),
+      ]);
+      expect(seeder.runs, <({String? argument, String? create})>[
+        (argument: 'Monitor', create: null),
+      ]);
+      expect(
+        (ctx.output as BufferedOutput).content,
+        isNot(contains('magic_local_storage')),
+      );
+    });
   });
 }

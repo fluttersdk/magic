@@ -3,9 +3,9 @@
 # Hybrid layout:
 #
 #   - The `publish:` section below lists only the ALWAYS-RENDERED targets
-#     (the 3 base config files, 5 starter files, and 2 .env files). The 6
-#     CONDITIONAL config files (auth / database / network / cache / logging /
-#     broadcasting) are emitted by MagicInstallCommand's fluent override via
+#     (the 3 base config files, 5 starter files, and 2 .env files). The 4
+#     CONDITIONAL config files (auth / network / cache / logging)
+#     are emitted by MagicInstallCommand's fluent override via
 #     `installer.publishConfig(...)` calls, gated on each `--without-X` prompt
 #     answer. This keeps install.yaml as a clean static spec, the v1 schema
 #     has no `if:` conditional section keys.
@@ -24,9 +24,19 @@
 #   - lib/main.dart is NOT in publish:; only the fluent override emits it
 #     (the configFactories list cannot be expressed as a static template).
 #
-# See doc/install_yaml_schema.md (in fluttersdk_artisan) for the full schema.
+#   - `dependencies.pubspec` adds the two UI packages the generated code
+#     imports directly (`material_ui` in main.dart and the views, `wind_kit`
+#     in a smart-merged main.dart). `dowel` itself is added by the delegated
+#     dowel `install` scaffold, which also writes bin/dispatcher.dart.
+#
+# See doc/plugins/install-yaml.md (in dowel) for the full schema.
 
 plugin_name: magic
+
+dependencies:
+  pubspec:
+    material_ui: ^1.11.0
+    wind_kit: ^1.12.0
 
 publish:
   # NOTE: install/app_config (lib/config/app.dart) is INTENTIONALLY OMITTED
@@ -53,10 +63,6 @@ prompts:
     type: bool
     default: false
     question: "Skip auth setup?"
-  - key: withoutDatabase
-    type: bool
-    default: false
-    question: "Skip database setup?"
   - key: withoutNetwork
     type: bool
     default: false
@@ -73,10 +79,6 @@ prompts:
     type: bool
     default: false
     question: "Skip logging setup?"
-  - key: withoutBroadcasting
-    type: bool
-    default: false
-    question: "Skip broadcasting setup?"
 
 placeholders:
   # Pre-populated by MagicInstallCommand's fluent override before render time.
@@ -109,6 +111,11 @@ post_install:
     exception, model, gate watchers). Both gate on kDebugMode so production
     builds tree-shake them entirely.
 
+    Unavailable on magic 0.1.x until magic_devtools is released for it: the
+    published magic_devtools requires magic ^0.0.29, so the pins below do not
+    resolve against this version, and magic:install --with-devtools stops
+    without writing anything.
+
     The Magic adapters live in the sibling `magic_devtools` package. They are
     wired into lib/main.dart under kDebugMode (release builds tree-shake them),
     so add them to dependencies, not dev_dependencies (lib/ imports them):
@@ -120,10 +127,10 @@ post_install:
     Then:
 
        flutter pub get
-       dart run magic:artisan plugin:install fluttersdk_dusk
-       dart run magic:artisan plugin:install fluttersdk_telescope
-       dart run magic:artisan dusk:install
-       dart run magic:artisan telescope:install
+       dart run magic:dowel plugin:install fluttersdk_dusk
+       dart run magic:dowel plugin:install fluttersdk_telescope
+       dart run magic:dowel dusk:install
+       dart run magic:dowel telescope:install
 
     Wire the adapters in lib/main.dart (debug-only, two phases around Magic.init()):
 
@@ -138,7 +145,7 @@ post_install:
     The dusk:install / telescope:install commands wire the kDebugMode setup
     blocks into lib/main.dart. MCP tools surface for Claude Code / Cursor via:
 
-       dart run magic:artisan mcp:install
+       dart run magic:dowel mcp:install
        # then restart Claude Code; /mcp lists 40+ dusk_/telescope_ tools.
 
 bootstrap_command: magic:install

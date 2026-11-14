@@ -1,10 +1,9 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/run_child.dart';
 import 'make_action_command.dart';
 import 'make_controller_command.dart';
-import 'make_factory_command.dart';
 import 'make_form_command.dart';
 import 'make_model_command.dart';
 import 'make_repository_command.dart';
@@ -18,7 +17,7 @@ import 'make_view_command.dart';
 /// [keepExisting] marks the files a resource is built AROUND (the model and
 /// its factory): present ones are skipped with a note instead of clashing.
 typedef _Write = ({
-  ArtisanCommand command,
+  DowelCommand command,
   List<String> args,
   String path,
   bool keepExisting,
@@ -32,7 +31,9 @@ typedef _Write = ({
 /// Update requests, the resource form object, a `--resource --actions`
 /// controller, and the list and form views, plus the tests for the actions,
 /// the form and the controller. It writes no file itself; every file comes
-/// from its own generator through [RunChild].
+/// from its own generator through [RunChild]. The factory comes from
+/// magic_local_storage's `make:factory`, found in the dowel registry; without
+/// the plugin the run prints a hint and writes the vertical without one.
 ///
 /// The run is all-or-nothing: every target path is checked before anything
 /// is written. A present model or factory is kept; any other present file
@@ -44,20 +45,20 @@ typedef _Write = ({
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:resource Monitor
-/// artisan make:resource Monitor --no-views   # Data and logic layers only
-/// artisan make:resource Monitor --no-model   # The model already exists
-/// artisan make:resource Monitor --force      # Overwrite the clashes
+/// dowel make:resource Monitor
+/// dowel make:resource Monitor --no-views   # Data and logic layers only
+/// dowel make:resource Monitor --no-model   # The model already exists
+/// dowel make:resource Monitor --force      # Overwrite the clashes
 /// ```
-class MakeResourceCommand extends ArtisanGeneratorCommand {
+class MakeResourceCommand extends DowelGeneratorCommand {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Creates a [MakeResourceCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeResourceCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeResourceCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -97,7 +98,7 @@ class MakeResourceCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final String? model = ctx.input.argument(0);
     if (model == null || model.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');
@@ -114,10 +115,14 @@ class MakeResourceCommand extends ArtisanGeneratorCommand {
 
     final bool force = ctx.input.hasOption('force');
     final bool withViews = ctx.input.option('views') as bool;
+    final bool withModel = ctx.input.option('model') as bool;
     final List<_Write> plan = _plan(
       model,
-      withModel: ctx.input.option('model') as bool,
+      withModel: withModel,
       withViews: withViews,
+      factory: withModel
+          ? MakeModelCommand.databaseGenerator(ctx, 'make:factory')
+          : null,
     );
 
     // 2. Preflight every target before the first write, so a clash leaves
@@ -160,10 +165,14 @@ class MakeResourceCommand extends ArtisanGeneratorCommand {
 
   /// Builds the ordered list of files the vertical for [model] consists of,
   /// each resolved to its path by its owning generator's own `getPath`.
+  ///
+  /// [factory] is magic_local_storage's `make:factory` from the registry, or
+  /// `null` when the plugin is absent and the vertical goes without one.
   List<_Write> _plan(
     String model, {
     required bool withModel,
     required bool withViews,
+    required DowelCommand? factory,
   }) {
     final String snake = StringHelper.toSnakeCase(model);
     final String plural = StringHelper.toPlural(snake);
@@ -172,7 +181,7 @@ class MakeResourceCommand extends ArtisanGeneratorCommand {
     final List<_Write> plan = <_Write>[];
 
     void add(
-      ArtisanGeneratorCommand command,
+      DowelGeneratorCommand command,
       List<String> args,
       String pathName, {
       TestKind? test,
@@ -203,12 +212,9 @@ class MakeResourceCommand extends ArtisanGeneratorCommand {
         model,
         keepExisting: true,
       );
-      add(
-        MakeFactoryCommand(testRoot: _testRoot),
-        <String>[model],
-        model,
-        keepExisting: true,
-      );
+      if (factory is DowelGeneratorCommand) {
+        add(factory, <String>[model], model, keepExisting: true);
+      }
     }
     add(MakeRepositoryCommand(testRoot: _testRoot), <String>[model], model);
 
@@ -273,7 +279,7 @@ class MakeResourceCommand extends ArtisanGeneratorCommand {
 
   /// Prints the index and create routes for [model]'s views, ready to paste
   /// into `RouteServiceProvider.boot()`.
-  void _printRoutes(ArtisanContext ctx, String model) {
+  void _printRoutes(DowelContext ctx, String model) {
     final String plural = StringHelper.toPlural(
       StringHelper.toSnakeCase(model),
     );

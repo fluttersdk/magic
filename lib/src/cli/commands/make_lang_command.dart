@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 
 import '../helpers/magic_stub_loader.dart';
@@ -14,10 +14,10 @@ import '../helpers/magic_stub_loader.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:lang tr
-/// artisan make:lang en
-/// artisan make:lang tr --from=en   # copy en.json's key tree into tr.json
-/// artisan make:lang tr --force     # Overwrite existing file
+/// dowel make:lang tr
+/// dowel make:lang en
+/// dowel make:lang tr --from=en   # copy en.json's key tree into tr.json
+/// dowel make:lang tr --force     # Overwrite existing file
 /// ```
 ///
 /// ## Output
@@ -26,15 +26,15 @@ import '../helpers/magic_stub_loader.dart';
 /// `assets/lang/{code}.json` with the SAME key tree, each leaf copied
 /// verbatim from the source so the catalogue is complete and ready for a
 /// human translator. Otherwise writes an empty translation map (`{}`).
-class MakeLangCommand extends ArtisanGeneratorCommand {
+class MakeLangCommand extends DowelGeneratorCommand {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Creates a [MakeLangCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeLangCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeLangCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -81,7 +81,7 @@ class MakeLangCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final name = ctx.input.argument(0);
     if (name == null || name.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');

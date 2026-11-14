@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/creates_matching_test.dart';
 import '../helpers/magic_stub_loader.dart';
@@ -14,14 +14,13 @@ import 'make_test_command.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:action PauseMonitor            # -> lib/app/actions/pause_monitor.dart
-/// artisan make:action Monitors/PauseMonitor   # Nested path support
-/// artisan make:action PauseMonitor --force    # Overwrite existing file
-/// artisan make:action Monitors/CreateMonitor --kind=create --model=Monitor
-/// artisan make:action Monitors/PauseMonitor --test  # Also scaffold the test
+/// dowel make:action PauseMonitor            # -> lib/app/actions/pause_monitor.dart
+/// dowel make:action Monitors/PauseMonitor   # Nested path support
+/// dowel make:action PauseMonitor --force    # Overwrite existing file
+/// dowel make:action Monitors/CreateMonitor --kind=create --model=Monitor
+/// dowel make:action Monitors/PauseMonitor --test  # Also scaffold the test
 /// ```
-class MakeActionCommand extends ArtisanGeneratorCommand
-    with CreatesMatchingTest {
+class MakeActionCommand extends DowelGeneratorCommand with CreatesMatchingTest {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
@@ -31,7 +30,7 @@ class MakeActionCommand extends ArtisanGeneratorCommand
   static const Set<String> _kinds = <String>{'create', 'update', 'delete'};
 
   /// Captures the parsed `--kind` value during [handle] so [getStub] and
-  /// [getReplacements] can consume it without re-reading [ArtisanContext.input].
+  /// [getReplacements] can consume it without re-reading [DowelContext.input].
   String? _kindOption;
 
   /// Captures the parsed `--model` value during [handle]; see [_kindOption].
@@ -39,8 +38,8 @@ class MakeActionCommand extends ArtisanGeneratorCommand
 
   /// Creates a [MakeActionCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeActionCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeActionCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -78,7 +77,7 @@ class MakeActionCommand extends ArtisanGeneratorCommand
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Validate --kind against the known set, when given.
     final String? kind = ctx.input.option('kind') as String?;
     if (kind != null && !_kinds.contains(kind)) {
