@@ -177,7 +177,9 @@ class Carbon implements Comparable<Carbon> {
   /// Get the millisecond.
   int get millisecond => _engine.millisecond;
 
-  /// Get the day of week (1 = Monday, 7 = Sunday).
+  /// Get the day of week, numbered from the active locale's first day
+  /// (en_us: 1 = Sunday, 7 = Saturday). Use [toDateTime] `.weekday` for a
+  /// locale-independent ISO number.
   int get dayOfWeek => _engine.dayOfWeek;
 
   /// Get the day of year (1-366).
@@ -539,7 +541,7 @@ class Carbon implements Comparable<Carbon> {
   /// (`:name` substitution, no word boundary).
   ///
   /// Reads the raw template with `Lang.has`/`trans` rather than trusting
-  /// `trans(key)`'s own key-echo, since a translated sentence that happened
+  /// `trans(key)`'s own key fallback, since a translated sentence that happened
   /// to equal its own key would otherwise be misread as missing.
   String _shortLocalized(
     String key,
@@ -650,8 +652,9 @@ class Carbon implements Comparable<Carbon> {
 
   /// Check if this is a weekend.
   bool isWeekend() {
-    final dow = _engine.dayOfWeek;
-    return dow == 6 || dow == 7; // Saturday or Sunday
+    // Jiffy numbers weekdays from the locale's first day, so use the DateTime weekday.
+    final weekday = _engine.dateTime.weekday;
+    return weekday == DateTime.saturday || weekday == DateTime.sunday;
   }
 
   /// Check if this is a weekday.

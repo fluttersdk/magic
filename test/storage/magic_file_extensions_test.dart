@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:magic/src/storage/magic_file.dart';
 import 'package:magic/src/storage/magic_file_io.dart';
@@ -28,30 +27,6 @@ void main() {
       );
 
       expect(() => magicFile.toFile(), throwsUnsupportedError);
-    });
-
-    test('toXFile() returns XFile when path is set', () {
-      final magicFile = MagicFile(
-        path: '/test/path/image.jpg',
-        name: 'image.jpg',
-        mimeType: 'image/jpeg',
-      );
-
-      final xFile = magicFile.toXFile();
-
-      expect(xFile, isA<XFile>());
-      expect(xFile.path, '/test/path/image.jpg');
-      expect(xFile.name, 'image.jpg');
-      expect(xFile.mimeType, 'image/jpeg');
-    });
-
-    test('toXFile() throws when path is null', () {
-      final magicFile = MagicFile(
-        name: 'image.jpg',
-        bytes: Uint8List.fromList([1, 2, 3]),
-      );
-
-      expect(() => magicFile.toXFile(), throwsUnsupportedError);
     });
   });
 
@@ -98,27 +73,6 @@ void main() {
       expect(bytes!.length, 4);
       expect(bytes[0], 0xFF); // JPEG marker
     });
-
-    test('fromXFile() creates MagicFile from XFile', () async {
-      final xFile = XFile(testFile.path, name: 'xfile_test.jpg');
-
-      final magicFile = await MagicFileFactory.fromXFile(xFile);
-
-      expect(magicFile.path, testFile.path);
-      // Note: XFile.name returns the file basename, not the custom name
-      expect(magicFile.name, 'test_image.jpg');
-      expect(magicFile.size, 4);
-    });
-
-    test('fromXFile() bytes can be read', () async {
-      final xFile = XFile(testFile.path);
-      final magicFile = await MagicFileFactory.fromXFile(xFile);
-
-      final bytes = await magicFile.readAsBytes();
-
-      expect(bytes, isNotNull);
-      expect(bytes!.length, 4);
-    });
   });
 
   group('MagicFile Integration', () {
@@ -144,19 +98,6 @@ void main() {
       final recoveredFile = magicFile.toFile();
 
       expect(await recoveredFile.readAsString(), 'Hello Magic!');
-    });
-
-    test('round-trip: XFile -> MagicFile -> XFile', () async {
-      final originalFile = File(p.join(tempDir.path, 'original.jpg'));
-      await originalFile.writeAsBytes([1, 2, 3, 4, 5]);
-
-      final xFile = XFile(originalFile.path, mimeType: 'image/jpeg');
-      final magicFile = await MagicFileFactory.fromXFile(xFile);
-      final recoveredXFile = magicFile.toXFile();
-
-      expect(recoveredXFile.path, originalFile.path);
-      expect(recoveredXFile.name, 'original.jpg');
-      expect(await recoveredXFile.readAsBytes(), [1, 2, 3, 4, 5]);
     });
 
     test('MagicFile properties preserved through conversions', () async {

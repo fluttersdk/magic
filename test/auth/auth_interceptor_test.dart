@@ -60,35 +60,29 @@ void main() {
     auth = Auth.fake(user: _User()..setRawAttributes({'id': 1}, sync: true));
   });
 
-  test(
-    'a 401 on a request that carried no credential leaves the session alone',
-    () async {
-      // The failure this covers, measured in a browser against a consumer app:
-      // the app opens a guest session on launch, and a DIFFERENT request that was
-      // dispatched before that login returned went out with no `Authorization`
-      // header at all. Its 401 arrived after the login had succeeded, and this
-      // interceptor read it as "the session is invalid" and logged the brand new
-      // session out. A 401 on a request that sent no credential says nothing
-      // about the credential the guard now holds.
-      await AuthInterceptor().onError(_unauthorized(const <String, dynamic>{}));
+  test('a 401 on a request that carried no credential leaves the session alone', () async {
+    // The failure this covers, measured in a browser against a consumer app:
+    // the app opens a guest session on launch, and a DIFFERENT request that was
+    // dispatched before that login returned went out with no `Authorization`
+    // header at all. Its 401 arrived after the login had succeeded, and this
+    // interceptor read it as "the session is invalid" and logged the brand new
+    // session out. A 401 on a request that sent no credential says nothing
+    // about the credential the guard now holds.
+    await AuthInterceptor().onError(_unauthorized(const <String, dynamic>{}));
 
-      auth.assertLoggedIn();
-    },
-  );
+    auth.assertLoggedIn();
+  });
 
-  test(
-    'a 401 on a request that carried the token still ends the session',
-    () async {
-      // The other half, and the reason the check is on the header rather than on
-      // a flag: a token the server actually rejected must still end the session,
-      // because this app has no refresh endpoint to fall back on.
-      await AuthInterceptor().onError(
-        _unauthorized(<String, dynamic>{'Authorization': 'Bearer a-token'}),
-      );
+  test('a 401 on a request that carried the token still ends the session', () async {
+    // The other half, and the reason the check is on the header rather than on
+    // a flag: a token the server actually rejected must still end the session,
+    // because this app has no refresh endpoint to fall back on.
+    await AuthInterceptor().onError(
+      _unauthorized(<String, dynamic>{'Authorization': 'Bearer a-token'}),
+    );
 
-      auth.assertLoggedOut();
-    },
-  );
+    auth.assertLoggedOut();
+  });
 
   test('the header is matched whatever casing the request carried', () async {
     // Header names are case-insensitive on the wire, and Dio keeps the casing

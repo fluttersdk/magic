@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 // No platform-split wrapper needed.
 import 'package:flutter_web_plugins/url_strategy.dart';
 
-import '../database/seeding/seeder.dart';
 import '../facades/config.dart';
 import '../facades/log.dart';
 import '../logging/log_manager.dart';
@@ -88,8 +87,6 @@ class Magic {
 
     // 3. Register Core Providers
     // register(CacheServiceProvider(app));
-    // register(EncryptionServiceProvider(app));
-    // register(DatabaseServiceProvider(app));
 
     // 4. Register Configured Providers
     final configuredProviders = Config.get('app.providers', []) as List;
@@ -454,40 +451,5 @@ class Magic {
   /// ```
   static void reload() {
     MagicAppWidget.restart();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Database Seeding
-  // ---------------------------------------------------------------------------
-
-  /// Run database seeders.
-  ///
-  /// This is the primary way to seed your database in Flutter apps.
-  /// Call this in your `main.dart` during development.
-  ///
-  /// ```dart
-  /// void main() async {
-  ///   await Magic.init(...);
-  ///
-  ///   // Seed database in development
-  ///   if (kDebugMode) {
-  ///     await Magic.seed([DatabaseSeeder()]);
-  ///   }
-  ///
-  ///   runApp(MagicApplication(...));
-  /// }
-  /// ```
-  ///
-  /// Or seed specific factories:
-  ///
-  /// ```dart
-  /// await Magic.seed([UserSeeder(), TodoSeeder()]);
-  /// ```
-  static Future<void> seed(List<Seeder> seeders) async {
-    Log.info('🌱 Starting database seeding...');
-    for (final seeder in seeders) {
-      await seeder.run();
-    }
-    Log.info('✅ Database seeding complete');
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jiffy/jiffy.dart';
 import 'package:magic/src/support/carbon.dart';
 
 void main() {
@@ -295,15 +296,34 @@ void main() {
       expect(future.isPast(), isFalse);
     });
 
-    test('isWeekend() checks if Saturday or Sunday', () {
-      // Find a Saturday
-      var date = Carbon.now();
-      while (date.dayOfWeek != 6) {
-        date = date.addDay();
-      }
+    group('isWeekend()', () {
+      tearDown(() async {
+        await Jiffy.setLocale('en_us');
+      });
 
-      expect(date.isWeekend(), isTrue);
-      expect(date.addDays(2).isWeekend(), isFalse); // Monday
+      test('flags Saturday and Sunday, not Friday, under en_us', () async {
+        await Jiffy.setLocale('en_us');
+
+        expect(Carbon.parse('2024-01-19').isWeekend(), isFalse); // Friday
+        expect(Carbon.parse('2024-01-20').isWeekend(), isTrue); // Saturday
+        expect(Carbon.parse('2024-01-21').isWeekend(), isTrue); // Sunday
+        expect(Carbon.parse('2024-01-22').isWeekend(), isFalse); // Monday
+      });
+
+      test('flags Saturday under tr', () async {
+        await Jiffy.setLocale('tr');
+
+        expect(Carbon.parse('2024-01-19').isWeekend(), isFalse); // Friday
+        expect(Carbon.parse('2024-01-20').isWeekend(), isTrue); // Saturday
+        expect(Carbon.parse('2024-01-21').isWeekend(), isTrue); // Sunday
+      });
+
+      test('isWeekday() is the inverse', () async {
+        await Jiffy.setLocale('en_us');
+
+        expect(Carbon.parse('2024-01-19').isWeekday(), isTrue);
+        expect(Carbon.parse('2024-01-20').isWeekday(), isFalse);
+      });
     });
   });
 

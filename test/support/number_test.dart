@@ -27,12 +27,9 @@ void main() {
   });
 
   group('Number.currency', () {
-    test(
-      'builds on simpleCurrency, not currency, so tr gets a symbol not an ISO code',
-      () {
-        expect(Number.currency(1234.5, code: 'TRY', locale: 'tr'), '₺1.234,50');
-      },
-    );
+    test('builds on simpleCurrency, not currency, so tr gets a symbol not an ISO code', () {
+      expect(Number.currency(1234.5, code: 'TRY', locale: 'tr'), '₺1.234,50');
+    });
   });
 
   group('Number.percentage', () {

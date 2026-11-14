@@ -22,25 +22,31 @@ void markExcludedFromBackup(String directoryPath) {
   _CoreFoundation.instance.excludeFromBackup(directoryPath);
 }
 
-typedef _CreateUrlNative =
-    Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, Long, Uint8);
-typedef _CreateUrl =
-    Pointer<Void> Function(Pointer<Void>, Pointer<Uint8>, int, int);
+typedef _CreateUrlNative = Pointer<Void> Function(
+  Pointer<Void>,
+  Pointer<Uint8>,
+  Long,
+  Uint8,
+);
+typedef _CreateUrl = Pointer<Void> Function(
+  Pointer<Void>,
+  Pointer<Uint8>,
+  int,
+  int,
+);
 
-typedef _SetPropertyNative =
-    Uint8 Function(
-      Pointer<Void>,
-      Pointer<Void>,
-      Pointer<Void>,
-      Pointer<Pointer<Void>>,
-    );
-typedef _SetProperty =
-    int Function(
-      Pointer<Void>,
-      Pointer<Void>,
-      Pointer<Void>,
-      Pointer<Pointer<Void>>,
-    );
+typedef _SetPropertyNative = Uint8 Function(
+  Pointer<Void>,
+  Pointer<Void>,
+  Pointer<Void>,
+  Pointer<Pointer<Void>>,
+);
+typedef _SetProperty = int Function(
+  Pointer<Void>,
+  Pointer<Void>,
+  Pointer<Void>,
+  Pointer<Pointer<Void>>,
+);
 
 typedef _ErrorGetCodeNative = Long Function(Pointer<Void>);
 typedef _ErrorGetCode = int Function(Pointer<Void>);
@@ -93,9 +99,8 @@ class _CoreFoundation {
   void excludeFromBackup(String directoryPath) {
     final Uint8List path = utf8.encode(directoryPath);
     final Pointer<Uint8> buffer = _malloc(path.length).cast<Uint8>();
-    final Pointer<Pointer<Void>> error = _malloc(
-      sizeOf<Pointer<Void>>(),
-    ).cast<Pointer<Void>>();
+    final Pointer<Pointer<Void>> error = _malloc(sizeOf<Pointer<Void>>())
+        .cast<Pointer<Void>>();
     Pointer<Void> url = nullptr;
 
     try {

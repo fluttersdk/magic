@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:image_picker/image_picker.dart' show XFile;
 
 import '../../storage/magic_file.dart';
 import '../contracts/network_driver.dart';
@@ -349,20 +348,9 @@ class DioNetworkDriver implements NetworkDriver {
       );
     }
 
-    if (value is XFile) {
-      final bytes = await value.readAsBytes();
-      return MultipartFile.fromBytes(
-        bytes,
-        filename: value.name,
-        contentType: value.mimeType != null
-            ? DioMediaType.parse(value.mimeType!)
-            : null,
-      );
-    }
-
     throw ArgumentError(
       'Unsupported file type: ${value.runtimeType}. '
-      'Expected String (path), MagicFile, XFile, Uint8List, or List<int>.',
+      'Expected String (path), MagicFile, Uint8List, or List<int>.',
     );
   }
 

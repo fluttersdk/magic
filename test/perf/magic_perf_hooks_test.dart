@@ -209,27 +209,16 @@ void main() {
       repository.dispose();
     });
 
-    test('a broadcast dispatch reports broadcast', () async {
-      final FakeBroadcastManager echo = Echo.fake();
-      Log.fake();
-      addTearDown(() {
-        BroadcastListeners.reset();
-        Echo.unfake();
-        Log.unfake();
-      });
+    // The three broadcast cases drive the hook the way a realtime fan-out
+    // does (emit, then a root broadcast scope per handler); the fan-out
+    // itself is pinned end to end in magic_socket.
+    test('a broadcast dispatch reports broadcast', () {
       final _StateController controller = _StateController();
-      BroadcastListeners.channel('team', () => 'teams.1');
-      await BroadcastListeners.sync();
-      BroadcastListeners.add(
-        'team',
-        'check.recorded',
-        (BroadcastEvent _) => controller.refreshUI(),
-      );
 
-      echo.dispatch(
-        'private-teams.1',
-        'check.recorded',
-        const <String, dynamic>{'id': '1'},
+      MagicPerfHooks.emit(BroadcastReceived('check.recorded'));
+      MagicPerfHooks.runWithRootCause(
+        MagicNotifyCause.broadcast,
+        controller.refreshUI,
       );
 
       expect(
@@ -260,37 +249,24 @@ void main() {
       'a Debouncer armed by a broadcast handler reports timerTick for the '
       'reload it later fires: a root site replaces the inherited cause',
       () async {
-        final FakeBroadcastManager echo = Echo.fake();
-        Log.fake();
-        addTearDown(() {
-          BroadcastListeners.reset();
-          Echo.unfake();
-          Log.unfake();
-        });
         final _StateController controller = _StateController();
         final Debouncer debouncer = Debouncer();
-        BroadcastListeners.channel('team', () => 'teams.1');
-        await BroadcastListeners.sync();
-        BroadcastListeners.add(
-          'team',
-          'check.recorded',
-          // Still running when the Debouncer fires, so the broadcast scope
-          // the timer was armed in is open: only a root site that replaces
-          // it reports timerTick.
-          (BroadcastEvent _) async {
-            debouncer.run(
-              'reload',
-              const Duration(milliseconds: 10),
-              controller.reload,
-            );
-            await Future<void>.delayed(const Duration(milliseconds: 40));
-          },
-        );
 
-        echo.dispatch(
-          'private-teams.1',
-          'check.recorded',
-          const <String, dynamic>{'id': '1'},
+        unawaited(
+          MagicPerfHooks.runWithRootCause(
+            MagicNotifyCause.broadcast,
+            // Still running when the Debouncer fires, so the broadcast scope
+            // the timer was armed in is open: only a root site that replaces
+            // it reports timerTick.
+            () async {
+              debouncer.run(
+                'reload',
+                const Duration(milliseconds: 10),
+                controller.reload,
+              );
+              await Future<void>.delayed(const Duration(milliseconds: 40));
+            },
+          ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 80));
 
@@ -303,26 +279,13 @@ void main() {
     test(
       'an async broadcast handler reports broadcast after its await',
       () async {
-        final FakeBroadcastManager echo = Echo.fake();
-        Log.fake();
-        addTearDown(() {
-          BroadcastListeners.reset();
-          Echo.unfake();
-          Log.unfake();
-        });
         final _StateController controller = _StateController();
-        BroadcastListeners.channel('team', () => 'teams.1');
-        await BroadcastListeners.sync();
-        BroadcastListeners.add(
-          'team',
-          'check.recorded',
-          (BroadcastEvent _) => controller.reload(),
-        );
 
-        echo.dispatch(
-          'private-teams.1',
-          'check.recorded',
-          const <String, dynamic>{'id': '1'},
+        unawaited(
+          MagicPerfHooks.runWithRootCause(
+            MagicNotifyCause.broadcast,
+            controller.reload,
+          ),
         );
         await Future<void>.delayed(const Duration(milliseconds: 30));
 

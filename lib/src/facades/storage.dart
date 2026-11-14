@@ -40,9 +40,9 @@ import '../storage/storage_manager.dart';
 ///
 /// | Method | Mobile/Desktop | Web |
 /// |--------|----------------|-----|
-/// | `put()` | Writes to file system | Stores in SharedPreferences (Base64) |
+/// | `put()` | Writes to file system | Stores in localStorage (Base64) |
 /// | `url()` | Returns `file://` path | Returns `blob:` URL |
-/// | `download()` | Opens share sheet | Triggers browser download |
+/// | `download()` | Opens share sheet (needs `magic_picker`) | Triggers browser download |
 class Storage {
   /// The storage manager instance.
   static StorageManager? _manager;
@@ -83,9 +83,8 @@ class Storage {
   /// // Store image bytes
   /// await Storage.put('avatars/user.jpg', bytes, mimeType: 'image/jpeg');
   ///
-  /// // Store a MagicFile from Pick
-  /// final image = await Pick.image();
-  /// await Storage.put('avatars/user.jpg', image);
+  /// // Store a MagicFile
+  /// await Storage.put('avatars/user.jpg', magicFile);
   /// ```
   static Future<String> put(String path, dynamic contents, {String? mimeType}) {
     return disk().put(path, contents, mimeType: mimeType);
@@ -162,7 +161,9 @@ class Storage {
 
   /// Trigger a download of the file.
   ///
-  /// - **Mobile**: Opens share sheet.
+  /// - **Mobile/Desktop**: Hands the file to
+  ///   `LocalAdapterContract.downloadHandler`, which `magic_picker` sets to
+  ///   open the share sheet; throws [UnsupportedError] while it is unset.
   /// - **Web**: Triggers browser download dialog.
   ///
   /// ```dart

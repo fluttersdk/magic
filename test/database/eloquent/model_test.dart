@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
-import 'package:sqlite3/sqlite3.dart';
 
 /// A test model for unit testing the Eloquent ORM.
 class TestUser extends Model with HasTimestamps, InteractsWithPersistence {
@@ -238,128 +237,6 @@ void main() {
     });
   });
 
-  group('InteractsWithPersistence', () {
-    late Database db;
-
-    setUp(() {
-      // Use in-memory database for testing
-      db = sqlite3.openInMemory();
-      DatabaseManager().setConnection(db);
-
-      // Create test table
-      db.execute('''
-        CREATE TABLE test_users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          email TEXT,
-          born_at TEXT,
-          settings TEXT,
-          created_at TEXT,
-          updated_at TEXT
-        )
-      ''');
-    });
-
-    tearDown(() {
-      DatabaseManager().dispose();
-    });
-
-    test('save inserts new model', () async {
-      final user = TestUser()
-        ..fill({'name': 'New User', 'email': 'new@example.com'});
-
-      final result = await user.save();
-
-      expect(result, isTrue);
-      expect(user.exists, isTrue);
-      expect(user.id, isNotNull);
-    });
-
-    test('save updates existing model', () async {
-      // Insert directly
-      db.execute(
-        "INSERT INTO test_users (name, email) VALUES ('Original', 'orig@test.com')",
-      );
-
-      final user = await TestUser.find(1);
-      expect(user, isNotNull);
-      expect(user!.name, 'Original');
-
-      user.name = 'Updated';
-      await user.save();
-
-      // Verify update
-      final updated = await TestUser.find(1);
-      expect(updated!.name, 'Updated');
-    });
-
-    test('find returns model by id', () async {
-      db.execute(
-        "INSERT INTO test_users (name, email) VALUES ('Test', 'test@example.com')",
-      );
-
-      final user = await TestUser.find(1);
-
-      expect(user, isNotNull);
-      expect(user!.name, 'Test');
-      expect(user.email, 'test@example.com');
-      expect(user.exists, isTrue);
-    });
-
-    test('find returns null for non-existent id', () async {
-      final user = await TestUser.find(999);
-      expect(user, isNull);
-    });
-
-    test('all returns all models', () async {
-      db.execute(
-        "INSERT INTO test_users (name, email) VALUES ('User 1', 'u1@test.com')",
-      );
-      db.execute(
-        "INSERT INTO test_users (name, email) VALUES ('User 2', 'u2@test.com')",
-      );
-
-      final users = await TestUser.all();
-
-      expect(users.length, 2);
-      expect(users[0].name, 'User 1');
-      expect(users[1].name, 'User 2');
-    });
-
-    test('delete removes model', () async {
-      db.execute(
-        "INSERT INTO test_users (name, email) VALUES ('ToDelete', 'del@test.com')",
-      );
-
-      final user = await TestUser.find(1);
-      expect(user, isNotNull);
-
-      final result = await user!.delete();
-      expect(result, isTrue);
-      expect(user.exists, isFalse);
-
-      // Verify deletion
-      final deleted = await TestUser.find(1);
-      expect(deleted, isNull);
-    });
-
-    test('refresh reloads model from database', () async {
-      db.execute(
-        "INSERT INTO test_users (name, email) VALUES ('Original', 'orig@test.com')",
-      );
-
-      final user = await TestUser.find(1);
-      expect(user!.name, 'Original');
-
-      // Update directly in DB
-      db.execute("UPDATE test_users SET name = 'Updated' WHERE id = 1");
-
-      // Refresh
-      await user.refresh();
-      expect(user.name, 'Updated');
-    });
-  });
-
   group('Model Serialization', () {
     test('toMap respects hidden attributes defined in model', () {
       final user = _UserWithHidden()
@@ -593,20 +470,17 @@ void main() {
       );
     });
 
-    test(
-      'delete on a model that never existed forgets the last response',
-      () async {
-        // delete() answers false before any request when the model does not
-        // exist, and a status 0 left over from its failed create would otherwise
-        // make that local no-op read as a network failure.
-        Http.fake((MagicRequest request) => Http.response(null, 0));
-        final user = _RemoteUser()..fill({'name': 'Never saved'});
-        await user.save();
+    test('delete on a model that never existed forgets the last response', () async {
+      // delete() answers false before any request when the model does not
+      // exist, and a status 0 left over from its failed create would otherwise
+      // make that local no-op read as a network failure.
+      Http.fake((MagicRequest request) => Http.response(null, 0));
+      final user = _RemoteUser()..fill({'name': 'Never saved'});
+      await user.save();
 
-        expect(await user.delete(), isFalse);
-        expect(user.lastRemoteResponse, isNull);
-      },
-    );
+      expect(await user.delete(), isFalse);
+      expect(user.lastRemoteResponse, isNull);
+    });
 
     test('delete keeps its response readable too', () async {
       Http.fake((MagicRequest request) => Http.response(null, 0));

@@ -18,17 +18,6 @@ class _RenamedMagicFile extends MagicFile {
       );
 }
 
-/// An [XFile] whose runtime type name is not `XFile`, for the same reason.
-class _RenamedXFile extends XFile {
-  _RenamedXFile()
-    : super.fromData(
-        Uint8List.fromList(<int>[4, 5, 6]),
-        name: 'photo.jpg',
-        path: '/picked/photo.jpg',
-        mimeType: 'image/jpeg',
-      );
-}
-
 void main() {
   group('DioNetworkDriver.upload file types', () {
     late DioNetworkDriver driver;
@@ -80,17 +69,5 @@ void main() {
         expect(sentFile('photo').contentType.toString(), 'image/png');
       },
     );
-
-    test('an XFile is uploaded whatever its runtime type is named', () async {
-      final MagicResponse response = await driver.upload(
-        '/user/profile-photo',
-        data: <String, dynamic>{},
-        files: <String, dynamic>{'photo': _RenamedXFile()},
-      );
-
-      expect(response.statusCode, 200);
-      expect(sentFile('photo').filename, 'photo.jpg');
-      expect(sentFile('photo').contentType.toString(), 'image/jpeg');
-    });
   });
 }

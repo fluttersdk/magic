@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
 
 /// Pins that every public type Steps 2-9 added (session scope, the data
-/// layer, actions, form objects, the timing/url support seam, broadcast
-/// listeners, the event breadcrumb contract, and the fuller validation
+/// layer, actions, form objects, the timing/url support seam, the event
+/// breadcrumb contract, and the fuller validation
 /// rules) reaches a consumer through `package:magic/magic.dart` alone, the
 /// same contract `test/support/exports_test.dart` pins for the surface added
 /// before this plan. Each type is referenced once; the behaviour each one
@@ -37,12 +37,7 @@ class _PauseRow extends MagicAction<String, void> {
   Future<void> handle(String input) async {}
 }
 
-class _BarrelController extends MagicController
-    with RunsActions, OwnsTimers, ListensToBroadcasts {
-  @override
-  Map<String, void Function(BroadcastEvent)> get listeners =>
-      const <String, void Function(BroadcastEvent)>{};
-}
+class _BarrelController extends MagicController with RunsActions, OwnsTimers {}
 
 class _NoopRequest extends FormRequest {
   const _NoopRequest();
@@ -140,20 +135,6 @@ void main() {
     final PollOutcome<int> outcome = await handle.result;
 
     expect(outcome, isA<PollSettled<int>>());
-  });
-
-  test('BroadcastListeners and ListensToBroadcasts resolve through the public '
-      'barrel', () {
-    expect(_BarrelController(), isA<ListensToBroadcasts>());
-
-    BroadcastListeners.channel('barrel', () => null);
-    final BroadcastListenerToken token = BroadcastListeners.add(
-      'barrel',
-      'event',
-      (_) {},
-    );
-    BroadcastListeners.remove(token);
-    BroadcastListeners.reset();
   });
 
   test('UrlGenerator and url() resolve through the public barrel', () {

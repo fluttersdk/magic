@@ -1,6 +1,6 @@
+import '../../contracts/local_model_store.dart';
 import '../model.dart';
-import '../../query/query_builder.dart';
-import '../../database_manager.dart';
+import '../../../foundation/magic.dart';
 import '../../../facades/http.dart';
 import '../../../network/magic_response.dart';
 import '../../../facades/event.dart';
@@ -125,13 +125,6 @@ mixin InteractsWithPersistence on Model {
   }
 
   // ---------------------------------------------------------------------------
-  // Query Builder Access
-  // ---------------------------------------------------------------------------
-
-  /// Get a query builder for the model's table.
-  QueryBuilder query() => QueryBuilder(table);
-
-  // ---------------------------------------------------------------------------
   // Retrieval Methods
   // ---------------------------------------------------------------------------
 
@@ -151,13 +144,14 @@ mixin InteractsWithPersistence on Model {
     T Function() factory,
   ) async {
     final sample = factory();
+    // Resolved up front: both the local read and the remote leg's sync write
+    // to the store, and their catch blocks must not hide a missing one.
+    final LocalModelStore? store = sample.useLocal ? _localStore() : null;
 
     // Try local first
-    if (sample.useLocal) {
+    if (store != null) {
       try {
-        final row = await QueryBuilder(
-          sample.table,
-        ).where(sample.primaryKey, id).first();
+        final row = await store.find(sample.table, sample.primaryKey, id);
 
         if (row != null) {
           return hydrate<T>(row, factory);
@@ -177,8 +171,8 @@ mixin InteractsWithPersistence on Model {
             final model = hydrate<T>(data, factory);
 
             // Sync to local if enabled
-            if (sample.useLocal) {
-              await _syncToLocal(model);
+            if (store != null) {
+              await _syncToLocal(store, model);
             }
 
             return model;
@@ -208,11 +202,13 @@ mixin InteractsWithPersistence on Model {
   ) async {
     final sample = factory();
     final results = <T>[];
+    // Resolved up front for the same reason as in [findById].
+    final LocalModelStore? store = sample.useLocal ? _localStore() : null;
 
     // Try local first
-    if (sample.useLocal) {
+    if (store != null) {
       try {
-        final rows = await QueryBuilder(sample.table).get();
+        final rows = await store.all(sample.table);
         for (final row in rows) {
           results.add(hydrate<T>(row, factory));
         }
@@ -232,8 +228,8 @@ mixin InteractsWithPersistence on Model {
             final model = hydrate<T>(item, factory);
 
             // Sync to local if enabled
-            if (sample.useLocal) {
-              await _syncToLocal(model);
+            if (store != null) {
+              await _syncToLocal(store, model);
             }
 
             results.add(model);
@@ -264,6 +260,10 @@ mixin InteractsWithPersistence on Model {
   /// print(user.id); // The new ID
   /// ```
   Future<bool> save() async {
+    // Resolved before any event or remote write, so a missing store fails the
+    // save before it has half happened.
+    final LocalModelStore? store = useLocal ? _localStore() : null;
+
     // Fire Saving event
     await Event.dispatch(ModelSaving(this));
 
@@ -319,26 +319,12 @@ mixin InteractsWithPersistence on Model {
     }
 
     // Save to local
-    if (useLocal) {
+    if (store != null) {
       try {
-        final db = DatabaseManager();
-        if (!db.isInitialized) {
-          await db.init();
-        }
-
-        // Filter to only columns that exist in the table
-        final columns = await db.getColumns(table);
-        final filteredData = <String, dynamic>{};
-        for (final entry in data.entries) {
-          if (columns.contains(entry.key)) {
-            filteredData[entry.key] = entry.value;
-          }
-        }
-
         if (exists) {
-          await QueryBuilder(table).where(primaryKey, id).update(filteredData);
+          await store.update(table, primaryKey, id, data);
         } else {
-          final newId = await QueryBuilder(table).insert(filteredData);
+          final newId = await store.insert(table, data);
           id ??= newId;
         }
         success = true;
@@ -376,6 +362,7 @@ mixin InteractsWithPersistence on Model {
     _lastRemoteResponse = null;
     if (!exists) return false;
 
+    final LocalModelStore? store = useLocal ? _localStore() : null;
     var success = false;
 
     // Delete from remote
@@ -392,9 +379,9 @@ mixin InteractsWithPersistence on Model {
     }
 
     // Delete from local
-    if (useLocal) {
+    if (store != null) {
       try {
-        await QueryBuilder(table).where(primaryKey, id).delete();
+        await store.delete(table, primaryKey, id);
         success = true;
       } catch (_) {
         // Local failed
@@ -417,10 +404,12 @@ mixin InteractsWithPersistence on Model {
   Future<bool> refresh() async {
     if (!exists || id == null) return false;
 
+    final LocalModelStore? store = useLocal ? _localStore() : null;
+
     // Try local first
-    if (useLocal) {
+    if (store != null) {
       try {
-        final row = await QueryBuilder(table).where(primaryKey, id).first();
+        final row = await store.find(table, primaryKey, id);
         if (row != null) {
           setRawAttributes(row, sync: true);
           return true;
@@ -453,34 +442,34 @@ mixin InteractsWithPersistence on Model {
   // Helper Methods
   // ---------------------------------------------------------------------------
 
-  /// Sync a model to local database.
-  static Future<void> _syncToLocal<T extends Model>(T model) async {
+  /// The bound [LocalModelStore].
+  ///
+  /// Throws a [StateError] when nothing is bound to `'local_model_store'`.
+  /// Callers resolve it before their `try`, whose catch would hide the error.
+  static LocalModelStore _localStore() {
+    if (!Magic.bound('local_model_store')) {
+      throw StateError(
+        'A model with useLocal enabled needs a LocalModelStore bound to '
+        '"local_model_store". Add magic_local_storage and register its '
+        'service provider, or set useLocal to false.',
+      );
+    }
+
+    return Magic.make<LocalModelStore>('local_model_store');
+  }
+
+  /// Sync a model pulled from the remote side into [store].
+  static Future<void> _syncToLocal<T extends Model>(
+    LocalModelStore store,
+    T model,
+  ) async {
     try {
-      final db = DatabaseManager();
-      if (!db.isInitialized) {
-        await db.init();
-      }
-
-      final columns = await db.getColumns(model.table);
-      final data = <String, dynamic>{};
-      for (final entry in model.toArray().entries) {
-        if (columns.contains(entry.key)) {
-          data[entry.key] = entry.value;
-        }
-      }
-
-      // Check if exists
-      final existing = await QueryBuilder(
+      await store.upsert(
         model.table,
-      ).where(model.primaryKey, model.id).first();
-
-      if (existing != null) {
-        await QueryBuilder(
-          model.table,
-        ).where(model.primaryKey, model.id).update(data);
-      } else {
-        await QueryBuilder(model.table).insert(data);
-      }
+        model.primaryKey,
+        model.id,
+        model.toArray(),
+      );
     } catch (_) {
       // Sync failed silently
     }

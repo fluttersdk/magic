@@ -1,30 +1,14 @@
 library;
 
 // Export plugins
-export 'package:fluttersdk_wind/fluttersdk_wind.dart';
+export 'package:wind_kit/wind_kit.dart';
 export 'package:dio/dio.dart';
 export 'package:go_router/go_router.dart';
 export 'package:intl/intl.dart';
 export 'package:jiffy/jiffy.dart';
-export 'package:image_picker/image_picker.dart';
 export 'package:flutter_secure_storage/flutter_secure_storage.dart';
-export 'package:shared_preferences/shared_preferences.dart';
-export 'package:share_plus/share_plus.dart';
 export 'package:timezone/timezone.dart';
 export 'package:logger/logger.dart';
-// Named rather than blanket: file_picker 12 re-exports its platform interface,
-// whose AndroidOptions, LinuxOptions, WebOptions and WindowsOptions collide
-// with the flutter_secure_storage names exported above, and whose
-// FilePickerPlatform plumbing is not part of magic's public surface. Reach for
-// package:file_picker/file_picker.dart directly to configure per-platform
-// picker options.
-export 'package:file_picker/file_picker.dart'
-    show
-        FilePicker,
-        FilePickerStatus,
-        FileType,
-        IllegalCharacterInFileNameException,
-        PlatformFile;
 
 // Foundation
 export 'src/foundation/application.dart';
@@ -37,7 +21,6 @@ export 'src/foundation/magic_app_widget.dart';
 export 'config/app.dart';
 export 'config/auth.dart';
 export 'config/cache.dart';
-export 'config/database.dart';
 export 'config/logging.dart';
 export 'config/localization.dart';
 export 'config/network.dart';
@@ -73,11 +56,6 @@ export 'src/perf/magic_perf_hooks.dart';
 // Forms
 export 'src/forms/magic_form_object.dart';
 
-// Sync
-export 'src/sync/sync_feed.dart';
-export 'src/sync/sync_ledger.dart';
-export 'src/sync/create_sync_cursors_table.dart';
-
 // Routing
 export 'src/routing/magic_overlay_page.dart' show MagicOverlayPresentation;
 export 'src/routing/magic_platform_page.dart';
@@ -107,15 +85,12 @@ export 'src/cache/cache_manager.dart';
 export 'src/cache/cache_service_provider.dart';
 export 'src/cache/drivers/file_store.dart';
 export 'src/cache/events/cache_events.dart';
-export 'src/facades/crypt.dart';
 export 'src/facades/cache.dart';
 
 // Security
 export 'src/security/magic_vault_service.dart';
 export 'src/security/vault_service_provider.dart';
 export 'src/facades/vault.dart';
-export 'src/encryption/encryption_service_provider.dart';
-export 'src/encryption/exceptions.dart';
 
 // UI
 export 'src/ui/magic_builder.dart';
@@ -153,21 +128,9 @@ export 'src/testing/fake_auth_manager.dart';
 export 'src/testing/fake_cache_manager.dart';
 export 'src/testing/fake_vault_service.dart';
 export 'src/testing/fake_log_manager.dart';
-export 'src/testing/fake_broadcast_manager.dart';
 
 // Database
-export 'src/database/database_manager.dart';
-export 'src/database/database_service_provider.dart';
-export 'src/database/schema/blueprint.dart';
-export 'src/database/query/query_builder.dart';
-export 'src/database/migrations/migration.dart';
-export 'src/database/migrations/migrator.dart';
-export 'src/facades/db.dart';
-export 'src/facades/schema.dart';
-
-// Seeding & Factories
-export 'src/database/seeding/factory.dart';
-export 'src/database/seeding/seeder.dart';
+export 'src/database/contracts/local_model_store.dart';
 
 // Eloquent ORM
 export 'src/database/eloquent/model.dart';
@@ -256,13 +219,13 @@ export 'src/foundation/events/app_events.dart';
 // Storage
 export 'config/filesystems.dart';
 export 'src/storage/contracts/storage_disk.dart';
+export 'src/storage/drivers/local/local_adapter_contract.dart';
 export 'src/storage/drivers/local_disk.dart';
 export 'src/storage/storage_manager.dart';
 export 'src/storage/magic_file.dart';
 export 'src/storage/magic_file_extensions.dart';
 export 'src/storage/images/images.dart';
 export 'src/facades/storage.dart';
-export 'src/facades/pick.dart';
 
 // Session
 export 'src/session/session_store.dart';
@@ -280,33 +243,16 @@ export 'src/ui/magic_can.dart';
 
 // Launch
 export 'package:url_launcher/url_launcher.dart' show LaunchMode;
+
 export 'src/launch/launch_adapter.dart';
 export 'src/launch/launch_service.dart';
 export 'src/launch/launch_service_provider.dart';
 export 'src/facades/launch.dart';
 
-// CLI integrations (fluttersdk dev-tooling ecosystem). Magic-aware artisan
+// CLI integrations (dowel dev-tooling ecosystem). Magic-aware dowel
 // provider + tinker REPL only. The dusk/telescope adapters live in the sibling
 // `magic_devtools` package; add it as a dev_dependency and import
 // `package:magic_devtools/dusk.dart` / `package:magic_devtools/telescope.dart`.
 // Magic core no longer depends on the dusk or telescope packages directly.
-export 'src/cli/magic_artisan_provider.dart';
+export 'src/cli/magic_dowel_provider.dart';
 export 'src/cli/tinker_integration.dart';
-
-// Broadcasting
-export 'config/broadcasting.dart';
-export 'src/broadcasting/auth_channel_subscription.dart';
-export 'src/broadcasting/broadcast_connection_state.dart';
-export 'src/broadcasting/broadcast_event.dart';
-export 'src/broadcasting/broadcast_manager.dart';
-export 'src/broadcasting/broadcast_service_provider.dart';
-export 'src/broadcasting/socket_id_interceptor.dart';
-export 'src/broadcasting/contracts/broadcast_channel.dart';
-export 'src/broadcasting/contracts/broadcast_driver.dart';
-export 'src/broadcasting/contracts/broadcast_interceptor.dart';
-export 'src/broadcasting/contracts/broadcast_presence_channel.dart';
-export 'src/broadcasting/drivers/null_broadcast_driver.dart';
-export 'src/broadcasting/drivers/reverb_broadcast_driver.dart';
-export 'src/broadcasting/broadcast_listeners.dart';
-export 'src/broadcasting/listens_to_broadcasts.dart';
-export 'src/facades/echo.dart';

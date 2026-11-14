@@ -111,7 +111,7 @@ class _FakeGuard implements Guard {
   @override
   final ValueNotifier<int> stateNotifier = ValueNotifier<int>(0);
 
-  _FakeGuard({Authenticatable? user}) : _user = user;
+  _FakeGuard({this._user});
 
   @override
   bool check() => _user != null;

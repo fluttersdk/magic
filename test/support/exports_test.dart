@@ -3,8 +3,7 @@ import 'package:magic/magic.dart';
 
 /// Pins that the new Support surface (Number, Str, Cast, Arr), the two UI
 /// mixins (RefetchesOnMount, SubmitsOnce), CollapsesIndexedErrorKeys,
-/// Env.filled, Carbon.shortDiffForHumans, the sync skeleton (SyncFeed,
-/// SyncLedger, CreateSyncCursorsTable), Str.ascii/squish, and AppLifecycle
+/// Env.filled, Carbon.shortDiffForHumans, Str.ascii/squish, and AppLifecycle
 /// all reach a consumer through `package:magic/magic.dart` alone, not only
 /// through `package:magic/src/...`.
 void main() {
@@ -29,15 +28,6 @@ void main() {
     expect(CollapsesIndexedErrorKeys, isNotNull);
   });
 
-  test('AuthChannelSubscription resolves through the public barrel', () {
-    final subscription = AuthChannelSubscription(
-      channelName: () => null,
-      listeners: const {},
-    );
-
-    expect(subscription, isNotNull);
-  });
-
   test('Env.filled resolves an absent key to the fallback', () {
     expect(Env.filled('MISSING_EXPORTS_TEST_KEY', 'fallback'), 'fallback');
   });
@@ -48,18 +38,6 @@ void main() {
 
     expect(event.shortDiffForHumans(reference), '14m ago');
   });
-
-  test(
-    'SyncFeed, SyncLedger, CreateSyncCursorsTable resolve through the public barrel',
-    () {
-      expect(SyncFeed, isNotNull);
-      expect(const SyncLedger(), isNotNull);
-      expect(CreateSyncCursorsTable(), isNotNull);
-
-      final report = SyncReport(pushed: 1, adopted: 2);
-      expect(report.complete, isTrue);
-    },
-  );
 
   test('Str.ascii and Str.squish resolve through the public barrel', () {
     expect(Str.ascii('çalışan'), 'calisan');

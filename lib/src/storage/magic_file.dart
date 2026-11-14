@@ -6,24 +6,23 @@ import '../facades/http.dart';
 import '../facades/storage.dart';
 import '../network/magic_response.dart';
 
-/// A picked file from the file or image picker.
+/// A file with its name, MIME type and (lazily read) bytes.
 ///
-/// This class wraps the result of a file/image pick operation and provides
-/// convenient methods for working with the picked file, including direct
-/// integration with the Magic Storage and HTTP systems.
+/// This class wraps a file from a picker (the `magic_picker` plugin answers
+/// with one), from [Storage.getFile], or built from bytes, and provides
+/// convenient methods for working with it, including direct integration with
+/// the Magic Storage and HTTP systems.
 ///
 /// ## Usage
 ///
 /// ```dart
-/// // Pick and store
-/// final file = await Pick.image();
-/// if (file != null) {
-///   await file.store('avatars/user.jpg');
-/// }
+/// final file = MagicFile(name: 'photo.jpg', bytes: bytes);
 ///
-/// // Pick and upload to server
-/// final image = await Pick.image();
-/// final response = await image!.upload('/api/upload', fieldName: 'avatar');
+/// // Store
+/// await file.store('avatars/user.jpg');
+///
+/// // Upload to server
+/// final response = await file.upload('/api/upload', fieldName: 'avatar');
 ///
 /// // Access file data
 /// print(file.name);       // 'photo.jpg'
@@ -40,10 +39,9 @@ class MagicFile {
 
   /// The file size in bytes.
   ///
-  /// On a file that came from `Pick`, a size that could not be read is null
-  /// under file_picker 13 and 0 under file_picker 12, whose pickers swallow a
-  /// failing stat. magic accepts both majors, so treat null and 0 alike as
-  /// unknown before letting either pass a maximum-size check.
+  /// On a picked file, a size that could not be read may arrive as null or as
+  /// 0, depending on the picker version, so treat null and 0 alike as unknown
+  /// before letting either pass a maximum-size check.
   final int? size;
 
   /// The MIME type (e.g., 'image/jpeg').
@@ -61,10 +59,9 @@ class MagicFile {
     required this.name,
     this.size,
     this.mimeType,
-    Uint8List? bytes,
-    Future<Uint8List?> Function()? bytesReader,
-  }) : _bytes = bytes,
-       _bytesReader = bytesReader;
+    this._bytes,
+    this._bytesReader,
+  });
 
   /// Get the file extension (without dot).
   ///
@@ -125,8 +122,7 @@ class MagicFile {
   /// **Returns:** The storage path where the file was saved.
   ///
   /// ```dart
-  /// final file = await Pick.image();
-  /// final path = await file!.store('avatars/user.jpg');
+  /// final path = await file.store('avatars/user.jpg');
   /// print(path); // 'avatars/user.jpg'
   /// ```
   Future<String> store(String storagePath, {String? disk}) async {
@@ -148,8 +144,7 @@ class MagicFile {
   /// `{directory}/{timestamp}_{originalName}`
   ///
   /// ```dart
-  /// final file = await Pick.image();
-  /// final path = await file!.storeAs('avatars');
+  /// final path = await file.storeAs('avatars');
   /// print(path); // 'avatars/1703836800000_photo.jpg'
   /// ```
   Future<String> storeAs(String directory, {String? disk}) async {
@@ -173,8 +168,7 @@ class MagicFile {
   /// **Returns:** A `MagicResponse` from the server.
   ///
   /// ```dart
-  /// final image = await Pick.image();
-  /// final response = await image!.upload('/api/upload', fieldName: 'avatar');
+  /// final response = await file.upload('/api/upload', fieldName: 'avatar');
   ///
   /// if (response.successful) {
   ///   print('Uploaded: ${response['url']}');
