@@ -230,7 +230,6 @@ docs/
 ├── security/
 ├── digging-deeper/
 ├── eloquent/
-├── database/
 ├── testing/
 └── packages/
 ```

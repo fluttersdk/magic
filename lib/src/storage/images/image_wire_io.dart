@@ -10,8 +10,8 @@ import 'image_exception.dart';
 /// JSON-shaped answer through Dio, and an image host takes no bearer token and
 /// answers bytes. Flutter's own `NetworkImage` reads the same way.
 final class MagicImageWire {
-  /// A wire over [client], or over one built on the first request.
-  MagicImageWire({HttpClient? client}) : _client = client;
+  /// A wire over [_client], or over one built on the first request.
+  MagicImageWire({this._client});
 
   /// How long a connection may take to open.
   static const Duration connectTimeout = Duration(seconds: 10);

@@ -3,9 +3,9 @@
 # Hybrid layout:
 #
 #   - The `publish:` section below lists only the ALWAYS-RENDERED targets
-#     (the 3 base config files, 5 starter files, and 2 .env files). The 6
-#     CONDITIONAL config files (auth / database / network / cache / logging /
-#     broadcasting) are emitted by MagicInstallCommand's fluent override via
+#     (the 3 base config files, 5 starter files, and 2 .env files). The 4
+#     CONDITIONAL config files (auth / network / cache / logging)
+#     are emitted by MagicInstallCommand's fluent override via
 #     `installer.publishConfig(...)` calls, gated on each `--without-X` prompt
 #     answer. This keeps install.yaml as a clean static spec, the v1 schema
 #     has no `if:` conditional section keys.
@@ -24,7 +24,7 @@
 #   - lib/main.dart is NOT in publish:; only the fluent override emits it
 #     (the configFactories list cannot be expressed as a static template).
 #
-# See doc/install_yaml_schema.md (in fluttersdk_artisan) for the full schema.
+# See doc/plugins/install-yaml.md (in dowel) for the full schema.
 
 plugin_name: magic
 
@@ -39,17 +39,12 @@ publish:
   install/welcome_view.stub: lib/resources/views/welcome_view.dart
   install/env.stub: .env
   install/env_example.stub: .env.example
-  install/consumer_artisan.stub: bin/artisan.dart
 
 prompts:
   - key: withoutAuth
     type: bool
     default: false
     question: "Skip auth setup?"
-  - key: withoutDatabase
-    type: bool
-    default: false
-    question: "Skip database setup?"
   - key: withoutNetwork
     type: bool
     default: false
@@ -66,10 +61,6 @@ prompts:
     type: bool
     default: false
     question: "Skip logging setup?"
-  - key: withoutBroadcasting
-    type: bool
-    default: false
-    question: "Skip broadcasting setup?"
 
 placeholders:
   # Pre-populated by MagicInstallCommand's fluent override before render time.
@@ -91,10 +82,7 @@ post_install:
        via --without-X) emit empty entries; remove the matching lines from
        app.dart.
     2. Review lib/main.dart configFactories list. Same caveat as #1.
-    3. (Optional, web target) Manually download sqlite3.wasm into web/ if
-       you plan to use Magic's SQLite driver on Flutter web. V1 does not
-       auto-handle this; see README for the download URL.
-    4. First install on a fresh `flutter create` app requires --force because
+    3. First install on a fresh `flutter create` app requires --force because
        the default Flutter counter app's lib/main.dart triggers the
        ConflictDetector unmanaged-file flag. The --force bypass is one-time
        per install.

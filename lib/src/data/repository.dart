@@ -35,7 +35,7 @@ import '../support/same_value.dart';
 ///
 /// Every write path notifies only when the cache actually changed: a row that
 /// was not cached, an evicted row, or an attribute whose raw value differs
-/// (compared deeply, map keys in any order). A broadcast patch or a refetch
+/// (compared deeply, map keys in any order). A realtime patch or a refetch
 /// that answers what is already held rebuilds nothing. A caller that must
 /// repaint after a read regardless (to clear its own loading flag) notifies
 /// through its own controller, never by relying on this one.
@@ -180,7 +180,7 @@ abstract class Repository<T extends Model> extends ChangeNotifier
   /// is cached for [id]: there is nothing to patch onto, and manufacturing a
   /// row from a partial patch would fabricate fields nobody fetched.
   ///
-  /// Notifies only when the merge changed the row: a broadcast that restates
+  /// Notifies only when the merge changed the row: a realtime message that restates
   /// values already cached (the same reading arriving twice, or a refetch
   /// having landed first) rebuilds nothing.
   ///

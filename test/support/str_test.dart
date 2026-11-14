@@ -32,15 +32,12 @@ void main() {
   });
 
   group('Str.initials', () {
-    test(
-      'limit keeps only the first N words and capitalize routes through Str.upper',
-      () {
-        expect(
-          Str.initials('ismail kaya', limit: 2, capitalize: true, locale: 'tr'),
-          'İK',
-        );
-      },
-    );
+    test('limit keeps only the first N words and capitalize routes through Str.upper', () {
+      expect(
+        Str.initials('ismail kaya', limit: 2, capitalize: true, locale: 'tr'),
+        'İK',
+      );
+    });
 
     test('a blank value returns an empty string', () {
       expect(Str.initials('  '), '');

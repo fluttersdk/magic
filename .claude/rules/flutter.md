@@ -4,7 +4,7 @@ paths: "lib/**/*.dart"
 
 # Flutter / Dart Stack
 
-- Dart >=3.11.0, Flutter >=3.41.0 — use modern patterns (records, switch expressions, strict null safety)
+- Dart >=3.13.0, Flutter >=3.47.0: use modern patterns (records, switch expressions, strict null safety)
 - Import order: dart/flutter stdlib → third-party packages → `package:magic/magic.dart` → relative imports (contracts before implementations)
 - Naming: `{Concept}` (facade), `{Concept}Manager` (service locator), `{Type}{Concept}Driver` (implementation), `{Concept}ServiceProvider` (bootstrap), `{Concept}Exception`, `{Purpose}Middleware`
 - Facade pattern: static getters proxy to `Magic.make<Manager>('key')`. Never instantiate managers directly

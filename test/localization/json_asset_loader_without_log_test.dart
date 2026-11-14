@@ -46,43 +46,36 @@ void main() {
     expect(loaded['greeting'], 'Hello');
   });
 
-  test(
-    'a catalogue that is not there answers empty rather than throwing',
-    () async {
-      // The failure path, with no `log` bound, which is the same trap one line
-      // lower: the warning this loader now emits when it gives up would itself
-      // throw if it were not guarded, and the caller would get a container error
-      // in place of the missing-file one.
-      expect(Magic.bound('log'), isFalse);
+  test('a catalogue that is not there answers empty rather than throwing', () async {
+    // The failure path, with no `log` bound, which is the same trap one line
+    // lower: the warning this loader now emits when it gives up would itself
+    // throw if it were not guarded, and the caller would get a container error
+    // in place of the missing-file one.
+    expect(Magic.bound('log'), isFalse);
 
-      final Map<String, dynamic> loaded = await const JsonAssetLoader(
-        basePath: 'test/fixtures/nothing-here',
-      ).load(const Locale('en'));
+    final Map<String, dynamic> loaded = await const JsonAssetLoader(
+      basePath: 'test/fixtures/nothing-here',
+    ).load(const Locale('en'));
 
-      expect(loaded, isEmpty);
-    },
-  );
+    expect(loaded, isEmpty);
+  });
 
-  test(
-    'a locale with no file falls back to the fallback locale, still with no log',
-    () async {
-      // The other arm of the same catch. `de` has no fixture; `en` does.
-      final Map<String, dynamic> loaded = await const JsonAssetLoader(
-        basePath: 'test/fixtures/lang',
-      ).load(const Locale('de'));
+  test('a locale with no file falls back to the fallback locale, still with no log', () async {
+    // The other arm of the same catch. `de` has no fixture; `en` does.
+    final Map<String, dynamic> loaded = await const JsonAssetLoader(
+      basePath: 'test/fixtures/lang',
+    ).load(const Locale('de'));
 
-      expect(loaded['greeting'], 'Hello');
-    },
-  );
+    expect(loaded['greeting'], 'Hello');
+  });
 
   test('a nested key is flattened the same way with no log bound', () {
     // The branch after the read, which the throw used to skip entirely: a
     // loader that fails before `_flatten` leaves no evidence of which half
     // broke.
     expect(
-      const JsonAssetLoader(
-        basePath: 'test/fixtures/lang',
-      ).load(const Locale('en')),
+      const JsonAssetLoader(basePath: 'test/fixtures/lang')
+          .load(const Locale('en')),
       completion(containsPair('nested.key', 'Nested value')),
     );
   });
@@ -133,9 +126,8 @@ void main() {
       // `Log.info` line was.
       final FakeLogManager log = Log.fake();
 
-      await const JsonAssetLoader(
-        basePath: 'test/fixtures/lang',
-      ).load(const Locale('en'));
+      await const JsonAssetLoader(basePath: 'test/fixtures/lang')
+          .load(const Locale('en'));
 
       log.assertNothingLogged();
     });

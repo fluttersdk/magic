@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
+import 'package:material_ui/material_ui.dart';
 
 // TODO: Import your controller
 // import '../../../app/controllers/{{ snakeName }}_controller.dart';

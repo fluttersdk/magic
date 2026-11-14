@@ -1,8 +1,6 @@
 import '../../config/app.dart';
 import '../../config/auth.dart';
 import '../../config/cache.dart';
-import '../../config/database.dart';
-import '../../config/broadcasting.dart';
 import '../../config/localization.dart';
 import '../../config/logging.dart';
 import '../../config/network.dart';
@@ -135,12 +133,10 @@ class MagicApp {
       ..addAll(defaultAppConfig)
       ..addAll(defaultAuthConfig)
       ..addAll(defaultCacheConfig)
-      ..addAll(defaultDatabaseConfig)
       ..addAll(defaultLoggingConfig)
       ..addAll(defaultNetworkConfig)
       ..addAll(defaultViewConfig)
       ..addAll(defaultLocalizationConfig)
-      ..addAll(defaultBroadcastingConfig)
       ..addAll(defaultRoutingConfig);
   }
 

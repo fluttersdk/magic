@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/design_sync_command.dart';
 import 'package:path/path.dart' as p;
@@ -63,12 +63,12 @@ colors:
 ## Colors
 ''';
 
-ArtisanContext _ctx(List<String> args) {
+DowelContext _ctx(List<String> args) {
   final parser = ArgParser()
     ..addOption('input')
     ..addOption('output');
   final input = ArgvInput.parse(parser, args);
-  return ArtisanContext.bare(input, BufferedOutput());
+  return DowelContext.bare(input, BufferedOutput());
 }
 
 void main() {
@@ -83,8 +83,8 @@ void main() {
       expect(cmd.boot, CommandBoot.none);
     });
 
-    test('extends ArtisanCommand', () {
-      expect(cmd, isA<ArtisanCommand>());
+    test('extends DowelCommand', () {
+      expect(cmd, isA<DowelCommand>());
     });
   });
 

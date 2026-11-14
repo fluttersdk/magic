@@ -28,7 +28,7 @@ Magic provides a complete form handling system: `MagicFormData` for centralized 
 Magic provides a powerful form handling system that combines the simplicity of Laravel's request handling with Flutter's form widgets. Forms are managed through `MagicFormData`, which centralizes form state, validation, and data extraction.
 
 > [!TIP]
-> You can generate a validated form request stub using the Magic CLI: `dart run magic:artisan make:request` (e.g., `dart run magic:artisan make:request StoreOrder`). The generated file at `lib/app/requests/store_order_request.dart` provides a structured place for your validation rules.
+> You can generate a validated form request stub using the Magic CLI: `dart run magic:dowel make:request` (e.g., `dart run magic:dowel make:request StoreOrder`). The generated file at `lib/app/requests/store_order_request.dart` provides a structured place for your validation rules.
 
 <a name="magicformdata"></a>
 ## MagicFormData
@@ -588,8 +588,8 @@ class _MonitorFormViewState extends MagicStatefulViewState<MonitorFormController
 `submit()` clears stale errors, validates the current `data` against `request` (painting a failing client rule onto `data`'s fields and stopping before `persist` ever runs), then routes `persist` through `data.process` so `data.isProcessing` covers the write and a server-side `ValidationException` from `persist` is caught the same way a client-side failure is. Never register a `MagicFormObject` via `Magic.put`/`findOrPut`: it is scoped to a single screen's lifetime, and `onClose` asserts (in debug) that it never ended up in the container. See `doc/basics/actions.md` for the `RunsActions` half of the mix.
 
 ```bash
-dart run magic:artisan make:form Monitor                          # -> MonitorFormObject
-dart run magic:artisan make:form Monitor --request=StoreMonitorRequest
+dart run magic:dowel make:form Monitor                          # -> MonitorFormObject
+dart run magic:dowel make:form Monitor --request=StoreMonitorRequest
 ```
 
 <a name="complete-example"></a>

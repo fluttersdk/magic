@@ -18,9 +18,7 @@ class TitleManager {
   // Singleton Pattern
   // ---------------------------------------------------------------------------
 
-  TitleManager._({
-    void Function(String title, int? primaryColor)? onTitleChanged,
-  }) : _onTitleChanged = onTitleChanged;
+  TitleManager._({this._onTitleChanged});
 
   static TitleManager? _instance;
 

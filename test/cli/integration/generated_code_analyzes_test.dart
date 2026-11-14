@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:magic/src/cli/commands/make_action_command.dart';
@@ -17,14 +17,12 @@ import 'package:magic/src/cli/commands/make_form_command.dart';
 import 'package:magic/src/cli/commands/make_lang_command.dart';
 import 'package:magic/src/cli/commands/make_listener_command.dart';
 import 'package:magic/src/cli/commands/make_middleware_command.dart';
-import 'package:magic/src/cli/commands/make_migration_command.dart';
 import 'package:magic/src/cli/commands/make_model_command.dart';
 import 'package:magic/src/cli/commands/make_policy_command.dart';
 import 'package:magic/src/cli/commands/make_provider_command.dart';
 import 'package:magic/src/cli/commands/make_repository_command.dart';
 import 'package:magic/src/cli/commands/make_request_command.dart';
 import 'package:magic/src/cli/commands/make_resource_command.dart';
-import 'package:magic/src/cli/commands/make_seeder_command.dart';
 import 'package:magic/src/cli/commands/make_test_command.dart';
 import 'package:magic/src/cli/commands/make_view_command.dart';
 
@@ -41,12 +39,12 @@ String get _magicRoot => Directory.current.path;
 /// Runs [command] against [args] through the shared harness, failing loudly
 /// (with the command name and args) on a non-zero exit code instead of
 /// leaving a missing file to surface as a confusing analyzer error later.
-Future<void> _run(ArtisanCommand command, List<String> args) async {
+Future<void> _run(DowelCommand command, List<String> args) async {
   final int code = await command.handle(buildCommandContext(command, args));
   expect(
     code,
     0,
-    reason: 'artisan ${command.name} ${args.join(' ')} exited $code',
+    reason: 'dowel ${command.name} ${args.join(' ')} exited $code',
   );
 }
 
@@ -100,14 +98,15 @@ publish_to: none
 version: 0.0.1
 
 environment:
-  sdk: ">=3.11.0 <4.0.0"
-  flutter: ">=3.41.0"
+  sdk: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"
 
 dependencies:
   flutter:
     sdk: flutter
   magic:
     path: $magicRoot
+  material_ui: ^1.11.0
 
 dev_dependencies:
   flutter_test:
@@ -130,9 +129,8 @@ void _writeProbeAnalysisOptions(String root) {
 /// instead of falling back to `{}` (both are valid JSON; this exercises the
 /// copy path).
 void _seedEnglishLangFile(String root) {
-  final String json = const JsonEncoder.withIndent(
-    '  ',
-  ).convert(<String, String>{'welcome': 'Welcome'});
+  final String json = const JsonEncoder.withIndent('  ')
+      .convert(<String, String>{'welcome': 'Welcome'});
   FileHelper.writeFile(p.join(root, 'assets', 'lang', 'en.json'), json);
 }
 
@@ -173,7 +171,8 @@ Future<void> _generateEverything(String root) async {
   }
 
   // 5. The remaining generators this step covers, none of which chains a
-  //    matching test.
+  //    matching test. make:migration and make:seeder live in
+  //    magic_local_storage, whose own suite analyzes their output.
   await _run(MakeEventCommand(testRoot: root), <String>['ProbeCreated']);
   await _run(MakeListenerCommand(testRoot: root), <String>[
     'LogProbeCreated',
@@ -184,18 +183,13 @@ Future<void> _generateEverything(String root) async {
   ]);
   await _run(MakeProviderCommand(testRoot: root), <String>['Probe']);
   await _run(MakePolicyCommand(testRoot: root), <String>['Probe']);
-  await _run(MakeSeederCommand(testRoot: root), <String>['Probe']);
-  await _run(MakeMigrationCommand(testRoot: root), <String>[
-    'create_probes_table',
-    '--create=probes',
-  ]);
   await _run(MakeLangCommand(testRoot: root), <String>['tr']);
 }
 
 /// Runs `flutter pub get --offline` in [root]; falls back to an online
 /// `flutter pub get` when the offline cache cannot resolve every transitive
 /// dependency (a cold pub cache, or a runner that never fetched
-/// `fluttersdk_wind`/`fluttersdk_artisan` before).
+/// `wind_kit`/`dowel` before).
 Future<void> _pubGet(String root) async {
   final ProcessResult offline = await Process.run('flutter', <String>[
     'pub',

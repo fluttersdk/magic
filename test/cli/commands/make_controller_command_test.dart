@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_controller_command.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:controller');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -61,34 +61,31 @@ void main() {
       },
     );
 
-    test(
-      '--resource --model=Monitor owns a RepositoryQuery<Monitor> and ensureFresh()',
-      () async {
-        final cmd = MakeControllerCommand(testRoot: projectRoot.path);
-        final code = await cmd.handle(
-          buildCommandContext(cmd, <String>[
-            'Uptime',
-            '--resource',
-            '--model=Monitor',
-          ]),
-        );
+    test('--resource --model=Monitor owns a RepositoryQuery<Monitor> and ensureFresh()', () async {
+      final cmd = MakeControllerCommand(testRoot: projectRoot.path);
+      final code = await cmd.handle(
+        buildCommandContext(cmd, <String>[
+          'Uptime',
+          '--resource',
+          '--model=Monitor',
+        ]),
+      );
 
-        expect(code, 0);
-        final content = controllerFile('uptime_controller').readAsStringSync();
-        expect(content, contains('RepositoryQuery<Monitor>'));
-        expect(content, contains('MonitorRepository.instance'));
-        expect(
-          content,
-          contains('Future<void> ensureFresh() => _query.ensureFresh();'),
-        );
-        expect(content, contains('Future<void> reload() => _query.reload();'));
-        expect(content, contains("import '../models/monitor.dart';"));
-        expect(
-          content,
-          contains("import '../repositories/monitor_repository.dart';"),
-        );
-      },
-    );
+      expect(code, 0);
+      final content = controllerFile('uptime_controller').readAsStringSync();
+      expect(content, contains('RepositoryQuery<Monitor>'));
+      expect(content, contains('MonitorRepository.instance'));
+      expect(
+        content,
+        contains('Future<void> ensureFresh() => _query.ensureFresh();'),
+      );
+      expect(content, contains('Future<void> reload() => _query.reload();'));
+      expect(content, contains("import '../models/monitor.dart';"));
+      expect(
+        content,
+        contains("import '../repositories/monitor_repository.dart';"),
+      );
+    });
 
     test(
       '--resource with no --model defaults the model to the controller name',
@@ -146,23 +143,12 @@ void main() {
       expect(content, contains('with RunsActions'));
     });
 
-    test(
-      '--broadcasts mixes in ListensToBroadcasts with an empty listeners map',
-      () async {
-        final cmd = MakeControllerCommand(testRoot: projectRoot.path);
-        final code = await cmd.handle(
-          buildCommandContext(cmd, <String>['Monitor', '--broadcasts']),
-        );
+    test('offers no --broadcasts flag: the mixin lives in magic_socket', () {
+      final parser = ArgParser();
+      MakeControllerCommand(testRoot: projectRoot.path).configure(parser);
 
-        expect(code, 0);
-        final content = controllerFile('monitor_controller').readAsStringSync();
-        expect(content, contains('with ListensToBroadcasts'));
-        expect(
-          content,
-          contains('Map<String, void Function(BroadcastEvent)> get listeners'),
-        );
-      },
-    );
+      expect(parser.options.keys, isNot(contains('broadcasts')));
+    });
 
     test('--timers mixes in OwnsTimers', () async {
       final cmd = MakeControllerCommand(testRoot: projectRoot.path);
@@ -192,37 +178,32 @@ void main() {
       },
     );
 
-    test(
-      'all four mixin flags together produce one with clause in a stable order '
-      'regardless of the order they were passed',
-      () async {
-        final cmd = MakeControllerCommand(testRoot: projectRoot.path);
-        final code = await cmd.handle(
-          buildCommandContext(cmd, <String>[
-            'Monitor',
-            '--validates',
-            '--actions',
-            '--timers',
-            '--broadcasts',
-          ]),
-        );
+    test('all three mixin flags together produce one with clause in a stable '
+        'order regardless of the order they were passed', () async {
+      final cmd = MakeControllerCommand(testRoot: projectRoot.path);
+      final code = await cmd.handle(
+        buildCommandContext(cmd, <String>[
+          'Monitor',
+          '--validates',
+          '--actions',
+          '--timers',
+        ]),
+      );
 
-        expect(code, 0);
-        final content = controllerFile('monitor_controller').readAsStringSync();
-        expect(
-          content,
-          contains(
-            'with ListensToBroadcasts, OwnsTimers, RunsActions, ValidatesRequests, '
-            'CollapsesIndexedErrorKeys',
-          ),
-        );
-      },
-    );
+      expect(code, 0);
+      final content = controllerFile('monitor_controller').readAsStringSync();
+      expect(
+        content,
+        contains(
+          'with OwnsTimers, RunsActions, ValidatesRequests, '
+          'CollapsesIndexedErrorKeys',
+        ),
+      );
+    });
 
     test('--test writes the matching controller test', () async {
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: fixture_app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: fixture_app\n');
 
       final cmd = MakeControllerCommand(testRoot: projectRoot.path);
       final code = await cmd.handle(
@@ -249,9 +230,8 @@ void main() {
     });
 
     test('--test propagates a refused test write as exit 1', () async {
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: fixture_app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: fixture_app\n');
       File(
           p.join(
             projectRoot.path,

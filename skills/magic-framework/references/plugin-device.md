@@ -4,7 +4,7 @@
 
 Device signals for Flutter apps: whether the device draws from the mains, whether the viewer is away, and the macOS window's fullscreen state. Two classes, `DevicePower` and `WindowFullscreen`, plus a re-export of `battery_plus`'s `BatteryState`.
 
-Unlike the other plugins on this list it has no service provider, no config file, no facade and no artisan command, and it does not depend on `magic`: construct the classes where you need them (a controller, a provider's `boot()`, a background job). The package is generic on purpose; anything app-specific (whether this device is a television) reaches it through a constructor parameter.
+Unlike the other plugins on this list it has no service provider, no config file, no facade and no dowel command, and it does not depend on `magic`: construct the classes where you need them (a controller, a provider's `boot()`, a background job). The package is generic on purpose; anything app-specific (whether this device is a television) reaches it through a constructor parameter.
 
 ## Contents
 

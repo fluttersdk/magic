@@ -1,16 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data' show BytesBuilder;
 
 import 'package:meta/meta.dart' show visibleForTesting;
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:more/diff.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import '../helpers/main_dart_scaffold_detector.dart';
 import '../helpers/main_dart_smart_merger.dart';
+import '../helpers/unified_diff.dart';
 import '../install_stubs.dart';
 
 /// Strategy chosen by [MagicInstallCommand._resolveMainDartStrategy] for
@@ -41,7 +40,7 @@ typedef MainDartStrategyResult = ({
 ///
 /// 1. `install.yaml` at `<magic_root>/install.yaml` declares the
 ///    always-rendered 60% (10 static config + starter + .env publishes,
-///    8 `--without-*` bool prompts, the `appName` placeholder slot, the
+///    5 `--without-*` bool prompts, the `appName` placeholder slot, the
 ///    post_install message, and the bootstrap_command).
 /// 2. [resolveManifestPath] locates that file via [Isolate.resolvePackageUri]
 ///    starting from `package:magic/magic.dart`.
@@ -53,9 +52,8 @@ typedef MainDartStrategyResult = ({
 /// 4. [ManifestInstaller.prepare] returns a staged [PluginInstaller] with the
 ///    10 always-on publishes queued. The fluent override layer
 ///    ([_applyFluentOverride]) then:
-///       - emits the 6 CONDITIONAL config publishes via
-///         `installer.publishConfig` (auth / database / network / cache /
-///         logging / broadcasting) ONLY when the matching `--without-X`
+///       - emits the 4 CONDITIONAL config publishes via
+///         `installer.publishConfig` (auth / network / cache / logging) ONLY when the matching `--without-X`
 ///         answer is `false`.
 ///       - OVERWRITES the manifest-published `lib/config/app.dart` with the
 ///         dynamic provider list assembled from the same flag set via
@@ -64,7 +62,7 @@ typedef MainDartStrategyResult = ({
 ///       - WRITES `lib/main.dart` (NOT in publish:) with the dynamic
 ///         configFactories + configImports lists.
 /// 5. [PluginInstaller.commit] dispatches the now-conditional op list.
-/// 6. On [Success], the post_install message is echoed to the operator.
+/// 6. On [Success], the post_install message is printed for the operator.
 /// 7. [_renderResult] translates the sealed [TransactionResult] into the
 ///    process exit code.
 ///
@@ -80,28 +78,28 @@ typedef MainDartStrategyResult = ({
 ///
 /// ## Why Option B (conditional emit) over Option A (conditional remove)
 ///
-/// The plan considered two ways to handle the 6 conditional configs:
+/// The plan considered two ways to handle the 4 conditional configs:
 ///
-///   - Option A: list ALL 16 publishes in the manifest, then add a
+///   - Option A: list ALL 14 publishes in the manifest, then add a
 ///     `removeOpsTargeting` helper on [PluginInstaller] and have the fluent
 ///     override call it for each `--without-X = true`.
 ///   - Option B (chosen): list only the 10 always-on publishes in the
-///     manifest; have the fluent override emit the 6 conditional publishes
+///     manifest; have the fluent override emit the 4 conditional publishes
 ///     via direct `publishConfig` calls when their flag is `false`.
 ///
 /// Option B keeps the manifest a clean static spec, requires no
-/// fluttersdk_artisan additions, and makes the conditional ownership
+/// dowel additions, and makes the conditional ownership
 /// boundary explicit (install.yaml owns the always-on layer, the override
 /// owns the conditional layer).
 ///
 /// ## Usage
 ///
 /// ```bash
-/// dart run magic:artisan magic:install
-/// dart run magic:artisan magic:install --without-auth --without-broadcasting
-/// dart run magic:artisan magic:install --force --non-interactive
+/// dart run magic:dowel magic:install
+/// dart run magic:dowel magic:install --without-auth --without-logging
+/// dart run magic:dowel magic:install --force --non-interactive
 /// ```
-class MagicInstallCommand extends ArtisanInstallCommand {
+class MagicInstallCommand extends DowelInstallCommand {
   /// Public default constructor. Test fixtures subclass + override the four
   /// `@visibleForTesting` hooks.
   MagicInstallCommand();
@@ -112,20 +110,18 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       '$baseFlags'
       '{--preserve : Inject Magic into existing lib/main.dart without overwriting; rejects sync main()} '
       '{--without-auth : Skip auth setup} '
-      '{--without-database : Skip database setup} '
       '{--without-network : Skip network setup} '
       '{--without-cache : Skip cache setup} '
       '{--without-localization : Skip localization setup} '
       '{--without-logging : Skip logging setup} '
-      '{--without-broadcasting : Skip broadcasting setup} '
-      '{--with-devtools : Wire the debug trio (magic_devtools + fluttersdk_dusk + fluttersdk_telescope) into lib/main.dart under kDebugMode and add them as dependencies}';
+      '{--with-devtools : Wire the debug trio (magic_devtools + fluttersdk_dusk + fluttersdk_telescope) into lib/main.dart under kDebugMode and add them as dependencies (unavailable until magic_devtools supports magic 0.1.x)}';
 
   @override
   String get description =>
       'Install Magic framework via the bundled install.yaml manifest.';
 
   @override
-  String pluginName(ArtisanContext ctx) => 'magic';
+  String pluginName(DowelContext ctx) => 'magic';
 
   /// Returns `true` when the operator passed `--preserve`.
   ///
@@ -133,9 +129,9 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// without overwriting it. The caller is responsible for acting on this flag;
   /// [handle] reads it to select the appropriate main.dart write strategy.
   ///
-  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @param ctx  The active [DowelContext] handed to [handle].
   /// @return The boolean value of the `--preserve` flag.
-  bool isPreserve(ArtisanContext ctx) => ctx.input.option('preserve') == true;
+  bool isPreserve(DowelContext ctx) => ctx.input.option('preserve') == true;
 
   /// Returns `true` when the operator passed `--with-devtools`.
   ///
@@ -149,21 +145,21 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// dep classification matches the dusk/telescope install docs and avoids the
   /// `depend_on_referenced_packages` lint.
   ///
-  /// @param ctx  The active [ArtisanContext] handed to [handle].
+  /// @param ctx  The active [DowelContext] handed to [handle].
   /// @return The boolean value of the `--with-devtools` flag.
-  bool isWithDevtools(ArtisanContext ctx) =>
+  bool isWithDevtools(DowelContext ctx) =>
       ctx.input.option('with-devtools') == true;
 
   /// Formats a unified diff of [existing] vs [magicTemplate] for console display.
   ///
-  /// Uses [UnifiedDiffer] with 3 lines of context. The source and target labels
+  /// Uses [UnifiedDiff] with 3 lines of context. The source and target labels
   /// are the canonical `lib/main.dart` paths for operator readability.
   ///
-  /// Returns an empty string when the two inputs are identical (no hunks).
+  /// Identical inputs emit no hunks but still emit the two label lines.
   ///
   /// @param existing       The on-disk content of `lib/main.dart`.
   /// @param magicTemplate  The Magic-generated content that would overwrite it.
-  /// @return A unified-diff string, or empty string when files are identical.
+  /// @return A unified-diff string: the two label lines plus one block per hunk.
   @visibleForTesting
   String formatMainDartDiff(String existing, String magicTemplate) =>
       _formatMainDartDiff(existing, magicTemplate);
@@ -172,16 +168,14 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   ///
   /// @param existing       The on-disk content of `lib/main.dart`.
   /// @param magicTemplate  The Magic-generated content that would overwrite it.
-  /// @return A unified-diff string, or empty string when files are identical.
+  /// @return A unified-diff string: the two label lines plus one block per hunk.
   String _formatMainDartDiff(String existing, String magicTemplate) {
-    return UnifiedDiffer(context: 3)
-        .compareStrings(
-          existing,
-          magicTemplate,
-          sourceLabel: 'lib/main.dart (existing)',
-          targetLabel: 'lib/main.dart (Magic template)',
-        )
-        .join('\n');
+    return UnifiedDiff.format(
+      existing,
+      magicTemplate,
+      sourceLabel: 'lib/main.dart (existing)',
+      targetLabel: 'lib/main.dart (Magic template)',
+    );
   }
 
   /// Public delegate for [_resolveMainDartStrategy] exposed for unit tests.
@@ -191,7 +185,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// annotation keeps the public surface minimal; production code in [handle]
   /// calls the private impl which carries the depth counter.
   ///
-  /// @param ctx             The active [ArtisanContext].
+  /// @param ctx             The active [DowelContext].
   /// @param installContext  The active [InstallContext] (fs + prompt + flags).
   /// @param appName         Application name for the Magic template (default '').
   /// @param configImports   Config import lines for the Magic template (default []).
@@ -199,7 +193,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// @return The resolved [MainDartStrategyResult].
   @visibleForTesting
   Future<MainDartStrategyResult> resolveMainDartStrategy(
-    ArtisanContext ctx,
+    DowelContext ctx,
     InstallContext installContext, {
     String appName = '',
     List<String> configImports = const <String>[],
@@ -224,7 +218,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   ///   7. Interactive: [Prompt.choice] on 4 options with recursion for 'diff'.
   ///      Cap at [_diffDepthCap] to prevent infinite loops.
   ///
-  /// @param ctx             The active [ArtisanContext].
+  /// @param ctx             The active [DowelContext].
   /// @param installContext  The active [InstallContext].
   /// @param appName         Application name for the Magic template diff preview.
   /// @param configImports   Config import lines for the Magic template diff preview.
@@ -234,7 +228,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   ///         scaffold-detected flag (true only when the heuristic matched on
   ///         an existing file).
   Future<MainDartStrategyResult> _resolveMainDartStrategy(
-    ArtisanContext ctx,
+    DowelContext ctx,
     InstallContext installContext, {
     String appName = '',
     List<String> configImports = const <String>[],
@@ -347,19 +341,17 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// looping indefinitely.
   static const int _diffDepthCap = 5;
 
-  /// Ordered list of the 8 `--without-X` CLI flag names.
+  /// Ordered list of the 5 `--without-X` CLI flag names.
   ///
   /// Used by [_buildPromptOverrides] when converting CLI options into the
   /// camelCase prompt-key map the manifest expects, and by [_flagsFromCtx]
   /// when re-deriving the same map for the fluent override layer.
   static const List<String> _withoutFlagNames = <String>[
     'without-auth',
-    'without-database',
     'without-network',
     'without-cache',
     'without-localization',
     'without-logging',
-    'without-broadcasting',
   ];
 
   /// Resolves the absolute filesystem path of magic's `install.yaml`.
@@ -389,8 +381,8 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// Resolves magic's `assets/stubs/` directory inside the consumer's
   /// `.dart_tool/package_config.json`.
   ///
-  /// The default [StubLoader] search paths resolve to fluttersdk_artisan's
-  /// own `assets/stubs/`, NOT magic's. The 6 conditional `publishConfig`
+  /// The default [StubLoader] search paths resolve to dowel's
+  /// own `assets/stubs/`, NOT magic's. The 4 conditional `publishConfig`
   /// calls emitted by the fluent override layer must therefore pass an
   /// explicit `searchPaths` pointing at magic's stub bundle.
   ///
@@ -429,31 +421,31 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     return null;
   }
 
-  /// Delegates the canonical Flutter consumer scaffold to artisan's `install`
+  /// Delegates the canonical Flutter consumer scaffold to dowel's `install`
   /// command, IN-PROCESS. Writes `bin/dispatcher.dart`, the codegen barrels
   /// (`lib/app/_plugins.g.dart`, `lib/app/commands/_index.g.dart`), the
-  /// `fluttersdk_artisan` pubspec dep, then auto-chains `make:fast-cli` for
-  /// `bin/fsa`. Returns the exit code of the underlying scaffold.
+  /// `dowel` pubspec dep, then auto-chains `make:fast-cli` for
+  /// `bin/dowel`. Returns the exit code of the underlying scaffold.
   ///
   /// Called from [handle] inside the `if (result is Success)` block between
-  /// the post-install message echo and the `plugins:refresh` invocation:
+  /// the post-install message print and the `plugins:refresh` invocation:
   /// dispatcher.dart must exist BEFORE plugins:refresh regenerates
   /// `lib/app/_plugins.g.dart`.
   ///
   /// Marked `@visibleForTesting` so a test subclass can override and record
-  /// invocations without spinning up the real artisan scaffold (which spawns
+  /// invocations without spinning up the real dowel scaffold (which spawns
   /// `chmod` and `dart build cli` subprocesses).
   ///
-  /// @param ctx             The active [ArtisanContext] (force flag + output).
+  /// @param ctx             The active [DowelContext] (force flag + output).
   /// @param installContext  The active [InstallContext] (projectRoot resolved
   ///                        from the consumer pubspec).
-  /// @return Exit code from [InstallArtisanCommand.scaffoldInto]; 0 on success.
+  /// @return Exit code from [InstallDowelCommand.scaffoldInto]; 0 on success.
   @visibleForTesting
-  Future<int> delegateArtisanInstall(
-    ArtisanContext ctx,
+  Future<int> delegateDowelInstall(
+    DowelContext ctx,
     InstallContext installContext,
   ) {
-    return InstallArtisanCommand.scaffoldInto(
+    return InstallDowelCommand.scaffoldInto(
       root: installContext.projectRoot,
       force: isForce(ctx),
       ctx: ctx,
@@ -461,8 +453,20 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
-    // 0. Mutual exclusion: --force and --preserve cannot be used together.
+  Future<int> handle(DowelContext ctx) async {
+    // 0a. --with-devtools cannot produce a resolvable app on magic 0.1.x yet:
+    //     stop before any file is written or any command is delegated.
+    if (isWithDevtools(ctx)) {
+      ctx.output.error(
+        '--with-devtools is unavailable on magic 0.1.x: magic_devtools has '
+        'no release for magic ^0.1.0 yet, it waits on dowel based releases of '
+        'its dusk and telescope dependencies. Run magic:install without '
+        '--with-devtools.',
+      );
+      return 1;
+    }
+
+    // 0b. Mutual exclusion: --force and --preserve cannot be used together.
     //    Exit 2 signals incorrect CLI usage (same convention as getopt/argparse).
     if (isForce(ctx) && isPreserve(ctx)) {
       ctx.output.error('Cannot specify both --force and --preserve. Pick one.');
@@ -538,7 +542,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       nonInteractive: isNonInteractive(ctx),
     );
 
-    // 7. Layer the conditional 40% on top: 6 conditional config publishes +
+    // 7. Layer the conditional 40% on top: 4 conditional config publishes +
     //    dynamic lib/config/app.dart overwrite + dynamic lib/main.dart write.
     //    The strategy threads into the override so the preserve branch can
     //    call MainDartSmartMerger.mergeMagicInto on the existing on-disk source.
@@ -582,39 +586,39 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       force: forceCommit,
     );
 
-    // 8. Echo post_install.message on Success.
+    // 8. Print post_install.message on Success.
     if (result is Success && manifest.postInstall.message != null) {
       ctx.output.info(manifest.postInstall.message!);
     }
 
     // 9. Delegate the canonical Flutter scaffold (bin/dispatcher.dart + barrels
-    //    + pubspec dep + bin/fsa) to artisan's `install` command IN-PROCESS.
+    //    + pubspec dep + bin/dowel) to dowel's `install` command IN-PROCESS.
     //    Gated on Success so dry-run, Conflict, and Error results skip the
     //    delegation; atomic-commit semantics from `stagedInstaller.commit`
     //    are preserved (nothing partial is written when commit did not land).
-    //    Ordering: AFTER the post_install advisory echo (operator sees magic's
+    //    Ordering: AFTER the post_install advisory print (operator sees magic's
     //    message first) and BEFORE plugins:refresh (so the dispatcher exists
     //    on disk when codegen picks up the provider list).
     if (result is Success) {
-      final artisanInstallExitCode = await delegateArtisanInstall(
+      final dowelInstallExitCode = await delegateDowelInstall(
         ctx,
         installContext,
       );
-      if (artisanInstallExitCode != 0) {
+      if (dowelInstallExitCode != 0) {
         ctx.output.error(
-          'Magic install delegated to artisan install but it failed '
-          '(exit $artisanInstallExitCode). Inspect '
+          'Magic install delegated to dowel install but it failed '
+          '(exit $dowelInstallExitCode). Inspect '
           '${installContext.projectRoot}/bin/dispatcher.dart and '
-          '${installContext.projectRoot}/bin/fsa for partial state.',
+          '${installContext.projectRoot}/bin/dowel for partial state.',
         );
-        return artisanInstallExitCode;
+        return dowelInstallExitCode;
       }
     }
 
-    // 10a. Self-register magic in .artisan/plugins.json so the subsequent
-    //      plugins:refresh picks up MagicArtisanProvider in lib/app/_plugins.g.dart.
+    // 10a. Self-register magic in .dowel/plugins.json so the subsequent
+    //      plugins:refresh picks up MagicDowelProvider in lib/app/_plugins.g.dart.
     //      Without this step the consumer would need a separate
-    //      `dart run magic:artisan plugin:install magic` invocation before
+    //      `dart run magic:dowel plugin:install magic` invocation before
     //      `make:controller` etc. work — magic:install delegates the canonical
     //      consumer scaffold but does not register itself as a plugin.
     //      Idempotent: re-running magic:install on a project that already
@@ -623,7 +627,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       _selfRegisterPlugin(ctx, installContext);
     }
 
-    // 10. Auto-refresh: regenerate lib/app/_plugins.g.dart so MagicArtisanProvider
+    // 10. Auto-refresh: regenerate lib/app/_plugins.g.dart so MagicDowelProvider
     //     plus any installed plugin providers are picked up by the consumer wrapper.
     //     Only runs on a real commit (Success); dry-run/conflict/error skip refresh.
     if (result is Success) {
@@ -632,95 +636,15 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         await refresh.handle(ctx);
       } else {
         ctx.output.info(
-          'Run `dart run magic:artisan plugins:refresh` to register installed plugin commands.',
+          'Run `dart run magic:dowel plugins:refresh` to register installed plugin commands.',
         );
       }
-    }
-
-    // 11. Web target + database feature enabled, auto-download sqlite3.wasm
-    //     to web/sqlite3.wasm. simolus3/sqlite3.dart's WasmSqlite3.loadFromUrl
-    //     needs this file present at runtime; before this step the consumer
-    //     had to fetch it manually per the install.yaml post_install note,
-    //     which produced a white-screen WebAssembly TypeError on first boot.
-    if (result is Success && !flags['withoutDatabase']! && !isDryRun(ctx)) {
-      await _maybeFetchSqliteWasm(ctx, installContext.projectRoot);
     }
 
     return _renderResult(ctx, result);
   }
 
-  /// Fetches `sqlite3.wasm` from simolus3/sqlite3.dart GitHub releases into
-  /// `<projectRoot>/web/sqlite3.wasm`. Skip-soft on missing web/ dir
-  /// (non-web target) and already-present wasm file (idempotency).
-  ///
-  /// Version pin matches magic's own `sqlite3:` pubspec range. Bump in
-  /// lockstep when the dep range moves; mismatched wasm + package versions
-  /// are documented to produce subtle runtime corruption (per simolus3
-  /// release notes).
-  Future<void> _maybeFetchSqliteWasm(
-    ArtisanContext ctx,
-    String projectRoot,
-  ) async {
-    final webDir = Directory(p.join(projectRoot, 'web'));
-    if (!webDir.existsSync()) {
-      // Non-web target (mobile / desktop). sqlite3 FFI doesn't need wasm.
-      return;
-    }
-    final wasmFile = File(p.join(webDir.path, 'sqlite3.wasm'));
-    if (wasmFile.existsSync()) {
-      ctx.output.info('web/sqlite3.wasm already present; skipping download.');
-      return;
-    }
-
-    // Pinned to the sqlite3 package version magic depends on. simolus3 ships
-    // one wasm per package release at this URL pattern.
-    const sqlite3Version = '3.3.1';
-    final url = Uri.parse(
-      'https://github.com/simolus3/sqlite3.dart/releases/download/'
-      'sqlite3-$sqlite3Version/sqlite3.wasm',
-    );
-
-    ctx.output.info('Downloading sqlite3.wasm ($sqlite3Version) into web/ ...');
-    final client = HttpClient();
-    try {
-      // Follow redirects manually: GitHub release downloads return a 302 to
-      // an S3 URL; HttpClient.getUrl honors followRedirects by default but
-      // we keep the depth small to avoid runaway loops.
-      final request = await client.getUrl(url);
-      final response = await request.close();
-      if (response.statusCode != 200) {
-        ctx.output.error(
-          'sqlite3.wasm download FAILED (HTTP ${response.statusCode}). '
-          'Fix manually: curl -L "$url" -o web/sqlite3.wasm',
-        );
-        return;
-      }
-
-      // Stream-consume the response into a byte buffer; flutter's
-      // consolidateHttpClientResponseBytes is not available from a pure-Dart
-      // CLI context, so we accumulate manually.
-      final builder = BytesBuilder(copy: false);
-      await for (final chunk in response) {
-        builder.add(chunk);
-      }
-      final bytes = builder.takeBytes();
-      wasmFile.writeAsBytesSync(bytes);
-
-      final sizeKb = (bytes.length / 1024).toStringAsFixed(1);
-      ctx.output.info(
-        'web/sqlite3.wasm written ($sizeKb KB). Web target ready for sqlite3.',
-      );
-    } on Exception catch (e) {
-      ctx.output.error(
-        'sqlite3.wasm download FAILED: $e. '
-        'Fix manually: curl -L "$url" -o web/sqlite3.wasm',
-      );
-    } finally {
-      client.close(force: true);
-    }
-  }
-
-  /// Reads the 8 `--without-X` CLI flag values from [ctx] into a camelCase
+  /// Reads the 5 `--without-X` CLI flag values from [ctx] into a camelCase
   /// flag map.
   ///
   /// Defaults to `false` for absent or non-bool option values. The same
@@ -728,9 +652,9 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// to the manifest prompt-key map) and by [_applyFluentOverride] (which
   /// branches conditional emission on each flag directly).
   ///
-  /// @param ctx  The active [ArtisanContext].
+  /// @param ctx  The active [DowelContext].
   /// @return Map of `withoutX` flag name to its bool answer.
-  Map<String, bool> _flagsFromCtx(ArtisanContext ctx) {
+  Map<String, bool> _flagsFromCtx(DowelContext ctx) {
     final flags = <String, bool>{};
     for (final flag in _withoutFlagNames) {
       final value = ctx.input.option(flag);
@@ -808,7 +732,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         .join(' ');
   }
 
-  /// Conditional layer: emits the 6 `--without-X`-gated config publishes,
+  /// Conditional layer: emits the 4 `--without-X`-gated config publishes,
   /// then overwrites `lib/config/app.dart` and writes `lib/main.dart` with
   /// the dynamic provider + configFactories lists.
   ///
@@ -836,10 +760,6 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         stubName: 'install/auth_config',
         target: 'lib/config/auth.dart',
       ),
-      'withoutDatabase': _ConditionalConfig(
-        stubName: 'install/database_config',
-        target: 'lib/config/database.dart',
-      ),
       'withoutNetwork': _ConditionalConfig(
         stubName: 'install/network_config',
         target: 'lib/config/network.dart',
@@ -852,17 +772,13 @@ class MagicInstallCommand extends ArtisanInstallCommand {
         stubName: 'install/logging_config',
         target: 'lib/config/logging.dart',
       ),
-      'withoutBroadcasting': _ConditionalConfig(
-        stubName: 'install/broadcasting_config',
-        target: 'lib/config/broadcasting.dart',
-      ),
     };
 
     flagToStub.forEach((flagKey, config) {
       if (flags[flagKey] == true) return;
       // Render via plugin-rooted stubs dir + writeFile, mirroring
       // ManifestInstaller._applyPublish (the dispatcher's default stub
-      // search paths resolve to fluttersdk_artisan/assets/stubs/, not
+      // search paths resolve to dowel/assets/stubs/, not
       // magic's).
       final stub = installContext.stubs.load(
         config.stubName,
@@ -878,7 +794,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     // with the runtime-assembled providers list. Stub loading is routed
     // through installContext.stubs + the magic-rooted searchPaths so the
     // 'install/app_config' template resolves against magic's bundle, not
-    // fluttersdk_artisan's substrate stubs.
+    // dowel's substrate stubs.
     installer.writeFile(
       targetPath: p.join(projectRoot, 'lib/config/app.dart'),
       content: InstallStubs.appConfigContent(
@@ -961,7 +877,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     // them from lib/, so dev_dependencies would trip depend_on_referenced_packages;
     // the kDebugMode gate tree-shakes the subsystem from release builds.
     // addDependency routes through the same ConfigEditor.addDependencyToPubspec
-    // mechanism the delegated artisan install uses for fluttersdk_artisan, and
+    // mechanism the delegated dowel install uses for dowel, and
     // is idempotent (YamlEditor.update overwrites in place, never duplicates).
     if (withDevtools) {
       for (final dep in _devtoolsDependencies.entries) {
@@ -995,6 +911,10 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     'fluttersdk_telescope': '^0.0.12',
   };
 
+  /// Exposes [_devtoolsDependencies] so a test can tie it to `install.yaml`.
+  @visibleForTesting
+  Map<String, String> get devtoolsDependencies => _devtoolsDependencies;
+
   /// Injects the debug-trio runtime wiring into a generated `lib/main.dart`
   /// [source] and returns the transformed source.
   ///
@@ -1021,19 +941,22 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     //    package import it must sit beside, so the generated import block stays
     //    `directives_ordering`-clean: package imports grouped before relative
     //    `config/...` imports, and alphabetically sorted within the group
-    //    (`flutter/foundation` before `flutter/material`, `fluttersdk_*` before
-    //    `magic`, `magic_devtools/*` after `magic`). Each injectBeforeAnchor is
-    //    idempotent via its snippet-presence check, so a re-run is a no-op.
+    //    (`flutter/foundation` and `fluttersdk_*` before `magic`,
+    //    `magic_devtools/*` between `magic` and `material_ui`). Each
+    //    injectBeforeAnchor is idempotent via its snippet-presence check, so a
+    //    re-run is a no-op.
     var result = source;
 
-    // 1a. `flutter/foundation` sorts before `flutter/material`.
+    // 1a. `flutter/foundation` sorts before every other package import the
+    //     template carries, the first of which is `magic`.
     result = MainDartEditor.injectBeforeAnchor(
       source: result,
-      anchor: "import 'package:flutter/material.dart'",
+      anchor: "import 'package:magic/magic.dart'",
       snippet: "import 'package:flutter/foundation.dart' show kDebugMode;\n",
     );
 
-    // 1b. `fluttersdk_*` sort after the flutter imports and before `magic`.
+    // 1b. `fluttersdk_*` sort after `flutter/foundation` and before `magic`;
+    //     injected second, they land between the two.
     result = MainDartEditor.injectBeforeAnchor(
       source: result,
       anchor: "import 'package:magic/magic.dart'",
@@ -1042,24 +965,25 @@ class MagicInstallCommand extends ArtisanInstallCommand {
           "import 'package:fluttersdk_telescope/telescope.dart';\n",
     );
 
-    // 1c. `magic_devtools/*` sort after `magic` and before the first relative
-    //     `config/...` import; fall back to the `void main(` anchor when no
-    //     relative import is present (a preserve-mode source without configs).
+    // 1c. `magic_devtools/*` sort after `magic` and before whichever comes
+    //     first of `material_ui` (the generated template) and the relative
+    //     `config/...` imports (a smart-merged source places them above
+    //     `material_ui`); fall back to the `void main(` anchor when neither is
+    //     present (a preserve-mode source without configs).
     const devtoolsImports =
         "import 'package:magic_devtools/dusk.dart';\n"
         "import 'package:magic_devtools/telescope.dart';\n";
-    final afterMagic = MainDartEditor.injectBeforeAnchor(
+    final importAnchors =
+        <String>[
+            "import 'package:material_ui/",
+            "import 'config/",
+          ].where((anchor) => result.contains(anchor)).toList()
+          ..sort((a, b) => result.indexOf(a).compareTo(result.indexOf(b)));
+    result = MainDartEditor.injectBeforeAnchor(
       source: result,
-      anchor: "import 'config/",
+      anchor: importAnchors.isEmpty ? 'void main(' : importAnchors.first,
       snippet: devtoolsImports,
     );
-    result = afterMagic == result
-        ? MainDartEditor.injectBeforeAnchor(
-            source: result,
-            anchor: 'void main(',
-            snippet: devtoolsImports,
-          )
-        : afterMagic;
 
     // 2. Plugin-install blocks BEFORE Magic.init: Dusk first so its snapshot
     //    pipeline is live during Magic boot, then Telescope so ExceptionWatcher
@@ -1102,8 +1026,8 @@ class MagicInstallCommand extends ArtisanInstallCommand {
   /// Assembles the provider list rendered into `lib/config/app.dart`.
   ///
   /// Order matters here: `RouteServiceProvider` always wraps the chain, then
-  /// infrastructure providers (cache / database / launch / localization /
-  /// network / vault / broadcasting), then `AppServiceProvider`, then the
+  /// infrastructure providers (cache / launch / localization /
+  /// network / vault), then `AppServiceProvider`, then the
   /// auth provider chain. The matching anchor strings are owned by
   /// [InstallStubs.appConfigContent]; this method only supplies the
   /// infrastructure layer.
@@ -1111,9 +1035,6 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     final entries = <String>[];
     if (!flags['withoutCache']!) {
       entries.add('(app) => CacheServiceProvider(app),');
-    }
-    if (!flags['withoutDatabase']!) {
-      entries.add('(app) => DatabaseServiceProvider(app),');
     }
     // Launch is always registered, the welcome view uses Launch.url().
     entries.add('(app) => LaunchServiceProvider(app),');
@@ -1125,9 +1046,6 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     }
     if (!flags['withoutAuth']!) {
       entries.add('(app) => VaultServiceProvider(app),');
-    }
-    if (!flags['withoutBroadcasting']!) {
-      entries.add('(app) => BroadcastServiceProvider(app),');
     }
     return entries;
   }
@@ -1141,18 +1059,12 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       "import 'config/view.dart';",
     ];
     if (!flags['withoutAuth']!) imports.add("import 'config/auth.dart';");
-    if (!flags['withoutDatabase']!) {
-      imports.add("import 'config/database.dart';");
-    }
     if (!flags['withoutNetwork']!) {
       imports.add("import 'config/network.dart';");
     }
     if (!flags['withoutCache']!) imports.add("import 'config/cache.dart';");
     if (!flags['withoutLogging']!) {
       imports.add("import 'config/logging.dart';");
-    }
-    if (!flags['withoutBroadcasting']!) {
-      imports.add("import 'config/broadcasting.dart';");
     }
     return imports;
   }
@@ -1165,29 +1077,25 @@ class MagicInstallCommand extends ArtisanInstallCommand {
       '() => viewConfig',
     ];
     if (!flags['withoutAuth']!) factories.add('() => authConfig');
-    if (!flags['withoutDatabase']!) factories.add('() => databaseConfig');
     if (!flags['withoutNetwork']!) factories.add('() => networkConfig');
     if (!flags['withoutCache']!) factories.add('() => cacheConfig');
     if (!flags['withoutLogging']!) factories.add('() => loggingConfig');
-    if (!flags['withoutBroadcasting']!) {
-      factories.add('() => broadcastingConfig');
-    }
     return factories;
   }
 
   /// Translates a [TransactionResult] into a process exit code while writing
-  /// the matching summary line through [ArtisanOutput].
+  /// the matching summary line through [DowelOutput].
   ///
   /// Exit map:
-  ///   - [Success] -> 0 (record path echoed via success())
+  ///   - [Success] -> 0 (record path printed via success())
   ///   - [DryRun]  -> 0 (no disk side effect)
   ///   - [Conflict] -> 1 (operator must rerun with --force)
   ///   - [Error]    -> 2 (distinct from Conflict so CI can branch)
   ///
-  /// @param ctx     The active [ArtisanContext] for output writes.
+  /// @param ctx     The active [DowelContext] for output writes.
   /// @param result  The [TransactionResult] returned by [PluginInstaller.commit].
   /// @return The process exit code per the table above.
-  int _renderResult(ArtisanContext ctx, TransactionResult result) {
+  int _renderResult(DowelContext ctx, TransactionResult result) {
     switch (result) {
       case Success(opCount: final n, recordPath: final path):
         ctx.output.success('magic installed ($n op(s)). Install record: $path');
@@ -1209,26 +1117,26 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     }
   }
 
-  /// Self-registers `magic` in the consumer's `.artisan/plugins.json` so the
-  /// downstream `plugins:refresh` invocation picks up [MagicArtisanProvider]
+  /// Self-registers `magic` in the consumer's `.dowel/plugins.json` so the
+  /// downstream `plugins:refresh` invocation picks up [MagicDowelProvider]
   /// when regenerating `lib/app/_plugins.g.dart`.
   ///
-  /// Without this step the consumer must run `dart run magic:artisan
+  /// Without this step the consumer must run `dart run magic:dowel
   /// plugin:install magic` separately before `make:controller` etc. work.
   /// Idempotent: skips the registry write when an entry named `magic`
   /// already exists.
-  void _selfRegisterPlugin(ArtisanContext ctx, InstallContext installContext) {
+  void _selfRegisterPlugin(DowelContext ctx, InstallContext installContext) {
     final registryPath = p.join(
       installContext.projectRoot,
-      '.artisan',
+      '.dowel',
       'plugins.json',
     );
 
     Map<String, dynamic> registry;
     if (installContext.fs.exists(registryPath)) {
-      registry =
-          jsonDecode(installContext.fs.readAsString(registryPath))
-              as Map<String, dynamic>;
+      registry = jsonDecode(
+        installContext.fs.readAsString(registryPath),
+      ) as Map<String, dynamic>;
     } else {
       registry = <String, dynamic>{'version': 1, 'plugins': <dynamic>[]};
     }
@@ -1243,7 +1151,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
     plugins.add(<String, dynamic>{
       'name': 'magic',
       'providerImport': 'package:magic/cli.dart',
-      'providerClass': 'MagicArtisanProvider',
+      'providerClass': 'MagicDowelProvider',
       'registeredAt': DateTime.now().toUtc().toIso8601String(),
     });
     registry['plugins'] = plugins;
@@ -1256,7 +1164,7 @@ class MagicInstallCommand extends ArtisanInstallCommand {
 }
 
 /// Pairing of a conditional config stub with its target path. Used by
-/// [MagicInstallCommand._applyFluentOverride] to emit the 6 `--without-X`
+/// [MagicInstallCommand._applyFluentOverride] to emit the 4 `--without-X`
 /// gated publishes without repeating the stub/target pair literal across
 /// the conditional branches.
 class _ConditionalConfig {

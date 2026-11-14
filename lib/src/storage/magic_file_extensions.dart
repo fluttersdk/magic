@@ -4,22 +4,21 @@
 /// select the correct implementation based on the platform:
 ///
 /// - **Mobile/Desktop**: Uses `magic_file_io.dart` (dart:io File)
-/// - **Web**: Uses `magic_file_web.dart` (XFile only)
+/// - **Web**: Uses `magic_file_web.dart` (bytes only)
 ///
 /// ## Usage
 ///
 /// ```dart
 /// import 'package:magic/magic.dart';
 ///
-/// // On IO platforms
+/// // To a dart:io File (IO only)
 /// final file = magicFile.toFile();
-/// final xFile = magicFile.toXFile();
 ///
-/// // From File (IO only)
+/// // From a File (IO only)
 /// final magicFile = await MagicFileFactory.fromFile(file);
 ///
-/// // From XFile (all platforms)
-/// final magicFile = await MagicFileFactory.fromXFile(xFile);
+/// // From bytes (Web)
+/// final magicFile = MagicFileFactory.fromBytes(bytes, name: 'photo.jpg');
 /// ```
 library;
 

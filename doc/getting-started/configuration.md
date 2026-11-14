@@ -23,7 +23,7 @@ All of the configuration files for Magic are stored in the `lib/config` director
 
 Magic uses a modular configuration system. The framework loads sensible defaults automatically for all services. You only need to create config files for values you wish to override.
 
-These configuration files allow you to configure things like your database connection information, your mail server information, as well as various other core configuration values such as your application URL and encryption key.
+These configuration files allow you to configure things like your API connection information, your cache stores, as well as various other core configuration values such as your application URL and log channels.
 
 <a name="environment-configuration"></a>
 ## Environment Configuration
@@ -114,7 +114,7 @@ final appName = Config.get('app.name', 'Magic App');
 final timeout = Config.get<int>('network.timeout', 5000);
 
 // Get a nested configuration
-final dbConfig = Config.get('database.connections.sqlite');
+final guard = Config.get('auth.defaults.guard');
 ```
 
 ### Checking If Configuration Exists
@@ -152,9 +152,9 @@ You can deep-merge additional configuration at runtime:
 
 ```dart
 Config.merge({
-  'database': {
-    'host': 'production.db.example.com',
-    'port': 5432,
+  'app': {
+    'name': 'My App (staging)',
+    'debug': false,
   }
 });
 ```
@@ -237,7 +237,6 @@ Magic recommends organizing your configuration into logical files:
 |------|---------|------------|
 | `app.dart` | General settings, service providers | `app` |
 | `auth.dart` | Authentication guards and behavior | `auth` |
-| `database.dart` | Database connections and drivers | `database` |
 | `network.dart` | API endpoints, timeouts, headers | `network` |
 | `cache.dart` | Cache stores and TTL settings | `cache` |
 | `logging.dart` | Log levels and channels | `logging` |
@@ -309,7 +308,6 @@ void main() async {
     configFactories: [
       appConfig,
       authConfig,
-      databaseConfig,
     ],
   );
 

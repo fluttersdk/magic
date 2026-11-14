@@ -59,8 +59,7 @@ class MagicPageRequest {
 @immutable
 class MagicPage<E> {
   /// Creates a page of [items].
-  const MagicPage({required this.items, this.nextCursor, bool? hasMore})
-    : _hasMore = hasMore;
+  const MagicPage({required this.items, this.nextCursor, this._hasMore});
 
   /// The rows on this page.
   final List<E> items;
@@ -75,8 +74,9 @@ class MagicPage<E> {
 }
 
 /// Fetches one page.
-typedef MagicPageFetcher<E> =
-    Future<MagicPage<E>> Function(MagicPageRequest request);
+typedef MagicPageFetcher<E> = Future<MagicPage<E>> Function(
+  MagicPageRequest request,
+);
 
 /// Accumulates a paginated collection one page at a time.
 ///

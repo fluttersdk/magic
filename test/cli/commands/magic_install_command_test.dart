@@ -1,7 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
-import 'package:fluttersdk_artisan/src/commands/make_fast_cli_command.dart';
+import 'package:dowel/dowel.dart';
+import 'package:dowel/src/commands/make_fast_cli_command.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/magic_install_command.dart';
 import 'package:path/path.dart' as p;
@@ -122,14 +123,14 @@ class _FakeSequencePromptDriver implements PromptDriver {
   String secret(String question) => '';
 }
 
-/// Recording [ArtisanCommand] stub used to verify that auto-refresh invokes
+/// Recording [DowelCommand] stub used to verify that auto-refresh invokes
 /// the registered `plugins:refresh` command during install.
 ///
-/// Records call count and the last [ArtisanContext] it received so tests can
+/// Records call count and the last [DowelContext] it received so tests can
 /// assert both that it was invoked and that it received the correct context.
-class _RecordingRefreshCommand extends ArtisanCommand {
+class _RecordingRefreshCommand extends DowelCommand {
   int callCount = 0;
-  ArtisanContext? lastCtx;
+  DowelContext? lastCtx;
 
   @override
   String get signature => 'plugins:refresh';
@@ -141,7 +142,7 @@ class _RecordingRefreshCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     callCount++;
     lastCtx = ctx;
     ctx.output.success('plugins:refresh invoked (stub)');
@@ -152,56 +153,56 @@ class _RecordingRefreshCommand extends ArtisanCommand {
 /// Test subclass of [MagicInstallCommand] that pins the three seam points so
 /// no host filesystem access or `Isolate.resolvePackageUri` round-trip occurs.
 ///
-/// The [delegateArtisanInstall] hook is also overridden by default so that
+/// The [delegateDowelInstall] hook is also overridden by default so that
 /// magic-side tests do NOT spawn the real `InstallCommand.scaffoldInto` (which
 /// runs `chmod`, `dart --version`, and `dart build cli` subprocesses against
 /// the host filesystem). Tests that need to assert delegation behaviour read
-/// [artisanDelegateCallCount] + [lastArtisanDelegateContext].
+/// [dowelDelegateCallCount] + [lastDowelDelegateContext].
 class _TestableMagicInstallCommand extends MagicInstallCommand {
   _TestableMagicInstallCommand({
     required this.fakeManifestPath,
     required this.fakeContext,
-    required String fakeStubsDir,
-    this.artisanDelegateExitCode = 0,
-  }) : _fakeStubsDir = fakeStubsDir;
+    required this._fakeStubsDir,
+    this.dowelDelegateExitCode = 0,
+  });
 
   final String fakeManifestPath;
   final InstallContext fakeContext;
   final String _fakeStubsDir;
 
-  /// Exit code returned by the stubbed [delegateArtisanInstall].
+  /// Exit code returned by the stubbed [delegateDowelInstall].
   ///
   /// Defaults to 0 (success). Tests that exercise the non-zero branch in
   /// [MagicInstallCommand.handle] flip this to a positive integer.
-  final int artisanDelegateExitCode;
+  final int dowelDelegateExitCode;
 
-  /// Number of times [delegateArtisanInstall] was invoked during the test.
-  int artisanDelegateCallCount = 0;
+  /// Number of times [delegateDowelInstall] was invoked during the test.
+  int dowelDelegateCallCount = 0;
 
-  /// Context captured on the most recent [delegateArtisanInstall] call.
-  ArtisanContext? lastArtisanDelegateContext;
+  /// Context captured on the most recent [delegateDowelInstall] call.
+  DowelContext? lastDowelDelegateContext;
 
-  /// InstallContext captured on the most recent [delegateArtisanInstall] call.
-  InstallContext? lastArtisanDelegateInstallContext;
+  /// InstallContext captured on the most recent [delegateDowelInstall] call.
+  InstallContext? lastDowelDelegateInstallContext;
 
   @override
   Future<String?> resolveManifestPath() async => fakeManifestPath;
 
   @override
-  InstallContext buildContext(ArtisanContext ctx) => fakeContext;
+  InstallContext buildContext(DowelContext ctx) => fakeContext;
 
   @override
   String? resolveMagicStubsDir(InstallContext installContext) => _fakeStubsDir;
 
   @override
-  Future<int> delegateArtisanInstall(
-    ArtisanContext ctx,
+  Future<int> delegateDowelInstall(
+    DowelContext ctx,
     InstallContext installContext,
   ) async {
-    artisanDelegateCallCount++;
-    lastArtisanDelegateContext = ctx;
-    lastArtisanDelegateInstallContext = installContext;
-    return artisanDelegateExitCode;
+    dowelDelegateCallCount++;
+    lastDowelDelegateContext = ctx;
+    lastDowelDelegateInstallContext = installContext;
+    return dowelDelegateExitCode;
   }
 }
 
@@ -209,15 +210,15 @@ class _TestableMagicInstallCommand extends MagicInstallCommand {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Builds an [ArtisanContext] backed by a [MapInput] + [BufferedOutput].
+/// Builds an [DowelContext] backed by a [MapInput] + [BufferedOutput].
 ///
 /// [options] overrides the default base flags. [signature] is inferred from
 /// the command under test when not supplied.
-ArtisanContext _ctxWith(
+DowelContext _ctxWith(
   Map<String, dynamic> options, {
   CommandSignature? signature,
 }) {
-  return ArtisanContext.bare(
+  return DowelContext.bare(
     MapInput(options, signature: signature),
     BufferedOutput(),
   );
@@ -231,12 +232,10 @@ const Map<String, dynamic> _baseOptions = <String, dynamic>{
   'no-bootstrap': false,
   'preserve': false,
   'without-auth': false,
-  'without-database': false,
   'without-network': false,
   'without-cache': false,
   'without-localization': false,
   'without-logging': false,
-  'without-broadcasting': false,
   'with-devtools': false,
 };
 
@@ -257,7 +256,7 @@ String _loadStub(String name) {
   return File(stubPath).readAsStringSync();
 }
 
-/// Builds the full stub fixtures map by loading all 20 install stubs from disk.
+/// Builds the full stub fixtures map by loading all 18 install stubs from disk.
 ///
 /// Each stub is registered under TWO keys so the [_FixtureStubDriver] can
 /// handle both call sites:
@@ -273,10 +272,7 @@ Map<String, String> _buildStubFixtures() {
     'install/app_service_provider',
     'install/app_service_provider_with_auth',
     'install/auth_config',
-    'install/broadcasting_config',
     'install/cache_config',
-    'install/consumer_artisan',
-    'install/database_config',
     'install/env',
     'install/env_example',
     'install/kernel',
@@ -325,11 +321,11 @@ const String _fakePackageConfigJson = '''
 const String _fakeStubsDir = '/fake/magic/assets/stubs';
 
 /// Builds a fully-wired [_TestableMagicInstallCommand] + pre-built
-/// [ArtisanContext] for a single test invocation.
+/// [DowelContext] for a single test invocation.
 ///
 /// Returns:
 /// - [cmd]    — the testable command with seam overrides pinned.
-/// - [ctx]    — the [ArtisanContext] to pass to [cmd.handle]. Its output
+/// - [ctx]    — the [DowelContext] to pass to [cmd.handle]. Its output
 ///              buffer captures every line the command writes (errors, success
 ///              messages, post_install text). Use `ctx.output as BufferedOutput`
 ///              for assertions.
@@ -344,7 +340,7 @@ const String _fakeStubsDir = '/fake/magic/assets/stubs';
 /// symbolic only.
 ({
   _TestableMagicInstallCommand cmd,
-  ArtisanContext ctx,
+  DowelContext ctx,
   InMemoryFs fs,
   _RecordingPromptDriver prompt,
 })
@@ -352,9 +348,9 @@ _buildHarness({
   _RecordingPromptDriver? prompt,
   String projectRoot = '/proj',
   Map<String, dynamic> optionOverrides = const <String, dynamic>{},
-  // When supplied, the ArtisanContext is constructed with this registry so
+  // When supplied, the DowelContext is constructed with this registry so
   // ctx.registry?.find('plugins:refresh') resolves during handle().
-  ArtisanRegistry? registry,
+  DowelRegistry? registry,
 }) {
   final fs = InMemoryFs();
   // Seed package_config.json so ManifestInstaller._resolvePluginStubsDir
@@ -387,12 +383,12 @@ _buildHarness({
     fakeStubsDir: _fakeStubsDir,
   );
 
-  // Build the ArtisanContext with the same output buffer so ctx.output.error()
+  // Build the DowelContext with the same output buffer so ctx.output.error()
   // calls inside handle() land in the same buffer as installContext output.
   // When a registry is provided, it is wired in so ctx.registry?.find('plugins:refresh')
   // resolves during handle().
   final options = <String, dynamic>{..._baseOptions, ...optionOverrides};
-  final ctx = ArtisanContext.bare(
+  final ctx = DowelContext.bare(
     MapInput(options, signature: cmd.parsedSignature),
     output,
     registry: registry,
@@ -415,7 +411,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MagicInstallCommand, signature / metadata', () {
-    test('signature includes the 4 base flags from ArtisanInstallCommand', () {
+    test('signature includes the 4 base flags from DowelInstallCommand', () {
       final cmd = MagicInstallCommand();
       final optionNames = cmd.parsedSignature!.options
           .map((o) => o.name)
@@ -431,7 +427,7 @@ void main() {
       );
     });
 
-    test('signature includes all 8 --without-X flags', () {
+    test('signature includes all 5 --without-X flags', () {
       final cmd = MagicInstallCommand();
       final optionNames = cmd.parsedSignature!.options
           .map((o) => o.name)
@@ -440,14 +436,28 @@ void main() {
         optionNames,
         containsAll(<String>[
           'without-auth',
-          'without-database',
           'without-network',
           'without-cache',
           'without-localization',
           'without-logging',
-          'without-broadcasting',
         ]),
       );
+    });
+
+    test('signature no longer offers --without-broadcasting', () {
+      final cmd = MagicInstallCommand();
+      final optionNames = cmd.parsedSignature!.options
+          .map((o) => o.name)
+          .toSet();
+      expect(optionNames, isNot(contains('without-broadcasting')));
+    });
+
+    test('signature no longer offers --without-database', () {
+      final cmd = MagicInstallCommand();
+      final optionNames = cmd.parsedSignature!.options
+          .map((o) => o.name)
+          .toSet();
+      expect(optionNames, isNot(contains('without-database')));
     });
 
     test('signature includes the --with-devtools flag', () {
@@ -474,9 +484,9 @@ void main() {
       expect(cmd.boot, CommandBoot.none);
     });
 
-    test('extends ArtisanInstallCommand', () {
+    test('extends DowelInstallCommand', () {
       final cmd = MagicInstallCommand();
-      expect(cmd, isA<ArtisanInstallCommand>());
+      expect(cmd, isA<DowelInstallCommand>());
     });
   });
 
@@ -485,7 +495,7 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MagicInstallCommand, full default install', () {
-    test('non-interactive default install exits 0 and writes all 6 conditional '
+    test('non-interactive default install exits 0 and writes all 4 conditional '
         'config files', () async {
       final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
 
@@ -496,27 +506,23 @@ void main() {
         0,
         reason: 'Output: ${(ctx.output as BufferedOutput).content}',
       );
-      // All 6 conditional config files must be present.
+      // All 4 conditional config files must be present.
       expect(fs.exists('/proj/lib/config/auth.dart'), isTrue);
-      expect(fs.exists('/proj/lib/config/database.dart'), isTrue);
       expect(fs.exists('/proj/lib/config/network.dart'), isTrue);
       expect(fs.exists('/proj/lib/config/cache.dart'), isTrue);
       expect(fs.exists('/proj/lib/config/logging.dart'), isTrue);
-      expect(fs.exists('/proj/lib/config/broadcasting.dart'), isTrue);
     });
 
-    test('main.dart contains all 6 conditional configFactories', () async {
+    test('main.dart contains all 4 conditional configFactories', () async {
       final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
 
       await cmd.handle(ctx);
 
       final main = fs.readAsString('/proj/lib/main.dart');
       expect(main, contains('authConfig'));
-      expect(main, contains('databaseConfig'));
       expect(main, contains('networkConfig'));
       expect(main, contains('cacheConfig'));
       expect(main, contains('loggingConfig'));
-      expect(main, contains('broadcastingConfig'));
     });
 
     test('app.dart contains all expected infrastructure providers', () async {
@@ -526,16 +532,14 @@ void main() {
 
       final app = fs.readAsString('/proj/lib/config/app.dart');
       expect(app, contains('CacheServiceProvider'));
-      expect(app, contains('DatabaseServiceProvider'));
       expect(app, contains('NetworkServiceProvider'));
       expect(app, contains('VaultServiceProvider'));
-      expect(app, contains('BroadcastServiceProvider'));
       expect(app, contains('LocalizationServiceProvider'));
     });
   });
 
   // ---------------------------------------------------------------------------
-  // Group 3: per-flag conditional behavior (8 tests)
+  // Group 3: per-flag conditional behavior
   // ---------------------------------------------------------------------------
 
   group('MagicInstallCommand, --without-auth', () {
@@ -558,21 +562,25 @@ void main() {
     );
   });
 
-  group('MagicInstallCommand, --without-database', () {
-    test('omits lib/config/database.dart, DatabaseServiceProvider, '
-        'databaseConfig', () async {
-      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness(
-        optionOverrides: <String, dynamic>{'without-database': true},
-      );
+  group('MagicInstallCommand, the database lives in magic_local_storage', () {
+    test('a default install writes no database config, provider, factory '
+        'or sqlite3.wasm', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
 
       final exit = await cmd.handle(ctx);
 
       expect(exit, 0);
       expect(fs.exists('/proj/lib/config/database.dart'), isFalse);
+      expect(fs.exists('/proj/web/sqlite3.wasm'), isFalse);
       final app = fs.readAsString('/proj/lib/config/app.dart');
       expect(app, isNot(contains('DatabaseServiceProvider')));
       final main = fs.readAsString('/proj/lib/main.dart');
       expect(main, isNot(contains('databaseConfig')));
+      expect(main, isNot(contains('config/database.dart')));
+      expect(
+        (ctx.output as BufferedOutput).content,
+        isNot(contains('sqlite3.wasm')),
+      );
     });
   });
 
@@ -630,12 +638,10 @@ void main() {
     );
   });
 
-  group('MagicInstallCommand, --without-broadcasting', () {
-    test('omits lib/config/broadcasting.dart, BroadcastServiceProvider, '
-        'broadcastingConfig', () async {
-      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness(
-        optionOverrides: <String, dynamic>{'without-broadcasting': true},
-      );
+  group('MagicInstallCommand, broadcasting lives in magic_socket', () {
+    test('a default install writes no broadcasting config, provider or '
+        'factory', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
 
       final exit = await cmd.handle(ctx);
 
@@ -667,30 +673,26 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MagicInstallCommand, edge cases', () {
-    test('all 7 --without-X=true produces a minimal install with only '
+    test('all 5 --without-X=true produces a minimal install with only '
         'base app/view/routing configs', () async {
       final (:cmd, :ctx, :fs, prompt: _) = _buildHarness(
         optionOverrides: <String, dynamic>{
           'without-auth': true,
-          'without-database': true,
           'without-network': true,
           'without-cache': true,
           'without-localization': true,
           'without-logging': true,
-          'without-broadcasting': true,
         },
       );
 
       final exit = await cmd.handle(ctx);
 
       expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
-      // All 6 conditional configs must be absent.
+      // All 4 conditional configs must be absent.
       expect(fs.exists('/proj/lib/config/auth.dart'), isFalse);
-      expect(fs.exists('/proj/lib/config/database.dart'), isFalse);
       expect(fs.exists('/proj/lib/config/network.dart'), isFalse);
       expect(fs.exists('/proj/lib/config/cache.dart'), isFalse);
       expect(fs.exists('/proj/lib/config/logging.dart'), isFalse);
-      expect(fs.exists('/proj/lib/config/broadcasting.dart'), isFalse);
       // The 3 always-on configs must be present.
       expect(fs.exists('/proj/lib/config/app.dart'), isTrue);
       expect(fs.exists('/proj/lib/config/view.dart'), isTrue);
@@ -698,11 +700,9 @@ void main() {
       // main.dart must not include any conditional factory.
       final main = fs.readAsString('/proj/lib/main.dart');
       expect(main, isNot(contains('authConfig')));
-      expect(main, isNot(contains('databaseConfig')));
       expect(main, isNot(contains('networkConfig')));
       expect(main, isNot(contains('cacheConfig')));
       expect(main, isNot(contains('loggingConfig')));
-      expect(main, isNot(contains('broadcastingConfig')));
     });
 
     test(
@@ -741,7 +741,7 @@ void main() {
 
         expect(exit, 0);
         // Only the pre-seeded package_config.json must be present.
-        // No install-generated file (lib/, .env, .artisan/) must exist.
+        // No install-generated file (lib/, .env, .dowel/) must exist.
         final snapshot = fs.snapshot;
         final installGenerated = snapshot.keys
             .where((k) => !k.contains('package_config'))
@@ -788,40 +788,34 @@ void main() {
       expect(converter.snakeCaseToTitleCase(''), '');
     });
 
-    test(
-      'missing pubspec.yaml leaves appName empty and install still succeeds',
-      () async {
-        final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
-        // No pubspec.yaml seeded into the InMemoryFs.
+    test('missing pubspec.yaml leaves appName empty and install still succeeds', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
+      // No pubspec.yaml seeded into the InMemoryFs.
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        // A missing pubspec results in an empty appName but the install must
-        // still complete successfully.
-        expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
-        final main = fs.readAsString('/proj/lib/main.dart');
-        // The appName placeholder resolves to '' — title and brand suffix blank.
-        expect(main, contains("MagicApplication(title: '', titleSuffix: '')"));
-      },
-    );
+      // A missing pubspec results in an empty appName but the install must
+      // still complete successfully.
+      expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+      final main = fs.readAsString('/proj/lib/main.dart');
+      // The appName placeholder resolves to '' — title and brand suffix blank.
+      expect(main, contains("MagicApplication(title: '', titleSuffix: '')"));
+    });
 
-    test(
-      'pubspec.yaml with name field threads appName into main.dart title',
-      () async {
-        final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
-        fs.writeAsString('/proj/pubspec.yaml', 'name: my_cool_app\n');
+    test('pubspec.yaml with name field threads appName into main.dart title', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
+      fs.writeAsString('/proj/pubspec.yaml', 'name: my_cool_app\n');
 
-        await cmd.handle(ctx);
+      await cmd.handle(ctx);
 
-        final main = fs.readAsString('/proj/lib/main.dart');
-        expect(
-          main,
-          contains(
-            "MagicApplication(title: 'My Cool App', titleSuffix: 'My Cool App')",
-          ),
-        );
-      },
-    );
+      final main = fs.readAsString('/proj/lib/main.dart');
+      expect(
+        main,
+        contains(
+          "MagicApplication(title: 'My Cool App', titleSuffix: 'My Cool App')",
+        ),
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -829,35 +823,29 @@ void main() {
   // ---------------------------------------------------------------------------
 
   group('MagicInstallCommand, post_install message', () {
-    test(
-      'output contains the manifest post_install.message on success',
-      () async {
-        final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness();
+    test('output contains the manifest post_install.message on success', () async {
+      final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness();
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        expect(exit, 0);
-        // The manifest's post_install.message begins with "Magic installed via".
-        final out = (ctx.output as BufferedOutput).content;
-        expect(out, contains('Magic installed via plugin:install'));
-      },
-    );
+      expect(exit, 0);
+      // The manifest's post_install.message begins with "Magic installed via".
+      final out = (ctx.output as BufferedOutput).content;
+      expect(out, contains('Magic installed via plugin:install'));
+    });
 
-    test(
-      'install record is created at .artisan/installed/magic.json',
-      () async {
-        final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
+    test('install record is created at .dowel/installed/magic.json', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
 
-        await cmd.handle(ctx);
+      await cmd.handle(ctx);
 
-        final recordPath = '/proj/.artisan/installed/magic.json';
-        expect(fs.exists(recordPath), isTrue);
-        final content = fs.readAsString(recordPath);
-        expect(content, contains('"plugin": "magic"'));
-        expect(content, contains('"installedAt"'));
-        expect(content, contains('"ops"'));
-      },
-    );
+      final recordPath = '/proj/.dowel/installed/magic.json';
+      expect(fs.exists(recordPath), isTrue);
+      final content = fs.readAsString(recordPath);
+      expect(content, contains('"plugin": "magic"'));
+      expect(content, contains('"installedAt"'));
+      expect(content, contains('"ops"'));
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -869,7 +857,7 @@ void main() {
       'invokes the registered plugins:refresh command when registry is present',
       () async {
         final refreshStub = _RecordingRefreshCommand();
-        final registry = ArtisanRegistry()
+        final registry = DowelRegistry()
           ..register(refreshStub, providerName: 'test');
 
         final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
@@ -891,7 +879,7 @@ void main() {
       'auto-refresh is skipped when the install result is a dry-run',
       () async {
         final refreshStub = _RecordingRefreshCommand();
-        final registry = ArtisanRegistry()
+        final registry = DowelRegistry()
           ..register(refreshStub, providerName: 'test');
 
         final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
@@ -919,7 +907,7 @@ void main() {
 
   group('MagicInstallCommand, auto-refresh hint fallback', () {
     test(
-      'logs hint when registry is null (bare ctx without ArtisanApplication)',
+      'logs hint when registry is null (bare ctx without DowelApplication)',
       () async {
         // Default harness has no registry → ctx.registry is null.
         final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness();
@@ -930,7 +918,7 @@ void main() {
         final out = (ctx.output as BufferedOutput).content;
         expect(
           out,
-          contains('dart run magic:artisan plugins:refresh'),
+          contains('dart run magic:dowel plugins:refresh'),
           reason: 'hint must name the manual refresh command',
         );
       },
@@ -940,7 +928,7 @@ void main() {
       'logs hint when registry exists but plugins:refresh is not registered',
       () async {
         // Registry present but plugins:refresh is absent → hint path.
-        final registry = ArtisanRegistry();
+        final registry = DowelRegistry();
         final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
           registry: registry,
         );
@@ -951,7 +939,7 @@ void main() {
         final out = (ctx.output as BufferedOutput).content;
         expect(
           out,
-          contains('dart run magic:artisan plugins:refresh'),
+          contains('dart run magic:dowel plugins:refresh'),
           reason:
               'hint must appear when plugins:refresh is absent from registry',
         );
@@ -989,7 +977,7 @@ void main() {
   });
 
   // ---------------------------------------------------------------------------
-  // Group 10: consumer wrapper bootstrap — bin/artisan.dart published via manifest
+  // Group 10: consumer wrapper bootstrap, delegated to dowel's install
   // ---------------------------------------------------------------------------
 
   // ---------------------------------------------------------------------------
@@ -1023,39 +1011,40 @@ void main() {
   });
 
   group('MagicInstallCommand, consumer wrapper bootstrap', () {
+    test('install publishes no wrapper of its own; bin/dispatcher.dart is left '
+        'to the delegated dowel install', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
+
+      final exit = await cmd.handle(ctx);
+
+      expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+      // dowel 0.0.21 treats only bin/dispatcher.dart as a consumer wrapper;
+      // a magic-written bin/artisan.dart or bin/dowel.dart would be dead
+      // code that `dart run magic:dowel` never reaches.
+      expect(fs.exists('/proj/bin/artisan.dart'), isFalse);
+      expect(fs.exists('/proj/bin/dowel.dart'), isFalse);
+      expect(cmd.dowelDelegateCallCount, 1);
+    });
+
     test(
-      'install publishes bin/artisan.dart with the consumer wrapper content',
+      'install registers MagicDowelProvider in .dowel/plugins.json',
       () async {
         final (:cmd, :ctx, :fs, prompt: _) = _buildHarness();
 
         final exit = await cmd.handle(ctx);
 
         expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
-        // 1. The file must exist at the manifest-declared destination.
-        expect(
-          fs.exists('/proj/bin/artisan.dart'),
-          isTrue,
-          reason: 'bin/artisan.dart must be created during install',
-        );
-        final content = fs.readAsString('/proj/bin/artisan.dart');
-        // 2. Must import the artisan runner package.
-        expect(
-          content,
-          contains("import 'package:fluttersdk_artisan/artisan.dart';"),
-          reason: 'consumer wrapper must import fluttersdk_artisan',
-        );
-        // 3. Must reference the Magic artisan provider via show clause.
-        expect(
-          content,
-          contains('MagicArtisanProvider'),
-          reason: 'consumer wrapper must reference MagicArtisanProvider',
-        );
-        // 4. Must delegate execution via runArtisan.
-        expect(
-          content,
-          contains('runArtisan('),
-          reason: 'consumer wrapper must call runArtisan()',
-        );
+        // plugins:refresh reads this registry to build lib/app/_plugins.g.dart,
+        // which is how bin/dispatcher.dart picks up the magic commands.
+        const registryPath = '/proj/.dowel/plugins.json';
+        expect(fs.exists(registryPath), isTrue);
+        final registry =
+            jsonDecode(fs.readAsString(registryPath)) as Map<String, dynamic>;
+        final plugins = (registry['plugins'] as List<dynamic>)
+            .cast<Map<String, dynamic>>();
+        final magic = plugins.singleWhere((entry) => entry['name'] == 'magic');
+        expect(magic['providerImport'], 'package:magic/cli.dart');
+        expect(magic['providerClass'], 'MagicDowelProvider');
       },
     );
   });
@@ -1064,14 +1053,14 @@ void main() {
   // Group 12: _resolveMainDartStrategy
   // ---------------------------------------------------------------------------
 
-  /// Builds an [ArtisanContext] + [InstallContext] pair for strategy tests.
+  /// Builds an [DowelContext] + [InstallContext] pair for strategy tests.
   ///
   /// [optionOverrides] customize CLI flags (force, preserve, non-interactive).
   /// [promptDriver] replaces the default recording driver for interactive tests.
   /// [seedMainDart] pre-seeds `/proj/lib/main.dart` with the given content.
   ({
     _TestableMagicInstallCommand cmd,
-    ArtisanContext ctx,
+    DowelContext ctx,
     InstallContext installContext,
     InMemoryFs fs,
   })
@@ -1109,7 +1098,7 @@ void main() {
     );
 
     final options = <String, dynamic>{..._baseOptions, ...optionOverrides};
-    final ctx = ArtisanContext.bare(
+    final ctx = DowelContext.bare(
       MapInput(options, signature: cmd.parsedSignature),
       output,
     );
@@ -1168,7 +1157,7 @@ void main() {
 
     test('returns overwrite silently when scaffold markers detected', () async {
       const scaffold = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() => runApp(const MyApp());
 
@@ -1220,7 +1209,7 @@ class _MyHomePageState extends State<MyHomePage> {
         fakeStubsDir: _fakeStubsDir,
       );
       final options = <String, dynamic>{..._baseOptions};
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(options, signature: cmd.parsedSignature),
         output,
       );
@@ -1267,7 +1256,7 @@ class _MyHomePageState extends State<MyHomePage> {
           fakeStubsDir: _fakeStubsDir,
         );
         // --non-interactive is true in _baseOptions.
-        final ctx = ArtisanContext.bare(
+        final ctx = DowelContext.bare(
           MapInput(<String, dynamic>{
             ..._baseOptions,
             'non-interactive': true,
@@ -1336,27 +1325,24 @@ class _MyHomePageState extends State<MyHomePage> {
       expect(sequenceDriver.choiceCallCount, 1);
     });
 
-    test(
-      'interactive prompt: selecting Diff re-prompts then resolves via Overwrite',
-      () async {
-        // Sequence: first pick Diff, then Overwrite (re-prompt after diff).
-        final sequenceDriver = _FakeSequencePromptDriver([
-          'Diff — Show diff, re-prompt',
-          'Overwrite — Replace with Magic template',
-        ]);
-        final (:cmd, :ctx, :installContext, fs: _) = buildStrategyHarness(
-          optionOverrides: <String, dynamic>{'non-interactive': false},
-          promptDriver: sequenceDriver,
-          seedMainDart: 'void main() { runCustomApp(); }',
-        );
+    test('interactive prompt: selecting Diff re-prompts then resolves via Overwrite', () async {
+      // Sequence: first pick Diff, then Overwrite (re-prompt after diff).
+      final sequenceDriver = _FakeSequencePromptDriver([
+        'Diff — Show diff, re-prompt',
+        'Overwrite — Replace with Magic template',
+      ]);
+      final (:cmd, :ctx, :installContext, fs: _) = buildStrategyHarness(
+        optionOverrides: <String, dynamic>{'non-interactive': false},
+        promptDriver: sequenceDriver,
+        seedMainDart: 'void main() { runCustomApp(); }',
+      );
 
-        final result = await cmd.resolveMainDartStrategy(ctx, installContext);
+      final result = await cmd.resolveMainDartStrategy(ctx, installContext);
 
-        expect(result.strategy, MainDartStrategy.overwrite);
-        // Two choice calls: once for Diff, once for Overwrite.
-        expect(sequenceDriver.choiceCallCount, 2);
-      },
-    );
+      expect(result.strategy, MainDartStrategy.overwrite);
+      // Two choice calls: once for Diff, once for Overwrite.
+      expect(sequenceDriver.choiceCallCount, 2);
+    });
 
     test(
       'recursion cap at 5 diff selections returns overwrite as safe default',
@@ -1392,24 +1378,21 @@ class _MyHomePageState extends State<MyHomePage> {
   group('MagicInstallCommand._formatMainDartDiff', () {
     final cmd = MagicInstallCommand();
 
-    test(
-      'two different sources: output starts with "--- lib/main.dart (existing)"',
-      () {
-        const existing = 'void main() { runApp(const MyApp()); }\n';
-        const magicTemplate =
-            "import 'package:magic/magic.dart';\n"
-            'void main() async { await Magic.init(); }\n';
+    test('two different sources: output starts with "--- lib/main.dart (existing)"', () {
+      const existing = 'void main() { runApp(const MyApp()); }\n';
+      const magicTemplate =
+          "import 'package:magic/magic.dart';\n"
+          'void main() async { await Magic.init(); }\n';
 
-        final diff = cmd.formatMainDartDiff(existing, magicTemplate);
+      final diff = cmd.formatMainDartDiff(existing, magicTemplate);
 
-        expect(
-          diff,
-          startsWith('--- lib/main.dart (existing)'),
-          reason:
-              'Unified diff must open with the source label line prefixed by ---',
-        );
-      },
-    );
+      expect(
+        diff,
+        startsWith('--- lib/main.dart (existing)'),
+        reason:
+            'Unified diff must open with the source label line prefixed by ---',
+      );
+    });
 
     test('identical sources: output contains no @@ hunks', () {
       const source = "import 'package:magic/magic.dart';\nvoid main() {}\n";
@@ -1507,7 +1490,7 @@ class _MyHomePageState extends State<MyHomePage> {
         reason: 'Cancel must NOT commit any manifest publishes',
       );
       expect(
-        fs.exists('/proj/.artisan/installed/magic.json'),
+        fs.exists('/proj/.dowel/installed/magic.json'),
         isFalse,
         reason: 'Cancel must NOT create an install record',
       );
@@ -1530,7 +1513,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // Seed a full Flutter create scaffold so MainDartScaffoldDetector
       // matches ≥3 markers => strategy returns overwrite + scaffoldDetected.
       const scaffold = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() => runApp(const MyApp());
 
@@ -1585,7 +1568,7 @@ class _MyHomePageState extends State<MyHomePage> {
   group('MagicInstallCommand, preserve-mode smart-merge (step 2.6)', () {
     // A valid async main.dart that MainDartSmartMerger can transform.
     const asyncUserMain = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() async {
   runApp(const MyCustomApp());
@@ -1600,7 +1583,7 @@ class MyCustomApp extends StatelessWidget {
 
     // A sync main.dart that MainDartSmartMerger must reject.
     const syncUserMain = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const MyCustomApp());
@@ -1610,8 +1593,8 @@ void main() {
     // A main.dart that already has Magic injected (idempotency test).
     const alreadyMagicMain = '''
 import 'package:magic/magic.dart';
-import 'package:fluttersdk_wind/fluttersdk_wind.dart';
-import 'package:flutter/material.dart';
+import 'package:wind_kit/wind_kit.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() async {
   await Magic.init(configFactories: []);
@@ -1662,42 +1645,39 @@ class MyCustomApp extends StatelessWidget {
       },
     );
 
-    test(
-      'preserve with sync main: exits 1 and error output contains '
-      '"main() must be async"; no files are written beyond pre-existing',
-      () async {
-        final (:cmd, :ctx, :fs, prompt: _) = _buildHarness(
-          optionOverrides: <String, dynamic>{'preserve': true},
-        );
-        // Seed a sync main.dart — MainDartSmartMerger will throw FormatException.
-        fs.writeAsString('/proj/lib/main.dart', syncUserMain);
-        // Capture the pre-abort snapshot of keys so we can verify no new
-        // files were written after the error.
-        final preAbortKeys = fs.snapshot.keys.toSet();
+    test('preserve with sync main: exits 1 and error output contains '
+        '"main() must be async"; no files are written beyond pre-existing', () async {
+      final (:cmd, :ctx, :fs, prompt: _) = _buildHarness(
+        optionOverrides: <String, dynamic>{'preserve': true},
+      );
+      // Seed a sync main.dart — MainDartSmartMerger will throw FormatException.
+      fs.writeAsString('/proj/lib/main.dart', syncUserMain);
+      // Capture the pre-abort snapshot of keys so we can verify no new
+      // files were written after the error.
+      final preAbortKeys = fs.snapshot.keys.toSet();
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        expect(
-          exit,
-          1,
-          reason: 'Sync main rejection must surface as exit 1 (not 0 or 2)',
-        );
-        final out = (ctx.output as BufferedOutput).content;
-        expect(
-          out,
-          contains('main() must be async'),
-          reason: 'Clean error must name the required fix',
-        );
-        // No install-generated files must be created after the abort.
-        final postAbortKeys = fs.snapshot.keys.toSet();
-        final newKeys = postAbortKeys.difference(preAbortKeys);
-        expect(
-          newKeys,
-          isEmpty,
-          reason: 'Abort on sync main must not write any install files',
-        );
-      },
-    );
+      expect(
+        exit,
+        1,
+        reason: 'Sync main rejection must surface as exit 1 (not 0 or 2)',
+      );
+      final out = (ctx.output as BufferedOutput).content;
+      expect(
+        out,
+        contains('main() must be async'),
+        reason: 'Clean error must name the required fix',
+      );
+      // No install-generated files must be created after the abort.
+      final postAbortKeys = fs.snapshot.keys.toSet();
+      final newKeys = postAbortKeys.difference(preAbortKeys);
+      expect(
+        newKeys,
+        isEmpty,
+        reason: 'Abort on sync main must not write any install files',
+      );
+    });
 
     test('preserve with already-Magic-injected main: idempotent — '
         'await Magic.init( appears exactly once in the written file', () async {
@@ -1716,8 +1696,7 @@ class MyCustomApp extends StatelessWidget {
       expect(
         initCount,
         1,
-        reason:
-            'mergeMagicInto must be idempotent: no duplicate Magic.init injection',
+        reason: 'mergeMagicInto must be idempotent: no duplicate Magic.init injection',
       );
       // MagicApplication must not be double-wrapped either.
       final appCount = 'MagicApplication('.allMatches(main).length;
@@ -1745,7 +1724,7 @@ class MyCustomApp extends StatelessWidget {
   group('MagicInstallCommand, lib/main.dart conflict resolution', () {
     // A user-authored async main.dart — not a scaffold, has no scaffold markers.
     const customizedAsyncMain = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1762,7 +1741,7 @@ class MyCustomApp extends StatelessWidget {
 
     // A user-authored sync main.dart — no scaffold markers, no async keyword.
     const customizedSyncMain = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const MyCustomApp());
@@ -1778,7 +1757,7 @@ class MyCustomApp extends StatelessWidget {
 
     // Full Flutter counter-app scaffold — MainDartScaffoldDetector returns true.
     const flutterScaffold = '''
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() => runApp(const MyApp());
 
@@ -1814,7 +1793,7 @@ class _MyHomePageState extends State<MyHomePage> {
     /// Returns the same named-record shape as [_buildHarness] but omits the
     /// [_RecordingPromptDriver] from the return (unused in integration tests
     /// where we inject a [_FakeSequencePromptDriver] directly).
-    ({_TestableMagicInstallCommand cmd, ArtisanContext ctx, InMemoryFs fs})
+    ({_TestableMagicInstallCommand cmd, DowelContext ctx, InMemoryFs fs})
     buildIntegrationHarness({
       Map<String, dynamic> optionOverrides = const <String, dynamic>{},
       _FakeSequencePromptDriver? sequenceDriver,
@@ -1850,7 +1829,7 @@ class _MyHomePageState extends State<MyHomePage> {
       );
 
       final options = <String, dynamic>{..._baseOptions, ...optionOverrides};
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(options, signature: cmd.parsedSignature),
         output,
       );
@@ -1862,24 +1841,21 @@ class _MyHomePageState extends State<MyHomePage> {
     // Scenario 1: Fresh install (no existing lib/main.dart)
     // -------------------------------------------------------------------------
 
-    test(
-      '1. Fresh install (no existing main.dart): exits 0, Magic template written',
-      () async {
-        final (:cmd, :ctx, :fs) = buildIntegrationHarness();
-        // No lib/main.dart pre-seeded — fresh project.
+    test('1. Fresh install (no existing main.dart): exits 0, Magic template written', () async {
+      final (:cmd, :ctx, :fs) = buildIntegrationHarness();
+      // No lib/main.dart pre-seeded — fresh project.
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
-        expect(fs.exists('/proj/lib/main.dart'), isTrue);
-        final main = fs.readAsString('/proj/lib/main.dart');
-        expect(
-          main,
-          contains('Magic.init'),
-          reason: 'Fresh install must write the Magic template',
-        );
-      },
-    );
+      expect(exit, 0, reason: (ctx.output as BufferedOutput).content);
+      expect(fs.exists('/proj/lib/main.dart'), isTrue);
+      final main = fs.readAsString('/proj/lib/main.dart');
+      expect(
+        main,
+        contains('Magic.init'),
+        reason: 'Fresh install must write the Magic template',
+      );
+    });
 
     // -------------------------------------------------------------------------
     // Scenario 2: Existing scaffold + no flags → silent overwrite
@@ -2012,43 +1988,38 @@ class _MyHomePageState extends State<MyHomePage> {
     // Scenario 6: Existing customized main + --non-interactive → exit 0 cancel
     // -------------------------------------------------------------------------
 
-    test(
-      '6. Existing customized main + --non-interactive (no --force/--preserve): '
-      'exits 0 with cancel, error about non-interactive logged',
-      () async {
-        // _baseOptions sets non-interactive: true by default; no --force/--preserve.
-        final (:cmd, :ctx, :fs) = buildIntegrationHarness(
-          seedMainDart: customizedAsyncMain,
-        );
+    test('6. Existing customized main + --non-interactive (no --force/--preserve): '
+        'exits 0 with cancel, error about non-interactive logged', () async {
+      // _baseOptions sets non-interactive: true by default; no --force/--preserve.
+      final (:cmd, :ctx, :fs) = buildIntegrationHarness(
+        seedMainDart: customizedAsyncMain,
+      );
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        expect(
-          exit,
-          0,
-          reason: 'Cancel path is a clean early exit, not an error code',
-        );
-        final out = (ctx.output as BufferedOutput).content;
-        expect(
-          out,
-          contains(
-            'Existing lib/main.dart is not the default Flutter scaffold',
-          ),
-          reason: 'Non-interactive cancel must log why install was aborted',
-        );
-        // Install must not have committed — no generated files.
-        expect(
-          fs.exists('/proj/lib/config/app.dart'),
-          isFalse,
-          reason: 'Cancel must not commit any manifest publishes',
-        );
-        expect(
-          fs.exists('/proj/.artisan/installed/magic.json'),
-          isFalse,
-          reason: 'Cancel must not create an install record',
-        );
-      },
-    );
+      expect(
+        exit,
+        0,
+        reason: 'Cancel path is a clean early exit, not an error code',
+      );
+      final out = (ctx.output as BufferedOutput).content;
+      expect(
+        out,
+        contains('Existing lib/main.dart is not the default Flutter scaffold'),
+        reason: 'Non-interactive cancel must log why install was aborted',
+      );
+      // Install must not have committed — no generated files.
+      expect(
+        fs.exists('/proj/lib/config/app.dart'),
+        isFalse,
+        reason: 'Cancel must not commit any manifest publishes',
+      );
+      expect(
+        fs.exists('/proj/.dowel/installed/magic.json'),
+        isFalse,
+        reason: 'Cancel must not create an install record',
+      );
+    });
 
     // -------------------------------------------------------------------------
     // Scenario 7: Interactive → user picks 'Overwrite' → Magic template written
@@ -2206,7 +2177,7 @@ class _MyHomePageState extends State<MyHomePage> {
       );
       // No generated install files.
       expect(
-        fs.exists('/proj/.artisan/installed/magic.json'),
+        fs.exists('/proj/.dowel/installed/magic.json'),
         isFalse,
         reason: 'Cancel must not create an install record',
       );
@@ -2249,25 +2220,25 @@ class _MyHomePageState extends State<MyHomePage> {
   });
 
   // ---------------------------------------------------------------------------
-  // Group 16: artisan-install delegation (TDD red-first for Step 16)
+  // Group 16: dowel-install delegation (TDD red-first for Step 16)
   //
   // Verifies that after `magic:install` succeeds, the canonical Flutter
-  // scaffold (bin/dispatcher.dart + barrels + pubspec dep + bin/fsa) is
-  // delegated to artisan's `InstallCommand.scaffoldInto` IN-PROCESS.
+  // scaffold (bin/dispatcher.dart + barrels + pubspec dep + bin/dowel) is
+  // delegated to dowel's `InstallCommand.scaffoldInto` IN-PROCESS.
   // Ordering invariant: delegation fires AFTER stagedInstaller.commit returns
   // Success and BEFORE the registered `plugins:refresh` command, so the
   // dispatcher exists on disk before codegen rebuilds the provider barrel.
   // ---------------------------------------------------------------------------
 
-  group('MagicInstallCommand, artisan-install delegation', () {
-    test('delegateArtisanInstall calls InstallCommand.scaffoldInto and writes '
+  group('MagicInstallCommand, dowel-install delegation', () {
+    test('delegateDowelInstall calls InstallCommand.scaffoldInto and writes '
         'bin/dispatcher.dart at the consumer projectRoot', () async {
-      // 1. Real-FS tempDir seeded with the minimum scaffold artisan's
+      // 1. Real-FS tempDir seeded with the minimum scaffold dowel's
       //    InstallCommand needs (pubspec.yaml with a name field) so the
       //    underlying static `scaffoldInto` can resolve {{ name }} for the
       //    dispatcher stub.
       final tempDir = Directory.systemTemp.createTempSync(
-        'magic_artisan_delegate_',
+        'magic_dowel_delegate_',
       );
       addTearDown(() {
         if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
@@ -2281,12 +2252,11 @@ class _MyHomePageState extends State<MyHomePage> {
       );
       // 2. Pre-seed bin/dispatcher.dart so the auto-chained
       //    MakeFastCliCommand.scaffoldInto skips its dispatcher-missing
-      //    guard. The delegateArtisanInstall under test still runs the full
+      //    guard. The delegateDowelInstall under test still runs the full
       //    `install` flow (dispatcher render is idempotent without --force).
       Directory(p.join(tempDir.path, 'bin')).createSync(recursive: true);
-      File(
-        p.join(tempDir.path, 'bin', 'dispatcher.dart'),
-      ).writeAsStringSync('// placeholder dispatcher\n');
+      File(p.join(tempDir.path, 'bin', 'dispatcher.dart'))
+          .writeAsStringSync('// placeholder dispatcher\n');
       File(p.join(tempDir.path, 'pubspec.lock')).writeAsStringSync(
         'packages:\n  test_consumer:\n    version: "1.0.0"\n',
       );
@@ -2295,7 +2265,7 @@ class _MyHomePageState extends State<MyHomePage> {
       //    auto-chain in `InstallCommand.scaffoldInto` does not spin up
       //    real `chmod` / `dart --version` / `dart build cli` processes.
       final scripted = <String, ProcessResult>{
-        'chmod +x ${p.join(tempDir.path, 'bin', 'fsa')}': ProcessResult(
+        'chmod +x ${p.join(tempDir.path, 'bin', 'dowel')}': ProcessResult(
           0,
           0,
           '',
@@ -2307,7 +2277,7 @@ class _MyHomePageState extends State<MyHomePage> {
           '',
           'Dart SDK version: 3.8.0 (stable) ...',
         ),
-        'dart build cli -t bin/dispatcher.dart -o .artisan/cli-bundle':
+        'dart build cli -t bin/dispatcher.dart -o .dowel/cli-bundle':
             ProcessResult(0, 0, 'Build complete.', ''),
       };
       final originalRunner = MakeFastCliCommand.processRunner;
@@ -2321,7 +2291,7 @@ class _MyHomePageState extends State<MyHomePage> {
       });
 
       // 4. Build an InstallContext rooted at the tempDir + a bare
-      //    ArtisanContext with the standard base flags.
+      //    DowelContext with the standard base flags.
       final installContext = InstallContext.test(
         fs: RealFs(),
         prompt: _RecordingPromptDriver(),
@@ -2336,104 +2306,96 @@ class _MyHomePageState extends State<MyHomePage> {
       // 5. Invoke the seam under test directly. The production wiring in
       //    handle() exercises the same code path inside `if (result is
       //    Success)` after `stagedInstaller.commit`.
-      final exit = await cmd.delegateArtisanInstall(ctx, installContext);
+      final exit = await cmd.delegateDowelInstall(ctx, installContext);
 
-      // 6. Assert the artisan scaffold landed at the consumer projectRoot.
+      // 6. Assert the dowel scaffold landed at the consumer projectRoot.
       expect(
         exit,
         0,
         reason:
-            'delegateArtisanInstall must propagate exit 0 on success; '
+            'delegateDowelInstall must propagate exit 0 on success; '
             'output was: ${(ctx.output as BufferedOutput).content}',
       );
       // bin/dispatcher.dart was pre-seeded so the idempotent skip path is
       // exercised. The canonical barrels + pubspec dep must still be
       // written even when dispatcher.dart already exists.
       expect(
-        File(
-          p.join(tempDir.path, 'lib', 'app', '_plugins.g.dart'),
-        ).existsSync(),
+        File(p.join(tempDir.path, 'lib', 'app', '_plugins.g.dart'))
+            .existsSync(),
         isTrue,
         reason:
             'delegation must scaffold the plugins codegen barrel into the '
             'consumer projectRoot',
       );
       expect(
-        File(
-          p.join(tempDir.path, 'lib', 'app', 'commands', '_index.g.dart'),
-        ).existsSync(),
+        File(p.join(tempDir.path, 'lib', 'app', 'commands', '_index.g.dart'))
+            .existsSync(),
         isTrue,
         reason:
             'delegation must scaffold the consumer-commands codegen '
             'barrel into the consumer projectRoot',
       );
-      final pubspec = File(
-        p.join(tempDir.path, 'pubspec.yaml'),
-      ).readAsStringSync();
+      final pubspec = File(p.join(tempDir.path, 'pubspec.yaml'))
+          .readAsStringSync();
       expect(
-        pubspec.contains('fluttersdk_artisan'),
+        pubspec.contains('dowel:'),
         isTrue,
         reason:
-            'delegation must inject the fluttersdk_artisan pubspec '
+            'delegation must inject the dowel pubspec '
             'dependency into the consumer pubspec',
       );
     });
 
-    test(
-      'handle invokes the artisan delegation exactly once on commit Success, '
-      'BEFORE the registered plugins:refresh command runs',
-      () async {
-        // Recording plugins:refresh stub captures the global call order so
-        // the test can assert: artisan delegation < plugins:refresh.
-        final refreshStub = _RecordingRefreshCommand();
-        final registry = ArtisanRegistry()
-          ..register(refreshStub, providerName: 'test');
+    test('handle invokes the dowel delegation exactly once on commit Success, '
+        'BEFORE the registered plugins:refresh command runs', () async {
+      // Recording plugins:refresh stub captures the global call order so
+      // the test can assert: dowel delegation < plugins:refresh.
+      final refreshStub = _RecordingRefreshCommand();
+      final registry = DowelRegistry()
+        ..register(refreshStub, providerName: 'test');
 
-        final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
-          registry: registry,
-        );
+      final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(registry: registry);
 
-        final exit = await cmd.handle(ctx);
+      final exit = await cmd.handle(ctx);
 
-        expect(
-          exit,
-          0,
-          reason:
-              'Successful install must exit 0; output was: '
-              '${(ctx.output as BufferedOutput).content}',
-        );
-        expect(
-          cmd.artisanDelegateCallCount,
-          1,
-          reason:
-              'artisan delegation must fire exactly once when commit returns '
-              'Success',
-        );
-        expect(
-          refreshStub.callCount,
-          1,
-          reason:
-              'plugins:refresh must still fire after the artisan delegation '
-              'so the regenerated _plugins.g.dart picks up any newly '
-              'registered providers',
-        );
-        // Ordering: the delegation captured a context BEFORE refreshStub was
-        // invoked. Both observers share the SAME ArtisanContext, so a more
-        // direct ordering check is the BufferedOutput sequence. The
-        // delegation override (in _TestableMagicInstallCommand) does not
-        // write to stdout; plugins:refresh writes a `success` line. The
-        // post-install advisory from manifest fires BEFORE the delegation.
-        // Use the recording stub presence to confirm wire-up; full ordering
-        // is asserted in the next test via the early-return branch.
-      },
-    );
+      expect(
+        exit,
+        0,
+        reason:
+            'Successful install must exit 0; output was: '
+            '${(ctx.output as BufferedOutput).content}',
+      );
+      expect(
+        cmd.dowelDelegateCallCount,
+        1,
+        reason:
+            'dowel delegation must fire exactly once when commit returns '
+            'Success',
+      );
+      expect(
+        refreshStub.callCount,
+        1,
+        reason:
+            'plugins:refresh must still fire after the dowel delegation '
+            'so the regenerated _plugins.g.dart picks up any newly '
+            'registered providers',
+      );
+      // Ordering: the delegation captured a context BEFORE refreshStub was
+      // invoked. Both observers share the SAME DowelContext, so a more
+      // direct ordering check is the BufferedOutput sequence. The
+      // delegation override (in _TestableMagicInstallCommand) does not
+      // write to stdout; plugins:refresh writes a `success` line. The
+      // post-install advisory from manifest fires BEFORE the delegation.
+      // Use the recording stub presence to confirm wire-up; full ordering
+      // is asserted in the next test via the early-return branch.
+    });
 
     test(
-      'handle skips artisan delegation when commit returns DryRun '
+      'handle skips dowel delegation when commit returns DryRun '
       '(--dry-run preserves atomic semantics: nothing on disk, no delegation)',
       () async {
         final refreshStub = _RecordingRefreshCommand();
-        final registry = ArtisanRegistry()
+        final registry = DowelRegistry()
           ..register(refreshStub, providerName: 'test');
 
         final (:cmd, :ctx, fs: _, prompt: _) = _buildHarness(
@@ -2445,10 +2407,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
         expect(exit, 0, reason: 'dry-run exits 0 without touching disk');
         expect(
-          cmd.artisanDelegateCallCount,
+          cmd.dowelDelegateCallCount,
           0,
           reason:
-              'dry-run must NOT delegate to artisan install; commit did not '
+              'dry-run must NOT delegate to dowel install; commit did not '
               'land any files so the scaffold would have nothing to compose '
               'against',
         );
@@ -2462,7 +2424,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
 
-    test('handle returns the artisan delegation exit code AND skips '
+    test('handle returns the dowel delegation exit code AND skips '
         'plugins:refresh when delegation fails', () async {
       // Pinned exit code 7 simulates a failed `dart build cli` or
       // failed pubspec injection during the cross-package delegation.
@@ -2485,16 +2447,16 @@ class _MyHomePageState extends State<MyHomePage> {
       );
 
       final refreshStub = _RecordingRefreshCommand();
-      final registry = ArtisanRegistry()
+      final registry = DowelRegistry()
         ..register(refreshStub, providerName: 'test');
 
       final cmd = _TestableMagicInstallCommand(
         fakeManifestPath: _manifestPath,
         fakeContext: installContext,
         fakeStubsDir: _fakeStubsDir,
-        artisanDelegateExitCode: 7,
+        dowelDelegateExitCode: 7,
       );
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(_baseOptions, signature: cmd.parsedSignature),
         output,
         registry: registry,
@@ -2506,11 +2468,11 @@ class _MyHomePageState extends State<MyHomePage> {
         exit,
         7,
         reason:
-            'handle must propagate the artisan delegation exit code so the '
+            'handle must propagate the dowel delegation exit code so the '
             'operator sees the actionable failure surface',
       );
       expect(
-        cmd.artisanDelegateCallCount,
+        cmd.dowelDelegateCallCount,
         1,
         reason:
             'delegation must have been attempted once before the '
@@ -2520,16 +2482,16 @@ class _MyHomePageState extends State<MyHomePage> {
         refreshStub.callCount,
         0,
         reason:
-            'plugins:refresh must NOT run when the artisan delegation '
+            'plugins:refresh must NOT run when the dowel delegation '
             'fails (the dispatcher might be in a partial state; codegen '
             'over partial state would amplify the inconsistency)',
       );
       expect(
         output.content,
-        contains('artisan install but it failed'),
+        contains('dowel install but it failed'),
         reason:
             'operator must see an actionable error message naming the '
-            'partial-state paths to inspect (bin/dispatcher.dart + bin/fsa)',
+            'partial-state paths to inspect (bin/dispatcher.dart + bin/dowel)',
       );
     });
   });
@@ -2551,8 +2513,8 @@ class _MyHomePageState extends State<MyHomePage> {
     // idempotency are covered without a full pipeline run.
 
     const baseMain = '''
-import 'package:flutter/material.dart';
 import 'package:magic/magic.dart';
+import 'package:material_ui/material_ui.dart';
 import 'config/app.dart';
 
 void main() async {
@@ -2698,18 +2660,19 @@ void main() async {
         reason: 'all package: imports must come before any relative import',
       );
 
-      // 2. `package:flutter/foundation.dart` must come before
-      //    `package:flutter/material.dart` (alphabetical within the group).
-      final foundationIndex = importLines.indexWhere(
-        (line) => line.contains('package:flutter/foundation.dart'),
+      // 2. `package:magic_devtools/*` must sit between `package:magic` and
+      //    `package:material_ui` (alphabetical within the group).
+      final devtoolsIndex = importLines.indexWhere(
+        (line) => line.contains('package:magic_devtools/dusk.dart'),
       );
       final materialIndex = importLines.indexWhere(
-        (line) => line.contains('package:flutter/material.dart'),
+        (line) => line.contains('package:material_ui/material_ui.dart'),
       );
+      expect(devtoolsIndex, isNot(-1));
       expect(
-        foundationIndex,
+        devtoolsIndex,
         lessThan(materialIndex),
-        reason: 'foundation.dart must be ordered before material.dart',
+        reason: 'magic_devtools must be ordered before material_ui',
       );
 
       // 3. The whole package-import block is sorted alphabetically, which is
@@ -2738,7 +2701,7 @@ void main() async {
     /// testable command pinned to the REAL install.yaml and magic stub bundle.
     ({
       _TestableMagicInstallCommand cmd,
-      ArtisanContext ctx,
+      DowelContext ctx,
       Directory root,
       BufferedOutput output,
     })
@@ -2779,7 +2742,7 @@ void main() async {
         fakeContext: installContext,
         fakeStubsDir: p.join(_magicRoot, 'assets', 'stubs'),
       );
-      final ctx = ArtisanContext.bare(
+      final ctx = DowelContext.bare(
         MapInput(<String, dynamic>{
           ..._baseOptions,
           ...optionOverrides,
@@ -2795,66 +2758,49 @@ void main() async {
       final exit = await cmd.handle(ctx);
 
       expect(exit, 0, reason: output.content);
-      final main = File(
-        p.join(root.path, 'lib', 'main.dart'),
-      ).readAsStringSync();
+      final main = File(p.join(root.path, 'lib', 'main.dart'))
+          .readAsStringSync();
       expect(main, isNot(contains('DuskPlugin.install();')));
       expect(main, isNot(contains('MagicTelescopeIntegration.install();')));
-      final pubspec = File(
-        p.join(root.path, 'pubspec.yaml'),
-      ).readAsStringSync();
+      final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+          .readAsStringSync();
       expect(pubspec, isNot(contains('magic_devtools:')));
       expect(pubspec, isNot(contains('fluttersdk_dusk:')));
       expect(pubspec, isNot(contains('fluttersdk_telescope:')));
     });
 
     test(
-      '--with-devtools wires the kDebugMode trio + adds the three deps',
+      'install adds wind_kit and material_ui, which the generated code imports',
       () async {
-        final (:cmd, :ctx, :root, :output) = seedRealFsConsumer(
-          optionOverrides: <String, dynamic>{'with-devtools': true},
-        );
+        final (:cmd, :ctx, :root, :output) = seedRealFsConsumer();
 
         final exit = await cmd.handle(ctx);
 
         expect(exit, 0, reason: output.content);
-        // main.dart wiring.
-        final main = File(
-          p.join(root.path, 'lib', 'main.dart'),
-        ).readAsStringSync();
-        expect(main, contains('DuskPlugin.install();'));
-        expect(main, contains('TelescopePlugin.install();'));
+        final main = File(p.join(root.path, 'lib', 'main.dart'))
+            .readAsStringSync();
         expect(
           main,
-          contains('TelescopePlugin.registerWatcher(ExceptionWatcher());'),
+          contains("import 'package:material_ui/material_ui.dart';"),
         );
-        expect(main, contains('MagicDuskIntegration.install();'));
-        expect(main, contains('MagicTelescopeIntegration.install();'));
-        expect(main, contains("import 'package:magic_devtools/dusk.dart';"));
-        expect('if (kDebugMode) {'.allMatches(main).length, 4);
-        // pubspec deps (regular dependencies, tree-shaken via kDebugMode).
-        final pubspec = File(
-          p.join(root.path, 'pubspec.yaml'),
-        ).readAsStringSync();
-        expect(pubspec, contains('magic_devtools:'));
-        expect(pubspec, contains('fluttersdk_dusk:'));
-        expect(pubspec, contains('fluttersdk_telescope:'));
-        expect(pubspec, isNot(contains('dev_dependencies:')));
+        final pubspec = File(p.join(root.path, 'pubspec.yaml'))
+            .readAsStringSync();
+        expect(pubspec, contains('wind_kit: ^1.12.0'));
+        expect(pubspec, contains('material_ui: ^1.11.0'));
       },
     );
 
     test(
-      '--with-devtools writes the constraints the post-install message documents',
-      () async {
+      'devtools constraints match the ones the post-install message documents',
+      () {
         // The installer's constant and install.yaml's message are two copies
         // of one list, and they drifted: the code pinned `magic_devtools
         // ^0.0.1` and `fluttersdk_dusk ^0.0.8` while the message told the same
         // reader `^0.0.2` and `^0.0.9`. So the message is read here rather than
         // restated, and a release that moves one copy fails until it moves
         // the other.
-        final String manifest = File(
-          p.join(_magicRoot, 'install.yaml'),
-        ).readAsStringSync();
+        final String manifest = File(p.join(_magicRoot, 'install.yaml'))
+            .readAsStringSync();
         final Map<String, String> documented = <String, String>{
           for (final RegExpMatch match in RegExp(
             r'^\s+(magic_devtools|fluttersdk_dusk|fluttersdk_telescope): (\^\S+)$',
@@ -2871,89 +2817,28 @@ void main() async {
           ]),
         );
 
-        final (:cmd, :ctx, :root, :output) = seedRealFsConsumer(
-          optionOverrides: <String, dynamic>{'with-devtools': true},
-        );
-        final exit = await cmd.handle(ctx);
-
-        expect(exit, 0, reason: output.content);
-        final pubspec = File(
-          p.join(root.path, 'pubspec.yaml'),
-        ).readAsStringSync();
-        documented.forEach((String name, String constraint) {
-          expect(pubspec, contains('$name: $constraint'));
-        });
+        expect(MagicInstallCommand().devtoolsDependencies, documented);
       },
     );
 
-    test(
-      '--with-devtools is idempotent on re-run (no duplicate wiring/deps)',
-      () async {
-        // First install.
-        final first = seedRealFsConsumer(
-          optionOverrides: <String, dynamic>{'with-devtools': true},
-        );
-        expect(
-          await first.cmd.handle(first.ctx),
-          0,
-          reason: first.output.content,
-        );
+    test('--with-devtools stops before writing anything', () async {
+      final (:cmd, :ctx, :root, :output) = seedRealFsConsumer(
+        optionOverrides: <String, dynamic>{'with-devtools': true},
+      );
+      final String pubspecBefore = File(p.join(root.path, 'pubspec.yaml'))
+          .readAsStringSync();
 
-        // Re-run --with-devtools in --preserve --force mode against the same
-        // project (main.dart now exists and is already wired). The smart-merge +
-        // idempotent devtools transform must not double-inject anything, and the
-        // YamlEditor dep-add must not duplicate keys.
-        final main1 = File(
-          p.join(first.root.path, 'lib', 'main.dart'),
-        ).readAsStringSync();
-        // Reuse the same tempDir for the second pass by re-seeding a command on it.
-        final output2 = BufferedOutput();
-        final installContext2 = InstallContext.test(
-          fs: RealFs(),
-          prompt: _RecordingPromptDriver(),
-          stubs: RealStubDriver(),
-          projectRoot: first.root.path,
-          output: output2,
-          clock: () => DateTime.utc(2025, 1, 1),
-        );
-        final cmd2 = _TestableMagicInstallCommand(
-          fakeManifestPath: p.join(_magicRoot, 'install.yaml'),
-          fakeContext: installContext2,
-          fakeStubsDir: p.join(_magicRoot, 'assets', 'stubs'),
-        );
-        final ctx2 = ArtisanContext.bare(
-          MapInput(<String, dynamic>{
-            ..._baseOptions,
-            'with-devtools': true,
-            'preserve': true,
-          }, signature: cmd2.parsedSignature),
-          output2,
-        );
+      final exit = await cmd.handle(ctx);
 
-        expect(await cmd2.handle(ctx2), 0, reason: output2.content);
-
-        final main2 = File(
-          p.join(first.root.path, 'lib', 'main.dart'),
-        ).readAsStringSync();
-        expect('DuskPlugin.install();'.allMatches(main2).length, 1);
-        expect(
-          'MagicTelescopeIntegration.install();'.allMatches(main2).length,
-          1,
-        );
-        expect(
-          "import 'package:fluttersdk_dusk/dusk.dart';"
-              .allMatches(main2)
-              .length,
-          1,
-        );
-        final pubspec = File(
-          p.join(first.root.path, 'pubspec.yaml'),
-        ).readAsStringSync();
-        expect('magic_devtools:'.allMatches(pubspec).length, 1);
-        expect('fluttersdk_dusk:'.allMatches(pubspec).length, 1);
-        // Sanity: main.dart from the first pass already contained the wiring.
-        expect(main1, contains('DuskPlugin.install();'));
-      },
-    );
+      expect(exit, isNot(0));
+      expect(output.content, contains('magic_devtools'));
+      expect(output.content, contains('--with-devtools'));
+      expect(File(p.join(root.path, 'lib', 'main.dart')).existsSync(), isFalse);
+      expect(
+        File(p.join(root.path, 'pubspec.yaml')).readAsStringSync(),
+        pubspecBefore,
+      );
+      expect(cmd.dowelDelegateCallCount, 0);
+    });
   });
 }

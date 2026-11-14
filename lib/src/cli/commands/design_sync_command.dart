@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 
 import '../helpers/design_md_parser.dart';
@@ -27,7 +27,7 @@ import '../helpers/design_md_parser.dart';
 /// The generated file is written atomically (`.tmp` + rename) and is a pure
 /// function of the DESIGN.md, so re-running on an unchanged input is
 /// byte-identical (idempotent).
-class DesignSyncCommand extends ArtisanCommand {
+class DesignSyncCommand extends DowelCommand {
   /// Creates a [DesignSyncCommand].
   ///
   /// @param projectRoot  Override for project-root resolution; defaults to
@@ -76,7 +76,7 @@ class DesignSyncCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Resolve the input/output paths under the host project root.
     final root = _projectRootOverride ?? FileHelper.findProjectRoot();
     final inputPath = p.join(
@@ -133,11 +133,11 @@ class DesignSyncCommand extends ArtisanCommand {
   String _renderTheme(DesignSpec spec) {
     final buf = StringBuffer()
       ..writeln('// GENERATED: do not edit by hand.')
-      ..writeln('// Regenerate via: dart run magic:artisan design:sync')
+      ..writeln('// Regenerate via: dart run magic:dowel design:sync')
       ..writeln('//')
       ..writeln('// Source of truth: DESIGN.md')
       ..writeln()
-      ..writeln("import 'package:flutter/material.dart';")
+      ..writeln("import 'package:material_ui/material_ui.dart';")
       ..writeln()
       ..writeln('/// Semantic wind alias map generated from DESIGN.md.')
       ..writeln('///')

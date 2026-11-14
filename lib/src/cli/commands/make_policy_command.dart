@@ -1,6 +1,7 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
+
 import 'package:path/path.dart' as path;
 
 /// The `make:policy` generator command.
@@ -11,25 +12,25 @@ import 'package:path/path.dart' as path;
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:policy Monitor               # → MonitorPolicy
-/// artisan make:policy MonitorPolicy         # Suffix already present
-/// artisan make:policy Monitor --model=Monitor
-/// artisan make:policy Admin/Dashboard       # Nested path support
-/// artisan make:policy Monitor --force       # Overwrite existing file
+/// dowel make:policy Monitor               # → MonitorPolicy
+/// dowel make:policy MonitorPolicy         # Suffix already present
+/// dowel make:policy Monitor --model=Monitor
+/// dowel make:policy Admin/Dashboard       # Nested path support
+/// dowel make:policy Monitor --force       # Overwrite existing file
 /// ```
-class MakePolicyCommand extends ArtisanGeneratorCommand {
+class MakePolicyCommand extends DowelGeneratorCommand {
   /// Optional project root override — injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Captures the parsed `--model` value during [handle] so [getReplacements]
-  /// can consume it without re-reading the [ArtisanContext.input].
+  /// can consume it without re-reading the [DowelContext.input].
   String? _modelOption;
 
   /// Creates a [MakePolicyCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakePolicyCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakePolicyCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -60,7 +61,7 @@ class MakePolicyCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Capture --model so [getReplacements] (called from [buildClass]) can use it.
     _modelOption = ctx.input.option('model') as String?;
     return super.handle(ctx);

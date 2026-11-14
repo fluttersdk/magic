@@ -21,7 +21,9 @@ Magic provides a powerful filesystem abstraction thanks to the `Storage` facade.
 Key features:
 - **Cross-Platform**: Same API on mobile, desktop, and web.
 - **Disk System**: Configure multiple storage locations.
-- **MagicFile Integration**: Seamless workflow with the Pick facade.
+- **MagicFile Integration**: One file wrapper for stored, downloaded and picked files.
+
+Picking files (gallery, camera, file and save dialogs) and the share sheet behind `Storage.download` on mobile and desktop live in the `magic_picker` plugin: `flutter pub add magic_picker`, then `dart run magic:dowel plugin:install magic_picker`. Its `Pick` facade returns a `MagicFile` you can store with the methods below, and its service provider sets the `LocalAdapterContract.downloadHandler` seam. Without it, `Storage.download` throws `UnsupportedError` on mobile and desktop; the web download is unchanged.
 
 <a name="configuration"></a>
 ## Configuration
@@ -80,18 +82,15 @@ await Storage.put('logs/app.log', 'Log entry...');
 
 ### From MagicFile
 
-The recommended way when using the Pick facade:
+Any `MagicFile` stores itself, whether it came from a picker, a download or `MagicFile(...)`:
 
 ```dart
-final file = await Pick.image();
-if (file != null) {
-  // Manual path
-  await file.store('avatars/user.jpg');
-  
-  // Auto-generated timestamped name
-  await file.storeAs('avatars');
-  // Result: 'avatars/1704067200000_photo.jpg'
-}
+// Manual path
+await file.store('avatars/user.jpg');
+
+// Auto-generated timestamped name
+await file.storeAs('avatars');
+// Result: 'avatars/1704067200000_photo.jpg'
 ```
 
 <a name="retrieving-files"></a>
@@ -146,6 +145,8 @@ Trigger a file download (Web) or share sheet (Mobile):
 ```dart
 await Storage.download('reports/2024.pdf', name: 'Annual Report.pdf');
 ```
+
+On mobile and desktop the share sheet comes from the `magic_picker` plugin. When nothing sets `LocalAdapterContract.downloadHandler`, `download` throws `UnsupportedError`.
 
 <a name="deleting-files"></a>
 ## Deleting Files
@@ -216,7 +217,7 @@ final bytes = await Storage.disk('temp').get('cache.dat');
 <a name="magicfile-reference"></a>
 ## MagicFile Reference
 
-`MagicFile` is the unified file wrapper used throughout Magic. It's returned by `Pick` methods and can be used with `Storage`.
+`MagicFile` is the unified file wrapper used throughout Magic. It's what `Storage.getFile` returns, what the `magic_picker` plugin's `Pick` methods return, and it can be used with `Storage`.
 
 ### Properties
 

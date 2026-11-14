@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as p;
 
 import '../helpers/previews_index_writer.dart';
@@ -13,7 +13,7 @@ import '../helpers/previews_index_writer.dart';
 /// freshly-built `List<PreviewEntry>` from a FUNCTION (never a top-level const
 /// list) so the release-mode tree-shaker can prove the catalog unreachable.
 ///
-/// Mirrors the deterministic codegen primitives in fluttersdk_artisan
+/// Mirrors the deterministic codegen primitives in dowel
 /// (`commands:refresh` / `plugins:refresh`): scan source of truth, extract via
 /// regex, validate identifiers, collision-check, sort deterministically,
 /// render a pure function of the inputs, write atomically via `.tmp` + rename.
@@ -31,7 +31,7 @@ import '../helpers/previews_index_writer.dart';
 ///
 /// The constructor accepts an optional `projectRoot` override so the command
 /// can run against a temp directory without walking up for `pubspec.yaml`.
-class PreviewsRefreshCommand extends ArtisanCommand {
+class PreviewsRefreshCommand extends DowelCommand {
   /// Creates a [PreviewsRefreshCommand].
   ///
   /// @param projectRoot  Override for project root resolution; defaults to
@@ -53,7 +53,7 @@ class PreviewsRefreshCommand extends ArtisanCommand {
   CommandBoot get boot => CommandBoot.none;
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Resolve the scan directory under the host project root. The path is
     //    consumer-configurable because the app decides which directory holds
     //    its preview files.

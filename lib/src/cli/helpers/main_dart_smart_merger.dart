@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart' show MainDartEditor;
+import 'package:dowel/dowel.dart' show MainDartEditor;
 
 /// Preserve-mode smart merger for `lib/main.dart`.
 ///
@@ -73,24 +73,21 @@ class MainDartSmartMerger {
     // 2. Add imports (Magic + Wind + each configImport) idempotently. Each
     //    call to injectBeforeAnchor returns the source unchanged when the
     //    snippet is already present, so re-runs do not duplicate.
+    //    Flutter 3.50 `flutter create` imports material_ui; apps created on
+    //    Flutter 3.47 to 3.49 still import the SDK material library, so that
+    //    import is the fallback anchor.
     const magicImport = "import 'package:magic/magic.dart';";
-    const windImport = "import 'package:fluttersdk_wind/fluttersdk_wind.dart';";
-    const flutterMaterialAnchor = "import 'package:flutter/material.dart'";
+    const windImport = "import 'package:wind_kit/wind_kit.dart';";
+    const materialUiAnchor = "import 'package:material_ui/material_ui.dart'";
+    const sdkMaterialAnchor = "import 'package:flutter/material.dart'";
+    final materialAnchor = result.contains(materialUiAnchor)
+        ? materialUiAnchor
+        : sdkMaterialAnchor;
 
-    result = MainDartEditor.injectBeforeAnchor(
-      source: result,
-      anchor: flutterMaterialAnchor,
-      snippet: '$magicImport\n',
-    );
-    result = MainDartEditor.injectBeforeAnchor(
-      source: result,
-      anchor: flutterMaterialAnchor,
-      snippet: '$windImport\n',
-    );
-    for (final imp in configImports) {
+    for (final imp in <String>[magicImport, windImport, ...configImports]) {
       result = MainDartEditor.injectBeforeAnchor(
         source: result,
-        anchor: flutterMaterialAnchor,
+        anchor: materialAnchor,
         snippet: '$imp\n',
       );
     }

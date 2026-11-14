@@ -187,10 +187,11 @@ void main() {
       form.dispose();
 
       // 3. Verify the notifier no longer fires (disposed).
-      //    FlutterError is thrown when accessing disposed notifier.
+      //    Accessing a disposed notifier throws a FlutterError up to Flutter
+      //    3.49 and a StateError from package:listen on 3.50.
       expect(
         () => (form.processingListenable as ValueNotifier<bool>).value = true,
-        throwsA(isA<FlutterError>()),
+        throwsA(anyOf(isA<FlutterError>(), isA<StateError>())),
       );
     });
   });

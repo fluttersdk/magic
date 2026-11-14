@@ -109,8 +109,8 @@ class Task extends Model {
 
 ### Available Cast Types
 
-| Cast | Returns | Database Type |
-|------|---------|---------------|
+| Cast | Returns | Local Column Type (`magic_local_storage`) |
+|------|---------|-------------------------------------------|
 | `bool` | `bool` | INTEGER (0/1) |
 | `int` | `int` | INTEGER |
 | `double` | `double` | REAL |

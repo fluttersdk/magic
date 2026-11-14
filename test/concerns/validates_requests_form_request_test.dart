@@ -272,26 +272,23 @@ void main() {
       });
     });
 
-    test(
-      'the same response collapses to the field name through CollapsesIndexedErrorKeys',
-      () {
-        final controller = _CollapsingController();
-        final response = MagicResponse(
-          data: {
-            'errors': {
-              'items.0.name': ['The items.0.name field is required.'],
-            },
+    test('the same response collapses to the field name through CollapsesIndexedErrorKeys', () {
+      final controller = _CollapsingController();
+      final response = MagicResponse(
+        data: {
+          'errors': {
+            'items.0.name': ['The items.0.name field is required.'],
           },
-          statusCode: 422,
-        );
+        },
+        statusCode: 422,
+      );
 
-        controller.setErrorsFromResponse(response);
+      controller.setErrorsFromResponse(response);
 
-        expect(controller.validationErrors, {
-          'name': 'The items.0.name field is required.',
-        });
-      },
-    );
+      expect(controller.validationErrors, {
+        'name': 'The items.0.name field is required.',
+      });
+    });
 
     test('an empty error list is skipped', () {
       final controller = _TestController();

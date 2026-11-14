@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import '../cache/cache_manager.dart';
 import '../foundation/magic.dart';
 import '../testing/fake_cache_manager.dart';

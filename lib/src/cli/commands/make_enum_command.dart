@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/magic_stub_loader.dart';
 
@@ -9,9 +9,9 @@ import '../helpers/magic_stub_loader.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:enum MonitorType
-/// artisan make:enum Status/OrderStatus
-/// artisan make:enum IncidentSeverity --wire # Wire-backed enum
+/// dowel make:enum MonitorType
+/// dowel make:enum Status/OrderStatus
+/// dowel make:enum IncidentSeverity --wire # Wire-backed enum
 /// ```
 ///
 /// ## Output
@@ -21,19 +21,19 @@ import '../helpers/magic_stub_loader.dart';
 /// a wire-backed enum instead: an `unknown` fallback case, a `fromWire()`
 /// factory that never throws on an unrecognised value, and a `trans()`-backed
 /// `label` getter.
-class MakeEnumCommand extends ArtisanGeneratorCommand {
+class MakeEnumCommand extends DowelGeneratorCommand {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Captures the parsed `--wire` flag at [handle] time so [getStub] can
-  /// honour it without re-reading the [ArtisanContext.input].
+  /// honour it without re-reading the [DowelContext.input].
   bool _wireFlag = false;
 
   /// Creates a [MakeEnumCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeEnumCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeEnumCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -77,7 +77,7 @@ class MakeEnumCommand extends ArtisanGeneratorCommand {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Capture --wire so getStub() selects the right template.
     _wireFlag = ctx.input.hasOption('wire');
     return super.handle(ctx);

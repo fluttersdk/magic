@@ -26,7 +26,7 @@ If you open the `config/app.dart` file included with Magic, you will see a `prov
 Use the Magic CLI to generate a new service provider class:
 
 ```bash
-dart run magic:artisan make:provider Payment
+dart run magic:dowel make:provider Payment
 ```
 
 This creates `lib/app/providers/payment_service_provider.dart` with a `ServiceProvider` stub containing empty `register()` and `boot()` methods.
@@ -91,7 +91,7 @@ The service container supports two types of bindings:
 app.bind('report', () => ReportGenerator());
 
 // Same instance every time (singleton)
-app.singleton('database', () => DatabaseConnection());
+app.singleton('reports', () => ReportService());
 ```
 
 <a name="the-boot-method"></a>
@@ -185,7 +185,6 @@ Magic includes several built-in service providers for core functionality:
 | `AuthServiceProvider` | Authentication guards and state |
 | `LocalizationServiceProvider` | Language and locale support |
 | `VaultServiceProvider` | Secure storage |
-| `DatabaseServiceProvider` | Database connections |
 | `EventServiceProvider` | Event dispatching |
 | `GateServiceProvider` | Authorization gates and policies |
 

@@ -259,31 +259,28 @@ void main() {
   });
 
   group('RepositoryQuery notification timing', () {
-    test(
-      'reload() delivers no notification synchronously, so a view initState may call it',
-      () async {
-        final _TestRepository repo = _TestRepository();
-        Http.fake(
-          (_) => _page(<Map<String, dynamic>>[
-            <String, dynamic>{'id': '1', 'name': 'a'},
-          ]),
-        );
-        final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
-          repository: repo,
-        );
-        int calls = 0;
-        query.addListener(() => calls++);
+    test('reload() delivers no notification synchronously, so a view initState may call it', () async {
+      final _TestRepository repo = _TestRepository();
+      Http.fake(
+        (_) => _page(<Map<String, dynamic>>[
+          <String, dynamic>{'id': '1', 'name': 'a'},
+        ]),
+      );
+      final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
+        repository: repo,
+      );
+      int calls = 0;
+      query.addListener(() => calls++);
 
-        // A listener notified inside this call would mark another mounted
-        // widget dirty while the tree is building.
-        final Future<void> pending = query.reload();
-        expect(calls, 0);
+      // A listener notified inside this call would mark another mounted
+      // widget dirty while the tree is building.
+      final Future<void> pending = query.reload();
+      expect(calls, 0);
 
-        await pending;
-        expect(calls, greaterThan(0));
-        expect(query.items, isNotEmpty);
-      },
-    );
+      await pending;
+      expect(calls, greaterThan(0));
+      expect(query.items, isNotEmpty);
+    });
   });
 
   group('RepositoryQuery reads through the repository live', () {
@@ -428,30 +425,27 @@ void main() {
       expect(query.hasMore, isFalse);
     });
 
-    test(
-      'a page that lands after a session reset writes nothing into the new session',
-      () async {
-        final _TestRepository repo = _TestRepository();
-        Http.fake(
-          (_) => _page(<Map<String, dynamic>>[
-            <String, dynamic>{'id': '1', 'name': 'previous tenant'},
-          ]),
-        );
-        final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
-          repository: repo,
-        );
+    test('a page that lands after a session reset writes nothing into the new session', () async {
+      final _TestRepository repo = _TestRepository();
+      Http.fake(
+        (_) => _page(<Map<String, dynamic>>[
+          <String, dynamic>{'id': '1', 'name': 'previous tenant'},
+        ]),
+      );
+      final RepositoryQuery<_TestRow> query = RepositoryQuery<_TestRow>(
+        repository: repo,
+      );
 
-        // The read is in flight when the identity changes: its answer belongs
-        // to the session that asked, not to the one that exists when it lands.
-        final Future<void> pending = query.reload();
-        repo.resetForSession();
-        await pending;
+      // The read is in flight when the identity changes: its answer belongs
+      // to the session that asked, not to the one that exists when it lands.
+      final Future<void> pending = query.reload();
+      repo.resetForSession();
+      await pending;
 
-        expect(repo.find('1'), isNull);
-        expect(query.items, isEmpty);
-        expect(query.isFirstLoad, isTrue);
-      },
-    );
+      expect(repo.find('1'), isNull);
+      expect(query.items, isEmpty);
+      expect(query.isFirstLoad, isTrue);
+    });
 
     test('a second ensureFresh after a mid-flight reset joins the new first '
         'load, not a stale one clearing it out from under it', () async {

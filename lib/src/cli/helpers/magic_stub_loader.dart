@@ -5,16 +5,16 @@ import 'package:path/path.dart' as p;
 
 /// Loads stub content from magic's bundled `assets/stubs/` directory.
 ///
-/// Background: fluttersdk_artisan's `ArtisanGeneratorCommand.buildClass` resolves
+/// Background: dowel's `DowelGeneratorCommand.buildClass` resolves
 /// stubs via `StubLoader.load(name)` which searches:
-///   1. `$ARTISAN_STUBS_DIR` env var
+///   1. `$DOWEL_STUBS_DIR` env var
 ///   2. `$MAGIC_CLI_STUBS_DIR` env var (legacy)
-///   3. fluttersdk_artisan's own bundled `assets/stubs/` (pub-cache path)
+///   3. dowel's own bundled `assets/stubs/` (pub-cache path)
 ///
 /// Magic's make:* commands need its OWN stubs (controller, model, migration,
 /// ...) which live at `<magic_root>/assets/stubs/`. Neither env var is set in
 /// typical consumer environments, and the pub-cache fallback contains only
-/// artisan substrate stubs (make:command, make:plugin, make:fast-cli). The
+/// dowel substrate stubs (make:command, make:plugin, make:fast-cli). The
 /// generator's `getStub()` override therefore returns RAW STUB CONTENT (loaded
 /// here) rather than a stub name; `buildClass` recognises content via the
 /// space/brace check and skips the broken StubLoader path.
@@ -71,15 +71,15 @@ class MagicStubLoader {
   /// Resolves the absolute path to magic's `assets/stubs/` directory.
   ///
   /// Strategy:
-  ///   1. Honour the `ARTISAN_STUBS_DIR` env var when set (test override).
+  ///   1. Honour the `DOWEL_STUBS_DIR` env var when set (test override).
   ///   2. Read `.dart_tool/package_config.json` from the current working
-  ///      directory (the consumer project running `dart run magic:artisan`).
+  ///      directory (the consumer project running `dart run magic:dowel`).
   ///   3. Look up the `magic` package entry, resolve its `rootUri`, and
   ///      return `<root>/assets/stubs/`.
   static String? _resolveStubsDir() {
     if (_cachedStubsDir != null) return _cachedStubsDir;
 
-    final override = Platform.environment['ARTISAN_STUBS_DIR'];
+    final override = Platform.environment['DOWEL_STUBS_DIR'];
     if (override != null && override.isNotEmpty) {
       return _cachedStubsDir = override;
     }
@@ -91,9 +91,9 @@ class MagicStubLoader {
     );
     if (!File(pkgConfigPath).existsSync()) return null;
 
-    final json =
-        jsonDecode(File(pkgConfigPath).readAsStringSync())
-            as Map<String, dynamic>;
+    final json = jsonDecode(
+      File(pkgConfigPath).readAsStringSync(),
+    ) as Map<String, dynamic>;
     final packages = json['packages'] as List<dynamic>?;
     if (packages == null) return null;
 
@@ -110,7 +110,7 @@ class MagicStubLoader {
   }
 
   /// Test seam — resets the cached stubs directory so consecutive tests can
-  /// inject different stub roots via the `ARTISAN_STUBS_DIR` env var.
+  /// inject different stub roots via the `DOWEL_STUBS_DIR` env var.
   static void resetForTesting() {
     _cachedStubsDir = null;
   }

@@ -8,14 +8,14 @@ Magic ships in-memory fakes for every stateful facade so tests never touch real 
 - [Cache.fake()](#cache-fake)
 - [Vault.fake()](#vault-fake)
 - [Log.fake()](#log-fake)
-- [Echo.fake()](#echo-fake)
+- [Broadcasting Fakes](#broadcasting-fakes)
 - [Full Example](#full-example)
 - [Unfaking](#unfaking)
 
 <a name="introduction"></a>
 ## Introduction
 
-Magic provides a first-class facade faking API for Auth, Cache, Vault, Log, Http, and Echo. Each facade exposes a `fake()` static method that swaps the IoC-bound service with an in-memory implementation for the duration of a test. No real credentials, storage, network traffic, or WebSocket connections are touched.
+Magic provides a first-class facade faking API for Auth, Cache, Vault, Log, and Http. Each facade exposes a `fake()` static method that swaps the IoC-bound service with an in-memory implementation for the duration of a test. No real credentials, storage, or network traffic are touched. Plugin facades ship their own fakes (see [Broadcasting Fakes](#broadcasting-fakes)).
 
 Call `fake()` in `setUp` and `unfake()` in `tearDown`:
 
@@ -28,7 +28,6 @@ setUp(() {
   final cacheFake = Cache.fake();
   final vaultFake = Vault.fake();
   final logFake = Log.fake();
-  final echoFake = Echo.fake();
 });
 
 tearDown(() {
@@ -36,7 +35,6 @@ tearDown(() {
   Cache.unfake();
   Vault.unfake();
   Log.unfake();
-  Echo.unfake();
 });
 ```
 
@@ -52,7 +50,6 @@ Each `fake()` call returns its fake instance so you can run assertions after the
 | `Vault` | `FakeVaultService` | `Vault.unfake()` | [Vault.fake()](#vault-fake) |
 | `Log` | `FakeLogManager` | `Log.unfake()` | [Log.fake()](#log-fake) |
 | `Http` | `FakeNetworkDriver` | `Http.unfake()` | [HTTP Tests](http-tests.md) |
-| `Echo` | `FakeBroadcastManager` | `Echo.unfake()` | [Echo.fake()](#echo-fake) |
 
 All fake types are exported from `package:magic/testing.dart`. Import them alongside `package:magic/magic.dart` in test files.
 
@@ -379,100 +376,10 @@ Call `fake.reset()` to clear all captured entries without restoring the real dri
 fake.reset();
 ```
 
-<a name="echo-fake"></a>
-## Echo.fake()
+<a name="broadcasting-fakes"></a>
+## Broadcasting Fakes
 
-`Echo.fake()` replaces the real `BroadcastManager` with a `FakeBroadcastManager` that routes all broadcasting operations through an in-memory `FakeBroadcastDriver`. No WebSocket connection is opened; all channel subscriptions and interceptor registrations are recorded in memory.
-
-**Signature:**
-
-```dart
-static FakeBroadcastManager fake()
-```
-
-### Basic Usage
-
-```dart
-test('controller subscribes to orders channel', () async {
-  final fake = Echo.fake();
-
-  Echo.channel('orders');
-  fake.assertSubscribed('orders'); // channel() records the subscription only
-
-  // The fake stays disconnected until connect() is awaited (the real Reverb
-  // driver likewise queues subscriptions until the socket is connected).
-  fake.assertDisconnected();
-  await Echo.connect();
-  fake.assertConnected();
-});
-```
-
-### Assertions
-
-| Method | Description |
-|--------|-------------|
-| `fake.assertConnected()` | Assert that the fake driver is currently connected. |
-| `fake.assertDisconnected()` | Assert that the fake driver is currently disconnected. |
-| `fake.assertSubscribed(String channel)` | Assert that `channel` is in the subscribed channels list. |
-| `fake.assertNotSubscribed(String channel)` | Assert that `channel` is NOT in the subscribed channels list. |
-| `fake.assertInterceptorAdded()` | Assert that at least one interceptor has been added to the driver. |
-
-All assertion methods throw `AssertionError` with a descriptive message on failure.
-
-```dart
-test('broadcast interceptor is registered', () {
-  final fake = Echo.fake();
-
-  Echo.addInterceptor(MyLoggingInterceptor());
-
-  fake.assertInterceptorAdded();
-});
-
-test('controller leaves channel on dispose', () {
-  final fake = Echo.fake();
-
-  Echo.channel('orders');
-  fake.assertSubscribed('orders');
-
-  Echo.leave('orders');
-  fake.assertNotSubscribed('orders');
-});
-
-test('connect and disconnect lifecycle', () async {
-  final fake = Echo.fake();
-
-  fake.assertDisconnected();
-
-  await Echo.connect();
-  fake.assertConnected();
-
-  await Echo.disconnect();
-  fake.assertDisconnected();
-});
-```
-
-### Low-level Driver Inspection
-
-`fake.driver` exposes the underlying `FakeBroadcastDriver` for direct inspection:
-
-```dart
-final fake = Echo.fake();
-
-Echo.channel('orders');
-Echo.private('user.1');
-Echo.join('room.1');
-
-expect(fake.driver.subscribedChannels, containsAll(['orders', 'private-user.1', 'presence-room.1']));
-expect(fake.driver.isConnected, isFalse);
-```
-
-### Resetting State
-
-Call `fake.reset()` to clear all recorded state on the driver without restoring the real binding:
-
-```dart
-fake.reset(); // Clears connected state, subscribed channels, and interceptors
-```
+The `Echo` facade and its `FakeBroadcastManager` moved into the `magic_socket` plugin, which exports the fake from its own `testing.dart` barrel and documents the assertions. Install it with `flutter pub add magic_socket`, then `dart run magic:dowel plugin:install magic_socket`.
 
 <a name="full-example"></a>
 ## Full Example
@@ -569,7 +476,6 @@ tearDown(() {
   Cache.unfake();
   Vault.unfake();
   Log.unfake();
-  Echo.unfake();
 });
 ```
 

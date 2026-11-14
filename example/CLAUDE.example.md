@@ -28,7 +28,7 @@ lib/
 │   ├── providers/         # ServiceProvider (register = sync bindings, boot = async)
 │   ├── middleware/         # MagicMiddleware subclasses
 │   └── kernel.dart        # Kernel.registerAll() named middleware
-├── config/                # app, auth, network, cache, database, routing, view
+├── config/                # app, auth, network, cache, logging, routing, view
 ├── resources/
 │   ├── views/             # Full-screen pages
 │   └── widgets/           # Reusable components
@@ -114,4 +114,3 @@ Project rules:
 - `configFactories` (not `configs`) when values need `Env.get()`
 - `BroadcastServiceProvider`/`EncryptionServiceProvider`/`LaunchServiceProvider` NOT auto-registered
 - `routerConfig` only after `Magic.init()` completes
-- Web SQLite = in-memory; mobile/desktop = file-based

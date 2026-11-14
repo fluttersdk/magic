@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'translator.dart';
 import '../facades/config.dart';
@@ -10,15 +10,14 @@ import '../facades/config.dart';
 ///
 /// ## Usage
 ///
-/// Add to your MaterialApp:
+/// Add to your material_ui `MaterialApp`, next to material_ui's own
+/// delegates (which already carry the Material, Cupertino and Widgets ones):
 ///
 /// ```dart
 /// MaterialApp(
 ///   localizationsDelegates: [
 ///     Lang.delegate,
-///     GlobalMaterialLocalizations.delegate,
-///     GlobalWidgetsLocalizations.delegate,
-///     GlobalCupertinoLocalizations.delegate,
+///     ...GlobalMaterialLocalizations.delegates,
 ///   ],
 ///   supportedLocales: [Locale('en'), Locale('tr')],
 /// )

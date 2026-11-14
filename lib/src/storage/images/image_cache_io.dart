@@ -38,22 +38,19 @@ final class MagicImageNotStored implements Exception {
 /// again whenever a quarter of the cap has been written since, so a long
 /// session cannot outgrow it.
 final class MagicImageCache {
-  /// A cache over the local storage disk named [disk], capped at [maxBytes].
+  /// A cache over the local storage disk named [disk], capped at [_maxBytes].
   ///
-  /// A [store] given here replaces the disk, and a [fetch] the network; a test
+  /// A [_store] given here replaces the disk, and a [_fetch] the network; a test
   /// passes both, and [now] for the retry window. A given store is not trimmed
   /// when it is first used, only after writes.
   MagicImageCache({
     this.disk = 'images',
-    int maxBytes = MagicImageStore.defaultMaxBytes,
+    this._maxBytes = MagicImageStore.defaultMaxBytes,
     this.retryAfter = const Duration(minutes: 5),
-    MagicImageStore? store,
-    MagicImageFetch? fetch,
+    this._store,
+    this._fetch,
     DateTime Function()? now,
-  }) : _maxBytes = maxBytes,
-       _store = store,
-       _fetch = fetch,
-       _now = now ?? DateTime.now;
+  }) : _now = now ?? DateTime.now;
 
   /// The cache `MagicImage` draws through. A test swaps it and restores it.
   static MagicImageCache instance = MagicImageCache();

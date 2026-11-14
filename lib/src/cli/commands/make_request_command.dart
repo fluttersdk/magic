@@ -1,8 +1,9 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
 import '../helpers/creates_matching_test.dart';
 import '../helpers/magic_stub_loader.dart';
 import 'make_test_command.dart' show TestKind;
+
 import 'package:path/path.dart' as path;
 
 /// The `make:request` generator command.
@@ -13,11 +14,11 @@ import 'package:path/path.dart' as path;
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:request StoreMonitor             # → StoreMonitorRequest
-/// artisan make:request StoreMonitorRequest      # Suffix already present
-/// artisan make:request StoreMonitor --force     # Overwrite existing file
+/// dowel make:request StoreMonitor             # → StoreMonitorRequest
+/// dowel make:request StoreMonitorRequest      # Suffix already present
+/// dowel make:request StoreMonitor --force     # Overwrite existing file
 /// ```
-class MakeRequestCommand extends ArtisanGeneratorCommand
+class MakeRequestCommand extends DowelGeneratorCommand
     with CreatesMatchingTest {
   /// Optional project root override, injected in tests to avoid touching the
   /// real filesystem.
@@ -25,8 +26,8 @@ class MakeRequestCommand extends ArtisanGeneratorCommand
 
   /// Creates a [MakeRequestCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeRequestCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeRequestCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -49,7 +50,7 @@ class MakeRequestCommand extends ArtisanGeneratorCommand
   /// Scaffolds the request class, then chains `make:test --kind=request`
   /// when `--test` was passed.
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final code = await super.handle(ctx);
     if (code != 0 || !ctx.input.hasOption('test')) return code;
 

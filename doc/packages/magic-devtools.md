@@ -48,6 +48,9 @@ This page covers what each tool gives you, how to install `magic_devtools`, the 
 <a name="installation"></a>
 ## Installation
 
+> [!WARNING]
+> `magic_devtools` is unavailable on magic 0.1.x until it is released for it: the published `magic_devtools` requires `magic ^0.0.29`, and it waits on dowel based releases of `fluttersdk_dusk` and `fluttersdk_telescope`. `magic:install --with-devtools` stops with an error and writes nothing until then.
+
 Add `magic_devtools` to your `pubspec.yaml`, plus whichever tooling packages you intend to use:
 
 ```yaml

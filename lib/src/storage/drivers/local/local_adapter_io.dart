@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'backup_exclusion_io.dart';
 import 'local_adapter_contract.dart';
@@ -36,13 +35,13 @@ class LocalAdapter implements LocalAdapterContract {
 
   /// Create a new Local Adapter for IO platforms.
   ///
-  /// [marker] applies the exclusion; it defaults to the CoreFoundation mark
+  /// [_marker] applies the exclusion; it defaults to the CoreFoundation mark
   /// and exists so a test can observe or fail it.
   LocalAdapter({
     required this.root,
     this.excludeFromBackup = false,
-    BackupExclusionMarker marker = markExcludedFromBackup,
-  }) : _marker = marker;
+    this._marker = markExcludedFromBackup,
+  });
 
   /// Get the base directory path, creating it if needed.
   ///
@@ -135,8 +134,14 @@ class LocalAdapter implements LocalAdapterContract {
       throw Exception('File not found: $path');
     }
 
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(fullPath, name: name ?? p.basename(path))]),
-    );
+    final handler = LocalAdapterContract.downloadHandler;
+    if (handler == null) {
+      throw UnsupportedError(
+        'Storage download on IO platforms needs a handler. Install magic_picker '
+        'or set LocalAdapterContract.downloadHandler.',
+      );
+    }
+
+    await handler(fullPath, name ?? p.basename(path));
   }
 }

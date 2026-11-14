@@ -449,8 +449,8 @@ class AuthController extends MagicController with ValidatesRequests {
 ### Using MagicFile (Recommended)
 
 ```dart
-// Pick and upload an image
-final image = await Pick.image();
+// Upload a stored file (the magic_picker plugin's Pick facade returns a MagicFile too)
+final image = await Storage.getFile('avatars/1.jpg');
 
 if (image != null) {
   final response = await image.upload('/upload', fieldName: 'avatar');
@@ -471,7 +471,7 @@ final response = await image.upload(
 ### Using Http.upload()
 
 ```dart
-final file = await Pick.file(extensions: ['pdf', 'doc']);
+final file = await Storage.getFile('documents/contract.pdf');
 
 final response = await Http.upload(
   '/documents',

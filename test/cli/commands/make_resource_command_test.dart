@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:magic/src/cli/commands/make_resource_command.dart';
-import 'package:magic/src/cli/magic_artisan_provider.dart';
+import 'package:magic/src/cli/magic_dowel_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '_harness.dart';
@@ -12,7 +12,6 @@ import '_harness.dart';
 /// the project root.
 const List<String> _coreFiles = <String>[
   'lib/app/models/monitor.dart',
-  'lib/database/factories/monitor_factory.dart',
   'lib/app/repositories/monitor_repository.dart',
   'lib/app/actions/monitors/create_monitor.dart',
   'lib/app/actions/monitors/update_monitor.dart',
@@ -46,8 +45,8 @@ void main() {
       expect(cmd.boot, CommandBoot.none);
     });
 
-    test('is registered by MagicArtisanProvider', () {
-      final names = MagicArtisanProvider().commands().map((c) => c.name);
+    test('is registered by MagicDowelProvider', () {
+      final names = MagicDowelProvider().commands().map((c) => c.name);
       expect(names, contains('make:resource'));
     });
   });
@@ -57,9 +56,12 @@ void main() {
 
     File file(String relative) => File(p.join(projectRoot.path, relative));
 
-    Future<(int, String)> run(List<String> args) async {
+    Future<(int, String)> run(
+      List<String> args, {
+      DowelRegistry? registry,
+    }) async {
       final cmd = MakeResourceCommand(testRoot: projectRoot.path);
-      final ctx = buildCommandContext(cmd, args);
+      final ctx = buildCommandContext(cmd, args, registry: registry);
       final code = await cmd.handle(ctx);
       return (code, (ctx.output as BufferedOutput).content);
     }
@@ -141,18 +143,67 @@ void main() {
     });
 
     test('--no-model omits the model and its factory', () async {
-      final (code, _) = await run(<String>['Monitor', '--no-model']);
+      final factory = RecordingGenerator(
+        'make:factory',
+        root: projectRoot.path,
+      );
+      final (code, output) = await run(<String>[
+        'Monitor',
+        '--no-model',
+      ], registry: DowelRegistry()..register(factory));
 
       expect(code, 0);
       expect(file('lib/app/models/monitor.dart').existsSync(), isFalse);
-      expect(
-        file('lib/database/factories/monitor_factory.dart').existsSync(),
-        isFalse,
-      );
+      expect(factory.runs, isEmpty);
+      expect(output, isNot(contains('magic_local_storage')));
       expect(
         file('lib/app/repositories/monitor_repository.dart').existsSync(),
         isTrue,
       );
+    });
+
+    test('hints at magic_local_storage when no plugin registers '
+        'make:factory', () async {
+      final (code, output) = await run(<String>[
+        'Monitor',
+      ], registry: DowelRegistry());
+
+      expect(code, 0);
+      expect(
+        output,
+        contains('Skipped make:factory: it ships with magic_local_storage'),
+      );
+      expect(
+        Directory(p.join(projectRoot.path, 'lib', 'database')).existsSync(),
+        isFalse,
+      );
+    });
+
+    test('delegates the factory to the registered make:factory', () async {
+      final factory = RecordingGenerator(
+        'make:factory',
+        root: projectRoot.path,
+      );
+      final (code, output) = await run(<String>[
+        'Monitor',
+      ], registry: DowelRegistry()..register(factory));
+
+      expect(code, 0, reason: output);
+      expect(factory.runs, <({String? argument, String? create})>[
+        (argument: 'Monitor', create: null),
+      ]);
+      expect(output, isNot(contains('magic_local_storage')));
+    });
+
+    test('generates nothing that reaches for Factory or faker', () async {
+      final (code, _) = await run(<String>['Monitor']);
+
+      expect(code, 0);
+      for (final relative in <String>[..._coreFiles, ..._viewFiles]) {
+        final content = file(relative).readAsStringSync();
+        expect(content, isNot(contains('Factory')), reason: relative);
+        expect(content, isNot(contains('faker')), reason: relative);
+      }
     });
 
     test('skips an existing model with a note and writes the rest', () async {
@@ -218,9 +269,8 @@ void main() {
 
     test('--force overwrites the clashes, tests included', () async {
       await run(<String>['Monitor']);
-      file(
-        'test/app/forms/monitor_form_object_test.dart',
-      ).writeAsStringSync('// stale\n');
+      file('test/app/forms/monitor_form_object_test.dart')
+          .writeAsStringSync('// stale\n');
 
       final (code, _) = await run(<String>['Monitor', '--force']);
 

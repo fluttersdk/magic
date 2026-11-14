@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-14
+
+### BREAKING
+
+- **The CLI moved from `fluttersdk_artisan` to `dowel`, and so did every name built on it.** The executable is `dart run magic:dowel <cmd>` (there is no `artisan` executable any more), `MagicArtisanProvider` is `MagicDowelProvider`, the command base classes are `DowelCommand`, `DowelGeneratorCommand` and `DowelContext`, the stub override variable is `DOWEL_STUBS_DIR`, and project state lives in `.dowel/` instead of `.artisan/`. The executable hands over to the consumer's `bin/dispatcher.dart` when `dart run dowel install` has scaffolded one, so plugin commands keep resolving. To upgrade an app: `dart pub remove fluttersdk_artisan` and `dart pub add dowel`, move `.artisan/` to `.dowel/` (the install hashes survive), delete `.dowel/plugins.json`, the `fluttersdk_*` records under `.dowel/installed/`, `bin/dispatcher.dart`, `bin/fsa`, a leftover `bin/artisan.dart`, `lib/app/_plugins.g.dart` and `lib/app/commands/_index.g.dart`, rename `Artisan*` classes in your own commands to `Dowel*`, run `dart run dowel install` and `dart run dowel commands:refresh`, then `dart run dowel plugin:install magic` and `plugin:install <package>` for each plugin, so the registration lands in `.dowel/plugins.json` (a file a renamed plugin published earlier shows as an `unmanaged-file` conflict: review it, then pass `--force`). The full recipe is in the dowel 0.0.21 changelog; "Upgrading from 0.0.x" in `doc/getting-started/installation.md` follows it. (`pubspec.yaml`, `bin/dowel.dart`, `lib/cli.dart`, `lib/src/cli/`)
+- **Wind moved from `fluttersdk_wind` to `wind_kit`, which builds on `material_ui`, so the SDK floor is Dart 3.13 and Flutter 3.47.** `package:magic/magic.dart` re-exports `wind_kit`. `MagicApplication` builds its `MaterialApp` from `package:material_ui/material_ui.dart` and defaults `localizationsDelegates` to `GlobalMaterialLocalizations.delegates` from the same package, which bundles the Cupertino and Widgets delegates. An app imports `package:material_ui/material_ui.dart` for `MaterialApp`, `ThemeData`, `Colors` and `MaterialColor` (`flutter pub add material_ui`, then `dart fix --apply --code=deprecated_member_use`); Flutter's own `package:flutter/material.dart` types are not interchangeable with them. `magic:install` adds `wind_kit`, `material_ui` and `dowel` to the app. `flutter_localizations` is no longer a dependency of core. (`pubspec.yaml`, `lib/src/foundation/magic_app_widget.dart`, `lib/src/cli/`)
+- **Four layers left core for plugin packages, and `package:magic/magic.dart` no longer exports them.** `magic_encryption` carries `Crypt`, `MagicEncrypter`, `EncryptionServiceProvider` and `key:generate`; `magic_picker` carries `Pick` and the `MagicFile.toXFile()` and `XFile.toMagicFile()` conversions (`XFile` leaves core, and `fromXFile` is replaced by `toMagicFile`) and the `file_picker`, `image_picker` and `share_plus` re-exports; `magic_socket` carries `Echo`, the broadcasting manager, the Reverb and null drivers, `ListensToBroadcasts` and `FakeBroadcastManager` (now `package:magic_socket/testing.dart`); `magic_local_storage` carries the whole SQLite layer: `DB`, `Schema`, the query builder, migrations, seeders, factories, `SyncFeed` and `SyncLedger`. Add one with `flutter pub add <package>` then `dart run magic:dowel plugin:install <package>`. The `Crypt` payload wire format is unchanged (AES-256-CBC, `base64(iv):base64(ct)`), so ciphertext written by 0.0.41 still decrypts.
+- **Five facades are gone from core, so core has 13: `Auth`, `Cache`, `Config`, `Event`, `Gate`, `Http`, `Lang`, `Launch`, `Log`, `Route`, `Session`, `Storage`, `Vault`.** `Crypt`, `DB`, `Echo`, `Pick` and `Schema` now come from the plugins above.
+- **The installer flags `--without-database` and `--without-broadcasting` are removed, and so are `make:migration`, `make:seeder`, `make:factory` and `key:generate`.** Core ships 17 `make:*` generators instead of 20. `make:model -m/-f/-s` and `make:resource` look the migration, factory and seeder commands up in the dowel registry and print a hint to install `magic_local_storage` when it is absent.
+- **`make:controller --broadcasts` is removed.** Mix `ListensToBroadcasts` from `magic_socket` into the controller by hand.
+- **`Storage.download` on IO throws `UnsupportedError` unless a handler is set.** Core no longer carries `share_plus`; `magic_picker` sets the new `LocalAdapterContract.downloadHandler` so the file is shared as before. The web adapter is unchanged.
+- **`Model.query()` is gone from core.** It is the extension `ModelQuery` in `magic_local_storage`. A model with `useLocal => true` throws a `StateError` naming `magic_local_storage` on every persistence leg when nothing is bound to the `local_model_store` container key.
+- **`Magic.seed` is gone from core.** Use `Seeding.run(List<Seeder>)` from `magic_local_storage`.
+- **`magic:install` no longer registers `DatabaseServiceProvider` or `BroadcastServiceProvider`, so an app that needs one runs `plugin:install` for its plugin.** An app installed on 0.0.41 also has the published `lib/config/database.dart` and `lib/config/broadcasting.dart`. The plugins export `databaseConfig` and `broadcastingConfig` from their barrels, so delete those two files before running `plugin:install magic_local_storage` or `plugin:install magic_socket`, or the import becomes ambiguous.
+
+### Added
+
+- **`LocalModelStore`, the one contract core keeps for local persistence.** `Model` resolves it from the container under `'local_model_store'`, and `magic_local_storage` binds it. Core keeps the base `Model` (API-first, `useLocal` false by default), casts, `HasTimestamps`, `InteractsWithPersistence`, `model_events` and `db_events`. (`lib/src/database/contracts/local_model_store.dart`)
+- **`LocalAdapterContract.downloadHandler`, the seam that lets a plugin own the IO download.** (`lib/src/storage/drivers/local/local_adapter_contract.dart`)
+
+### Changed
+
+- **The web local storage adapter reads and writes `localStorage` directly.** Keys (`flutter.` plus the path) and the json-encoded base64 value format are the same, so files stored by 0.0.41 stay readable.
+- **The installer's `lib/main.dart` preview draws an in-repo unified diff instead of using `more`.**
+- **The `sqlite3` floor is `^3.9.1` and the `sqlite3.wasm` pin moves to 3.9.1.** Both now belong to `magic_local_storage`, whose `local_storage:install` downloads the wasm.
+- **`magic:install --with-devtools` stops with an error before it writes anything.** The published `magic_devtools` 0.0.11 needs `magic ^0.0.29`, and `fluttersdk_dusk` 0.0.23 ships an artisan provider that `plugin:install` cannot register under dowel, so the debug trio cannot resolve against 0.1.0. The flag works again when `magic_devtools` is released on dowel based Dusk and Telescope packages. (`lib/src/cli/commands/magic_install_command.dart`)
+- **`pubspec.yaml` is at 0.1.0.**
+- **Every direct dependency constraint is raised to its latest release.** `wind_kit` ^1.12.0, `dowel` ^0.0.21, `go_router` ^18.1.4 (the 17.x floor is gone), `flutter_secure_storage` ^11.2.0, `dio` ^5.11.1, `logger` ^2.8.0, `jiffy` ^6.4.5, `meta` ^1.19.0 and the rest to their current patch.
+
+### Removed
+
+- **Ten dependencies leave core's `pubspec.yaml`:** `more`, `sqlite3_flutter_libs`, `shared_preferences`, `encrypt`, `file_picker`, `image_picker`, `share_plus`, `web_socket_channel`, `sqlite3` and `faker`. A consumer that used one of them transitively adds it, or the plugin that now owns it, to its own `pubspec.yaml`. (`pubspec.yaml`)
+
+### Fixed
+
+- **`Carbon.isWeekend` no longer depends on the locale.** Under `en_us` it flagged Friday and Saturday; it now answers for Saturday and Sunday in every locale. (`lib/src/support/carbon.dart`)
+
 ## [0.0.41] - 2026-11-10
 
 ### Changed

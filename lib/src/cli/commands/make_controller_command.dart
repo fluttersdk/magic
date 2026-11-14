@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/creates_matching_test.dart';
@@ -10,33 +10,32 @@ import 'make_test_command.dart';
 /// Scaffolds a state-owning `MagicController` implementing `SessionScoped`:
 /// a plain controller by default, or (with `--resource`) a read controller
 /// wrapping a `RepositoryQuery` over the target model's repository.
-/// `--actions`, `--broadcasts`, `--timers` and `--validates` mix in
-/// `RunsActions`, `ListensToBroadcasts`, `OwnsTimers` and
-/// `ValidatesRequests`/`CollapsesIndexedErrorKeys` respectively, always in
-/// that same order regardless of the order the flags were passed.
+/// `--actions`, `--timers` and `--validates` mix in `RunsActions`,
+/// `OwnsTimers` and `ValidatesRequests`/`CollapsesIndexedErrorKeys`
+/// respectively, always in one fixed order regardless of the order the flags
+/// were passed.
 ///
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:controller Monitor                        # plain controller
-/// artisan make:controller Monitor --resource              # reads MonitorRepository
-/// artisan make:controller Monitor --resource --model=Ping # reads PingRepository
-/// artisan make:controller Monitor --broadcasts --timers --actions --validates
-/// artisan make:controller Admin/Dashboard --test          # + matching test
+/// dowel make:controller Monitor                        # plain controller
+/// dowel make:controller Monitor --resource              # reads MonitorRepository
+/// dowel make:controller Monitor --resource --model=Ping # reads PingRepository
+/// dowel make:controller Monitor --timers --actions --validates
+/// dowel make:controller Admin/Dashboard --test          # + matching test
 /// ```
 ///
 /// The `Controller` suffix is appended automatically when omitted.
-class MakeControllerCommand extends ArtisanGeneratorCommand
+class MakeControllerCommand extends DowelGeneratorCommand
     with CreatesMatchingTest {
   /// Optional test root override; enables isolation in unit tests.
   final String? _testRoot;
 
   /// Captures the parsed flags at [handle] time so [getStub] and
   /// [getReplacements] can honour them without re-reading
-  /// [ArtisanContext.input].
+  /// [DowelContext.input].
   bool _resourceFlag = false;
   bool _actionsFlag = false;
-  bool _broadcastsFlag = false;
   bool _timersFlag = false;
   bool _validatesFlag = false;
 
@@ -46,8 +45,8 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
 
   /// Creates a [MakeControllerCommand].
   ///
-  /// [testRoot] overrides the project root resolution, used in tests only.
-  MakeControllerCommand({String? testRoot}) : _testRoot = testRoot;
+  /// [_testRoot] overrides the project root resolution, used in tests only.
+  MakeControllerCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -86,11 +85,6 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
           '(default: the controller name)',
     );
     parser.addFlag('actions', help: 'Mix in RunsActions', negatable: false);
-    parser.addFlag(
-      'broadcasts',
-      help: 'Mix in ListensToBroadcasts',
-      negatable: false,
-    );
     parser.addFlag('timers', help: 'Mix in OwnsTimers', negatable: false);
     parser.addFlag(
       'validates',
@@ -140,7 +134,7 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final rawName = ctx.input.argument(0);
     if (rawName == null || rawName.isEmpty) {
       ctx.output.error('Not enough arguments (missing: "name").');
@@ -150,7 +144,6 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
     // 1. Capture flags so getStub/getReplacements can honour them.
     _resourceFlag = ctx.input.hasOption('resource');
     _actionsFlag = ctx.input.hasOption('actions');
-    _broadcastsFlag = ctx.input.hasOption('broadcasts');
     _timersFlag = ctx.input.hasOption('timers');
     _validatesFlag = ctx.input.hasOption('validates');
     _modelOption = ctx.input.option('model') as String?;
@@ -195,13 +188,12 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
   /// Builds the `extends ... [with ...] implements SessionScoped` clause.
   ///
   /// Mixins are selected in a FIXED order, never the order flags were
-  /// passed, so any combination of `--actions`/`--broadcasts`/`--timers`/
-  /// `--validates` produces one stable header. `ValidatesRequests` must
+  /// passed, so any combination of `--actions`/`--timers`/`--validates`
+  /// produces one stable header. `ValidatesRequests` must
   /// precede `CollapsesIndexedErrorKeys` in the `with` list, since the
   /// latter is constrained `on ValidatesRequests`.
   String _buildClassHeader() {
     final mixins = <String>[
-      if (_broadcastsFlag) 'ListensToBroadcasts',
       if (_timersFlag) 'OwnsTimers',
       if (_actionsFlag) 'RunsActions',
       if (_validatesFlag) ...<String>[
@@ -219,8 +211,8 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
   }
 
   /// Builds the class body: the singleton accessor, the `--resource` read
-  /// state (query, `items`, `onInit`/`onClose`, `ensureFresh`), the
-  /// `--broadcasts` `listeners` getter, and `resetForSession` last.
+  /// state (query, `items`, `onInit`/`onClose`, `ensureFresh`), and
+  /// `resetForSession` last.
   String _buildClassBody(String className) {
     final controllerName = '${className}Controller';
     final modelName = _resourceFlag ? _modelClassName(className) : null;
@@ -228,7 +220,6 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
     final parts = <String>[
       _instanceAccessor(controllerName),
       if (modelName != null) _resourceBlock(modelName),
-      if (_broadcastsFlag) _listenersGetter(),
       _resetForSession(modelName == null ? null : '${modelName}Repository'),
     ];
     return parts.join('\n\n');
@@ -276,17 +267,6 @@ class MakeControllerCommand extends ArtisanGeneratorCommand
     super.onClose();
   }''';
   }
-
-  /// The `--broadcasts` `listeners` getter [ListensToBroadcasts] requires,
-  /// left empty for the caller to fill in.
-  String _listenersGetter() => '''
-  /// The broadcast events this controller applies itself; see
-  /// [ListensToBroadcasts].
-  @override
-  Map<String, void Function(BroadcastEvent)> get listeners =>
-      <String, void Function(BroadcastEvent)>{
-        // TODO: 'team:event.name': _onEventName,
-      };''';
 
   /// Builds `resetForSession`: for a `--resource` controller, resets
   /// [repositoryName] then reloads the query; otherwise a TODO stub, since a

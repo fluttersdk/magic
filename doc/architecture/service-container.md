@@ -73,7 +73,7 @@ Magic.make<Service>('svc'); // AppService
 > [!WARNING]
 > The same rule applies to a value placed with `setInstance`, which is how
 > `Log.setDriver`, `Auth.setDriver`, `Cache.setDriver`, `Http.setDriver`,
-> `Vault.setDriver` and `Echo.setManager` install a driver or a fake. A later
+> and `Vault.setDriver` install a driver or a fake. A later
 > `bind` or `singleton` on that key evicts it. Install fakes AFTER
 > `Magic.init()` and after your providers have registered, never before.
 

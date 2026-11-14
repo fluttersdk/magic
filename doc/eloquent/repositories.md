@@ -118,7 +118,7 @@ A `Repository` implements `SessionScoped` and registers itself with `SessionScop
 ## Generating a Repository
 
 ```bash
-dart run magic:artisan make:repository Monitor            # -> MonitorRepository
-dart run magic:artisan make:repository MonitorRepository  # Suffix already present
-dart run magic:artisan make:repository Monitor --force    # Overwrite existing file
+dart run magic:dowel make:repository Monitor            # -> MonitorRepository
+dart run magic:dowel make:repository MonitorRepository  # Suffix already present
+dart run magic:dowel make:repository Monitor --force    # Overwrite existing file
 ```

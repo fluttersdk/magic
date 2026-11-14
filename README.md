@@ -26,16 +26,16 @@
 ---
 
 > [!NOTE]
-> Requires Flutter >= 3.41.0 and Dart >= 3.11.0. **Alpha**: Magic is under active development and APIs may change before 1.0. [Star the repo](https://github.com/fluttersdk/magic) to follow progress.
+> Requires Flutter >= 3.47.0 and Dart >= 3.13.0. **Alpha**: Magic is under active development and APIs may change before 1.0. [Star the repo](https://github.com/fluttersdk/magic) to follow progress.
 
 ## Installation
 
 ```bash
 flutter pub add magic
-dart run magic:artisan magic:install
+dart run magic:dowel magic:install
 ```
 
-Magic ships its own `artisan` executable, so `dart run magic:artisan` works the moment `magic` is a dependency, with no global activation and no per-app wrapper to write. The one-shot `magic:install` scaffolds every config file, your service providers, the `.env` files, and a ready-to-run `lib/main.dart` bootstrap. The full setup walkthrough, all 18 facades, the CLI generators, and every subsystem live at the [Getting Started guide](https://magic.fluttersdk.com/getting-started/installation).
+Magic ships its own `dowel` executable, so `dart run magic:dowel` works the moment `magic` is a dependency, with no global activation. The one-shot `magic:install` adds `wind_kit`, `material_ui` and `dowel` to your `pubspec.yaml`, scaffolds dowel's `bin/dispatcher.dart`, and writes every config file, your service providers, the `.env` files, and a ready-to-run `lib/main.dart` bootstrap. The full setup walkthrough, all 13 facades, the CLI generators, and every subsystem live at the [Getting Started guide](https://magic.fluttersdk.com/getting-started/installation).
 
 ## Why Magic?
 
@@ -61,8 +61,8 @@ The same Facades, the same Eloquent syntax, the same Service Provider lifecycle 
 | | Feature | Description |
 |:--|:--------|:------------|
 | 🏗️ | **IoC Container** | Service container with singleton, bind, and instance registration. |
-| 🎭 | **18 Facades** | `Auth`, `Http`, `Cache`, `DB`, `Echo`, `Event`, `Gate`, `Log`, `Route`, `Lang`, `Storage`, `Vault`, `Crypt`, and more, static-style access to resolved singletons. |
-| 🗄️ | **Eloquent ORM** | Models, query builder, migrations, seeders, factories, a hybrid REST + SQLite persistence layer. |
+| 🎭 | **13 Facades** | `Auth`, `Cache`, `Config`, `Event`, `Gate`, `Http`, `Lang`, `Launch`, `Log`, `Route`, `Session`, `Storage`, `Vault`: static-style access to resolved singletons. |
+| 🗄️ | **Eloquent ORM** | API-first models with casts, relations, timestamps and dirty tracking. Local SQLite persistence is opt-in through `magic_local_storage`. |
 | 🛣️ | **Routing** | GoRouter integration with middleware, named routes, context-free navigation, and automatic page-title management. |
 | 🔐 | **Authentication** | Token-based auth with guards (Bearer, BasicAuth, ApiKey), cache-first session restore, and auto-refresh. |
 | 🛡️ | **Authorization** | Gates, policies, and `MagicCan` / `MagicCannot` widgets. |
@@ -71,10 +71,9 @@ The same Facades, the same Eloquent syntax, the same Service Provider lifecycle 
 | 💾 | **Caching** | Memory and file drivers with TTL and the `remember()` pattern. |
 | 🌍 | **Localization** | JSON-based i18n with `:attribute` placeholders. |
 | 🎨 | **Wind UI** | Built-in [Wind](https://wind.fluttersdk.com) Tailwind-syntax styling with `className` strings. |
-| 📡 | **Broadcasting** | Laravel Echo equivalent: real-time WebSocket channels via the `Echo` facade with presence support and `Echo.fake()`. |
-| 🔄 | **Offline Sync** | `SyncFeed` runs a push-then-pull loop over any REST resource, bookmarked by `SyncLedger`'s `sync_cursors` table (`CreateSyncCursorsTable`). |
-| 🧪 | **Testing** | First-class fakes: `Http.fake()`, `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()`, `Echo.fake()`. No mockito needed. |
-| 🧰 | **Magic CLI** | Artisan-style scaffolding via `dart run magic:artisan make:model`, `make:controller`, 20 `make:*` generators (including `make:resource`, which composes a full CRUD vertical: model, repository, actions, requests, form, controller, views and tests), plus `make:component` for design-first component workflows and `design:sync` / `design:lint` to drive the Wind theme from a `DESIGN.md`. |
+| 🔌 | **Optional plugins** | Four local plugin packages carry the layers core no longer ships: `magic_local_storage` (SQLite, query builder, migrations, seeders, factories, offline sync), `magic_socket` (broadcasting and `Echo`), `magic_encryption` (`Crypt`) and `magic_picker` (`Pick`, file sharing). Install one with `flutter pub add <package>` then `dart run magic:dowel plugin:install <package>`. |
+| 🧪 | **Testing** | First-class fakes: `Http.fake()`, `Auth.fake()`, `Cache.fake()`, `Vault.fake()`, `Log.fake()`. No mockito needed. |
+| 🧰 | **Magic CLI** | Laravel-style scaffolding on [dowel](https://pub.dev/packages/dowel) via `dart run magic:dowel make:model`, `make:controller`, 17 `make:*` generators (including `make:resource`, which composes a full CRUD vertical: model, repository, actions, requests, form, controller, views and tests), plus `make:component` for design-first component workflows and `design:sync` / `design:lint` to drive the Wind theme from a `DESIGN.md`. |
 
 ## A taste of Magic
 
@@ -101,9 +100,8 @@ class UserController extends MagicController with MagicStateMixin<List<User>> {
 ```
 
 ```dart
-// Eloquent: SQLite-first, API fallback, automatic sync
+// Eloquent: API-first, local SQLite when magic_local_storage is installed
 final user = await User.find(1);
-final admins = await User.where('role', 'admin').get();
 await user.save();
 
 // Context-free navigation, auth, and validation, from anywhere
@@ -112,7 +110,7 @@ if (Auth.check()) { final me = Auth.user<User>(); }
 final ok = Validator.make(data, {'email': [Required(), Email()]}).passes();
 ```
 
-See the [documentation](https://magic.fluttersdk.com) for the full Facade reference, the Eloquent guide, routing, forms, broadcasting, and testing.
+See the [documentation](https://magic.fluttersdk.com) for the full Facade reference, the Eloquent guide, routing, forms, the plugins, and testing.
 
 ## AI Coding Assistants
 
@@ -136,7 +134,6 @@ Full docs at **[magic.fluttersdk.com](https://magic.fluttersdk.com)**.
 | [HTTP Client](https://magic.fluttersdk.com/basics/http-client) | Network requests |
 | [Eloquent ORM](https://magic.fluttersdk.com/eloquent/getting-started) | Models and persistence |
 | [Forms](https://magic.fluttersdk.com/basics/forms) | Form handling and validation |
-| [Broadcasting](https://magic.fluttersdk.com/digging-deeper/broadcasting) | Real-time WebSocket channels |
 | [Magic CLI](https://magic.fluttersdk.com/packages/magic-cli) | Generators and scaffolding |
 
 ## Contributing

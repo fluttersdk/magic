@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart' show MainDartEditor;
+import 'package:dowel/dowel.dart' show MainDartEditor;
 
 /// Magic-specific thin wrapper around [MainDartEditor] that pins the
 /// `'Magic.init'` anchor so callers never hardcode the magic-internal call

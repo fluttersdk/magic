@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/creates_matching_test.dart';
@@ -20,20 +20,20 @@ import 'make_test_command.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:form Monitor                          # -> MonitorFormObject
-/// artisan make:form MonitorFormObject                # Suffix already present
-/// artisan make:form Monitor --request=StoreMonitorRequest
-/// artisan make:form Monitor --resource=Monitor       # Full create/edit contract
-/// artisan make:form Monitor --force                  # Overwrite existing file
-/// artisan make:form Monitor --test                   # Also scaffold the test
+/// dowel make:form Monitor                          # -> MonitorFormObject
+/// dowel make:form MonitorFormObject                # Suffix already present
+/// dowel make:form Monitor --request=StoreMonitorRequest
+/// dowel make:form Monitor --resource=Monitor       # Full create/edit contract
+/// dowel make:form Monitor --force                  # Overwrite existing file
+/// dowel make:form Monitor --test                   # Also scaffold the test
 /// ```
-class MakeFormCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
+class MakeFormCommand extends DowelGeneratorCommand with CreatesMatchingTest {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
   final String? _testRoot;
 
   /// Captures the parsed `--request` value during [handle] so
-  /// [getReplacements] can consume it without re-reading [ArtisanContext.input].
+  /// [getReplacements] can consume it without re-reading [DowelContext.input].
   String? _requestOption;
 
   /// Captures the parsed `--resource` value during [handle]; see
@@ -42,8 +42,8 @@ class MakeFormCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
 
   /// Creates a [MakeFormCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeFormCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeFormCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -82,7 +82,7 @@ class MakeFormCommand extends ArtisanGeneratorCommand with CreatesMatchingTest {
   }
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     // 1. Capture --request/--resource so [getReplacements] (called from
     //    [buildClass]) can use them without re-reading the context.
     _requestOption = ctx.input.option('request') as String?;

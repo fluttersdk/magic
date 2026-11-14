@@ -79,10 +79,9 @@ class MagicVaultService {
   /// app already holds items in one of them and must keep reading them:
   /// THERE IS NO MIGRATION BETWEEN THE TWO. An item written to one is not
   /// visible from the other, and a miss is indistinguishable from "never
-  /// stored" to every caller, including `Crypt.encryptWithDeviceKey`, which
-  /// generates a fresh device key on a null read (`crypt.dart:141-147`) and
-  /// thereby makes everything previously encrypted with the old one
-  /// permanently unreadable. The same split opens when an app that fell back
+  /// stored" to every caller, including any caller that keeps an encryption
+  /// key here and generates a fresh one on a null read, which thereby makes
+  /// everything previously encrypted with the old key permanently unreadable. The same split opens when an app that fell back
   /// to the legacy keychain is later signed with a profile: the probe then
   /// picks the data protection keychain and the old items are not there.
   ///

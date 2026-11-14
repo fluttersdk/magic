@@ -19,6 +19,9 @@ coverage/
 .packages
 build/
 
+# Test artifacts
+magic_cache.json
+
 # Environment
 .env
 

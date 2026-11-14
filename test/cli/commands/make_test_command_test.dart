@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/make_test_command.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +15,8 @@ void main() {
       expect(cmd.name, 'make:test');
     });
 
-    test('extends ArtisanGeneratorCommand', () {
-      expect(cmd, isA<ArtisanGeneratorCommand>());
+    test('extends DowelGeneratorCommand', () {
+      expect(cmd, isA<DowelGeneratorCommand>());
     });
 
     test('declares CommandBoot.none', () {
@@ -29,9 +29,8 @@ void main() {
 
     setUp(() {
       projectRoot = Directory.systemTemp.createTempSync('make_test_');
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('name: fixture_app\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('name: fixture_app\n');
     });
 
     tearDown(() {
@@ -237,9 +236,8 @@ void main() {
     });
 
     test('returns 1 when pubspec.yaml carries no name', () async {
-      File(
-        p.join(projectRoot.path, 'pubspec.yaml'),
-      ).writeAsStringSync('description: nameless\n');
+      File(p.join(projectRoot.path, 'pubspec.yaml'))
+          .writeAsStringSync('description: nameless\n');
 
       final cmd = MakeTestCommand(testRoot: projectRoot.path);
       final parser = ArgParser();
@@ -249,7 +247,7 @@ void main() {
         '--kind=controller',
       ]);
       final output = BufferedOutput();
-      final code = await cmd.handle(ArtisanContext.bare(input, output));
+      final code = await cmd.handle(DowelContext.bare(input, output));
 
       expect(code, 1);
       expect(output.content, contains('name'));
@@ -264,7 +262,7 @@ void main() {
         '--kind=bogus',
       ]);
       final output = BufferedOutput();
-      final code = await cmd.handle(ArtisanContext.bare(input, output));
+      final code = await cmd.handle(DowelContext.bare(input, output));
 
       expect(code, 1);
       expect(output.content, contains('controller'));
@@ -285,7 +283,7 @@ void main() {
           '--kind=action',
         ]);
         final output = BufferedOutput();
-        final code = await cmd.handle(ArtisanContext.bare(input, output));
+        final code = await cmd.handle(DowelContext.bare(input, output));
 
         expect(code, 1);
         expect(output.content, contains('pubspec.yaml'));

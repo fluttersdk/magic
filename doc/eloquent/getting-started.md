@@ -1,6 +1,6 @@
 # Eloquent: Getting Started
 
-Eloquent is Magic's active-record ORM: define models as Dart classes, run queries with a fluent builder, and persist to SQLite or a remote REST backend using the same model interface.
+Eloquent is Magic's active-record ORM: define models as Dart classes, run queries with a fluent builder, and persist to a remote REST backend, or to local storage with the `magic_local_storage` plugin, using the same model interface.
 
 - [Introduction](#introduction)
 - [Generating Models](#generating-models)
@@ -13,13 +13,14 @@ Eloquent is Magic's active-record ORM: define models as Dart classes, run querie
 - [Inserting & Updating](#inserting--updating)
 - [Deleting Models](#deleting-models)
 - [Hybrid Persistence](#hybrid-persistence)
+- [Local Storage](#local-storage)
 
 <a name="introduction"></a>
 ## Introduction
 
-Magic's Eloquent ORM provides a beautiful, simple Active Record implementation for working with your database. Each database table has a corresponding "Model" which is used to interact with that table. Models allow you to query for data, insert new records, and update existing ones.
+Magic's Eloquent ORM provides a beautiful, simple Active Record implementation for working with your data. Each model maps to a REST resource and, optionally, to a local table. Models allow you to query for data, insert new records, and update existing ones.
 
-Unlike traditional ORMs, Magic's Eloquent supports **Hybrid Persistence**. Your models can persist to a local SQLite database, a remote REST API, or both—giving you offline-first capabilities out of the box.
+Models are API-first: they persist to a remote REST API by default. Magic's Eloquent also supports **Hybrid Persistence**, where a model persists to local storage, a remote REST API, or both. The local leg ships in the `magic_local_storage` plugin (see [Local Storage](#local-storage)).
 
 <a name="generating-models"></a>
 ## Generating Models
@@ -27,16 +28,16 @@ Unlike traditional ORMs, Magic's Eloquent supports **Hybrid Persistence**. Your 
 To generate a new model, use the `make:model` Magic CLI command:
 
 ```bash
-dart run magic:artisan make:model Post
+dart run magic:dowel make:model Post
 ```
 
 ### Available Options
 
 | Option | Shortcut | Description |
 |--------|----------|-------------|
-| `--migration` | `-m` | Create a database migration |
-| `--seeder` | `-s` | Create a database seeder |
-| `--factory` | `-f` | Create a model factory |
+| `--migration` | `-m` | Create a database migration (needs `magic_local_storage`) |
+| `--seeder` | `-s` | Create a database seeder (needs `magic_local_storage`) |
+| `--factory` | `-f` | Create a model factory (needs `magic_local_storage`) |
 | `--controller` | `-c` | Create a controller |
 | `--policy` | `-p` | Create a policy |
 | `--all` | `-a` | Create all related files |
@@ -46,14 +47,12 @@ dart run magic:artisan make:model Post
 The `-a` flag is the most convenient way to scaffold a complete feature:
 
 ```bash
-dart run magic:artisan make:model Product --all
+dart run magic:dowel make:model Product --all
 ```
 
 This single command creates:
 - `lib/app/models/product.dart`
-- `lib/database/migrations/m_<timestamp>_create_products_table.dart`
-- `lib/database/seeders/product_seeder.dart`
-- `lib/database/factories/product_factory.dart`
+- the migration, seeder and factory (when `magic_local_storage` is installed; otherwise a hint is printed)
 - `lib/app/policies/product_policy.dart`
 - `lib/app/controllers/product_controller.dart`
 - `lib/resources/views/product/` (index, show, create, edit)
@@ -103,7 +102,7 @@ class User extends Model with HasTimestamps, InteractsWithPersistence {
 <a name="table-names"></a>
 ### Table Names
 
-The `table` property specifies which database table corresponds to your model:
+The `table` property specifies which local table corresponds to your model when `useLocal` is on:
 
 ```dart
 @override
@@ -211,7 +210,7 @@ if (user != null) {
 
 ### Refreshing Models
 
-Reload a model's attributes from the database:
+Reload a model's attributes from its persistence layer:
 
 ```dart
 await user.refresh();
@@ -306,26 +305,26 @@ if (user != null) {
 <a name="hybrid-persistence"></a>
 ## Hybrid Persistence
 
-Magic's unique feature is hybrid persistence—syncing between local SQLite and remote REST API.
+Hybrid persistence lets one model sync between local storage and a remote REST API.
 
 ### Configuration
 
 Control where your model persists:
 
 ```dart
-// Local database only (offline mode)
+// Local storage only (offline mode, needs magic_local_storage)
 @override
 bool get useLocal => true;
 @override
 bool get useRemote => false;
 
-// Remote API only (online mode)
+// Remote API only (online mode, the default)
 @override
 bool get useLocal => false;
 @override
 bool get useRemote => true;
 
-// Both (hybrid mode - default)
+// Both (hybrid mode, needs magic_local_storage)
 @override
 bool get useLocal => true;
 @override
@@ -352,9 +351,13 @@ String get resource => 'users';
 
 When using hybrid mode:
 
-1. **Read operations** check local database first, then sync from API
+1. **Read operations** check local storage first, then sync from API
 2. **Write operations** persist to both local and remote
-3. **Offline support** is automatic—writes queue until online
 
 > [!TIP]
 > Use hybrid mode for offline-first apps that sync to a backend API.
+
+<a name="local-storage"></a>
+## Local Storage
+
+`useLocal` defaults to `false`, so a model talks to your REST API unless you opt in. The local leg is provided by the `magic_local_storage` plugin (SQLite database, query builder, migrations, seeders, factories and sync). Core only ships the `LocalModelStore` contract (container key `'local_model_store'`): a model with `useLocal => true` throws a `StateError` naming `magic_local_storage` when nothing is bound. Install it with `flutter pub add magic_local_storage`, then `dart run magic:dowel plugin:install magic_local_storage`.

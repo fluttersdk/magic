@@ -1,4 +1,4 @@
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:path/path.dart' as path;
 
 import '../helpers/creates_matching_test.dart';
@@ -13,12 +13,12 @@ import 'make_test_command.dart';
 /// ## Usage
 ///
 /// ```bash
-/// artisan make:repository Monitor            # -> MonitorRepository
-/// artisan make:repository MonitorRepository  # Suffix already present
-/// artisan make:repository Monitor --force    # Overwrite existing file
-/// artisan make:repository Monitor --test     # Also scaffold the test
+/// dowel make:repository Monitor            # -> MonitorRepository
+/// dowel make:repository MonitorRepository  # Suffix already present
+/// dowel make:repository Monitor --force    # Overwrite existing file
+/// dowel make:repository Monitor --test     # Also scaffold the test
 /// ```
-class MakeRepositoryCommand extends ArtisanGeneratorCommand
+class MakeRepositoryCommand extends DowelGeneratorCommand
     with CreatesMatchingTest {
   /// Optional test root override: injected in tests to avoid touching the
   /// real filesystem.
@@ -26,8 +26,8 @@ class MakeRepositoryCommand extends ArtisanGeneratorCommand
 
   /// Creates a [MakeRepositoryCommand].
   ///
-  /// Pass [testRoot] to pin the project root to a temp directory during tests.
-  MakeRepositoryCommand({String? testRoot}) : _testRoot = testRoot;
+  /// Pass [_testRoot] to pin the project root to a temp directory during tests.
+  MakeRepositoryCommand({this._testRoot});
 
   @override
   CommandBoot get boot => CommandBoot.none;
@@ -48,7 +48,7 @@ class MakeRepositoryCommand extends ArtisanGeneratorCommand
   String getProjectRoot() => _testRoot ?? super.getProjectRoot();
 
   @override
-  Future<int> handle(ArtisanContext ctx) async {
+  Future<int> handle(DowelContext ctx) async {
     final int code = await super.handle(ctx);
     if (code != 0 || !ctx.input.hasOption('test')) return code;
 

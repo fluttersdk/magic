@@ -10,6 +10,15 @@ import 'dart:typed_data';
 /// The adapter handles the low-level platform differences while
 /// `LocalDisk` provides a unified API.
 abstract class LocalAdapterContract {
+  /// Delivers a downloaded file to the user on IO platforms, for example
+  /// through a share sheet.
+  ///
+  /// Receives the absolute [fullPath] of the stored file and the [name] it
+  /// is offered under. The IO adapter throws [UnsupportedError] from
+  /// `download` while this is `null`; the web adapter ignores it. The
+  /// `magic_picker` plugin sets it.
+  static Future<void> Function(String fullPath, String name)? downloadHandler;
+
   /// Write bytes to the given path.
   ///
   /// [path] The relative path within the disk's root.
@@ -40,7 +49,7 @@ abstract class LocalAdapterContract {
 
   /// Trigger a download of the file.
   ///
-  /// - **IO**: Opens share sheet or saves to Downloads.
+  /// - **IO**: Hands the file to [downloadHandler].
   /// - **Web**: Triggers browser download dialog.
   Future<void> download(String path, String? name);
 }

@@ -1,14 +1,13 @@
 import 'dart:io';
 
-import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 
 import 'magic_file.dart';
 
 /// IO-specific extensions for MagicFile.
 ///
-/// These extensions provide conversion to/from `File` and `XFile`
-/// on Mobile and Desktop platforms.
+/// These extensions provide conversion to a `dart:io` `File` on Mobile and
+/// Desktop platforms.
 extension MagicFileIOExtensions on MagicFile {
   /// Convert to a dart:io File.
   ///
@@ -27,27 +26,9 @@ extension MagicFileIOExtensions on MagicFile {
     }
     return File(path!);
   }
-
-  /// Convert to an XFile (cross-platform file).
-  ///
-  /// XFile is used by image_picker and file_picker packages.
-  ///
-  /// ```dart
-  /// final xFile = magicFile.toXFile();
-  /// await Share.shareXFiles([xFile]);
-  /// ```
-  XFile toXFile() {
-    if (path == null) {
-      throw UnsupportedError(
-        'Cannot convert to XFile: path is null. '
-        'This MagicFile may have been created from bytes only.',
-      );
-    }
-    return XFile(path!, name: name, mimeType: mimeType);
-  }
 }
 
-/// Factory methods for creating MagicFile from File/XFile on IO platforms.
+/// Factory methods for creating MagicFile from a File on IO platforms.
 class MagicFileFactory {
   /// Create a MagicFile from a dart:io File.
   ///
@@ -67,25 +48,6 @@ class MagicFileFactory {
       size: stat.size,
       mimeType: mimeType ?? _getMimeType(ext),
       bytesReader: () => file.readAsBytes(),
-    );
-  }
-
-  /// Create a MagicFile from an XFile.
-  ///
-  /// ```dart
-  /// final xFile = await picker.pickImage(source: ImageSource.gallery);
-  /// final magicFile = await MagicFileFactory.fromXFile(xFile);
-  /// await magicFile.store('photos/image.jpg');
-  /// ```
-  static Future<MagicFile> fromXFile(XFile xFile) async {
-    final length = await xFile.length();
-
-    return MagicFile(
-      path: xFile.path,
-      name: xFile.name,
-      size: length,
-      mimeType: xFile.mimeType,
-      bytesReader: () => xFile.readAsBytes(),
     );
   }
 

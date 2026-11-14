@@ -707,8 +707,6 @@ location / {
 }
 ```
 
-**SQLite on web:** Magic's SQLite layer requires `web/sqlite3.wasm` to be present in your Flutter web build. This is independent of the URL strategy but equally web-specific. If you use the database on web, ensure `sqlite3.wasm` is copied into your `web/` directory and served correctly. See the [Database documentation](../database/getting-started.md) for setup details.
-
 <a name="navigator-observers"></a>
 ## Navigator Observers
 

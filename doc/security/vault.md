@@ -8,6 +8,7 @@ The `Vault` facade provides a simple interface for reading and writing sensitive
 - [Retrieving Items](#retrieving-items)
 - [Removing Items](#removing-items)
 - [Testing](#testing)
+- [Encrypting Values](#encrypting-values)
 
 <a name="introduction"></a>
 ## Introduction
@@ -84,7 +85,7 @@ app.singleton('vault', () => MagicVaultService(macOsUsesDataProtectionKeychain: 
 
 **There is no migration between the two keychains, in either direction.** An item written to one is invisible from the other, and every caller reads that as "never stored" rather than as an error. Two consequences, both silent:
 
-- `Crypt.encryptWithDeviceKey` generates a **new** device key on a null read, so anything encrypted under the old one becomes permanently unreadable while the old key sits unreachable in the other keychain.
+- The `magic_encryption` plugin's device-key encryption generates a **new** device key on a null read, so anything encrypted under the old one becomes permanently unreadable while the old key sits unreachable in the other keychain.
 - `BaseGuard` loses the stored token the same way, which logs the user out.
 
 The probe can open the same split without anyone changing a setting. An app that fell back to the legacy keychain and is later signed with a provisioning profile picks the data protection keychain, and the items it stored before are not there. Pin `false` for an app that already holds items in the legacy keychain and must keep reading them, and move them across deliberately: read them under the old setting, switch, and write them back.
@@ -193,3 +194,8 @@ test('a get failure surfaces as MagicVaultException', () async {
 ```
 
 Pass a custom error to `throwOnGet`/`throwOnPut` to assert on a specific message. `fake.reset()` clears a configured throw along with the store.
+
+<a name="encrypting-values"></a>
+## Encrypting Values
+
+AES-256-CBC encryption of strings, with a config-based key or a per-device key held in the vault, moved out of core into the `magic_encryption` plugin (the `Crypt` facade, `EncryptionServiceProvider` and `key:generate`). Install it with `flutter pub add magic_encryption`, then `dart run magic:dowel plugin:install magic_encryption`. Ciphertext written by earlier core versions stays readable.

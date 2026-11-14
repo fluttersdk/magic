@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/src/cli/commands/design_lint_command.dart';
 import 'package:path/path.dart' as p;
@@ -56,10 +56,10 @@ Layout.
 Components.
 ''';
 
-ArtisanContext _ctx(BufferedOutput output, List<String> args) {
+DowelContext _ctx(BufferedOutput output, List<String> args) {
   final parser = ArgParser()..addOption('input');
   final input = ArgvInput.parse(parser, args);
-  return ArtisanContext.bare(input, output);
+  return DowelContext.bare(input, output);
 }
 
 void main() {

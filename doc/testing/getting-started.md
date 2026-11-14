@@ -64,7 +64,7 @@ import 'package:magic/testing.dart';
 void main() {
   setUpAll(() async {
     await MagicTest.boot(
-      configs: [testDatabaseConfig],
+      configs: [testAppConfig],
       envFileName: '.env.testing',
     );
   });
@@ -74,15 +74,10 @@ void main() {
   });
 }
 
-Map<String, dynamic> get testDatabaseConfig => {
-  'database': {
-    'default': 'sqlite',
-    'connections': {
-      'sqlite': {
-        'driver': 'sqlite',
-        'database': ':memory:', // In-memory for tests
-      },
-    },
+Map<String, dynamic> get testAppConfig => {
+  'app': {
+    'name': 'Test App',
+    'debug': true,
   },
 };
 ```
@@ -213,55 +208,43 @@ test('setSuccess updates state correctly', () {
 <a name="model-testing"></a>
 ## Model Testing
 
-Test models using factories for consistent data:
+Models are API-first, so fake the network with `Http.fake()` and assert on the model:
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
+import 'package:magic/magic.dart';
+import 'package:magic/testing.dart';
 
 void main() {
-  setUpAll(() async {
-    await setupTestEnvironment();
-    await Migrator().run([CreateUsersTable()]);
-  });
+  MagicTest.init();
+
+  tearDown(Http.unfake);
 
   group('User Model', () {
-    test('creates user with factory', () async {
-      final users = await UserFactory().count(5).create();
-      
-      expect(users.length, equals(5));
-      expect(users.first.id, isNotNull);
-    });
-
     test('finds user by id', () async {
-      final created = (await UserFactory().create()).first;
-      final found = await User.find(created.id);
-      
+      Http.fake({
+        '/users/1': Http.response({'data': {'id': 1, 'name': 'John', 'email': 'john@example.com'}}),
+      });
+
+      final found = await User.find(1);
+
       expect(found, isNotNull);
-      expect(found!.email, equals(created.email));
+      expect(found!.email, equals('john@example.com'));
     });
 
-    test('updates user attributes', () async {
-      final user = (await UserFactory().create()).first;
-      
+    test('tracks dirty attributes', () {
+      final user = User()..fill({'name': 'John'});
+      user.syncOriginal();
+
       user.name = 'Updated Name';
-      await user.save();
-      
-      final fresh = await User.find(user.id);
-      expect(fresh!.name, equals('Updated Name'));
-    });
 
-    test('deletes user', () async {
-      final user = (await UserFactory().create()).first;
-      final id = user.id;
-      
-      await user.delete();
-      
-      final found = await User.find(id);
-      expect(found, isNull);
+      expect(user.isDirty('name'), isTrue);
     });
   });
 }
 ```
+
+A model with `useLocal => true` also needs the `magic_local_storage` plugin; its docs cover testing against the local store.
 
 <a name="mock-http-responses"></a>
 ## Mock HTTP Responses
@@ -349,6 +332,3 @@ flutter test --coverage
 ```bash
 flutter test --reporter=expanded
 ```
-
-> [!TIP]
-> Use the `:memory:` database driver for faster tests that don't persist to disk.

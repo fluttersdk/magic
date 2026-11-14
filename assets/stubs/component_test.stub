@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:magic/magic.dart';
+import 'package:material_ui/material_ui.dart';
 // Prefixed: a component may share its name with a Material widget (Badge,
 // Card, Chip), and an unprefixed import would make every use ambiguous.
 import 'package:{{ packageName }}/ui/components/{{ snakeName }}/index.dart'

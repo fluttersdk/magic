@@ -1,7 +1,7 @@
 // AUTO-GENERATED — DO NOT EDIT.
-// Regenerate via: artisan commands:refresh
-// (Also auto-updated by: artisan make:command <Name>)
+// Regenerate via: dowel commands:refresh
+// (Also auto-updated by: dowel make:command <Name>)
 
-import 'package:fluttersdk_artisan/artisan.dart';
+import 'package:dowel/dowel.dart';
 
-List<ArtisanCommand> get commands => <ArtisanCommand>[];
+List<DowelCommand> get commands => <DowelCommand>[];

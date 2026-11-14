@@ -2,16 +2,16 @@
 
 # Magic
 
-Laravel-inspired Flutter framework: IoC container, 18 facades, Eloquent-style ORM, service providers, routing, auth, validation, broadcasting. UI is `fluttersdk_wind`; CLI + scaffolding run on `fluttersdk_artisan`.
+Laravel-inspired Flutter framework: IoC container, 13 facades, Eloquent-style API-first ORM, service providers, routing, auth, validation. UI is `wind_kit` on `material_ui`; CLI + scaffolding run on `dowel`. SQLite, broadcasting, encryption and the file picker are plugins (`magic_local_storage`, `magic_socket`, `magic_encryption`, `magic_picker`): `flutter pub add <pkg>` then `dart run magic:dowel plugin:install <pkg>`.
 
-**Stack:** Dart >=3.11.0 · Flutter >=3.41.0. Runtime deps: `fluttersdk_wind ^1.11.1`, `fluttersdk_artisan ^0.0.20`, `dio`, `go_router`, `sqlite3`, `flutter_secure_storage`, `encrypt`. No `mockito` (mock via contract inheritance), no code generation.
-**Branch:** `master` is the active **0.0.x** development line — what pub.dev resolves. Pre-1.0: breaking changes are allowed; `1.0.0` is the future stable milestone. Direct pushes blocked; everything lands via PR.
+**Stack:** Dart >=3.13.0 · Flutter >=3.47.0. Runtime deps: `wind_kit ^1.12.0`, `material_ui ^1.11.0`, `dowel ^0.0.21`, `dio`, `go_router`, `flutter_secure_storage`, `flutter_dotenv`, `intl`, `jiffy`. No `mockito` (mock via contract inheritance), no code generation.
+**Branch:** `master` is the active **0.1.x** development line — what pub.dev resolves. Pre-1.0: breaking changes are allowed; `1.0.0` is the future stable milestone. Direct pushes blocked; everything lands via PR.
 
 The dev-tooling adapters (`MagicDuskIntegration`, `MagicTelescopeIntegration`) live in the sibling `magic_devtools` package; magic core has zero dependency on `fluttersdk_dusk` / `fluttersdk_telescope`. CLI/scaffolding internals: `CLAUDE.local.md`. LLM-agent surface: `skills/magic-framework/SKILL.md`. Consumer overview: `README.md`.
 
 ## The example app
 
-`magic/example/` is magic's in-repo smoke reference: 17 dart files, pinned `magic: {path: ..}`, runs in magic's CI, regenerated per release by `magic:install`, and published on pub.dev's package example tab. It intentionally declares no dependency of its own beyond `magic`, to keep CI overhead low; `magic` still pulls a few plugins transitively, so the built example is not plugin-free. It cannot take a hosted plugin either: **pub refuses to unify path and hosted dependencies in the same resolution graph**, so adding `magic_notifications: ^0.0.2` beside `magic: {path: ..}` fails with "Because magic_notifications depends on magic from hosted and example depends on magic from path, magic_notifications is forbidden." A real app starts from `flutter create` plus `magic:install`, and adds `magic_starter` and the plugins it needs as hosted dependencies.
+`magic/example/` is magic's in-repo smoke reference: 17 dart files, pinned `magic: {path: ..}`, runs in magic's CI, regenerated per release by `magic:install`, and published on pub.dev's package example tab. It declares only `magic`, `dowel` and `material_ui` (its files import the last directly), to keep CI overhead low; `magic` still pulls a few plugins transitively, so the built example is not plugin-free. It cannot take a hosted plugin either: **pub refuses to unify path and hosted dependencies in the same resolution graph**, so adding `magic_notifications: ^0.0.2` beside `magic: {path: ..}` fails with "Because magic_notifications depends on magic from hosted and example depends on magic from path, magic_notifications is forbidden." A real app starts from `flutter create` plus `magic:install`, and adds `magic_starter` and the plugins it needs as hosted dependencies.
 
 ## Golden Rules (every change; self-check before reporting done)
 
@@ -47,31 +47,31 @@ Standard Flutter commands (`flutter test`, `dart analyze`, `dart format .`, `flu
 | `flutter test --coverage` | Tests + `coverage/lcov.info` (CI uploads to codecov) |
 | `flutter test test/<module>` | Single module |
 | `dart pub publish --dry-run` | Pre-release validation |
-| `dart run magic:artisan magic:install` | One-shot consumer bootstrap (hybrid installer) |
-| `dart run magic:artisan make:model User -mcf` | Generators: 20 `make:*` + `key:generate` |
+| `dart run magic:dowel magic:install` | One-shot consumer bootstrap (hybrid installer) |
+| `dart run magic:dowel make:model User -mcf` | Generators: 17 `make:*` |
 
-Magic ships an `artisan` executable (`pubspec.yaml` `executables: { artisan: }`, backed by `bin/artisan.dart`), so a consumer runs any command with `dart run magic:artisan <cmd>` once `magic` is a dependency: no global activate, no app-specific package name. `MagicArtisanProvider` supplies the commands; it also plugs into a consumer app's own aggregated artisan dispatcher when one exists.
+Magic ships a `dowel` executable (`pubspec.yaml` `executables: { dowel: }`, backed by `bin/dowel.dart`), so a consumer runs any command with `dart run magic:dowel <cmd>` once `magic` is a dependency: no global activate. `MagicDowelProvider` supplies the commands; the executable delegates to the consumer's `bin/dispatcher.dart` (scaffolded by `dart run dowel install`) when one exists, so plugin commands resolve. Never run `dart run magic:dowel` inside this repo and never add a `bin/dispatcher.dart` here: dowel would delegate to itself.
 
 ## Architecture
 
 **Pattern:** Service Provider + IoC Container + Facade. **Lifecycle:** `Magic.init()` → `Env.load()` → `configFactories` → providers `register()` (sync) → providers `boot()` (async) → router pre-build → ready. **Resolution:** facades are static stubs delegating to `Magic.make<T>('key')`; no `dart:mirrors`, bindings are string-keyed factory closures.
 
-Opt-in barrels alongside `lib/magic.dart` (the public API): `lib/cli.dart` (Flutter-free artisan provider, no Flutter import) and `lib/testing.dart` (test fakes).
+Opt-in barrels alongside `lib/magic.dart` (the public API): `lib/cli.dart` (Flutter-free dowel provider, no Flutter import) and `lib/testing.dart` (test fakes).
 
 ```
 lib/
 ├── magic.dart               # Barrel export (public API)
-├── config/                  # Default configs (app, auth, broadcasting, cache, database, routing, view)
+├── config/                  # Default configs (app, auth, cache, filesystems, localization, logging, network, routing, view)
 └── src/
     ├── foundation/          # MagicApp (IoC), Magic (bootstrap), ConfigRepository, Env
-    ├── facades/             # 18: Auth Cache Config Crypt DB Echo Event Gate Http Lang Launch Log Pick Route Schema Session Storage Vault
+    ├── facades/             # 13: Auth Cache Config Event Gate Http Lang Launch Log Route Session Storage Vault
     ├── auth/                # AuthManager, guards (Bearer/Basic/ApiKey), events
-    ├── broadcasting/        # BroadcastManager, Echo, Reverb/Null drivers (NOT auto-registered)
-    ├── cache/  database/  encryption/  events/  network/  storage/  security/
+    ├── database/            # eloquent/ base Model, casts, HasTimestamps, InteractsWithPersistence; contracts/ LocalModelStore
+    ├── cache/  events/  network/  storage/  security/
     ├── http/                # MagicController, middleware pipeline, Kernel
     ├── concerns/            # ValidatesRequests mixin (import from here, NOT http/)
     ├── localization/  logging/  routing/  support/  validation/  ui/
-    └── cli/                 # magic:install + 20 make:* generators on fluttersdk_artisan
+    └── cli/                 # magic:install + 17 make:* generators on dowel
 ```
 
 ## Testing rule that catches everyone
@@ -84,12 +84,13 @@ Every `setUp()` MUST call `MagicApp.reset()` + `Magic.flush()` — it clears the
 |---------|-----|
 | Facade call before `Magic.init()` | `await Magic.init()` in `main()` first |
 | Missing `Auth.manager.setUserFactory()` | Set it in `AppServiceProvider.boot()`; session restore fails without it. List AppServiceProvider BEFORE AuthServiceProvider |
-| `BroadcastServiceProvider` / `EncryptionServiceProvider` / `LaunchServiceProvider` | NOT auto-registered — add to the `providers` config explicitly |
+| `LaunchServiceProvider` | NOT auto-registered: add to the `providers` config explicitly. Plugin providers are added by `plugin:install` |
 | `configFactories` vs `configs` | Use `configFactories` for configs that read `Env.get()` |
 | `Event.register()` | Takes `List<Listener Function()>` (factories), not instances |
 | `routerConfig` before init | Only accessible after `Magic.init()` completes |
 | `ValidatesRequests` import | From `lib/src/concerns/`, not `http/` |
-| Web vs mobile DB | Web = in-memory SQLite (needs `web/sqlite3.wasm`), mobile = file-based |
+| `useLocal => true` model without `magic_local_storage` | Throws a `StateError` naming the plugin (nothing bound to `'local_model_store'`). SQLite, its web `sqlite3.wasm` and `Model.query()` live in the plugin |
+| IO `Storage.download` without `magic_picker` | Throws `UnsupportedError`: the plugin sets `LocalAdapterContract.downloadHandler`. Web is unchanged |
 | `MagicResponse.errors` format | Parses Laravel's `{"errors": {"field": ["msg"]}}` |
 | Relative paths in `pubspec_overrides.yaml` | Use ABSOLUTE ones. `.worktreeinclude` copies that file into worktrees under `.claude/worktrees/<slug>`, where `../magic_starter` resolves to `.claude/worktrees/magic_starter` and version solving fails on the first path dependency |
 
